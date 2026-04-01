@@ -56,9 +56,14 @@ class TestInnerDialogueCandidateAffectsResponse:
 
     def test_pipeline_passes_candidate_to_generator(self):
         """The pipeline must pass filtered_output as candidate_response (high resolution)."""
+        from datetime import datetime, timezone
+        from core.types import UnresolvedItem
         backend = MockLLMBackend()
         pipe = CognitivePipeline(llm_backend=backend)
-        pipe.engine.state.resolution = 0.7  # above insistence threshold so inner dialogue runs
+        pipe.engine.add_unresolved(UnresolvedItem(
+            id="t", source="contradiction", description="t",
+            created_at=datetime.now(timezone.utc), intensity=0.8, decay_rate=0.02,
+        ))
         pipe.process("hello", user_id="test_user")
         # The mock returns "I understand." which becomes the dialogue candidate.
         # After defense filtering, it flows into the generator's system prompt.
@@ -239,8 +244,13 @@ class TestRetryPreservesV2Context:
                 calls.append(system_prompt)
                 return "I understand."
 
+        from datetime import datetime, timezone
+        from core.types import UnresolvedItem
         pipe = CognitivePipeline(llm_backend=TrackingBackend())
-        pipe.engine.state.resolution = 0.7  # above insistence threshold so inner dialogue runs
+        pipe.engine.add_unresolved(UnresolvedItem(
+            id="t", source="contradiction", description="t",
+            created_at=datetime.now(timezone.utc), intensity=0.8, decay_rate=0.02,
+        ))
         pipe.process("hello", user_id="test")
 
         # All generator calls (first + possible retry) should contain
@@ -326,7 +336,7 @@ class TestRound1DominantPath:
         from core.dual_process.inner_dialogue import RESOLUTION_INSIST_THRESHOLD
         charged = ModulatorState(resolution=RESOLUTION_INSIST_THRESHOLD + 0.1)
         dialogue = InnerDialogue(backend=ApprovalBackend())
-        trace = dialogue.deliberate("I'm feeling down", state=charged)
+        trace = dialogue.deliberate("I'm feeling down", state=charged, current_event_intensity=0.5)
         assert trace.dominant_path == "fast", (
             f"dominant_path={trace.dominant_path} — round-1 approval should be 'fast'"
         )
@@ -508,3 +518,109 @@ class TestLLMCallReduction:
         assert elapsed_ms < 50, (
             f"Pipeline took {elapsed_ms:.1f}ms — non-LLM overhead should be < 50ms"
         )
+
+
+# ---------------------------------------------------------------------------
+# 14. Sticky inner-dialogue / self-check after spike + timing instrumentation
+# ---------------------------------------------------------------------------
+
+class TestStickyDialogueAndTimings:
+    """After a hostile spike, calm follow-up turns must not pay extra LLM
+    calls for inner dialogue or LLM self-check when only spike unresolved
+    items remain."""
+
+    class _CountingBackend:
+        """Tracks call count and returns parseable responses."""
+        def __init__(self) -> None:
+            self.call_count = 0
+        def generate(self, system_prompt: str, user_message: str) -> str:
+            self.call_count += 1
+            if "Evaluate this response" in system_prompt:
+                return "APPROVED: ok"
+            return "I understand."
+
+    def test_calm_turn_uses_1_call(self):
+        """A calm turn like 'how r u' uses exactly 1 LLM call."""
+        backend = self._CountingBackend()
+        pipe = CognitivePipeline(llm_backend=backend)
+        pipe.process("how r u", user_id="alice")
+        assert backend.call_count == 1
+
+    def test_hostile_turn_may_use_extra_calls(self):
+        """A hostile turn may use more than 1 call on that turn."""
+        backend = self._CountingBackend()
+        pipe = CognitivePipeline(llm_backend=backend)
+        pipe.process("You betrayed and deceived me completely!", user_id="alice")
+        # Hostile spike may trigger inner dialogue or LLM self-check
+        assert backend.call_count >= 1
+
+    def test_calm_after_spike_skips_dialogue_and_llm_self_check(self):
+        """After a hostile spike leaves only spike unresolved items,
+        a calm follow-up skips inner dialogue. LLM self-check may fire
+        if defense activates from residual arousal, but inner dialogue
+        must stay skipped (0 rounds)."""
+        backend = self._CountingBackend()
+        pipe = CognitivePipeline(llm_backend=backend)
+
+        # Hostile spike — creates spike unresolved item
+        pipe.process("You betrayed and deceived me completely!", user_id="alice")
+
+        # Verify spike created unresolved items
+        active = pipe.engine.active_unresolved()
+        assert len(active) > 0, "Spike should create unresolved items"
+        assert all(u.source == "spike" for u in active), (
+            f"Expected only spike unresolved, got: {[u.source for u in active]}"
+        )
+
+        # Simulate time passing so arousal decays and defense doesn't fire
+        pipe.engine.state.arousal = 0.5
+        pipe.engine.state.valence = 0.5
+
+        # Calm follow-up — should be 1 call (master only, no dialogue, no defense)
+        backend.call_count = 0
+        result = pipe.process("how r u", user_id="alice")
+        assert result.debug.dialogue_trace.dominant_path == "skip"
+        assert result.debug.dialogue_trace.total_llm_calls == 0
+        assert backend.call_count == 1, (
+            f"Expected 1 call for calm turn after spike, got {backend.call_count}"
+        )
+
+    def test_calm_with_non_spike_unresolved_may_deliberate(self):
+        """A calm turn with non-spike unresolved items (e.g. contradiction)
+        may still trigger inner dialogue."""
+        from datetime import datetime, timezone
+        from core.types import UnresolvedItem
+
+        backend = self._CountingBackend()
+        pipe = CognitivePipeline(llm_backend=backend)
+        pipe.engine.add_unresolved(UnresolvedItem(
+            id="c1", source="contradiction",
+            description="said X then Y",
+            created_at=datetime.now(timezone.utc),
+            intensity=0.8, decay_rate=0.02,
+        ))
+
+        pipe.process("how r u", user_id="alice")
+        # Non-spike unresolved → inner dialogue fires
+        assert backend.call_count >= 2, (
+            f"Expected >=2 calls with non-spike unresolved, got {backend.call_count}"
+        )
+
+    def test_stage_timings_present(self):
+        """stage_timings_ms is present and contains required keys."""
+        pipe = CognitivePipeline()
+        result = pipe.process("hello", user_id="alice")
+        timings = result.debug.stage_timings_ms
+        assert isinstance(timings, dict)
+        required_keys = {
+            "anticipation", "contagion", "event_classification",
+            "memory_retrieval", "inner_dialogue", "generator",
+            "self_check", "total",
+        }
+        assert required_keys.issubset(timings.keys()), (
+            f"Missing timing keys: {required_keys - timings.keys()}"
+        )
+        # All values are non-negative floats
+        for key in required_keys:
+            assert isinstance(timings[key], float)
+            assert timings[key] >= 0

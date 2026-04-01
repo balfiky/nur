@@ -19,7 +19,9 @@ v2 processing flow:
 16. Post-processing: update memory, drain energy
 17. [Session end] Digestion (0-1 LLM call)
 
-LLM call budget: 1-6 per message (typical: 1). Calm messages skip inner dialogue entirely.
+LLM call budget: 1-6 per message (typical: 1). Inner dialogue only fires when
+non-spike unresolved items exist (contradictions, deadlocks). Spike residue alone
+does not trigger extra calls on follow-up turns.
 """
 
 from __future__ import annotations
@@ -128,6 +130,9 @@ class DebugState:
     unresolved_count: int = 0
     unresolved_items: list[UnresolvedItem] = field(default_factory=list)
 
+    # Timing instrumentation (ms)
+    stage_timings_ms: dict[str, float] = field(default_factory=dict)
+
 
 # ---------------------------------------------------------------------------
 # Pipeline response
@@ -208,6 +213,8 @@ class CognitivePipeline:
         """
         debug = DebugState(user_message=user_message, user_id=user_id)
         person = self.person_profiles.get_or_create(user_id)
+        _t_total = time.perf_counter()
+        timings: dict[str, float] = {}
 
         # ---- Step 0: Auto-decay based on elapsed time ----
         now = time.time()
@@ -218,6 +225,7 @@ class CognitivePipeline:
         self._last_turn_time = now
 
         # ---- Step 1: ANTICIPATION (0 LLM calls) ----
+        _ts = time.perf_counter()
         recent_msgs = [
             m["content"] for m in self._conversation_history
             if m["role"] == "user"
@@ -234,11 +242,14 @@ class CognitivePipeline:
         )
         self.anticipation_engine.apply_pre_shift(self.engine.state, anticipation)
         debug.anticipation = anticipation
+        timings["anticipation"] = (time.perf_counter() - _ts) * 1000
 
         # ---- Step 2: CONTAGION (0 LLM calls — rule-based) ----
+        _ts = time.perf_counter()
         detected = detect_emotion(user_message, llm_client=None)
         debug.detected_emotion = detected
         self.engine.apply_contagion(detected.arousal, detected.valence, person.trust)
+        timings["contagion"] = (time.perf_counter() - _ts) * 1000
 
         # ---- Step 3: Context switch (non-additive — sets resting target) ----
         shift = self.person_profiles.get_baseline_shift(user_id)
@@ -246,11 +257,13 @@ class CognitivePipeline:
         debug.baseline_shift_applied = shift.to_dict()
 
         # ---- Step 4: Event classification + PSI engine update ----
+        _ts = time.perf_counter()
         event = self._classify_event(user_message, detected)
         is_spike = self.engine.update(event)
         debug.event_classified = event.event_type.value
         debug.event_intensity = event.intensity
         debug.is_spike = is_spike
+        timings["event_classification"] = (time.perf_counter() - _ts) * 1000
 
         # ---- Step 5: Resolution update (0 LLM calls) ----
         # Check if this event creates new unresolved items
@@ -278,12 +291,14 @@ class CognitivePipeline:
             self.long_term.store_spike(spike_entry)
 
         # ---- Step 8: Memory retrieval ----
+        _ts = time.perf_counter()
         retrieved = self.long_term.retrieve(
             self.engine.state,
             source_person=user_id,
             limit=5,
         )
         debug.retrieved_memories = retrieved
+        timings["memory_retrieval"] = (time.perf_counter() - _ts) * 1000
 
         # ---- Step 9: Profile lookup ----
         person = self.person_profiles.get_or_create(user_id)
@@ -321,6 +336,7 @@ class CognitivePipeline:
         debug.unresolved_items = list(active_unresolved)
 
         # ---- Step 11: INNER DIALOGUE (0-5 LLM calls; 0 for calm) ----
+        _ts = time.perf_counter()
         contagion_summary = (
             f"arousal={detected.arousal:.2f}, valence={detected.valence:.2f}, "
             f"intensity={detected.intensity:.2f}"
@@ -337,8 +353,10 @@ class CognitivePipeline:
             unresolved=self.engine.active_unresolved(),
             contagion_summary=contagion_summary,
             short_term_summary=short_term_summary,
+            current_event_intensity=event.intensity,
         )
         debug.dialogue_trace = dialogue_trace
+        timings["inner_dialogue"] = (time.perf_counter() - _ts) * 1000
 
         # If deadlock, feed it to resolution modulator
         deadlock_item = self.inner_dialogue.create_deadlock_item(dialogue_trace)
@@ -359,6 +377,7 @@ class CognitivePipeline:
         debug.defense_activation = defense
 
         # ---- Step 13: MASTER LLM (1 LLM call) ----
+        _ts = time.perf_counter()
         defense_instruction = ""
         if defense:
             defense_instruction = DEFENSE_INSTRUCTIONS.get(defense.defense_type, "")
@@ -381,9 +400,17 @@ class CognitivePipeline:
             ctx, user_message, self._conversation_history
         )
         debug.generation_attempts = 1
+        timings["generator"] = (time.perf_counter() - _ts) * 1000
 
-        # ---- Self-check (rule-based default; LLM only when intensity > 0.7) ----
-        checker = self._self_check_llm if event.intensity > 0.7 else self.self_checker
+        # ---- Self-check (rule-based default; LLM only when warranted) ----
+        _ts = time.perf_counter()
+        checker = (
+            self._self_check_llm
+            if self._should_use_llm_self_check(
+                event, contradiction_flags, dialogue_trace, defense,
+            )
+            else self.self_checker
+        )
         check_result = checker.check(gen_result.response, ctx)
         debug.self_check_passed = check_result.passed
         debug.self_check_issues = check_result.issues
@@ -416,6 +443,7 @@ class CognitivePipeline:
             debug.correction_note = check_result.correction_note
             debug.generation_attempts = 2
 
+        timings["self_check"] = (time.perf_counter() - _ts) * 1000
         debug.response = gen_result.response
 
         # ---- Step 14: Post-processing ----
@@ -464,6 +492,9 @@ class CognitivePipeline:
             )
             self.self_profile.persist_defense_event(de)
 
+        timings["total"] = (time.perf_counter() - _t_total) * 1000
+        debug.stage_timings_ms = timings
+
         return PipelineResponse(response=gen_result.response, debug=debug)
 
     # ------------------------------------------------------------------
@@ -500,6 +531,28 @@ class CognitivePipeline:
         # Cap at 3 observations per turn
         for trait, value, context in observations[:3]:
             self.self_profile.record_behavior(trait, value, context)
+
+    # ------------------------------------------------------------------
+    # Self-check gating
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _should_use_llm_self_check(
+        event: EmotionalEvent,
+        contradiction_flags: list[str],
+        dialogue_trace: InnerDialogueTrace | None,
+        defense: DefenseActivation | None,
+    ) -> bool:
+        """Use the LLM self-check only when the turn truly warrants it."""
+        if event.intensity > 0.85:
+            return True
+        if contradiction_flags:
+            return True
+        if dialogue_trace is not None and dialogue_trace.reached_deadlock:
+            return True
+        if defense is not None:
+            return True
+        return False
 
     # ------------------------------------------------------------------
     # Resolution source detection (v2)

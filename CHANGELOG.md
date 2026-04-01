@@ -4,6 +4,36 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.3.5 — 2026-04-02 (Sticky-spike fix + self-check tightening + timing)
+
+### Fix: sticky inner-dialogue activation after spikes
+- `InnerDialogue.deliberate()` now accepts `current_event_intensity` parameter
+- `_max_rounds()` checks both event intensity and unresolved item sources
+- If `current_event_intensity < 0.4` and all unresolved items are spike-sourced → skip (0 rounds)
+- Non-spike unresolved items (contradiction, deadlock, topic) still trigger deliberation
+- Prevents calm follow-up turns from paying 3x latency after a hostile spike
+
+### Tighter LLM self-check gating
+- New `_should_use_llm_self_check()` helper in pipeline
+- LLM self-check fires only when: `intensity > 0.85`, contradictions present, deadlock reached, or defense activated
+- Previously: any `intensity > 0.7` triggered LLM self-check
+
+### Timing instrumentation
+- `stage_timings_ms` added to `DebugState` with per-stage millisecond timings
+- Timed stages: anticipation, contagion, event_classification, memory_retrieval, inner_dialogue, generator, self_check, total
+- Exposed in `/chat` debug payload via `stage_timings_ms` field
+
+### Testing
+- 508 tests total (5 new regression tests)
+- `test_calm_turn_uses_1_call` — calm message = 1 LLM call
+- `test_hostile_turn_may_use_extra_calls` — hostile turns may use more
+- `test_calm_after_spike_skips_dialogue_and_llm_self_check` — spike residue doesn't trigger dialogue on calm follow-up
+- `test_calm_with_non_spike_unresolved_may_deliberate` — contradiction/deadlock unresolved items still trigger dialogue
+- `test_stage_timings_present` — all timing keys present and valid
+- Zero regressions
+
+---
+
 ## v0.3.4 — 2026-04-02 (Inner dialogue → resolution-gated only)
 
 ### Inner dialogue fires only on unresolved tension

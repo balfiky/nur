@@ -36,6 +36,10 @@ def _charged_state(**overrides) -> ModulatorState:
     return ModulatorState(**defaults)
 
 
+# Event intensity that ensures the new gating logic does not skip dialogue.
+_CHARGED_EVENT_INTENSITY = 0.5
+
+
 # ---------------------------------------------------------------------------
 # Controllable mock backend
 # ---------------------------------------------------------------------------
@@ -127,6 +131,7 @@ class TestRound1Approval:
         trace = dialogue.deliberate(
             user_message="I'm feeling down",
             state=_charged_state(),
+            current_event_intensity=_CHARGED_EVENT_INTENSITY,
         )
         assert len(trace.rounds) == 1
         assert trace.rounds[0].slow_path_approved is True
@@ -141,7 +146,7 @@ class TestRound1Approval:
             "APPROVED: all good",
         ])
         dialogue = InnerDialogue(backend=backend)
-        trace = dialogue.deliberate("hello", state=_charged_state())
+        trace = dialogue.deliberate("hello", state=_charged_state(), current_event_intensity=_CHARGED_EVENT_INTENSITY)
         r = trace.rounds[0]
         assert r.round_number == 1
         assert r.fast_path_candidate == "Gut response here."
@@ -166,6 +171,7 @@ class TestRound2Revision:
         trace = dialogue.deliberate(
             user_message="I'm really upset",
             state=_charged_state(),
+            current_event_intensity=_CHARGED_EVENT_INTENSITY,
         )
         assert len(trace.rounds) == 2
         assert trace.rounds[0].slow_path_approved is False
@@ -184,7 +190,7 @@ class TestRound2Revision:
             "APPROVED: ok now",
         ])
         dialogue = InnerDialogue(backend=backend)
-        trace = dialogue.deliberate("help", state=_charged_state())
+        trace = dialogue.deliberate("help", state=_charged_state(), current_event_intensity=_CHARGED_EVENT_INTENSITY)
         assert trace.rounds[1].revision_notes is not None
         assert "dismissive" in trace.rounds[1].revision_notes
 
@@ -196,7 +202,7 @@ class TestRound2Revision:
             "APPROVED: ok",
         ])
         dialogue = InnerDialogue(backend=backend)
-        trace = dialogue.deliberate("msg", state=_charged_state())
+        trace = dialogue.deliberate("msg", state=_charged_state(), current_event_intensity=_CHARGED_EVENT_INTENSITY)
         # 1 objection out of 2 rounds = 0.5 tension
         assert trace.tension_level == pytest.approx(0.5, abs=0.01)
 
@@ -219,6 +225,7 @@ class TestRound3Deadlock:
         trace = dialogue.deliberate(
             user_message="What do you think?",
             state=_charged_state(),
+            current_event_intensity=_CHARGED_EVENT_INTENSITY,
         )
         assert len(trace.rounds) == 3
         assert trace.total_llm_calls == 5
@@ -234,7 +241,7 @@ class TestRound3Deadlock:
             "synthesis",
         ])
         dialogue = InnerDialogue(backend=backend)
-        trace = dialogue.deliberate("msg", state=_charged_state())
+        trace = dialogue.deliberate("msg", state=_charged_state(), current_event_intensity=_CHARGED_EVENT_INTENSITY)
         # 2 objections out of 3 rounds ≈ 0.67
         assert trace.tension_level > 0.5
 
@@ -245,7 +252,7 @@ class TestRound3Deadlock:
             "arbiter synthesis",
         ])
         dialogue = InnerDialogue(backend=backend)
-        trace = dialogue.deliberate("msg", state=_charged_state())
+        trace = dialogue.deliberate("msg", state=_charged_state(), current_event_intensity=_CHARGED_EVENT_INTENSITY)
         item = dialogue.create_deadlock_item(trace)
         assert item is not None
         assert item.source == "dialogue_deadlock"
@@ -276,6 +283,7 @@ class TestArousalBypass:
         trace = dialogue.deliberate(
             user_message="This is urgent!",
             state=_charged_state(arousal=0.9),
+            current_event_intensity=_CHARGED_EVENT_INTENSITY,
         )
         assert len(trace.rounds) == 1
         assert trace.total_llm_calls == 1
@@ -293,6 +301,7 @@ class TestArousalBypass:
         trace = dialogue.deliberate(
             user_message="test",
             state=_charged_state(arousal=0.8),
+            current_event_intensity=_CHARGED_EVENT_INTENSITY,
         )
         # At exactly 0.8, does not bypass (> not >=)
         assert trace.total_llm_calls >= 2
@@ -303,6 +312,7 @@ class TestArousalBypass:
         trace = dialogue.deliberate(
             user_message="test",
             state=_charged_state(arousal=0.81),
+            current_event_intensity=_CHARGED_EVENT_INTENSITY,
         )
         assert trace.total_llm_calls == 1
 
@@ -321,6 +331,7 @@ class TestEnergyBypass:
         trace = dialogue.deliberate(
             user_message="How are you?",
             state=_charged_state(energy=0.1),
+            current_event_intensity=_CHARGED_EVENT_INTENSITY,
         )
         assert len(trace.rounds) == 1
         assert trace.total_llm_calls == 1
@@ -336,6 +347,7 @@ class TestEnergyBypass:
         trace = dialogue.deliberate(
             user_message="test",
             state=_charged_state(energy=0.2),
+            current_event_intensity=_CHARGED_EVENT_INTENSITY,
         )
         assert trace.total_llm_calls >= 2
 
@@ -345,6 +357,7 @@ class TestEnergyBypass:
         trace = dialogue.deliberate(
             user_message="test",
             state=_charged_state(energy=0.19),
+            current_event_intensity=_CHARGED_EVENT_INTENSITY,
         )
         assert trace.total_llm_calls == 1
 
@@ -365,6 +378,7 @@ class TestResolutionInsistence:
         trace = dialogue.deliberate(
             user_message="Let's talk about something else",
             state=ModulatorState(resolution=0.7),
+            current_event_intensity=_CHARGED_EVENT_INTENSITY,
         )
         assert len(trace.rounds) == 3
         assert trace.reached_deadlock is True
@@ -500,7 +514,7 @@ class TestTraceIntegrity:
         """Default MockLLMBackend returns 'I understand.' — unparseable triggers
         retry then objection, leading to multi-round deliberation."""
         dialogue = InnerDialogue()
-        trace = dialogue.deliberate("hello", state=_charged_state())
+        trace = dialogue.deliberate("hello", state=_charged_state(), current_event_intensity=_CHARGED_EVENT_INTENSITY)
         # Mock returns "I understand." which is unparseable → retry → still unparseable → objection
         # This causes round 2+ (revision + slow check + retry + possibly arbiter)
         assert len(trace.rounds) >= 2
@@ -520,6 +534,7 @@ class TestEdgeCases:
         trace = dialogue.deliberate(
             user_message="emergency!",
             state=ModulatorState(arousal=0.9, resolution=0.8),
+            current_event_intensity=_CHARGED_EVENT_INTENSITY,
         )
         # Arousal bypass wins
         assert trace.total_llm_calls == 1
@@ -532,6 +547,7 @@ class TestEdgeCases:
         trace = dialogue.deliberate(
             user_message="let's discuss",
             state=ModulatorState(energy=0.1, resolution=0.8),
+            current_event_intensity=_CHARGED_EVENT_INTENSITY,
         )
         assert trace.total_llm_calls == 1
         assert trace.dominant_path == "fast"
@@ -545,7 +561,7 @@ class TestEdgeCases:
             "response", "APPROVED: ok",
         ])
         dialogue = InnerDialogue(backend=backend)
-        dialogue.deliberate("hi bob", state=_charged_state(), person=person)
+        dialogue.deliberate("hi bob", state=_charged_state(), person=person, current_event_intensity=_CHARGED_EVENT_INTENSITY)
         fast_prompt = backend.prompts[0][0]
         assert "Bob" in fast_prompt
         assert "trust=0.30" in fast_prompt
@@ -560,7 +576,7 @@ class TestEdgeCases:
             "response", "APPROVED: ok",
         ])
         dialogue = InnerDialogue(backend=backend)
-        dialogue.deliberate("test", state=_charged_state(), self_profile=self_p)
+        dialogue.deliberate("test", state=_charged_state(), self_profile=self_p, current_event_intensity=_CHARGED_EVENT_INTENSITY)
         slow_prompt = backend.prompts[1][0]
         assert "empathetic" in slow_prompt
         assert "avoidant" in slow_prompt

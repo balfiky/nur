@@ -267,6 +267,7 @@ class InnerDialogue:
         unresolved: list[UnresolvedItem] | None = None,
         contagion_summary: str = "",
         short_term_summary: str = "",
+        current_event_intensity: float = 0.0,
     ) -> InnerDialogueTrace:
         """Run the deliberation loop. Returns full trace."""
         self._llm_calls = 0
@@ -275,7 +276,7 @@ class InnerDialogue:
         rounds: list[DialogueRound] = []
 
         # Determine max rounds from control dynamics
-        max_rounds = self._max_rounds(state)
+        max_rounds = self._max_rounds(state, current_event_intensity, unresolved)
 
         # Calm message: skip inner dialogue entirely (0 LLM calls)
         # Master generator will produce the response from scratch
@@ -410,21 +411,35 @@ class InnerDialogue:
     # Control dynamics
     # ------------------------------------------------------------------
 
-    def _max_rounds(self, state: ModulatorState) -> int:
+    def _max_rounds(
+        self,
+        state: ModulatorState,
+        current_event_intensity: float = 0.0,
+        unresolved: list[UnresolvedItem] | None = None,
+    ) -> int:
         """Determine max deliberation rounds from emotional state.
 
-        Currently always returns 0 (skip) — master generator has full context
-        and inner dialogue adds 2+ API calls of latency per message.
-        Inner dialogue remains fully functional and can be re-enabled by
-        raising RESOLUTION_INSIST_THRESHOLD gating or removing the early return.
+        Skips inner dialogue unless there is genuine unresolved tension that
+        is not purely spike residue. A calm turn after a hostile spike should
+        not pay the latency cost of deliberation.
         """
-        # Only deliberate when unresolved tension is high enough to justify latency
+        unresolved = unresolved or []
+
+        # If the current event is mild and the only unresolved items are
+        # spike residue, skip — there is nothing to deliberate about.
+        if current_event_intensity < 0.4:
+            non_spike = [u for u in unresolved if u.source != "spike"]
+            if not non_spike:
+                return 0
+
+        # Only deliberate when unresolved tension is high enough
         if state.resolution > RESOLUTION_INSIST_THRESHOLD:
             if state.arousal > AROUSAL_BYPASS_THRESHOLD:
                 return 1  # too activated for slow path
             if state.energy < ENERGY_BYPASS_THRESHOLD:
                 return 1  # too tired for slow path
             return MAX_ROUNDS
+
         # Everything else: skip inner dialogue (0 rounds, 0 LLM calls)
         return 0
 

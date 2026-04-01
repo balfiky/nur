@@ -192,12 +192,13 @@ class TestInnerDialogueDisagreement:
             state=state,
             unresolved=[
                 UnresolvedItem(
-                    id="u1", source="spike",
+                    id="u1", source="contradiction",
                     description="Unprocessed betrayal event",
                     created_at=datetime.now(timezone.utc),
                     intensity=0.7, decay_rate=0.03,
                 ),
             ],
+            current_event_intensity=0.5,
         )
         assert len(trace.rounds) == 2
         assert trace.rounds[0].slow_path_approved is False
@@ -240,6 +241,7 @@ class TestInnerDialogueDisagreement:
         trace = dialogue.deliberate(
             user_message="This is serious",
             state=state,
+            current_event_intensity=0.5,
         )
         assert trace.reached_deadlock is True
         assert len(trace.rounds) == 3
@@ -250,22 +252,34 @@ class TestInnerDialogueDisagreement:
         assert item.decay_rate == 0.10
 
     def test_high_resolution_forces_max_rounds(self):
-        """Resolution > 0.6 → slow path insists, max_rounds = 3."""
+        """Resolution > 0.6 + non-spike unresolved + charged event → max_rounds = 3."""
         dialogue = InnerDialogue(backend=MockLLMBackend())
         state = ModulatorState(resolution=0.8, arousal=0.3, energy=0.9)
-        assert dialogue._max_rounds(state) == 3
+        unresolved = [UnresolvedItem(
+            id="u", source="contradiction", description="t",
+            created_at=datetime.now(timezone.utc), intensity=0.5, decay_rate=0.02,
+        )]
+        assert dialogue._max_rounds(state, current_event_intensity=0.5, unresolved=unresolved) == 3
 
     def test_arousal_bypass_overrides_resolution(self):
         """Even with high resolution, arousal > 0.8 → 1 round bypass."""
         dialogue = InnerDialogue(backend=MockLLMBackend())
         state = ModulatorState(resolution=0.9, arousal=0.85, energy=0.9)
-        assert dialogue._max_rounds(state) == 1
+        unresolved = [UnresolvedItem(
+            id="u", source="contradiction", description="t",
+            created_at=datetime.now(timezone.utc), intensity=0.5, decay_rate=0.02,
+        )]
+        assert dialogue._max_rounds(state, current_event_intensity=0.5, unresolved=unresolved) == 1
 
     def test_energy_bypass_overrides_resolution(self):
         """Low energy < 0.2 → 1 round bypass regardless of resolution."""
         dialogue = InnerDialogue(backend=MockLLMBackend())
         state = ModulatorState(resolution=0.9, arousal=0.3, energy=0.15)
-        assert dialogue._max_rounds(state) == 1
+        unresolved = [UnresolvedItem(
+            id="u", source="contradiction", description="t",
+            created_at=datetime.now(timezone.utc), intensity=0.5, decay_rate=0.02,
+        )]
+        assert dialogue._max_rounds(state, current_event_intensity=0.5, unresolved=unresolved) == 1
 
 
 # ---------------------------------------------------------------------------

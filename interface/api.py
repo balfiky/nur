@@ -286,4 +286,7 @@ def _debug_to_dict(debug) -> dict:
         for item in (debug.unresolved_items or [])
     ]
 
+    # Timing instrumentation
+    d["stage_timings_ms"] = debug.stage_timings_ms
+
     return d

@@ -2,9 +2,27 @@
 
 import pytest
 
+from datetime import datetime, timezone
+
 from core.dual_process.generator import MockLLMBackend
-from core.types import Anticipation, InnerDialogueTrace, DefenseActivation
+from core.types import Anticipation, InnerDialogueTrace, DefenseActivation, UnresolvedItem
 from pipeline import CognitivePipeline, DebugState, PipelineResponse
+
+
+def _add_non_spike_unresolved(pipe: CognitivePipeline) -> None:
+    """Add a non-spike unresolved item so inner dialogue is not gated out.
+
+    Also forces resolution above the insistence threshold after engine
+    recalculation by using high-intensity items.
+    """
+    pipe.engine.add_unresolved(UnresolvedItem(
+        id="test_contradiction",
+        source="contradiction",
+        description="test contradiction",
+        created_at=datetime.now(timezone.utc),
+        intensity=0.8,
+        decay_rate=0.02,
+    ))
 
 
 # ---------------------------------------------------------------------------
@@ -110,34 +128,34 @@ class TestLLMCallBudget:
         assert backend.call_count == 1, f"Expected 1 call for calm message, got {backend.call_count}"
 
     def test_charged_message_with_resolution_3_calls(self):
-        """High resolution: fast(1) + slow(1) + master(1) = 3."""
+        """Non-spike unresolved item → fast(1) + slow(1) + master(1) = 3."""
         backend = CountingLLMBackend()
         pipe = CognitivePipeline(llm_backend=backend)
-        pipe.engine.state.resolution = 0.7  # above insistence threshold
+        _add_non_spike_unresolved(pipe)
         pipe.process("This is frustrating", user_id="alice")
         assert backend.call_count == 3, f"Expected 3 calls with high resolution, got {backend.call_count}"
 
     def test_high_arousal_bypasses_slow_path(self):
-        """High arousal + high resolution → fast path only (skips slow path).
+        """High arousal + non-spike unresolved → fast path only.
 
         fast_only(1) + master(1) = 2.
         """
         backend = CountingLLMBackend()
         pipe = CognitivePipeline(llm_backend=backend)
         pipe.engine.state.arousal = 0.95
-        pipe.engine.state.resolution = 0.7
+        _add_non_spike_unresolved(pipe)
         pipe.process("Emergency!", user_id="alice")
         assert backend.call_count == 2
 
     def test_low_energy_bypasses_slow_path(self):
-        """Low energy + high resolution → fast path only, fewer calls.
+        """Low energy + non-spike unresolved → fast path only.
 
         fast_only(1) + master(1) = 2.
         """
         backend = CountingLLMBackend()
         pipe = CognitivePipeline(llm_backend=backend)
         pipe.engine.state.energy = 0.1
-        pipe.engine.state.resolution = 0.7
+        _add_non_spike_unresolved(pipe)
         pipe.process("Hello", user_id="alice")
         assert backend.call_count == 2
 
@@ -280,9 +298,9 @@ class TestAnticipationIntegration:
 
 class TestInnerDialogueIntegration:
     def test_dialogue_trace_in_debug(self):
-        """High resolution triggers inner dialogue with rounds."""
+        """Non-spike unresolved triggers inner dialogue with rounds."""
         pipe = CognitivePipeline(llm_backend=MockLLMBackend())
-        pipe.engine.state.resolution = 0.7  # above insistence threshold
+        _add_non_spike_unresolved(pipe)
         result = pipe.process("What do you think?", user_id="alice")
         trace = result.debug.dialogue_trace
         assert trace is not None
@@ -290,9 +308,9 @@ class TestInnerDialogueIntegration:
         assert trace.final_candidate != ""
 
     def test_dialogue_trace_with_counting_backend(self):
-        """CountingLLMBackend + high resolution → APPROVED in 1 round."""
+        """CountingLLMBackend + non-spike unresolved → APPROVED in 1 round."""
         pipe = CognitivePipeline(llm_backend=CountingLLMBackend())
-        pipe.engine.state.resolution = 0.7  # above insistence threshold
+        _add_non_spike_unresolved(pipe)
         result = pipe.process("Hello", user_id="alice")
         trace = result.debug.dialogue_trace
         assert trace.rounds[0].slow_path_approved is True
