@@ -24,6 +24,8 @@ _cfg = get_config().person
 TRUST_POSITIVE_DELTA = _cfg.trust_positive_delta
 TRUST_NEGATIVE_DELTA = _cfg.trust_negative_delta
 PRIMACY_INTERACTION_THRESHOLD = _cfg.primacy_interaction_threshold
+PRIMACY_DECAY_PER_INTERACTION = _cfg.primacy_decay_per_interaction
+PRIMACY_FLOOR = _cfg.primacy_floor
 
 
 class PersonProfileManager:
@@ -149,10 +151,12 @@ class PersonProfileManager:
         profile.interaction_count += 1
         is_primacy = profile.interaction_count <= PRIMACY_INTERACTION_THRESHOLD
 
-        # Decay primacy weight as interactions accumulate
+        # Decay primacy weight as interactions accumulate (config-driven)
         if profile.interaction_count > PRIMACY_INTERACTION_THRESHOLD:
-            decay = 0.02 * (profile.interaction_count - PRIMACY_INTERACTION_THRESHOLD)
-            profile.primacy_weight = max(0.3, profile.primacy_weight - decay)
+            decay = PRIMACY_DECAY_PER_INTERACTION * (
+                profile.interaction_count - PRIMACY_INTERACTION_THRESHOLD
+            )
+            profile.primacy_weight = max(PRIMACY_FLOOR, profile.primacy_weight - decay)
 
         self.save(profile)
 

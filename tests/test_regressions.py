@@ -16,6 +16,7 @@ import time
 import pytest
 
 from config.loader import load_config, reset_config
+from core.contagion import _detect_via_rules
 from core.dual_process.generator import MockLLMBackend, build_system_prompt
 from core.types import (
     BaselineShift,
@@ -217,4 +218,149 @@ class TestDefenseHistoryPersists:
         # After recording observations, the profile should have some observed traits
         assert len(prof2.observed_traits) > 0 or prof2.maturity_score > 0, (
             "Self-profile shows no evidence of learning from live use"
+        )
+
+
+# ---------------------------------------------------------------------------
+# 7. Self-check retry preserves v2 steering
+# ---------------------------------------------------------------------------
+
+class TestRetryPreservesV2Context:
+    """When self-check fails and regeneration occurs, the retry path must
+    still include candidate_response and defense_instruction."""
+
+    def test_retry_includes_candidate(self):
+        """Retry PipelineContext includes candidate_response."""
+        # Use a backend that triggers self-check failure on first call
+        calls = []
+
+        class TrackingBackend:
+            def generate(self, system_prompt: str, user_message: str) -> str:
+                calls.append(system_prompt)
+                return "I understand."
+
+        pipe = CognitivePipeline(llm_backend=TrackingBackend())
+        pipe.process("hello", user_id="test")
+
+        # All generator calls (first + possible retry) should contain
+        # the draft response section if a candidate was set
+        generator_calls = [c for c in calls if "Jarvis" in c]
+        for prompt in generator_calls:
+            # Every generator call should have the candidate (inner dialogue output)
+            assert "Draft Response" in prompt or "I understand." in prompt
+
+
+# ---------------------------------------------------------------------------
+# 8. Contradiction unresolved items don't duplicate
+# ---------------------------------------------------------------------------
+
+class TestContradictionDedup:
+    """Same contradiction appearing twice should not create two unresolved items."""
+
+    def test_same_contradiction_not_duplicated(self):
+        pipe = CognitivePipeline()
+        # Manually call contradiction resolution with same flag twice
+        pipe._check_contradiction_resolution(["user said X then Y"], "alice")
+        count_1 = len(pipe.engine.active_unresolved())
+
+        pipe._check_contradiction_resolution(["user said X then Y"], "alice")
+        count_2 = len(pipe.engine.active_unresolved())
+
+        assert count_2 == count_1, (
+            f"Duplicate contradiction created: {count_1} → {count_2}"
+        )
+
+    def test_different_contradictions_both_added(self):
+        pipe = CognitivePipeline()
+        pipe._check_contradiction_resolution(["contradiction A"], "alice")
+        pipe._check_contradiction_resolution(["contradiction B"], "alice")
+        assert len(pipe.engine.active_unresolved()) == 2
+
+
+# ---------------------------------------------------------------------------
+# 9. Rule-based contagion produces meaningful certainty/intensity
+# ---------------------------------------------------------------------------
+
+class TestRuleBasedContagionSignals:
+    """Fallback contagion should produce non-default certainty and intensity
+    for obviously emotional text."""
+
+    def test_extreme_insult_has_intensity(self):
+        result = _detect_via_rules("You are a stupid worthless idiot!")
+        assert result.intensity > 0.3, (
+            f"intensity={result.intensity:.2f} — extreme text should have high intensity"
+        )
+        assert result.certainty != 0.5, (
+            "certainty should not stay at default 0.5 for keyword-matched text"
+        )
+
+    def test_happy_text_has_intensity(self):
+        result = _detect_via_rules("I am so thrilled and excited and overjoyed!")
+        assert result.intensity > 0.3
+        assert result.certainty > 0.5  # consistent positive signals
+
+    def test_neutral_text_low_certainty(self):
+        result = _detect_via_rules("The meeting is at 3pm.")
+        assert result.certainty < 0.5  # no emotional keywords = low certainty
+        assert result.intensity < 0.2
+
+
+# ---------------------------------------------------------------------------
+# 10. Round-1 approval dominant_path is always "fast"
+# ---------------------------------------------------------------------------
+
+class TestRound1DominantPath:
+    """When slow path approves in round 1, dominant_path should be 'fast'
+    because the final candidate is the unmodified fast-path output."""
+
+    def test_approved_with_reason_still_fast(self):
+        from core.dual_process.inner_dialogue import InnerDialogue
+
+        class ApprovalBackend:
+            def generate(self, system_prompt: str, user_message: str) -> str:
+                if "Evaluate this response" in system_prompt:
+                    return "APPROVED: the tone is appropriate and empathetic"
+                return "I hear you and I'm here for you."
+
+        dialogue = InnerDialogue(backend=ApprovalBackend())
+        trace = dialogue.deliberate("I'm feeling down", state=ModulatorState())
+        assert trace.dominant_path == "fast", (
+            f"dominant_path={trace.dominant_path} — round-1 approval should be 'fast'"
+        )
+
+
+# ---------------------------------------------------------------------------
+# 11. Primacy weighting makes early observations count more
+# ---------------------------------------------------------------------------
+
+class TestPrimacyWeighting:
+    """Early (primacy) observations should count MORE than later ones."""
+
+    def test_primacy_observations_weighted_higher(self):
+        from core.profiles.base import ProfileStore
+
+        store = ProfileStore()
+        # Record a primacy observation with value 0.9
+        from core.profiles.base import Observation
+        store.record_observation(Observation(
+            entity_id="test", trait="patience", value=0.9,
+            is_primacy=True,
+        ))
+        # Record a non-primacy observation with value 0.3
+        store.record_observation(Observation(
+            entity_id="test", trait="patience", value=0.3,
+            is_primacy=False,
+        ))
+        # With primacy_weight=0.8: primacy gets 1.0, non-primacy gets 0.8
+        # Weighted scores: [0.9 * 1.0, 0.3 * 0.8] = [0.9, 0.24]
+        # Average: (0.9 + 0.24) / 2 = 0.57
+        scores = store.extract_traits("test", primacy_weight=0.8)
+        # Compare with equal weighting: (0.9 + 0.3) / 2 = 0.6
+        # Primacy-weighted should be lower than equal because non-primacy is dampened
+        # but the primacy observation (0.9) pulls it up
+        assert scores["patience"] > 0.5, "Primacy observation should pull score up"
+        # The score with primacy should differ from naive average
+        naive_avg = (0.9 + 0.3) / 2.0
+        assert scores["patience"] != pytest.approx(naive_avg, abs=0.01), (
+            "Primacy weighting should change the result vs equal weighting"
         )

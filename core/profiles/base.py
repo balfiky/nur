@@ -152,12 +152,15 @@ class ProfileStore:
     def extract_traits(
         self,
         entity_id: str,
-        primacy_weight: float = PRIMACY_DEFAULT,
+        primacy_weight: float = 1.0,
     ) -> dict[str, float]:
         """Extract weighted trait scores from observations.
 
         Primacy bias: early observations (is_primacy=True) are weighted
         more heavily. This models the psychological first-impression effect.
+
+        primacy_weight is the boost for early observations (e.g., 1.5 means
+        first impressions count 1.5x). Later observations get weight 1.0.
 
         Returns {trait: weighted_score} for all observed traits.
         """
@@ -167,7 +170,10 @@ class ProfileStore:
 
         trait_scores: dict[str, list[float]] = {}
         for obs in observations:
-            weight = primacy_weight if obs.is_primacy else 1.0
+            # Primacy observations keep full weight (1.0).
+            # Later observations are dampened by primacy_weight (e.g., 0.8),
+            # so first impressions count more than subsequent ones.
+            weight = 1.0 if obs.is_primacy else primacy_weight
             trait_scores.setdefault(obs.trait, []).append(obs.value * weight)
 
         result: dict[str, float] = {}

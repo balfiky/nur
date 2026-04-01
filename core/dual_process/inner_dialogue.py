@@ -319,7 +319,8 @@ class InnerDialogue:
         ))
 
         if approved:
-            return self._build_trace(rounds, fast_candidate, "fast" if not reason else "slow")
+            # Round 1 approval: final candidate is always the fast-path output
+            return self._build_trace(rounds, fast_candidate, "fast")
 
         # --- Round 2: Fast path revises ---
         if not self._should_continue(state, 2, max_rounds, rounds[-1]):

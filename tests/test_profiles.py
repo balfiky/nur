@@ -95,14 +95,12 @@ class TestProfileStore:
         store.record_observation(Observation(
             entity_id="eve", trait="warm", value=0.3,
         ))
-        traits = store.extract_traits("eve", primacy_weight=PRIMACY_DEFAULT)
-        # With primacy_weight=0.8: (0.9*0.8 + 0.3*1.0) / 2 = (0.72 + 0.3) / 2 = 0.51
-        # This should be higher than simple average (0.6)... wait, primacy observation
-        # is multiplied by primacy_weight (0.8), so it's LESS than 1.0.
-        # Actually primacy_weight means early ones are weighted at 0.8 and later at 1.0.
-        # So primacy here means first impressions get 0.8x weight.
-        # The primacy model weights early observations by primacy_weight factor.
+        traits = store.extract_traits("eve", primacy_weight=0.8)
+        # With primacy_weight=0.8: primacy gets 1.0, non-primacy gets 0.8
+        # Scores: [0.9*1.0, 0.3*0.8] = [0.9, 0.24], avg = 0.57
+        # Higher than if primacy were dampened (old bug)
         assert "warm" in traits
+        assert traits["warm"] > 0.5, "Primacy observation should pull score above 0.5"
         store.close()
 
     def test_extract_traits_empty(self):

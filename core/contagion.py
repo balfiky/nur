@@ -192,13 +192,30 @@ def _detect_via_rules(text: str) -> DetectedEmotion:
         valence = 0.5 + avg_valence * 0.5 + punct_valence_boost
         avg_arousal = sum(arousal_values) / len(arousal_values)
         arousal = avg_arousal + punct_arousal_boost
+
+        # Certainty: how consistent are the signals?
+        # If all keywords agree on direction, high certainty.
+        if len(valence_shifts) >= 2:
+            same_sign = all(v >= 0 for v in valence_shifts) or all(v <= 0 for v in valence_shifts)
+            certainty = 0.8 if same_sign else 0.4
+        else:
+            certainty = 0.6  # single keyword = moderate certainty
+
+        # Intensity: how many matches and how extreme?
+        match_count = len(valence_shifts)
+        avg_extremity = sum(abs(v) for v in valence_shifts) / match_count
+        intensity = min(1.0, avg_extremity * min(match_count, 3) / 3.0)
     else:
         valence = 0.5 + punct_valence_boost
         arousal = 0.5 + punct_arousal_boost
+        certainty = 0.3  # no keywords = low certainty
+        intensity = punct_arousal_boost  # only punctuation signal
 
     return DetectedEmotion(
         arousal=max(0.0, min(1.0, arousal)),
         valence=max(0.0, min(1.0, valence)),
+        certainty=max(0.0, min(1.0, certainty)),
+        intensity=max(0.0, min(1.0, intensity)),
     )
 
 

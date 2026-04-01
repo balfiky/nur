@@ -4,7 +4,43 @@ All notable changes to Project Nur are documented here.
 
 ---
 
-## v0.2.1 — 2026-04-01 (Second-pass fixes)
+## v0.2.2 — 2026-04-01 (Second-pass fixes 6-11)
+
+Second round of fixes from review. Primacy, dedup, labeling, contagion signals.
+
+### Fix 6: Self-check retry preserves v2 steering
+- Retry path now carries `candidate_response` and `defense_instruction` into correction context
+- Ensures regeneration after self-check failure still uses inner dialogue output
+
+### Fix 7: Primacy weighting corrected
+- Early (primacy) observations get weight 1.0, later ones dampened by `primacy_weight` (e.g. 0.8)
+- Was inverted: primacy observations were being dampened instead
+- `extract_traits()` default changed from `PRIMACY_DEFAULT` (0.8) to 1.0 (no dampening unless explicit)
+- `PRIMACY_DECAY_PER_INTERACTION` and `PRIMACY_FLOOR` now config-driven in person profiles
+
+### Fix 8: Contradiction deduplication
+- `_check_contradiction_resolution()` tracks `active_descs` set to prevent duplicate unresolved items
+- Same contradiction text no longer creates multiple entries
+
+### Fix 9: Round-1 dominant_path label
+- Round-1 approval now always returns `dominant_path="fast"` (the unmodified fast-path output)
+
+### Fix 10: Rule-based contagion signals
+- `_detect_via_rules()` now computes meaningful `certainty` and `intensity`
+- Certainty: 0.8 if all keywords agree on direction, 0.4 if mixed, 0.6 single keyword, 0.3 no keywords
+- Intensity: `avg_extremity * min(match_count, 3) / 3.0`
+
+### Fix 11: Generator output contract
+- generator.md: added "Return ONLY the final response text" rule
+- v2 prompt templates: added output-shape constraints
+
+### Testing
+- 493 tests total (8 new regression tests in test_regressions.py)
+- Zero regressions
+
+---
+
+## v0.2.1 — 2026-04-01 (Second-pass fixes 1-5)
 
 Fixes from SECOND_PASS_REVIEW.md phases 0-5. Makes v2 behaviorally real.
 

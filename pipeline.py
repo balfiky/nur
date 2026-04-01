@@ -379,6 +379,11 @@ class CognitivePipeline:
         debug.self_check_issues = check_result.issues
 
         if check_result.failed:
+            # Retry with correction note — preserve v2 candidate/defense context
+            correction_candidate = (
+                f"{ctx.candidate_response}\n\n"
+                f"[Self-check correction: {check_result.correction_note}]"
+            ) if ctx.candidate_response else check_result.correction_note
             correction_ctx = PipelineContext(
                 modulator_snapshot=ctx.modulator_snapshot,
                 person_profile=ctx.person_profile,
@@ -387,8 +392,10 @@ class CognitivePipeline:
                 values=ctx.values,
                 retrieved_memories=ctx.retrieved_memories,
                 short_term_history=ctx.short_term_history,
-                contradiction_flags=ctx.contradiction_flags + [check_result.correction_note],
+                contradiction_flags=ctx.contradiction_flags,
                 contagion=ctx.contagion,
+                candidate_response=correction_candidate,
+                defense_instruction=ctx.defense_instruction,
             )
             gen_result = self.generator.generate(
                 correction_ctx,
@@ -524,19 +531,23 @@ class CognitivePipeline:
     def _check_contradiction_resolution(
         self, contradiction_flags: list[str], user_id: str,
     ) -> None:
-        """Wire contradictions as unresolved items."""
+        """Wire contradictions as unresolved items (deduplicated)."""
         from datetime import datetime, timezone
         import uuid
 
+        active_descs = {i.description for i in self.engine.active_unresolved()}
         for flag in contradiction_flags:
-            self.engine.add_unresolved(UnresolvedItem(
-                id=f"contradiction_{uuid.uuid4().hex[:8]}",
-                source="contradiction",
-                description=flag[:120],
-                created_at=datetime.now(timezone.utc),
-                intensity=0.5,
-                decay_rate=0.02,
-            ))
+            desc = flag[:120]
+            if desc not in active_descs:
+                self.engine.add_unresolved(UnresolvedItem(
+                    id=f"contradiction_{uuid.uuid4().hex[:8]}",
+                    source="contradiction",
+                    description=desc,
+                    created_at=datetime.now(timezone.utc),
+                    intensity=0.5,
+                    decay_rate=0.02,
+                ))
+                active_descs.add(desc)
 
     def _check_topic_resolution(
         self, topics: list[TopicProfile],
