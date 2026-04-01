@@ -3,6 +3,7 @@
 Read PROJECT_NUR_ARCHITECTURE.md for the full vision.
 Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
+Read CHANGELOG.md for version history and what changed when.
 
 ## v1 Status: COMPLETE
 
