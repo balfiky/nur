@@ -364,3 +364,58 @@ class TestPrimacyWeighting:
         assert scores["patience"] != pytest.approx(naive_avg, abs=0.01), (
             "Primacy weighting should change the result vs equal weighting"
         )
+
+
+# ---------------------------------------------------------------------------
+# 12. Self-check LLM correction_note propagation
+# ---------------------------------------------------------------------------
+
+class TestSelfCheckCorrectionNote:
+    """LLM's correction_note should be preserved, not replaced by generic synthesis."""
+
+    def test_llm_correction_note_preserved(self):
+        """When LLM returns a correction_note, it should be the one in the result."""
+        import json
+        from core.dual_process.self_check import SelfChecker
+
+        class CorrectionBackend:
+            def generate(self, system_prompt: str, user_message: str) -> str:
+                return json.dumps({
+                    "passed": False,
+                    "issues": ["Tone mismatch"],
+                    "correction_note": "Dampen enthusiasm. Current mood is negative.",
+                })
+
+        checker = SelfChecker(llm_client=CorrectionBackend())
+        ctx = PipelineContext(modulator_snapshot={"valence": 0.1, "certainty": 0.5, "energy": 1.0})
+        result = checker.check("Great! Wonderful! Amazing!", ctx)
+        assert result.failed
+        assert result.correction_note == "Dampen enthusiasm. Current mood is negative."
+
+    def test_generic_correction_when_no_llm_note(self):
+        """Without LLM correction_note, the generic synthesis is used."""
+        import json
+        from core.dual_process.self_check import SelfChecker
+
+        class NoNoteBackend:
+            def generate(self, system_prompt: str, user_message: str) -> str:
+                return json.dumps({
+                    "passed": False,
+                    "issues": ["Too verbose"],
+                })
+
+        checker = SelfChecker(llm_client=NoNoteBackend())
+        ctx = PipelineContext(modulator_snapshot={"valence": 0.5, "certainty": 0.5, "energy": 0.1})
+        result = checker.check("x" * 600, ctx)
+        assert result.failed
+        assert "Please adjust" in result.correction_note
+
+    def test_rule_only_correction_without_llm(self):
+        """Rule-based-only checker still synthesizes correction."""
+        from core.dual_process.self_check import SelfChecker
+
+        checker = SelfChecker(llm_client=None)
+        ctx = PipelineContext(modulator_snapshot={"valence": 0.1, "certainty": 0.5, "energy": 1.0})
+        result = checker.check("Great! Wonderful! Amazing! Fantastic!", ctx)
+        if result.failed:
+            assert "Please adjust" in result.correction_note

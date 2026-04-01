@@ -5,9 +5,9 @@ Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
 Read CHANGELOG.md for version history and what changed when.
 
-## v2 Status: PHASES 1-5 COMPLETE + SECOND-PASS FIXES 1-11
+## v2 Status: PHASES 1-5 COMPLETE + ALL VERIFICATION FIXES
 
-v1 (288 tests) + v2 phases 1-7 (188 tests) + regression tests (17) = 493 tests, zero regressions.
+v1 (288 tests) + v2 phases 1-7 (188 tests) + regression tests (20) = 496 tests, zero regressions.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)

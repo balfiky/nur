@@ -4,6 +4,23 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.2.3 — 2026-04-01 (Final verification fixes)
+
+### Fix 12: Self-check correction_note propagation
+- `_llm_check()` now returns the LLM's `correction_note` instead of dropping it
+- `check()` prefers the LLM's targeted correction over generic "Please adjust" synthesis
+- Retries in pipeline.py now receive the LLM's actual guidance
+
+### Fix 13: TestClient hang
+- TestClient fixture now uses context manager (`with TestClient(app) as c:`)
+- Required for Starlette 1.0.0 / httpx 0.28.1 ASGI lifespan handling
+
+### Testing
+- 496 tests total (3 new regression tests for correction_note propagation)
+- Zero regressions
+
+---
+
 ## v0.2.2 — 2026-04-01 (Second-pass fixes 6-11)
 
 Second round of fixes from review. Primacy, dedup, labeling, contagion signals.

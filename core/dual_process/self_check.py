@@ -65,15 +65,20 @@ class SelfChecker:
         issues.extend(self._check_energy_fit(response, ctx))
 
         # If LLM is available, also run LLM-based check for additional issues
+        llm_correction = ""
         if self._llm_client is not None:
-            llm_issues = self._llm_check(response, ctx)
+            llm_issues, llm_correction = self._llm_check(response, ctx)
             for issue in llm_issues:
                 if issue not in issues:
                     issues.append(issue)
 
         if issues:
-            correction = "Self-check issues found. Please adjust:\n"
-            correction += "\n".join(f"- {issue}" for issue in issues)
+            # Prefer the LLM's targeted correction over generic synthesis
+            if llm_correction:
+                correction = llm_correction
+            else:
+                correction = "Self-check issues found. Please adjust:\n"
+                correction += "\n".join(f"- {issue}" for issue in issues)
             return SelfCheckResult(
                 passed=False,
                 issues=issues,
@@ -86,8 +91,12 @@ class SelfChecker:
     # LLM-based check
     # ------------------------------------------------------------------
 
-    def _llm_check(self, response: str, ctx: PipelineContext) -> list[str]:
-        """Use LLM to check the response against context."""
+    def _llm_check(self, response: str, ctx: PipelineContext) -> tuple[list[str], str]:
+        """Use LLM to check the response against context.
+
+        Returns (issues, correction_note). correction_note is the LLM's
+        targeted guidance; empty string if the LLM didn't provide one.
+        """
         template = get_config().self_check_prompt
         if not template:
             return []
@@ -121,11 +130,11 @@ class SelfChecker:
 
             data = json.loads(result_text)
             if not data.get("passed", True):
-                return data.get("issues", [])
+                return data.get("issues", []), data.get("correction_note", "")
         except (json.JSONDecodeError, KeyError, IndexError):
             pass
 
-        return []
+        return [], ""
 
     # ------------------------------------------------------------------
     # Rule-based checks
