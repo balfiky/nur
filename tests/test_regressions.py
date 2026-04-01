@@ -55,9 +55,10 @@ class TestInnerDialogueCandidateAffectsResponse:
         assert prompt_a != prompt_b
 
     def test_pipeline_passes_candidate_to_generator(self):
-        """The pipeline must pass filtered_output as candidate_response."""
+        """The pipeline must pass filtered_output as candidate_response (charged message)."""
         backend = MockLLMBackend()
         pipe = CognitivePipeline(llm_backend=backend)
+        pipe.engine.state.arousal = 0.6  # above calm threshold so inner dialogue runs
         pipe.process("hello", user_id="test_user")
         # The mock returns "I understand." which becomes the dialogue candidate.
         # After defense filtering, it flows into the generator's system prompt.
@@ -230,8 +231,7 @@ class TestRetryPreservesV2Context:
     still include candidate_response and defense_instruction."""
 
     def test_retry_includes_candidate(self):
-        """Retry PipelineContext includes candidate_response."""
-        # Use a backend that triggers self-check failure on first call
+        """Retry PipelineContext includes candidate_response (charged message)."""
         calls = []
 
         class TrackingBackend:
@@ -240,6 +240,7 @@ class TestRetryPreservesV2Context:
                 return "I understand."
 
         pipe = CognitivePipeline(llm_backend=TrackingBackend())
+        pipe.engine.state.arousal = 0.6  # above calm threshold so inner dialogue runs
         pipe.process("hello", user_id="test")
 
         # All generator calls (first + possible retry) should contain
@@ -322,8 +323,10 @@ class TestRound1DominantPath:
                     return "APPROVED: the tone is appropriate and empathetic"
                 return "I hear you and I'm here for you."
 
+        from core.dual_process.inner_dialogue import CALM_AROUSAL_THRESHOLD
+        charged = ModulatorState(arousal=CALM_AROUSAL_THRESHOLD + 0.1)
         dialogue = InnerDialogue(backend=ApprovalBackend())
-        trace = dialogue.deliberate("I'm feeling down", state=ModulatorState())
+        trace = dialogue.deliberate("I'm feeling down", state=charged)
         assert trace.dominant_path == "fast", (
             f"dominant_path={trace.dominant_path} — round-1 approval should be 'fast'"
         )
@@ -429,15 +432,15 @@ class TestLLMCallReduction:
     """Pipeline should use rule-based paths for contagion, event classification,
     topic detection, and self-check (unless intensity > 0.7)."""
 
-    def test_calm_message_2_llm_calls(self):
-        """Calm message: fast(1) + master(1) = 2 LLM calls (slow path skipped)."""
+    def test_calm_message_1_llm_call(self):
+        """Calm message: master(1) = 1 LLM call (inner dialogue skipped entirely)."""
         from tests.test_pipeline_v2 import CountingLLMBackend
 
         backend = CountingLLMBackend()
         pipe = CognitivePipeline(llm_backend=backend)
         pipe.process("Hello, how are you?", user_id="alice")
-        assert backend.call_count == 2, (
-            f"Expected 2 LLM calls for calm message, got {backend.call_count}"
+        assert backend.call_count == 1, (
+            f"Expected 1 LLM call for calm message, got {backend.call_count}"
         )
 
     def test_contagion_uses_no_llm(self):

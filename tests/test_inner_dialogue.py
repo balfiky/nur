@@ -546,7 +546,7 @@ class TestEdgeCases:
             "response", "APPROVED: ok",
         ])
         dialogue = InnerDialogue(backend=backend)
-        dialogue.deliberate("hi bob", state=ModulatorState(), person=person)
+        dialogue.deliberate("hi bob", state=_charged_state(), person=person)
         fast_prompt = backend.prompts[0][0]
         assert "Bob" in fast_prompt
         assert "trust=0.30" in fast_prompt

@@ -58,7 +58,8 @@ class TestV2EndToEnd:
         result = pipe.process("Tell me something", user_id="alice")
         assert result.debug.dialogue_trace is not None
         assert isinstance(result.debug.dialogue_trace, InnerDialogueTrace)
-        assert result.debug.dialogue_trace.total_llm_calls >= 1
+        # Calm messages skip inner dialogue (0 calls), charged messages get 1+
+        assert result.debug.dialogue_trace.total_llm_calls >= 0
 
     def test_debug_payload_has_defense(self):
         """Defense may or may not activate, but the field should exist."""
@@ -101,12 +102,12 @@ class TestV2EndToEnd:
 # ---------------------------------------------------------------------------
 
 class TestLLMCallBudget:
-    def test_calm_message_2_calls(self):
-        """Calm message (low arousal, no resolution): fast(1) + master(1) = 2."""
+    def test_calm_message_1_call(self):
+        """Calm message (low arousal, no resolution): master(1) = 1 (inner dialogue skipped)."""
         backend = CountingLLMBackend()
         pipe = CognitivePipeline(llm_backend=backend)
         pipe.process("How are you today?", user_id="alice")
-        assert backend.call_count == 2, f"Expected 2 calls for calm message, got {backend.call_count}"
+        assert backend.call_count == 1, f"Expected 1 call for calm message, got {backend.call_count}"
 
     def test_charged_message_3_calls(self):
         """Charged message (arousal > 0.4): fast(1) + slow(1) + master(1) = 3."""
@@ -146,7 +147,7 @@ class TestLLMCallBudget:
             before = backend.call_count
             pipe.process(f"Message {i}", user_id="alice")
             calls_this_msg = backend.call_count - before
-            assert 2 <= calls_this_msg <= 6, (
+            assert 1 <= calls_this_msg <= 6, (
                 f"Message {i}: {calls_this_msg} calls"
             )
 
@@ -277,7 +278,9 @@ class TestAnticipationIntegration:
 
 class TestInnerDialogueIntegration:
     def test_dialogue_trace_in_debug(self):
+        """Charged message triggers inner dialogue with rounds."""
         pipe = CognitivePipeline(llm_backend=MockLLMBackend())
+        pipe.engine.state.arousal = 0.6  # above calm threshold
         result = pipe.process("What do you think?", user_id="alice")
         trace = result.debug.dialogue_trace
         assert trace is not None
@@ -287,6 +290,7 @@ class TestInnerDialogueIntegration:
     def test_dialogue_trace_with_counting_backend(self):
         """CountingLLMBackend returns parseable APPROVED → 1 round."""
         pipe = CognitivePipeline(llm_backend=CountingLLMBackend())
+        pipe.engine.state.arousal = 0.6  # above calm threshold
         result = pipe.process("Hello", user_id="alice")
         trace = result.debug.dialogue_trace
         assert trace.rounds[0].slow_path_approved is True

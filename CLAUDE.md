@@ -40,7 +40,7 @@ v1 (288 tests) + v2 phases 1-7 (188 tests) + regression/optimization tests (27) 
 - LLM functions always have rule-based fallback (graceful degradation)
 - Contagion, event classification, topic detection: always rule-based (0 LLM calls)
 - Self-check: rule-based by default; LLM only when turn intensity > 0.7
-- Calm messages (arousal < 0.55, resolution < 0.3): skip slow path → 2 LLM calls
+- Calm messages (arousal < 0.55, resolution < 0.3): skip inner dialogue entirely → 1 LLM call
 - LLMClientFast: thinking mode disabled — used for inner dialogue + self-check
 - LLMClient uses requests.Session for connection reuse
 - Config-driven constants — no hardcoded thresholds in module code

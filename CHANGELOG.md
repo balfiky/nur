@@ -4,6 +4,18 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.3.2 — 2026-04-01 (Calm message → 1 LLM call)
+
+### Calm message bypass: skip inner dialogue entirely
+- Calm messages (arousal < 0.55, resolution < 0.3): inner dialogue returns 0 rounds, 0 LLM calls
+- Master generator produces response from scratch — 1 total LLM call per calm message
+- Previously: fast path (1 call) + master (1 call) = 2. Now: master only = 1
+- Charged messages unchanged: fast(1) + slow(1) + master(1) = 3
+- `dominant_path="skip"` in trace for calm-bypassed messages
+- 503 tests, zero regressions
+
+---
+
 ## v0.3.1 — 2026-04-01 (Connection retry fix)
 
 ### Fix: RemoteDisconnected crash

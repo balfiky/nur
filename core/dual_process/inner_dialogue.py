@@ -39,8 +39,8 @@ MAX_ROUNDS = 3
 AROUSAL_BYPASS_THRESHOLD = 0.8    # too activated to deliberate
 ENERGY_BYPASS_THRESHOLD = 0.2     # too tired to deliberate
 RESOLUTION_INSIST_THRESHOLD = 0.6  # slow path insists on unresolved items
-CALM_AROUSAL_THRESHOLD = 0.55     # near-baseline arousal + low resolution = skip slow path
-CALM_RESOLUTION_THRESHOLD = 0.3   # below this + near-baseline arousal = skip slow path
+CALM_AROUSAL_THRESHOLD = 0.55     # near-baseline arousal + low resolution = skip entirely
+CALM_RESOLUTION_THRESHOLD = 0.3   # below this + near-baseline arousal = skip entirely
 
 _PROMPT_MAP = {
     "fast_path.md": "fast_path_prompt",
@@ -276,6 +276,18 @@ class InnerDialogue:
         # Determine max rounds from control dynamics
         max_rounds = self._max_rounds(state)
 
+        # Calm message: skip inner dialogue entirely (0 LLM calls)
+        # Master generator will produce the response from scratch
+        if max_rounds == 0:
+            return InnerDialogueTrace(
+                rounds=[],
+                final_candidate="",
+                total_llm_calls=0,
+                reached_deadlock=False,
+                dominant_path="skip",
+                tension_level=0.0,
+            )
+
         # --- Round 1: Fast path generates ---
         fast_prompt = build_fast_path_prompt(state, person, contagion_summary, short_term_summary)
         fast_candidate = self._call_llm(fast_prompt, user_message)
@@ -405,9 +417,9 @@ class InnerDialogue:
         # Low energy → too tired, 1 round only
         if state.energy < ENERGY_BYPASS_THRESHOLD:
             return 1
-        # Calm message → nothing charged, skip slow path (1 round)
+        # Calm message → nothing charged, skip inner dialogue entirely (0 rounds)
         if state.arousal < CALM_AROUSAL_THRESHOLD and state.resolution < CALM_RESOLUTION_THRESHOLD:
-            return 1
+            return 0
         # High resolution → slow path insists, allow all 3 rounds
         if state.resolution > RESOLUTION_INSIST_THRESHOLD:
             return MAX_ROUNDS

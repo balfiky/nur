@@ -19,7 +19,7 @@ v2 processing flow:
 16. Post-processing: update memory, drain energy
 17. [Session end] Digestion (0-1 LLM call)
 
-LLM call budget: 3-6 per message (typical: 3-4). Down from 4-7 in v0.2.4.
+LLM call budget: 1-6 per message (typical: 1). Calm messages skip inner dialogue entirely.
 """
 
 from __future__ import annotations
@@ -320,7 +320,7 @@ class CognitivePipeline:
         debug.unresolved_count = len(active_unresolved)
         debug.unresolved_items = list(active_unresolved)
 
-        # ---- Step 11: INNER DIALOGUE (2-5 LLM calls) ----
+        # ---- Step 11: INNER DIALOGUE (0-5 LLM calls; 0 for calm) ----
         contagion_summary = (
             f"arousal={detected.arousal:.2f}, valence={detected.valence:.2f}, "
             f"intensity={detected.intensity:.2f}"
