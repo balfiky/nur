@@ -36,9 +36,9 @@ def get_pipeline() -> CognitivePipeline:
         backend = None
         backend_fast = None
         if os.environ.get("MINIMAX_API_KEY"):
-            from core.llm_client import LLMClient, LLMClientFast
-            backend = LLMClient()           # thinking on — for master generator
-            backend_fast = LLMClientFast()   # thinking off — for inner dialogue + eval
+            from core.llm_client import LLMClientFast
+            backend = LLMClientFast()        # thinking off — for all calls
+            backend_fast = backend            # same client for everything
         _pipeline = CognitivePipeline(
             llm_backend=backend,
             llm_backend_fast=backend_fast,

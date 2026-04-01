@@ -41,7 +41,7 @@ v1 (288 tests) + v2 phases 1-7 (188 tests) + regression/optimization tests (27) 
 - Contagion, event classification, topic detection: always rule-based (0 LLM calls)
 - Self-check: rule-based by default; LLM only when turn intensity > 0.7
 - Calm messages (arousal < 0.55, resolution < 0.3): skip inner dialogue entirely → 1 LLM call
-- LLMClientFast: thinking mode disabled — used for inner dialogue + self-check
+- LLMClientFast: thinking mode disabled — used for ALL calls (generator, inner dialogue, self-check)
 - LLMClient uses requests.Session for connection reuse
 - Config-driven constants — no hardcoded thresholds in module code
 - Start exaggerated emotional effects, dampen later during calibration

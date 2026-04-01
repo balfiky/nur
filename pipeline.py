@@ -153,10 +153,10 @@ class CognitivePipeline:
         llm_backend_fast: LLMBackend | None = None,
         db_path: str = ":memory:",
     ) -> None:
-        # Full backend for generation (thinking mode on)
+        # Primary backend (used if no fast backend provided)
         self._llm_backend = llm_backend or MockLLMBackend()
-        # Fast backend for evaluation/classification (thinking mode off)
-        # Falls back to full backend if no fast backend provided
+        # Fast backend (thinking mode off) — used for ALL calls
+        # Generator prompt already has full context; thinking overhead not needed
         self._llm_backend_fast = llm_backend_fast or self._llm_backend
 
         # Core engine
@@ -173,8 +173,8 @@ class CognitivePipeline:
         self.topic_profiles = TopicProfileManager(db_path=db_path)
         self.contradiction_detector = ContradictionDetector(self.profile_store)
 
-        # Master generator uses full backend (thinking on)
-        self.generator = ResponseGenerator(backend=self._llm_backend)
+        # Master generator uses fast backend (thinking off — prompt has full context)
+        self.generator = ResponseGenerator(backend=self._llm_backend_fast)
         # Self-checker: rule-based by default; LLM only for high-intensity turns
         self.self_checker = SelfChecker(llm_client=None)
         self._self_check_llm = SelfChecker(llm_client=self._llm_backend_fast)

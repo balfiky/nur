@@ -4,6 +4,17 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.3.3 — 2026-04-01 (Thinking mode off for all calls)
+
+### All LLM calls now use thinking mode disabled
+- Master generator switched from `LLMClient` (thinking on) to `LLMClientFast` (thinking off)
+- Generator prompt already has full emotional context — chain-of-thought reasoning unnecessary
+- Eliminates `<think>...</think>` overhead on every API call
+- `api.py` now creates a single `LLMClientFast` instance for all pipeline calls
+- 503 tests, zero regressions
+
+---
+
 ## v0.3.2 — 2026-04-01 (Calm message → 1 LLM call)
 
 ### Calm message bypass: skip inner dialogue entirely
