@@ -109,33 +109,35 @@ class TestLLMCallBudget:
         pipe.process("How are you today?", user_id="alice")
         assert backend.call_count == 1, f"Expected 1 call for calm message, got {backend.call_count}"
 
-    def test_charged_message_3_calls(self):
-        """Charged message (arousal > 0.4): fast(1) + slow(1) + master(1) = 3."""
+    def test_charged_message_with_resolution_3_calls(self):
+        """High resolution: fast(1) + slow(1) + master(1) = 3."""
         backend = CountingLLMBackend()
         pipe = CognitivePipeline(llm_backend=backend)
-        pipe.engine.state.arousal = 0.6  # above calm threshold
+        pipe.engine.state.resolution = 0.7  # above insistence threshold
         pipe.process("This is frustrating", user_id="alice")
-        assert backend.call_count == 3, f"Expected 3 calls for charged message, got {backend.call_count}"
+        assert backend.call_count == 3, f"Expected 3 calls with high resolution, got {backend.call_count}"
 
-    def test_high_arousal_bypasses_inner_dialogue(self):
-        """High arousal → fast path only (skips slow path).
+    def test_high_arousal_bypasses_slow_path(self):
+        """High arousal + high resolution → fast path only (skips slow path).
 
         fast_only(1) + master(1) = 2.
         """
         backend = CountingLLMBackend()
         pipe = CognitivePipeline(llm_backend=backend)
         pipe.engine.state.arousal = 0.95
+        pipe.engine.state.resolution = 0.7
         pipe.process("Emergency!", user_id="alice")
         assert backend.call_count == 2
 
-    def test_low_energy_bypasses_inner_dialogue(self):
-        """Low energy → fast path only, fewer calls.
+    def test_low_energy_bypasses_slow_path(self):
+        """Low energy + high resolution → fast path only, fewer calls.
 
         fast_only(1) + master(1) = 2.
         """
         backend = CountingLLMBackend()
         pipe = CognitivePipeline(llm_backend=backend)
         pipe.engine.state.energy = 0.1
+        pipe.engine.state.resolution = 0.7
         pipe.process("Hello", user_id="alice")
         assert backend.call_count == 2
 
@@ -278,9 +280,9 @@ class TestAnticipationIntegration:
 
 class TestInnerDialogueIntegration:
     def test_dialogue_trace_in_debug(self):
-        """Charged message triggers inner dialogue with rounds."""
+        """High resolution triggers inner dialogue with rounds."""
         pipe = CognitivePipeline(llm_backend=MockLLMBackend())
-        pipe.engine.state.arousal = 0.6  # above calm threshold
+        pipe.engine.state.resolution = 0.7  # above insistence threshold
         result = pipe.process("What do you think?", user_id="alice")
         trace = result.debug.dialogue_trace
         assert trace is not None
@@ -288,9 +290,9 @@ class TestInnerDialogueIntegration:
         assert trace.final_candidate != ""
 
     def test_dialogue_trace_with_counting_backend(self):
-        """CountingLLMBackend returns parseable APPROVED → 1 round."""
+        """CountingLLMBackend + high resolution → APPROVED in 1 round."""
         pipe = CognitivePipeline(llm_backend=CountingLLMBackend())
-        pipe.engine.state.arousal = 0.6  # above calm threshold
+        pipe.engine.state.resolution = 0.7  # above insistence threshold
         result = pipe.process("Hello", user_id="alice")
         trace = result.debug.dialogue_trace
         assert trace.rounds[0].slow_path_approved is True

@@ -55,10 +55,10 @@ class TestInnerDialogueCandidateAffectsResponse:
         assert prompt_a != prompt_b
 
     def test_pipeline_passes_candidate_to_generator(self):
-        """The pipeline must pass filtered_output as candidate_response (charged message)."""
+        """The pipeline must pass filtered_output as candidate_response (high resolution)."""
         backend = MockLLMBackend()
         pipe = CognitivePipeline(llm_backend=backend)
-        pipe.engine.state.arousal = 0.6  # above calm threshold so inner dialogue runs
+        pipe.engine.state.resolution = 0.7  # above insistence threshold so inner dialogue runs
         pipe.process("hello", user_id="test_user")
         # The mock returns "I understand." which becomes the dialogue candidate.
         # After defense filtering, it flows into the generator's system prompt.
@@ -231,7 +231,7 @@ class TestRetryPreservesV2Context:
     still include candidate_response and defense_instruction."""
 
     def test_retry_includes_candidate(self):
-        """Retry PipelineContext includes candidate_response (charged message)."""
+        """Retry PipelineContext includes candidate_response (high resolution)."""
         calls = []
 
         class TrackingBackend:
@@ -240,7 +240,7 @@ class TestRetryPreservesV2Context:
                 return "I understand."
 
         pipe = CognitivePipeline(llm_backend=TrackingBackend())
-        pipe.engine.state.arousal = 0.6  # above calm threshold so inner dialogue runs
+        pipe.engine.state.resolution = 0.7  # above insistence threshold so inner dialogue runs
         pipe.process("hello", user_id="test")
 
         # All generator calls (first + possible retry) should contain
@@ -323,8 +323,8 @@ class TestRound1DominantPath:
                     return "APPROVED: the tone is appropriate and empathetic"
                 return "I hear you and I'm here for you."
 
-        from core.dual_process.inner_dialogue import CALM_AROUSAL_THRESHOLD
-        charged = ModulatorState(arousal=CALM_AROUSAL_THRESHOLD + 0.1)
+        from core.dual_process.inner_dialogue import RESOLUTION_INSIST_THRESHOLD
+        charged = ModulatorState(resolution=RESOLUTION_INSIST_THRESHOLD + 0.1)
         dialogue = InnerDialogue(backend=ApprovalBackend())
         trace = dialogue.deliberate("I'm feeling down", state=charged)
         assert trace.dominant_path == "fast", (

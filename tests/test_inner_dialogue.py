@@ -30,8 +30,8 @@ from core.dual_process.inner_dialogue import (
 
 
 def _charged_state(**overrides) -> ModulatorState:
-    """ModulatorState with arousal above calm threshold so slow path fires."""
-    defaults = {"arousal": CALM_AROUSAL_THRESHOLD + 0.1}
+    """ModulatorState with resolution above insistence threshold so inner dialogue fires."""
+    defaults = {"resolution": RESOLUTION_INSIST_THRESHOLD + 0.1}
     defaults.update(overrides)
     return ModulatorState(**defaults)
 
@@ -268,14 +268,14 @@ class TestRound3Deadlock:
 
 class TestArousalBypass:
     def test_high_arousal_skips_slow_path(self):
-        """Arousal > 0.8 → fast path only, 1 LLM call."""
+        """Arousal > 0.8 + high resolution → fast path only, 1 LLM call."""
         backend = SequenceLLMBackend([
             "Quick emotional response!",
         ])
         dialogue = InnerDialogue(backend=backend)
         trace = dialogue.deliberate(
             user_message="This is urgent!",
-            state=ModulatorState(arousal=0.9),
+            state=_charged_state(arousal=0.9),
         )
         assert len(trace.rounds) == 1
         assert trace.total_llm_calls == 1
@@ -284,15 +284,15 @@ class TestArousalBypass:
         assert "bypassed" in trace.rounds[0].slow_path_evaluation.lower()
 
     def test_arousal_at_threshold_bypasses(self):
-        """Arousal exactly at 0.8 still triggers (> check)."""
+        """Arousal exactly at 0.8 + high resolution → still deliberates (> check)."""
         backend = SequenceLLMBackend([
-            "fast only",
+            "fast only", "APPROVED: ok",
         ])
         dialogue = InnerDialogue(backend=backend)
-        # 0.8 is not > 0.8, so should NOT bypass
+        # 0.8 is not > 0.8, so should NOT bypass arousal check
         trace = dialogue.deliberate(
             user_message="test",
-            state=ModulatorState(arousal=0.8),
+            state=_charged_state(arousal=0.8),
         )
         # At exactly 0.8, does not bypass (> not >=)
         assert trace.total_llm_calls >= 2
@@ -302,7 +302,7 @@ class TestArousalBypass:
         dialogue = InnerDialogue(backend=backend)
         trace = dialogue.deliberate(
             user_message="test",
-            state=ModulatorState(arousal=0.81),
+            state=_charged_state(arousal=0.81),
         )
         assert trace.total_llm_calls == 1
 
@@ -313,14 +313,14 @@ class TestArousalBypass:
 
 class TestEnergyBypass:
     def test_low_energy_skips_slow_path(self):
-        """Energy < 0.2 → fast path only, 1 LLM call."""
+        """Energy < 0.2 + high resolution → fast path only, 1 LLM call."""
         backend = SequenceLLMBackend([
             "Too tired to think deeply.",
         ])
         dialogue = InnerDialogue(backend=backend)
         trace = dialogue.deliberate(
             user_message="How are you?",
-            state=ModulatorState(energy=0.1),
+            state=_charged_state(energy=0.1),
         )
         assert len(trace.rounds) == 1
         assert trace.total_llm_calls == 1
@@ -344,7 +344,7 @@ class TestEnergyBypass:
         dialogue = InnerDialogue(backend=backend)
         trace = dialogue.deliberate(
             user_message="test",
-            state=ModulatorState(energy=0.19),
+            state=_charged_state(energy=0.19),
         )
         assert trace.total_llm_calls == 1
 
@@ -370,18 +370,17 @@ class TestResolutionInsistence:
         assert trace.reached_deadlock is True
         assert trace.total_llm_calls == 5
 
-    def test_resolution_below_threshold_still_allows_rounds(self):
-        """Default is also 3 rounds max, but resolution insistence is explicit."""
-        backend = SequenceLLMBackend([
-            "r1", "OBJECTION: reason",
-            "r2", "APPROVED: ok",
-        ])
+    def test_resolution_below_threshold_skips_dialogue(self):
+        """Resolution below 0.6 → inner dialogue skipped entirely."""
+        backend = SequenceLLMBackend(["should not be called"])
         dialogue = InnerDialogue(backend=backend)
         trace = dialogue.deliberate(
             user_message="test",
             state=ModulatorState(resolution=0.3),
         )
-        assert len(trace.rounds) == 2
+        assert len(trace.rounds) == 0
+        assert trace.total_llm_calls == 0
+        assert trace.dominant_path == "skip"
 
     def test_unresolved_items_in_slow_path_prompt(self):
         """Slow path prompt should include unresolved items."""
@@ -400,7 +399,7 @@ class TestResolutionInsistence:
         dialogue = InnerDialogue(backend=backend)
         trace = dialogue.deliberate(
             user_message="good morning",
-            state=_charged_state(),
+            state=_charged_state(),  # resolution > 0.6 triggers dialogue
             unresolved=items,
         )
         # Check that the slow path prompt contained the unresolved item

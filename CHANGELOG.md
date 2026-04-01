@@ -4,12 +4,14 @@ All notable changes to Project Nur are documented here.
 
 ---
 
-## v0.3.4 — 2026-04-01 (Warm message bypass)
+## v0.3.4 — 2026-04-02 (Inner dialogue → resolution-gated only)
 
-### Positive high-arousal messages skip inner dialogue
-- "I love you so much" etc. no longer trigger full deliberation
-- New `WARM_VALENCE_THRESHOLD = 0.6`: high arousal + positive valence + low resolution = skip
-- Inner dialogue reserved for conflict/tension (high arousal + negative/uncertain valence)
+### Inner dialogue fires only on unresolved tension
+- All messages get 1 LLM call unless `resolution > 0.6` (real unresolved tension)
+- Previously: any charged message (positive or negative) triggered 3 API calls
+- Now: only accumulated unresolved items (contradictions, spikes, deadlocks) trigger deliberation
+- Consistent fast responses regardless of emotional content
+- Inner dialogue code fully preserved — just gated behind resolution threshold
 - 503 tests, zero regressions
 
 ---

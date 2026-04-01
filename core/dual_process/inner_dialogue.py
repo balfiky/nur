@@ -411,24 +411,22 @@ class InnerDialogue:
     # ------------------------------------------------------------------
 
     def _max_rounds(self, state: ModulatorState) -> int:
-        """Determine max deliberation rounds from emotional state."""
-        # High arousal → fast path dominates, 1 round only
-        if state.arousal > AROUSAL_BYPASS_THRESHOLD:
-            return 1
-        # Low energy → too tired, 1 round only
-        if state.energy < ENERGY_BYPASS_THRESHOLD:
-            return 1
-        # Calm or warm message → no conflict to deliberate, skip entirely (0 rounds)
-        if state.resolution < CALM_RESOLUTION_THRESHOLD:
-            if state.arousal < CALM_AROUSAL_THRESHOLD:
-                return 0  # calm: low arousal, nothing charged
-            if state.valence > WARM_VALENCE_THRESHOLD:
-                return 0  # warm: high arousal but positive — no conflict
-        # High resolution → slow path insists, allow all 3 rounds
+        """Determine max deliberation rounds from emotional state.
+
+        Currently always returns 0 (skip) — master generator has full context
+        and inner dialogue adds 2+ API calls of latency per message.
+        Inner dialogue remains fully functional and can be re-enabled by
+        raising RESOLUTION_INSIST_THRESHOLD gating or removing the early return.
+        """
+        # Only deliberate when unresolved tension is high enough to justify latency
         if state.resolution > RESOLUTION_INSIST_THRESHOLD:
+            if state.arousal > AROUSAL_BYPASS_THRESHOLD:
+                return 1  # too activated for slow path
+            if state.energy < ENERGY_BYPASS_THRESHOLD:
+                return 1  # too tired for slow path
             return MAX_ROUNDS
-        # Default: up to 3
-        return MAX_ROUNDS
+        # Everything else: skip inner dialogue (0 rounds, 0 LLM calls)
+        return 0
 
     def _should_continue(
         self,
