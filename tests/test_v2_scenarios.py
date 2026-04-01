@@ -57,7 +57,10 @@ class SequenceLLMBackend:
 
 
 class CountingLLMBackend:
-    """Counts LLM calls and returns canned response."""
+    """Counts LLM calls and returns parseable responses.
+
+    Returns "APPROVED: ok" for slow-path calls, "I understand." otherwise.
+    """
 
     def __init__(self, response: str = "I understand.") -> None:
         self._response = response
@@ -65,6 +68,8 @@ class CountingLLMBackend:
 
     def generate(self, system_prompt: str, user_message: str) -> str:
         self.call_count += 1
+        if "Evaluate this response" in system_prompt or "APPROVED" in system_prompt:
+            return "APPROVED: response is appropriate"
         return self._response
 
 

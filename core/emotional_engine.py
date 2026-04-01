@@ -101,6 +101,8 @@ class EmotionalEngine:
         # v2: resolution modulator
         self.unresolved_items: list[UnresolvedItem] = []
         self._resolution_decay_rates = dict(RESOLUTION_DECAY_RATES)
+        # Context shift: resting target offset for current relationship
+        self._context_shift: BaselineShift | None = None
 
     # ------------------------------------------------------------------
     # Core operations
@@ -147,19 +149,33 @@ class EmotionalEngine:
                 continue
 
             current = getattr(self.state, mod.value)
-            base = getattr(self.baseline, mod.value)
-            # Exponential decay toward baseline
+            base = self.effective_baseline(mod.value)
+            # Exponential decay toward effective baseline (baseline + context shift)
             decay_factor = math.exp(-0.693 * elapsed_seconds / half_life)
             new_val = base + (current - base) * decay_factor
             setattr(self.state, mod.value, max(0.0, min(1.0, new_val)))
 
         self._last_update_time = time.time()
 
+    def set_context_shift(self, shift: BaselineShift) -> None:
+        """Set the context shift for the current relationship.
+
+        Not additive — stores the shift as a resting target offset.
+        Decay will pull modulators toward baseline + shift, not accumulate.
+        """
+        self._context_shift = shift
+
+    def effective_baseline(self, mod_name: str) -> float:
+        """Baseline + context shift for a modulator."""
+        base = getattr(self.baseline, mod_name)
+        if self._context_shift is not None:
+            shift_val = self._context_shift.to_dict().get(mod_name, 0.0)
+            base += shift_val
+        return max(0.0, min(1.0, base))
+
     def apply_context_shift(self, shift: BaselineShift) -> None:
-        """Adjust modulator resting state for a person-specific context."""
-        for mod_name, delta in shift.to_dict().items():
-            current = getattr(self.state, mod_name)
-            setattr(self.state, mod_name, max(0.0, min(1.0, current + delta)))
+        """Legacy wrapper — calls set_context_shift."""
+        self.set_context_shift(shift)
 
     def apply_contagion(
         self, user_arousal: float, user_valence: float, bonding_score: float
@@ -251,25 +267,17 @@ class EmotionalEngine:
         return [i for i in self.unresolved_items if not i.resolved]
 
     def _recalculate_resolution(self) -> None:
-        """Recompute resolution modulator from active unresolved items."""
+        """Recompute resolution modulator from active unresolved items.
+
+        Uses item intensity directly (already decayed by _decay_unresolved_items).
+        No additional age-based weighting to avoid double-decay.
+        """
         active = self.active_unresolved()
         if not active:
             self.state.resolution = 0.0
             return
-        weighted = sum(i.intensity * self._time_weight(i) for i in active)
-        self.state.resolution = max(0.0, min(1.0, weighted))
-
-    def _time_weight(self, item: UnresolvedItem) -> float:
-        """Weight factor based on age — older items with decay weigh less."""
-        now = datetime.now(timezone.utc)
-        created = item.created_at
-        if created.tzinfo is None:
-            created = created.replace(tzinfo=timezone.utc)
-        age_hours = (now - created).total_seconds() / 3600.0
-        if item.decay_rate <= 0.0:
-            return 1.0  # no decay (e.g. commitments)
-        decayed = max(0.0, 1.0 - item.decay_rate * age_hours)
-        return decayed
+        total = sum(i.intensity for i in active)
+        self.state.resolution = max(0.0, min(1.0, total))
 
     def _decay_unresolved_items(self, elapsed_seconds: float) -> None:
         """Apply time-based intensity decay to unresolved items."""

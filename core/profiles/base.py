@@ -79,6 +79,16 @@ class ProfileStore:
                 PRIMARY KEY (entity_id, trait)
             )
         """)
+        self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS defense_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp REAL NOT NULL,
+                defense_type TEXT NOT NULL,
+                raw_intensity REAL NOT NULL,
+                expressed_intensity REAL NOT NULL,
+                suppression_delta REAL NOT NULL
+            )
+        """)
         self._conn.commit()
 
     # ------------------------------------------------------------------
@@ -190,6 +200,51 @@ class ProfileStore:
             (entity_id,),
         ).fetchall()
         return {row["trait"]: row["score"] for row in rows}
+
+    # ------------------------------------------------------------------
+    # Defense event persistence
+    # ------------------------------------------------------------------
+
+    def record_defense_event(
+        self,
+        timestamp: float,
+        defense_type: str,
+        raw_intensity: float,
+        expressed_intensity: float,
+        suppression_delta: float,
+    ) -> int:
+        """Persist a defense activation event."""
+        cursor = self._conn.execute(
+            """INSERT INTO defense_events
+               (timestamp, defense_type, raw_intensity, expressed_intensity, suppression_delta)
+               VALUES (?, ?, ?, ?, ?)""",
+            (timestamp, defense_type, raw_intensity, expressed_intensity, suppression_delta),
+        )
+        self._conn.commit()
+        return cursor.lastrowid
+
+    def get_defense_events(self, limit: int = 50) -> list[dict]:
+        """Get recent defense events, newest first."""
+        rows = self._conn.execute(
+            """SELECT * FROM defense_events
+               ORDER BY timestamp DESC LIMIT ?""",
+            (limit,),
+        ).fetchall()
+        return [
+            {
+                "timestamp": row["timestamp"],
+                "defense_type": row["defense_type"],
+                "raw_intensity": row["raw_intensity"],
+                "expressed_intensity": row["expressed_intensity"],
+                "suppression_delta": row["suppression_delta"],
+            }
+            for row in rows
+        ]
+
+    def defense_event_count(self) -> int:
+        """Total defense events recorded."""
+        row = self._conn.execute("SELECT COUNT(*) as c FROM defense_events").fetchone()
+        return row["c"]
 
     # ------------------------------------------------------------------
     # Helpers

@@ -177,6 +177,11 @@ class NurConfig:
     contagion_prompt: str = ""
     classify_event_prompt: str = ""
     detect_topics_prompt: str = ""
+    # v2 prompts
+    fast_path_prompt: str = ""
+    slow_path_prompt: str = ""
+    fast_path_revision_prompt: str = ""
+    arbiter_prompt: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -275,6 +280,8 @@ def load_config(config_dir: str | Path | None = None) -> NurConfig:
     if "self_model" in prof:
         s = prof["self_model"]
         negative = s.get("negative_traits", [])
+        # Use instance default when config omits negative_traits
+        default_negative = SelfModelConfig().negative_traits
         cfg.self_model = SelfModelConfig(
             entity_id=s.get("entity_id", "__self__"),
             strength_threshold=s.get("strength_threshold", 0.7),
@@ -282,7 +289,7 @@ def load_config(config_dir: str | Path | None = None) -> NurConfig:
             trigger_threshold=s.get("trigger_threshold", 0.7),
             dissonance_window=s.get("dissonance_window", 10),
             trigger_min_observations=s.get("trigger_min_observations", 3),
-            negative_traits=set(negative) if negative else SelfModelConfig.negative_traits,
+            negative_traits=set(negative) if negative else default_negative,
         )
 
     if "topic" in prof:
@@ -321,6 +328,11 @@ def load_config(config_dir: str | Path | None = None) -> NurConfig:
     cfg.contagion_prompt = _load_prompt("contagion.md", cdir)
     cfg.classify_event_prompt = _load_prompt("classify_event.md", cdir)
     cfg.detect_topics_prompt = _load_prompt("detect_topics.md", cdir)
+    # v2 prompts
+    cfg.fast_path_prompt = _load_prompt("fast_path.md", cdir)
+    cfg.slow_path_prompt = _load_prompt("slow_path.md", cdir)
+    cfg.fast_path_revision_prompt = _load_prompt("fast_path_revision.md", cdir)
+    cfg.arbiter_prompt = _load_prompt("arbiter.md", cdir)
 
     return cfg
 

@@ -176,21 +176,17 @@ class TestResolutionModulator:
         d = state.to_dict()
         assert "resolution" in d
 
-    def test_time_weight_decreases_with_age(self):
-        """Older items with positive decay rate should have lower time weight."""
+    def test_intensity_decay_reduces_resolution(self):
+        """Items with decayed intensity should contribute less to resolution."""
         engine = EmotionalEngine()
-        # Fresh item
         engine.add_unresolved(_make_item(
-            intensity=0.5, decay_rate=0.05, age_hours=0.0, item_id="fresh",
+            intensity=0.5, decay_rate=0.05, item_id="decaying",
         ))
         fresh_resolution = engine.state.resolution
 
-        # Reset and add old item
-        engine2 = EmotionalEngine()
-        engine2.add_unresolved(_make_item(
-            intensity=0.5, decay_rate=0.05, age_hours=10.0, item_id="old",
-        ))
-        assert engine2.state.resolution < fresh_resolution
+        # Simulate time passing — intensity decays
+        engine.decay(36000.0)  # 10 hours
+        assert engine.state.resolution < fresh_resolution
 
     def test_decay_does_not_affect_other_modulators(self):
         """Resolution decay via items should not break normal modulator decay."""

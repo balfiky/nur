@@ -12,7 +12,11 @@ from pipeline import CognitivePipeline, DebugState, PipelineResponse
 # ---------------------------------------------------------------------------
 
 class CountingLLMBackend:
-    """Mock that counts calls and returns canned response."""
+    """Mock that counts calls and returns parseable responses.
+
+    Returns "APPROVED: ok" for slow-path calls (contains 'Evaluate this response')
+    and "I understand." for everything else.
+    """
 
     def __init__(self, response: str = "I understand.") -> None:
         self._response = response
@@ -20,6 +24,9 @@ class CountingLLMBackend:
 
     def generate(self, system_prompt: str, user_message: str) -> str:
         self.call_count += 1
+        # Detect slow-path calls and return parseable approval
+        if "Evaluate this response" in system_prompt or "APPROVED" in system_prompt:
+            return "APPROVED: response is appropriate"
         return self._response
 
 
@@ -278,9 +285,9 @@ class TestInnerDialogueIntegration:
         assert len(trace.rounds) >= 1
         assert trace.final_candidate != ""
 
-    def test_dialogue_trace_shows_approval_with_mock(self):
-        """MockLLMBackend → 'I understand.' → parsed as approval → 1 round."""
-        pipe = CognitivePipeline(llm_backend=MockLLMBackend())
+    def test_dialogue_trace_with_counting_backend(self):
+        """CountingLLMBackend returns parseable APPROVED → 1 round."""
+        pipe = CognitivePipeline(llm_backend=CountingLLMBackend())
         result = pipe.process("Hello", user_id="alice")
         trace = result.debug.dialogue_trace
         assert trace.rounds[0].slow_path_approved is True

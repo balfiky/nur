@@ -25,3 +25,7 @@ Rules:
 {contradiction_flags}
 
 {behavioral_guidance}
+
+{candidate_response}
+
+{defense_instruction}

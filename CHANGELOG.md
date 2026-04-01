@@ -4,6 +4,48 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.2.1 — 2026-04-01 (Second-pass fixes)
+
+Fixes from SECOND_PASS_REVIEW.md phases 0-5. Makes v2 behaviorally real.
+
+### Fix 1: v2 controls the response
+- Added `candidate_response` and `defense_instruction` to PipelineContext
+- Generator now receives inner dialogue candidate as draft to refine
+- Defense instruction injected directly (not via contradiction_flags hack)
+- generator.md updated with `{candidate_response}` and `{defense_instruction}` placeholders
+
+### Fix 2: Time and context semantics
+- Pipeline tracks `_last_turn_time`, calls `decay(elapsed)` at start of each `process()`
+- Context shift is now non-additive: `set_context_shift()` stores resting target offset
+- Decay uses `effective_baseline()` (baseline + context shift) instead of raw baseline
+- Repeated turns with same person no longer ratchet modulators upward
+
+### Fix 3: Self-model persistence
+- Pipeline records 1-3 self-observations per turn (blunt, empathetic, defensive, avoidant)
+- Defense events persisted to SQLite `defense_events` table via ProfileStore
+- `maturity_score` derived from observation count + flaw diversity + defense event count
+- `get_profile()` now returns defense_log from persistent storage
+
+### Fix 4: Trust and resolution accounting
+- Removed sign-only session-end trust update (per-turn trust is authoritative)
+- Resolution uses item intensity only — removed age-based `_time_weight` double-decay
+- Contradictions now create unresolved items (source="contradiction")
+- Charged/avoidance topics now create unresolved items (source="topic")
+- Resolution events match items by text overlap before falling back to oldest
+
+### Fix 5: Prompt contracts and parsing
+- fast_path.md, fast_path_revision.md, arbiter.md: added output-shape constraints
+- Unparseable slow-path output triggers retry once, then treated as objection (not auto-approve)
+- `parse_slow_path_response()` returns 3-tuple with `parsed_successfully` flag
+- v2 prompts (fast_path, slow_path, revision, arbiter) loaded through config.loader
+- Fixed `SelfModelConfig.negative_traits` AttributeError on partial config
+
+### Testing
+- 485 tests total (9 new regression tests + updated existing tests)
+- Zero regressions from v0.2.0
+
+---
+
 ## v0.2.0 — 2026-04-01 (v2: The Inner Life)
 
 v2 adds deliberation, dread, and self-protection. Four interconnected features that give the system an inner life.

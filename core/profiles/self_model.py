@@ -13,7 +13,7 @@ from __future__ import annotations
 import time
 
 from config.loader import get_config
-from core.types import SelfProfile
+from core.types import DefenseEvent, SelfProfile
 from core.profiles.base import Observation, ProfileStore
 
 # ---------------------------------------------------------------------------
@@ -78,12 +78,17 @@ class SelfProfileManager:
         triggers = self._extract_triggers()
         dissonance = self._compute_dissonance(trait_scores)
 
+        maturity = self._compute_maturity(trait_scores, flaws)
+        defense_log = self._load_defense_log()
+
         return SelfProfile(
             observed_traits=observed_traits,
             strengths=strengths,
             flaws=flaws,
             triggers=triggers,
             dissonance=dissonance,
+            maturity_score=maturity,
+            defense_log=defense_log,
         )
 
     def get_trait_scores(self) -> dict[str, float]:
@@ -158,6 +163,67 @@ class SelfProfileManager:
                     triggers.append(context)
 
         return triggers
+
+    # ------------------------------------------------------------------
+    # Maturity derivation
+    # ------------------------------------------------------------------
+
+    def _compute_maturity(
+        self,
+        trait_scores: dict[str, float],
+        flaws: list[str],
+    ) -> float:
+        """Derive maturity_score from persisted evidence.
+
+        Inputs:
+        - observation count (more self-aware over time)
+        - diversity of recognized flaws
+        - defense event count (awareness of defense patterns)
+        """
+        obs_count = self._store.observation_count(self._entity_id)
+        if obs_count == 0:
+            return 0.0
+
+        # Base from observation count: caps at 0.3 around 30 observations
+        base = min(0.3, obs_count * 0.01)
+
+        # Bonus for recognizing flaws (diverse self-awareness)
+        flaw_bonus = min(0.2, len(flaws) * 0.05)
+
+        # Defense awareness: having defense events means the system
+        # is encountering and recording emotional pressure
+        defense_count = self._store.defense_event_count()
+        defense_bonus = min(0.2, defense_count * 0.02)
+
+        return min(1.0, base + flaw_bonus + defense_bonus)
+
+    # ------------------------------------------------------------------
+    # Defense event persistence
+    # ------------------------------------------------------------------
+
+    def persist_defense_event(self, event: DefenseEvent) -> None:
+        """Persist a defense event to the profile store."""
+        self._store.record_defense_event(
+            timestamp=event.timestamp,
+            defense_type=event.defense_type,
+            raw_intensity=event.raw_intensity,
+            expressed_intensity=event.expressed_intensity,
+            suppression_delta=event.suppression_delta,
+        )
+
+    def _load_defense_log(self) -> list[DefenseEvent]:
+        """Load defense events from persistent storage."""
+        rows = self._store.get_defense_events(limit=50)
+        return [
+            DefenseEvent(
+                timestamp=r["timestamp"],
+                defense_type=r["defense_type"],
+                raw_intensity=r["raw_intensity"],
+                expressed_intensity=r["expressed_intensity"],
+                suppression_delta=r["suppression_delta"],
+            )
+            for r in rows
+        ]
 
     @property
     def observation_count(self) -> int:

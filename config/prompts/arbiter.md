@@ -12,3 +12,6 @@ Synthesize a response that:
 
 The fact that there IS disagreement is itself valuable information.
 Sometimes the response should reflect that ambivalence.
+
+IMPORTANT: Return ONLY the synthesized response text. Do not include analysis,
+labels, quotation marks, or reasoning.

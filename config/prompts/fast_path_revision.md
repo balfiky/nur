@@ -13,3 +13,6 @@ The reflective voice objected:
 Revise your response taking the objection into account, but don't lose
 your authentic voice. You can push back if you genuinely disagree —
 note what you're conceding and what you're not.
+
+IMPORTANT: Return ONLY the revised response text. Do not include analysis,
+labels, quotation marks, or reasoning. Do not prefix with "Revised:" or similar.

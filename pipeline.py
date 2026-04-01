@@ -181,6 +181,9 @@ class CognitivePipeline:
         # Conversation history for context
         self._conversation_history: list[dict[str, str]] = []
 
+        # Time tracking for auto-decay between turns
+        self._last_turn_time: float | None = None
+
     # ------------------------------------------------------------------
     # Main entry point
     # ------------------------------------------------------------------
@@ -196,6 +199,14 @@ class CognitivePipeline:
         """
         debug = DebugState(user_message=user_message, user_id=user_id)
         person = self.person_profiles.get_or_create(user_id)
+
+        # ---- Step 0: Auto-decay based on elapsed time ----
+        now = time.time()
+        if self._last_turn_time is not None:
+            elapsed = now - self._last_turn_time
+            if elapsed > 0:
+                self.engine.decay(elapsed)
+        self._last_turn_time = now
 
         # ---- Step 1: ANTICIPATION (0 LLM calls) ----
         recent_msgs = [
@@ -220,9 +231,9 @@ class CognitivePipeline:
         debug.detected_emotion = detected
         self.engine.apply_contagion(detected.arousal, detected.valence, person.trust)
 
-        # ---- Step 3: Context switch ----
+        # ---- Step 3: Context switch (non-additive — sets resting target) ----
         shift = self.person_profiles.get_baseline_shift(user_id)
-        self.engine.apply_context_shift(shift)
+        self.engine.set_context_shift(shift)
         debug.baseline_shift_applied = shift.to_dict()
 
         # ---- Step 4: Event classification + PSI engine update ----
@@ -290,6 +301,16 @@ class CognitivePipeline:
 
         debug.contradiction_flags = contradiction_flags
 
+        # Wire contradictions and topics as unresolved sources
+        if contradiction_flags:
+            self._check_contradiction_resolution(contradiction_flags, user_id)
+        if active_topics:
+            self._check_topic_resolution(active_topics)
+        # Update resolution counts after new sources
+        active_unresolved = self.engine.active_unresolved()
+        debug.unresolved_count = len(active_unresolved)
+        debug.unresolved_items = list(active_unresolved)
+
         # ---- Step 11: INNER DIALOGUE (2-5 LLM calls) ----
         contagion_summary = (
             f"arousal={detected.arousal:.2f}, valence={detected.valence:.2f}, "
@@ -329,6 +350,10 @@ class CognitivePipeline:
         debug.defense_activation = defense
 
         # ---- Step 13: MASTER LLM (1 LLM call) ----
+        defense_instruction = ""
+        if defense:
+            defense_instruction = DEFENSE_INSTRUCTIONS.get(defense.defense_type, "")
+
         ctx = PipelineContext(
             modulator_snapshot=self.engine.snapshot(),
             person_profile=person,
@@ -339,15 +364,9 @@ class CognitivePipeline:
             short_term_history=self.short_term.recent(5),
             contradiction_flags=contradiction_flags,
             contagion=detected,
+            candidate_response=filtered_output,
+            defense_instruction=defense_instruction,
         )
-
-        # Inject defense instruction into contradiction_flags (prompt injection point)
-        if defense:
-            instruction = DEFENSE_INSTRUCTIONS.get(defense.defense_type, "")
-            if instruction:
-                ctx.contradiction_flags = ctx.contradiction_flags + [
-                    f"[Defense active: {instruction}]"
-                ]
 
         gen_result = self.generator.generate(
             ctx, user_message, self._conversation_history
@@ -411,7 +430,59 @@ class CognitivePipeline:
         if event_valence != 0.0:
             self.person_profiles.update_trust(user_id, valence=event_valence)
 
+        # ---- Self-observations (1-3 per turn) ----
+        self._record_self_observations(
+            event, detected, defense, self.engine.state, gen_result.response,
+        )
+
+        # ---- Persist defense event ----
+        if defense:
+            from core.types import DefenseEvent
+            de = DefenseEvent(
+                timestamp=time.time(),
+                defense_type=defense.defense_type,
+                raw_intensity=defense.raw_intensity,
+                expressed_intensity=defense.expressed_intensity,
+                suppression_delta=defense.suppression_delta,
+            )
+            self.self_profile.persist_defense_event(de)
+
         return PipelineResponse(response=gen_result.response, debug=debug)
+
+    # ------------------------------------------------------------------
+    # Self-observation recording (v2 — Phase 3)
+    # ------------------------------------------------------------------
+
+    def _record_self_observations(
+        self,
+        event: EmotionalEvent,
+        detected: DetectedEmotion,
+        defense: DefenseActivation | None,
+        state: ModulatorState,
+        response: str,
+    ) -> None:
+        """Record 1-3 behavioral self-observations after each turn."""
+        observations: list[tuple[str, float, str]] = []  # (trait, value, context)
+
+        # Blunt: high certainty + directive response
+        if state.certainty > 0.7:
+            observations.append(("blunt", state.certainty, "high_certainty"))
+
+        # Empathetic: negative user emotion acknowledged
+        if detected.valence < 0.3:
+            observations.append(("empathetic", 0.6, "negative_user_emotion"))
+
+        # Defensive: defense mechanism fired
+        if defense is not None:
+            observations.append(("defensive", defense.raw_intensity, defense.defense_type))
+
+        # Avoidant: avoidance topic active and energy low
+        if state.energy < 0.3:
+            observations.append(("avoidant", 0.5, "low_energy"))
+
+        # Cap at 3 observations per turn
+        for trait, value, context in observations[:3]:
+            self.self_profile.record_behavior(trait, value, context)
 
     # ------------------------------------------------------------------
     # Resolution source detection (v2)
@@ -436,13 +507,58 @@ class CognitivePipeline:
                 decay_rate=0.03,
             ))
 
-        # Resolution events may resolve existing items
+        # Resolution events resolve matching items (or oldest if no match)
         if event.event_type == EventType.RESOLUTION:
-            # Resolve the oldest active item (simplified — full resolution
-            # matching is a v2.5+ feature)
             active = self.engine.active_unresolved()
             if active:
-                self.engine.resolve_item(active[0].id)
+                # Try to match by text overlap with description
+                lower = text.lower()
+                matched = None
+                for item in active:
+                    if any(word in lower for word in item.description.lower().split()
+                           if len(word) > 3):
+                        matched = item
+                        break
+                self.engine.resolve_item((matched or active[0]).id)
+
+    def _check_contradiction_resolution(
+        self, contradiction_flags: list[str], user_id: str,
+    ) -> None:
+        """Wire contradictions as unresolved items."""
+        from datetime import datetime, timezone
+        import uuid
+
+        for flag in contradiction_flags:
+            self.engine.add_unresolved(UnresolvedItem(
+                id=f"contradiction_{uuid.uuid4().hex[:8]}",
+                source="contradiction",
+                description=flag[:120],
+                created_at=datetime.now(timezone.utc),
+                intensity=0.5,
+                decay_rate=0.02,
+            ))
+
+    def _check_topic_resolution(
+        self, topics: list[TopicProfile],
+    ) -> None:
+        """Wire avoidance/charged topics as unresolved items."""
+        from datetime import datetime, timezone
+        import uuid
+
+        for tp in topics:
+            if tp.avoidance or tp.emotional_charge >= 0.5:
+                # Don't add duplicate for same topic
+                active_descs = {i.description for i in self.engine.active_unresolved()}
+                desc = f"Charged topic: {tp.topic} (charge={tp.emotional_charge:.2f})"
+                if desc not in active_descs:
+                    self.engine.add_unresolved(UnresolvedItem(
+                        id=f"topic_{uuid.uuid4().hex[:8]}",
+                        source="topic",
+                        description=desc,
+                        created_at=datetime.now(timezone.utc),
+                        intensity=min(0.7, tp.emotional_charge),
+                        decay_rate=0.05,
+                    ))
 
     # ------------------------------------------------------------------
     # Session management
@@ -458,12 +574,8 @@ class CognitivePipeline:
             conversation_history=self._conversation_history,
         )
 
-        # Apply trust delta from digestion
-        if result.trust_delta != 0:
-            self.person_profiles.update_trust(
-                user_id,
-                valence=1.0 if result.trust_delta > 0 else -1.0,
-            )
+        # Trust is updated per-turn (in process()), not again at session end.
+        # The digested trust_delta is informational only.
 
         # Apply energy drain
         self.engine.state.energy = max(

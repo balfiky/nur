@@ -113,11 +113,17 @@ class TestEmotionalEngine:
         assert engine.state.energy <= 1.0
 
     def test_context_shift(self):
+        """Context shift sets a resting target offset, not an immediate additive."""
         engine = EmotionalEngine()
         shift = BaselineShift(arousal=0.1, bonding=0.2)
-        engine.apply_context_shift(shift)
-        assert engine.state.arousal == pytest.approx(0.6, abs=0.01)
-        assert engine.state.bonding == pytest.approx(0.7, abs=0.01)
+        engine.set_context_shift(shift)
+        # Shift affects decay target, not immediate state
+        assert engine.effective_baseline("arousal") == pytest.approx(0.6, abs=0.01)
+        assert engine.effective_baseline("bonding") == pytest.approx(0.7, abs=0.01)
+        # After decay, state moves toward the effective baseline
+        engine.state.arousal = 0.3
+        engine.decay(1000)
+        assert engine.state.arousal > 0.3
 
     def test_contagion_bounded(self):
         engine = EmotionalEngine()

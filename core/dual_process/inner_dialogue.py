@@ -12,9 +12,9 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import TYPE_CHECKING
 
+from config.loader import get_config
 from core.types import (
     DialogueRound,
     InnerDialogueTrace,
@@ -40,13 +40,19 @@ AROUSAL_BYPASS_THRESHOLD = 0.8    # too activated to deliberate
 ENERGY_BYPASS_THRESHOLD = 0.2     # too tired to deliberate
 RESOLUTION_INSIST_THRESHOLD = 0.6  # slow path insists on unresolved items
 
-_PROMPTS_DIR = Path(__file__).parent.parent.parent / "config" / "prompts"
+_PROMPT_MAP = {
+    "fast_path.md": "fast_path_prompt",
+    "slow_path.md": "slow_path_prompt",
+    "fast_path_revision.md": "fast_path_revision_prompt",
+    "arbiter.md": "arbiter_prompt",
+}
 
 
 def _load_template(name: str) -> str:
-    path = _PROMPTS_DIR / name
-    if path.exists():
-        return path.read_text()
+    """Load prompt template through config.loader (unified loading)."""
+    attr = _PROMPT_MAP.get(name)
+    if attr:
+        return getattr(get_config(), attr, "")
     return ""
 
 
@@ -208,28 +214,31 @@ def build_arbiter_prompt(
 # Slow path response parsing
 # ---------------------------------------------------------------------------
 
-def parse_slow_path_response(text: str) -> tuple[bool, str]:
-    """Parse slow path output. Returns (approved, reason_or_objection)."""
+def parse_slow_path_response(text: str) -> tuple[bool, str, bool]:
+    """Parse slow path output.
+
+    Returns (approved, reason_or_objection, parsed_successfully).
+    If unparseable, returns (False, text, False) — treat as objection, not auto-approve.
+    """
     stripped = text.strip()
     upper = stripped.upper()
 
     if upper.startswith("APPROVED"):
-        # Extract reason after "APPROVED" and optional colon
         reason = stripped[len("APPROVED"):].lstrip(":").strip()
-        return True, reason
+        return True, reason, True
 
     if upper.startswith("OBJECTION"):
         reason = stripped[len("OBJECTION"):].lstrip(":").strip()
-        return False, reason
+        return False, reason, True
 
     # Fallback: look for keywords anywhere
     if "APPROVED" in upper and "OBJECTION" not in upper:
-        return True, stripped
+        return True, stripped, True
     if "OBJECTION" in upper:
-        return False, stripped
+        return False, stripped, True
 
-    # Default: treat mock/unparseable as approval (graceful degradation)
-    return True, stripped
+    # Unparseable: treat as objection (not auto-approve)
+    return False, stripped, False
 
 
 # ---------------------------------------------------------------------------
@@ -291,7 +300,15 @@ class InnerDialogue:
             state, person, self_profile, values, unresolved, memories, fast_candidate,
         )
         slow_response = self._call_llm(slow_prompt, user_message)
-        approved, reason = parse_slow_path_response(slow_response)
+        approved, reason, parsed = parse_slow_path_response(slow_response)
+
+        # Retry once on parse failure, then treat as objection
+        if not parsed:
+            slow_response = self._call_llm(slow_prompt, user_message)
+            approved, reason, parsed = parse_slow_path_response(slow_response)
+            if not parsed:
+                approved = False
+                reason = f"[parse failure] {reason}"
 
         rounds.append(DialogueRound(
             round_number=1,
@@ -315,7 +332,15 @@ class InnerDialogue:
             state, person, self_profile, values, unresolved, memories, revised_candidate,
         )
         slow_response_2 = self._call_llm(slow_prompt_2, user_message)
-        approved_2, reason_2 = parse_slow_path_response(slow_response_2)
+        approved_2, reason_2, parsed_2 = parse_slow_path_response(slow_response_2)
+
+        # Retry once on parse failure
+        if not parsed_2:
+            slow_response_2 = self._call_llm(slow_prompt_2, user_message)
+            approved_2, reason_2, parsed_2 = parse_slow_path_response(slow_response_2)
+            if not parsed_2:
+                approved_2 = False
+                reason_2 = f"[parse failure] {reason_2}"
 
         rounds.append(DialogueRound(
             round_number=2,

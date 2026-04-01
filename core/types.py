@@ -236,6 +236,9 @@ class PipelineContext:
     short_term_history: list[ShortTermEntry] = field(default_factory=list)
     contradiction_flags: list[str] = field(default_factory=list)
     contagion: DetectedEmotion | None = None
+    # v2: inner dialogue candidate and defense instruction
+    candidate_response: str = ""
+    defense_instruction: str = ""
 
 
 # ---------------------------------------------------------------------------

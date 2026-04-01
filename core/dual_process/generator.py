@@ -64,6 +64,8 @@ def build_system_prompt(ctx: PipelineContext) -> str:
     memory_section = _build_memory_section(ctx)
     contradiction_section = _build_contradiction_section(ctx)
     guidance_section = _build_guidance_section(ctx)
+    candidate_section = _build_candidate_section(ctx)
+    defense_section = _build_defense_instruction_section(ctx)
 
     # If template loaded, fill placeholders
     if template:
@@ -77,6 +79,8 @@ def build_system_prompt(ctx: PipelineContext) -> str:
         prompt = prompt.replace("{retrieved_memories}", memory_section)
         prompt = prompt.replace("{contradiction_flags}", contradiction_section)
         prompt = prompt.replace("{behavioral_guidance}", guidance_section)
+        prompt = prompt.replace("{candidate_response}", candidate_section)
+        prompt = prompt.replace("{defense_instruction}", defense_section)
         return prompt
 
     # Fallback: build in code (for backwards compatibility)
@@ -92,6 +96,8 @@ def build_system_prompt(ctx: PipelineContext) -> str:
     parts.append(memory_section)
     parts.append(contradiction_section)
     parts.append(guidance_section)
+    parts.append(candidate_section)
+    parts.append(defense_section)
     return "\n".join(parts)
 
 
@@ -185,6 +191,27 @@ def _build_contradiction_section(ctx: PipelineContext) -> str:
     lines = ["## ⚠ Contradiction Flags"]
     for flag in ctx.contradiction_flags:
         lines.append(f"- {flag}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _build_candidate_section(ctx: PipelineContext) -> str:
+    if not ctx.candidate_response:
+        return ""
+    lines = ["## Draft Response to Refine"]
+    lines.append(f"{ctx.candidate_response}")
+    lines.append("")
+    lines.append("Preserve the intent of this draft. Refine for tone and polish,")
+    lines.append("but do not replace it with an unrelated response.")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _build_defense_instruction_section(ctx: PipelineContext) -> str:
+    if not ctx.defense_instruction:
+        return ""
+    lines = ["## Defense Filter"]
+    lines.append(f"{ctx.defense_instruction}")
     lines.append("")
     return "\n".join(lines)
 

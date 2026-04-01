@@ -5,9 +5,9 @@ Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
 Read CHANGELOG.md for version history and what changed when.
 
-## v2 Status: PHASES 1-5 COMPLETE
+## v2 Status: PHASES 1-5 COMPLETE + SECOND-PASS FIXES 1-5
 
-v1 (288 tests) + v2 phases 1-7 (188 tests) = 476 tests, zero regressions.
+v1 (288 tests) + v2 phases 1-7 (188 tests) + regression tests (9) = 485 tests, zero regressions.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -22,7 +22,7 @@ v1 (288 tests) + v2 phases 1-7 (188 tests) = 476 tests, zero regressions.
 - pipeline.py — Full v2 cognitive pipeline orchestrator
 - interface/ — FastAPI + WebSocket + debug dashboard
 - config/ — YAML configs + 10 prompt templates
-- tests/ — 476 tests including calibration, journey, and v2 integration tests
+- tests/ — 485 tests including calibration, journey, v2 integration, and regression tests
 
 ### What's NOT built (future features)
 - Dynamic value drift (v2.5)
@@ -46,9 +46,16 @@ v1 (288 tests) + v2 phases 1-7 (188 tests) = 476 tests, zero regressions.
 - MockLLMBackend returns "I understand." — triggers rule-based fallbacks in all LLM-dependent code
 - Config singleton: `from config.loader import get_config`
 - All LLM text interpretation: try JSON parse from LLM, fall back to keywords on failure
-- Trust asymmetry: +0.02 positive, -0.15 negative (7.5x negativity bias)
+- Trust asymmetry: +0.02 positive, -0.15 negative (7.5x negativity bias), per-turn only (no session-end trust)
 - Spike threshold: intensity >= 0.8 bypasses confidence threshold for long-term memory writes
 - Self-profiling uses entity ID `__self__` with same ProfileStore as person profiles
+- Inner dialogue candidate flows into generator as draft to refine (v2 fix)
+- Context shift is non-additive: `set_context_shift()` stores resting target, not accumulated delta
+- Auto-decay between turns: pipeline tracks `_last_turn_time`, decays at start of `process()`
+- Unparseable slow-path output = retry once then objection (not auto-approve)
+- All prompts load through config.loader (including v2 fast_path, slow_path, revision, arbiter)
+- Self-observations recorded after each turn; defense events persisted to SQLite
+- maturity_score derived from observation count + flaw diversity + defense events
 
 ## LLM provider
 - MiniMax M2.7-highspeed (Plus-Highspeed token plan, 4500 req/5hrs)
@@ -57,7 +64,7 @@ v1 (288 tests) + v2 phases 1-7 (188 tests) = 476 tests, zero regressions.
 - Model returns `<think>...</think>` reasoning tags — stripped by LLMClient
 
 ## Testing
-- `pytest` runs all 476 tests
+- `pytest` runs all 485 tests
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 

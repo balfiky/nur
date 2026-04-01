@@ -60,40 +60,48 @@ class SequenceLLMBackend:
 
 class TestParseSlowPath:
     def test_approved_with_reason(self):
-        approved, reason = parse_slow_path_response("APPROVED: tone is appropriate")
+        approved, reason, parsed = parse_slow_path_response("APPROVED: tone is appropriate")
         assert approved is True
+        assert parsed is True
         assert "tone is appropriate" in reason
 
     def test_objection_with_reason(self):
-        approved, reason = parse_slow_path_response("OBJECTION: too aggressive for low trust")
+        approved, reason, parsed = parse_slow_path_response("OBJECTION: too aggressive for low trust")
         assert approved is False
+        assert parsed is True
         assert "too aggressive" in reason
 
     def test_approved_case_insensitive(self):
-        approved, _ = parse_slow_path_response("approved: looks good")
+        approved, _, parsed = parse_slow_path_response("approved: looks good")
         assert approved is True
+        assert parsed is True
 
     def test_objection_case_insensitive(self):
-        approved, _ = parse_slow_path_response("objection: needs softening")
+        approved, _, parsed = parse_slow_path_response("objection: needs softening")
         assert approved is False
+        assert parsed is True
 
-    def test_mock_response_treated_as_approved(self):
-        """MockLLMBackend returns 'I understand.' — should be treated as approval."""
-        approved, _ = parse_slow_path_response("I understand.")
-        assert approved is True
+    def test_mock_response_treated_as_objection(self):
+        """MockLLMBackend returns 'I understand.' — unparseable = objection, not auto-approve."""
+        approved, _, parsed = parse_slow_path_response("I understand.")
+        assert approved is False
+        assert parsed is False
 
     def test_approved_keyword_in_text(self):
-        approved, _ = parse_slow_path_response("The response is APPROVED because it fits.")
+        approved, _, parsed = parse_slow_path_response("The response is APPROVED because it fits.")
         assert approved is True
+        assert parsed is True
 
     def test_objection_keyword_in_text(self):
-        approved, _ = parse_slow_path_response("I have an OBJECTION to the tone used here.")
+        approved, _, parsed = parse_slow_path_response("I have an OBJECTION to the tone used here.")
         assert approved is False
+        assert parsed is True
 
     def test_both_keywords_objection_wins(self):
         """If both keywords present, OBJECTION takes precedence."""
-        approved, _ = parse_slow_path_response("OBJECTION despite being APPROVED before")
+        approved, _, parsed = parse_slow_path_response("OBJECTION despite being APPROVED before")
         assert approved is False
+        assert parsed is True
 
 
 # ---------------------------------------------------------------------------
@@ -481,13 +489,16 @@ class TestTraceIntegrity:
         for i, r in enumerate(trace.rounds):
             assert r.round_number == i + 1
 
-    def test_default_mock_backend_approves_round_1(self):
-        """Default MockLLMBackend returns 'I understand.' → parsed as approval."""
+    def test_default_mock_backend_unparseable_triggers_retry(self):
+        """Default MockLLMBackend returns 'I understand.' — unparseable triggers
+        retry then objection, leading to multi-round deliberation."""
         dialogue = InnerDialogue()
         trace = dialogue.deliberate("hello", state=ModulatorState())
-        assert len(trace.rounds) == 1
-        assert trace.rounds[0].slow_path_approved is True
-        assert trace.total_llm_calls == 2
+        # Mock returns "I understand." which is unparseable → retry → still unparseable → objection
+        # This causes round 2+ (revision + slow check + retry + possibly arbiter)
+        assert len(trace.rounds) >= 2
+        assert trace.rounds[0].slow_path_approved is False
+        assert trace.total_llm_calls >= 4
 
 
 # ---------------------------------------------------------------------------
