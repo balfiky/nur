@@ -1,0 +1,9 @@
+# Value hierarchy seed values (static in v1)
+# Ranked by weight — higher = stronger drive
+
+values:
+  loyalty: 0.9
+  honesty: 0.85
+  kindness: 0.8
+  justice: 0.7
+  autonomy: 0.6

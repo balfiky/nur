@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Nūr</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Courier New', monospace; background: #0a0a0f; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; }
+header { background: #12121a; padding: 12px 20px; border-bottom: 1px solid #2a2a3a; display: flex; justify-content: space-between; align-items: center; }
+header h1 { font-size: 18px; color: #b8a9c9; }
+header .emotion-label { font-size: 14px; color: #8888aa; }
+.container { display: flex; flex: 1; overflow: hidden; }
+
+/* Chat panel */
+.chat-panel { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #2a2a3a; }
+.messages { flex: 1; overflow-y: auto; padding: 16px; }
+.msg { margin-bottom: 12px; padding: 8px 12px; border-radius: 6px; max-width: 85%; }
+.msg.user { background: #1a1a2e; margin-left: auto; }
+.msg.assistant { background: #16213e; }
+.msg .meta { font-size: 11px; color: #666; margin-top: 4px; }
+.input-area { padding: 12px; border-top: 1px solid #2a2a3a; display: flex; gap: 8px; }
+.input-area input { flex: 1; background: #16161e; border: 1px solid #2a2a3a; color: #e0e0e0; padding: 10px; border-radius: 4px; font-family: inherit; font-size: 14px; }
+.input-area button { background: #2a2a4a; color: #b8a9c9; border: 1px solid #3a3a5a; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-family: inherit; }
+.input-area button:hover { background: #3a3a5a; }
+
+/* Debug panel */
+.debug-panel { width: 360px; overflow-y: auto; padding: 16px; background: #0e0e16; }
+.debug-panel h2 { font-size: 13px; color: #8888aa; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+.debug-section { margin-bottom: 20px; }
+
+/* Gauges */
+.gauge { margin-bottom: 8px; }
+.gauge-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 2px; }
+.gauge-bar { height: 8px; background: #1a1a2a; border-radius: 4px; overflow: hidden; }
+.gauge-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+.gauge-fill.arousal { background: #ff6b6b; }
+.gauge-fill.valence { background: #51cf66; }
+.gauge-fill.certainty { background: #339af0; }
+.gauge-fill.bonding { background: #cc5de8; }
+.gauge-fill.energy { background: #ffd43b; }
+
+/* Profile info */
+.profile-item { font-size: 12px; color: #aaa; margin-bottom: 4px; }
+.profile-item .label { color: #888; }
+.flag { background: #3b1f1f; color: #ff6b6b; font-size: 11px; padding: 2px 6px; border-radius: 3px; margin-bottom: 4px; display: inline-block; }
+.memory-item { font-size: 11px; color: #999; padding: 4px 0; border-bottom: 1px solid #1a1a2a; }
+
+/* Session controls */
+.session-controls { padding: 8px 16px; background: #12121a; border-top: 1px solid #2a2a3a; display: flex; gap: 8px; }
+.session-controls button { background: #2a1a1a; color: #cc8888; border: 1px solid #3a2a2a; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px; }
+.session-controls button:hover { background: #3a2a2a; }
+.session-controls button.rest { background: #1a2a1a; color: #88cc88; border-color: #2a3a2a; }
+.session-controls button.rest:hover { background: #2a3a2a; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Project Nūr</h1>
+  <span class="emotion-label" id="emotionLabel">neutral</span>
+</header>
+
+<div class="container">
+  <div class="chat-panel">
+    <div class="messages" id="messages"></div>
+    <div class="input-area">
+      <input type="text" id="messageInput" placeholder="Type a message..." autofocus>
+      <button onclick="sendMessage()">Send</button>
+    </div>
+    <div class="session-controls">
+      <button onclick="endSession()">End Session</button>
+      <button class="rest" onclick="applyRest()">Rest (1hr)</button>
+    </div>
+  </div>
+
+  <div class="debug-panel">
+    <div class="debug-section">
+      <h2>Modulators</h2>
+      <div id="gauges">
+        <div class="gauge"><div class="gauge-label"><span>Arousal</span><span id="val-arousal">0.50</span></div><div class="gauge-bar"><div class="gauge-fill arousal" id="bar-arousal" style="width:50%"></div></div></div>
+        <div class="gauge"><div class="gauge-label"><span>Valence</span><span id="val-valence">0.50</span></div><div class="gauge-bar"><div class="gauge-fill valence" id="bar-valence" style="width:50%"></div></div></div>
+        <div class="gauge"><div class="gauge-label"><span>Certainty</span><span id="val-certainty">0.50</span></div><div class="gauge-bar"><div class="gauge-fill certainty" id="bar-certainty" style="width:50%"></div></div></div>
+        <div class="gauge"><div class="gauge-label"><span>Bonding</span><span id="val-bonding">0.50</span></div><div class="gauge-bar"><div class="gauge-fill bonding" id="bar-bonding" style="width:50%"></div></div></div>
+        <div class="gauge"><div class="gauge-label"><span>Energy</span><span id="val-energy">1.00</span></div><div class="gauge-bar"><div class="gauge-fill energy" id="bar-energy" style="width:100%"></div></div></div>
+      </div>
+    </div>
+
+    <div class="debug-section">
+      <h2>Event</h2>
+      <div class="profile-item"><span class="label">Type:</span> <span id="eventType">—</span></div>
+      <div class="profile-item"><span class="label">Intensity:</span> <span id="eventIntensity">—</span></div>
+      <div class="profile-item"><span class="label">Spike:</span> <span id="eventSpike">—</span></div>
+    </div>
+
+    <div class="debug-section">
+      <h2>Person Profile</h2>
+      <div class="profile-item"><span class="label">Trust:</span> <span id="personTrust">—</span></div>
+      <div class="profile-item"><span class="label">Interactions:</span> <span id="personInteractions">—</span></div>
+    </div>
+
+    <div class="debug-section">
+      <h2>Self Profile</h2>
+      <div class="profile-item"><span class="label">Strengths:</span> <span id="selfStrengths">—</span></div>
+      <div class="profile-item"><span class="label">Flaws:</span> <span id="selfFlaws">—</span></div>
+      <div class="profile-item"><span class="label">Dissonance:</span> <span id="selfDissonance">—</span></div>
+    </div>
+
+    <div class="debug-section">
+      <h2>Contradictions</h2>
+      <div id="contradictions"><span class="profile-item">None</span></div>
+    </div>
+
+    <div class="debug-section">
+      <h2>Memories Retrieved</h2>
+      <div id="memories"><span class="profile-item">None</span></div>
+    </div>
+
+    <div class="debug-section">
+      <h2>Self-Check</h2>
+      <div class="profile-item"><span class="label">Passed:</span> <span id="selfCheckPassed">—</span></div>
+      <div class="profile-item"><span class="label">Issues:</span> <span id="selfCheckIssues">—</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const messagesEl = document.getElementById('messages');
+const inputEl = document.getElementById('messageInput');
+
+inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+
+async function sendMessage() {
+  const msg = inputEl.value.trim();
+  if (!msg) return;
+  inputEl.value = '';
+  addMessage(msg, 'user');
+
+  try {
+    const res = await fetch('/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: msg, user_id: 'default'}),
+    });
+    const data = await res.json();
+    addMessage(data.response, 'assistant');
+    updateDebug(data.debug);
+  } catch (err) {
+    addMessage('Error: ' + err.message, 'assistant');
+  }
+}
+
+function addMessage(text, role) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.textContent = text;
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function updateDebug(d) {
+  // Emotion label
+  document.getElementById('emotionLabel').textContent = d.emotion_label || 'neutral';
+
+  // Modulators
+  const mods = ['arousal', 'valence', 'certainty', 'bonding', 'energy'];
+  for (const m of mods) {
+    const val = d.modulator_snapshot[m] || 0;
+    document.getElementById('val-' + m).textContent = val.toFixed(2);
+    document.getElementById('bar-' + m).style.width = (val * 100) + '%';
+  }
+
+  // Event
+  document.getElementById('eventType').textContent = d.event_classified || '—';
+  document.getElementById('eventIntensity').textContent = d.event_intensity ? d.event_intensity.toFixed(2) : '—';
+  document.getElementById('eventSpike').textContent = d.is_spike ? 'YES' : 'no';
+
+  // Person profile
+  if (d.person_profile) {
+    document.getElementById('personTrust').textContent = d.person_profile.trust.toFixed(2);
+    document.getElementById('personInteractions').textContent = d.person_profile.interaction_count;
+  }
+
+  // Self profile
+  if (d.self_profile) {
+    document.getElementById('selfStrengths').textContent = d.self_profile.strengths.join(', ') || '—';
+    document.getElementById('selfFlaws').textContent = d.self_profile.flaws.join(', ') || '—';
+    document.getElementById('selfDissonance').textContent = d.self_profile.dissonance.toFixed(2);
+  }
+
+  // Contradictions
+  const contradEl = document.getElementById('contradictions');
+  if (d.contradiction_flags && d.contradiction_flags.length > 0) {
+    contradEl.innerHTML = d.contradiction_flags.map(f => '<span class="flag">' + f + '</span>').join(' ');
+  } else {
+    contradEl.innerHTML = '<span class="profile-item">None</span>';
+  }
+
+  // Memories
+  const memEl = document.getElementById('memories');
+  if (d.retrieved_memories && d.retrieved_memories.length > 0) {
+    memEl.innerHTML = d.retrieved_memories.map(m =>
+      '<div class="memory-item">' + m.summary + ' (v=' + m.valence.toFixed(2) + ')' + (m.spike ? ' ⚡' : '') + '</div>'
+    ).join('');
+  } else {
+    memEl.innerHTML = '<span class="profile-item">None</span>';
+  }
+
+  // Self-check
+  document.getElementById('selfCheckPassed').textContent = d.self_check_passed ? 'yes' : 'NO';
+  document.getElementById('selfCheckIssues').textContent = d.self_check_issues.join('; ') || '—';
+}
+
+async function endSession() {
+  try {
+    const res = await fetch('/session/end', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({user_id: 'default'}),
+    });
+    const data = await res.json();
+    addMessage('[Session ended: ' + data.summary + ']', 'assistant');
+  } catch (err) {
+    addMessage('Error ending session: ' + err.message, 'assistant');
+  }
+}
+
+async function applyRest() {
+  try {
+    const res = await fetch('/rest', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({hours: 1.0}),
+    });
+    const data = await res.json();
+    addMessage('[Rested 1hr: energy ' + data.energy_before.toFixed(2) + ' → ' + data.energy_after.toFixed(2) + ']', 'assistant');
+    // Refresh debug display
+    const debugRes = await fetch('/debug');
+    const debugData = await debugRes.json();
+    const mods = ['arousal', 'valence', 'certainty', 'bonding', 'energy'];
+    for (const m of mods) {
+      const val = debugData.modulator_snapshot[m] || 0;
+      document.getElementById('val-' + m).textContent = val.toFixed(2);
+      document.getElementById('bar-' + m).style.width = (val * 100) + '%';
+    }
+    document.getElementById('emotionLabel').textContent = debugData.emotion_label || 'neutral';
+  } catch (err) {
+    addMessage('Error: ' + err.message, 'assistant');
+  }
+}
+</script>
+</body>
+</html>

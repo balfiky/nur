@@ -1,0 +1,58 @@
+# Profile system configuration
+
+# Shared profiling mechanism (base.py)
+profiling:
+  primacy_default: 0.8
+  primacy_decay_rate: 0.02
+  observation_window: 20
+
+# Person profiles
+person:
+  trust_positive_delta: 0.02
+  trust_negative_delta: -0.15
+  primacy_interaction_threshold: 5
+  default_trust: 0.5
+  default_reliability: 0.5
+  default_emotional_volatility: 0.5
+  default_primacy_weight: 0.8
+  primacy_decay_per_interaction: 0.02
+  primacy_floor: 0.3
+
+# Self-model
+self_model:
+  entity_id: "__self__"
+  strength_threshold: 0.7
+  flaw_threshold: 0.6
+  trigger_threshold: 0.7
+  dissonance_window: 10
+  trigger_min_observations: 3
+  negative_traits:
+    - blunt
+    - impatient
+    - avoidant
+    - defensive
+    - dismissive
+    - over_cautious
+    - verbose
+    - cold
+    - impulsive
+    - rigid
+
+# Topic profiles
+topic:
+  charge_positive_delta: 0.03
+  charge_negative_delta: 0.10
+  avoidance_charge_threshold: 0.7
+  conflict_avoidance_threshold: 3
+
+# Contradiction detection
+contradiction:
+  threshold: 0.3
+  recent_window: 10
+
+# Contagion detection
+contagion:
+  caps_ratio_threshold: 0.5
+  exclamation_boost: 0.1
+  question_arousal: 0.05
+  ellipsis_valence: -0.05

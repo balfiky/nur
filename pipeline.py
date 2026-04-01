@@ -1,0 +1,585 @@
+"""Cognitive pipeline orchestrator.
+
+Wires all modules together following the v1 processing flow:
+ 1. Input arrives
+ 2. Contagion: detect user tone → bounded mirror (arousal + valence only)
+ 3. Context switch: load person profile baseline_shift
+ 4. PSI engine: update 5 modulators from input + drives + energy
+ 5. Short-term memory: store emotional reaction
+ 6. Spike check: if intensity > 0.8 → heavy write to LT
+ 7. Memory retrieval: ACT-R activation biased by current state
+ 8. Profile lookup: person + self + topic
+ 9. Contradiction check: compare against profiles (self + others)
+10. Generate response (1 LLM call with full context)
+11. Self-check (rule-based + optional LLM — tone, consistency, overconfidence)
+12. Output delivered
+13. Update short-term memory with outcome
+14. Drain energy
+15. [Session end] Digestion (1 LLM call)
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import time
+from dataclasses import dataclass, field
+
+from config.loader import get_config
+from core.types import (
+    DetectedEmotion,
+    EmotionalEvent,
+    EventType,
+    LongTermEntry,
+    ModulatorState,
+    PipelineContext,
+    PersonProfile,
+    SelfProfile,
+    TopicProfile,
+    ValueHierarchy,
+)
+from core.emotional_engine import EmotionalEngine, SPIKE_INTENSITY_THRESHOLD
+from core.memory.short_term import ShortTermMemory
+from core.memory.long_term import LongTermMemory
+from core.memory.digestion import digest_session, DigestedSession
+from core.contagion import detect_emotion
+from core.profiles.base import ProfileStore
+from core.profiles.person import PersonProfileManager
+from core.profiles.self_model import SelfProfileManager, SELF_ENTITY_ID
+from core.profiles.topic import TopicProfileManager
+from core.profiles.contradiction import ContradictionDetector
+from core.dual_process.generator import (
+    GenerationResult,
+    LLMBackend,
+    MockLLMBackend,
+    ResponseGenerator,
+)
+from core.dual_process.self_check import SelfChecker
+
+
+# ---------------------------------------------------------------------------
+# Debug state — full transparency into what happened
+# ---------------------------------------------------------------------------
+
+@dataclass
+class DebugState:
+    """Complete debug snapshot of a single pipeline run."""
+    timestamp: float = field(default_factory=time.time)
+    user_message: str = ""
+    user_id: str = ""
+
+    # Step 2: Contagion
+    detected_emotion: DetectedEmotion | None = None
+
+    # Step 3: Context switch
+    baseline_shift_applied: dict[str, float] = field(default_factory=dict)
+
+    # Step 4: Modulator update
+    event_classified: str = ""
+    event_intensity: float = 0.0
+    is_spike: bool = False
+    modulator_snapshot: dict[str, float] = field(default_factory=dict)
+
+    # Step 7: Memory retrieval
+    retrieved_memories: list[LongTermEntry] = field(default_factory=list)
+
+    # Step 8: Profiles
+    person_profile: PersonProfile | None = None
+    self_profile: SelfProfile | None = None
+    topic_profiles: list[TopicProfile] = field(default_factory=list)
+
+    # Step 9: Contradictions
+    contradiction_flags: list[str] = field(default_factory=list)
+
+    # Steps 10-11: Generation
+    response: str = ""
+    self_check_passed: bool = True
+    self_check_issues: list[str] = field(default_factory=list)
+    correction_note: str = ""
+    generation_attempts: int = 0
+
+    # Step 14: Energy
+    energy_after: float = 0.0
+
+    # Emotion label (for display)
+    emotion_label: str = ""
+
+
+# ---------------------------------------------------------------------------
+# Pipeline response
+# ---------------------------------------------------------------------------
+
+@dataclass
+class PipelineResponse:
+    """What the pipeline returns to the caller."""
+    response: str
+    debug: DebugState
+
+
+# ---------------------------------------------------------------------------
+# CognitivePipeline
+# ---------------------------------------------------------------------------
+
+class CognitivePipeline:
+    """Orchestrates the full v1 cognitive processing flow."""
+
+    def __init__(
+        self,
+        llm_backend: LLMBackend | None = None,
+        db_path: str = ":memory:",
+    ) -> None:
+        # Single LLM backend shared across all components
+        self._llm_backend = llm_backend or MockLLMBackend()
+
+        # Core engine
+        self.engine = EmotionalEngine()
+
+        # Memory
+        self.short_term = ShortTermMemory()
+        self.long_term = LongTermMemory(db_path=db_path)
+
+        # Profiles (shared store)
+        self.profile_store = ProfileStore(db_path=db_path)
+        self.person_profiles = PersonProfileManager(self.profile_store, db_path=db_path)
+        self.self_profile = SelfProfileManager(self.profile_store)
+        self.topic_profiles = TopicProfileManager(db_path=db_path)
+        self.contradiction_detector = ContradictionDetector(self.profile_store)
+
+        # Generation — all share the same backend
+        self.generator = ResponseGenerator(backend=self._llm_backend)
+        self.self_checker = SelfChecker(llm_client=self._llm_backend)
+
+        # Values (static in v1)
+        self.values = ValueHierarchy()
+
+        # Conversation history for context
+        self._conversation_history: list[dict[str, str]] = []
+
+    # ------------------------------------------------------------------
+    # Main entry point
+    # ------------------------------------------------------------------
+
+    def process(self, user_message: str, user_id: str = "default") -> PipelineResponse:
+        """Process a user message through the full cognitive pipeline.
+
+        Returns the response text and full debug state.
+        """
+        debug = DebugState(user_message=user_message, user_id=user_id)
+
+        # ---- Step 2: Contagion ----
+        detected = detect_emotion(user_message, llm_client=self._llm_backend)
+        debug.detected_emotion = detected
+        person = self.person_profiles.get_or_create(user_id)
+        self.engine.apply_contagion(detected.arousal, detected.valence, person.trust)
+
+        # ---- Step 3: Context switch ----
+        shift = self.person_profiles.get_baseline_shift(user_id)
+        self.engine.apply_context_shift(shift)
+        debug.baseline_shift_applied = shift.to_dict()
+
+        # ---- Step 4: PSI engine update ----
+        event = self._classify_event(user_message, detected)
+        is_spike = self.engine.update(event)
+        debug.event_classified = event.event_type.value
+        debug.event_intensity = event.intensity
+        debug.is_spike = is_spike
+        debug.modulator_snapshot = self.engine.snapshot()
+
+        # ---- Step 5: Short-term memory ----
+        self.short_term.record(event, self.engine.state)
+
+        # ---- Step 6: Spike check ----
+        if is_spike:
+            spike_entry = LongTermEntry(
+                timestamp=time.time(),
+                summary=f"Spike: {event.event_type.value} from {user_id}",
+                emotional_valence=self._event_valence(event),
+                trust_delta=LongTermMemory.compute_trust_delta(self._event_valence(event)),
+                source_person=user_id,
+                confidence=1.0,
+                spike=True,
+            )
+            self.long_term.store_spike(spike_entry)
+
+        # ---- Step 7: Memory retrieval ----
+        retrieved = self.long_term.retrieve(
+            self.engine.state,
+            source_person=user_id,
+            limit=5,
+        )
+        debug.retrieved_memories = retrieved
+
+        # ---- Step 8: Profile lookup ----
+        person = self.person_profiles.get_or_create(user_id)
+        self_prof = self.self_profile.get_profile()
+        # Get topic profiles for any topics mentioned (simple keyword match)
+        active_topics = self._detect_topics(user_message)
+        debug.person_profile = person
+        debug.self_profile = self_prof
+        debug.topic_profiles = active_topics
+
+        # ---- Step 9: Contradiction check ----
+        contradiction_flags: list[str] = []
+
+        # Check person contradictions
+        person_expected = self.person_profiles.get_expected_traits(user_id)
+        if person_expected:
+            person_result = self.contradiction_detector.detect(user_id, person_expected)
+            for c in person_result.contradictions:
+                contradiction_flags.append(c.description)
+
+        # Check self contradictions
+        self_expected = self.self_profile.get_expected_traits()
+        if self_expected:
+            self_result = self.contradiction_detector.detect(SELF_ENTITY_ID, self_expected)
+            for c in self_result.contradictions:
+                contradiction_flags.append(c.description)
+
+        debug.contradiction_flags = contradiction_flags
+
+        # ---- Step 10: Build context and generate ----
+        ctx = PipelineContext(
+            modulator_snapshot=self.engine.snapshot(),
+            person_profile=person,
+            self_profile=self_prof,
+            topic_profiles=active_topics,
+            values=self.values,
+            retrieved_memories=retrieved,
+            short_term_history=self.short_term.recent(5),
+            contradiction_flags=contradiction_flags,
+            contagion=detected,
+        )
+
+        gen_result = self.generator.generate(
+            ctx, user_message, self._conversation_history
+        )
+        debug.generation_attempts = 1
+
+        # ---- Step 11: Self-check ----
+        check_result = self.self_checker.check(gen_result.response, ctx)
+        debug.self_check_passed = check_result.passed
+        debug.self_check_issues = check_result.issues
+
+        if check_result.failed:
+            # Regenerate with correction note
+            correction_ctx = PipelineContext(
+                modulator_snapshot=ctx.modulator_snapshot,
+                person_profile=ctx.person_profile,
+                self_profile=ctx.self_profile,
+                topic_profiles=ctx.topic_profiles,
+                values=ctx.values,
+                retrieved_memories=ctx.retrieved_memories,
+                short_term_history=ctx.short_term_history,
+                contradiction_flags=ctx.contradiction_flags + [check_result.correction_note],
+                contagion=ctx.contagion,
+            )
+            gen_result = self.generator.generate(
+                correction_ctx,
+                user_message,
+                self._conversation_history,
+            )
+            gen_result.correction_note = check_result.correction_note
+            debug.correction_note = check_result.correction_note
+            debug.generation_attempts = 2
+
+        debug.response = gen_result.response
+
+        # ---- Step 12: Output delivered (nothing to do here) ----
+
+        # ---- Step 13: Update short-term memory with outcome ----
+        outcome_event = EmotionalEvent(
+            event_type=EventType.USER_MESSAGE,
+            intensity=0.1,
+            source="self",
+            metadata={"type": "response_delivered"},
+        )
+        self.short_term.record(outcome_event, self.engine.state)
+
+        # ---- Step 14: Drain energy ----
+        self.engine.drain_energy(intensity=event.intensity)
+        debug.energy_after = self.engine.state.energy
+        debug.emotion_label = self.engine.to_emotion_label()
+
+        # ---- Update conversation history ----
+        self._conversation_history.append({"role": "user", "content": user_message})
+        self._conversation_history.append({"role": "assistant", "content": gen_result.response})
+
+        # Record interaction for person profile
+        self.person_profiles.record_interaction(
+            user_id,
+            {"engagement": event.intensity},
+            context=event.event_type.value,
+        )
+
+        # ---- Update trust per-message based on event valence ----
+        event_valence = self._event_valence(event)
+        if event_valence != 0.0:
+            self.person_profiles.update_trust(user_id, valence=event_valence)
+
+        return PipelineResponse(response=gen_result.response, debug=debug)
+
+    # ------------------------------------------------------------------
+    # Session management
+    # ------------------------------------------------------------------
+
+    def end_session(self, user_id: str = "default") -> DigestedSession:
+        """End a session: run digestion, clear short-term, apply energy drain."""
+        result = digest_session(
+            self.short_term,
+            self.long_term,
+            source_person=user_id,
+            llm_client=self._llm_backend,
+            conversation_history=self._conversation_history,
+        )
+
+        # Apply trust delta from digestion
+        if result.trust_delta != 0:
+            self.person_profiles.update_trust(
+                user_id,
+                valence=1.0 if result.trust_delta > 0 else -1.0,
+            )
+
+        # Apply energy drain
+        self.engine.state.energy = max(
+            0.0, self.engine.state.energy - result.energy_drain
+        )
+
+        # Clear conversation history
+        self._conversation_history.clear()
+
+        return result
+
+    def apply_rest(self, hours: float) -> None:
+        """Simulate time passing between sessions. Recovers energy, decays modulators."""
+        seconds = hours * 3600.0
+        self.engine.decay(seconds)
+
+    # ------------------------------------------------------------------
+    # Event classification (LLM with rule-based fallback)
+    # ------------------------------------------------------------------
+
+    def _classify_event(
+        self, text: str, detected: DetectedEmotion
+    ) -> EmotionalEvent:
+        """Classify user message into an EmotionalEvent.
+
+        Uses LLM when available, falls back to rule-based heuristics.
+        """
+        # Try LLM classification
+        result = self._classify_event_via_llm(text, detected)
+        if result is not None:
+            return result
+
+        # Fallback to rule-based
+        return self._classify_event_via_rules(text, detected)
+
+    def _classify_event_via_llm(
+        self, text: str, detected: DetectedEmotion
+    ) -> EmotionalEvent | None:
+        """LLM-based event classification. Returns None on failure."""
+        prompt_template = get_config().classify_event_prompt
+        if not prompt_template:
+            return None
+
+        prompt = prompt_template.replace("{arousal}", f"{detected.arousal:.2f}")
+        prompt = prompt.replace("{valence}", f"{detected.valence:.2f}")
+        prompt = prompt.replace("{certainty}", f"{detected.certainty:.2f}")
+        prompt = prompt.replace("{intensity}", f"{detected.intensity:.2f}")
+
+        try:
+            raw = self._llm_backend.generate(prompt, text)
+            raw = raw.strip()
+            if raw.startswith("```"):
+                raw = re.sub(r"^```(?:json)?\s*", "", raw)
+                raw = re.sub(r"\s*```$", "", raw)
+            data = json.loads(raw)
+
+            event_type_str = data.get("event_type", "user_message")
+            intensity = float(data.get("intensity", 0.3))
+
+            # Validate event type
+            try:
+                event_type = EventType(event_type_str)
+            except ValueError:
+                return None
+
+            return EmotionalEvent(
+                event_type=event_type,
+                intensity=max(0.0, min(1.0, intensity)),
+                source="user",
+            )
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+            return None
+
+    def _classify_event_via_rules(
+        self, text: str, detected: DetectedEmotion
+    ) -> EmotionalEvent:
+        """Rule-based fallback for event classification."""
+        lower = text.lower()
+
+        # Betrayal / deception keywords
+        if any(w in lower for w in ["betray", "lied", "deceived", "cheated"]):
+            return EmotionalEvent(
+                event_type=EventType.BETRAYAL,
+                intensity=max(0.7, 1.0 - detected.valence),
+                source="user",
+            )
+
+        # Conflict / anger keywords
+        if any(w in lower for w in ["angry", "furious", "hate", "fight", "argument"]):
+            return EmotionalEvent(
+                event_type=EventType.CONFLICT,
+                intensity=max(0.5, detected.arousal),
+                source="user",
+            )
+
+        # Insults, hostility, profanity
+        _insult_words = [
+            "stupid", "idiot", "moron", "dumb", "pathetic", "useless",
+            "worthless", "incompetent", "fool", "clueless",
+        ]
+        _hostile_phrases = [
+            "shut up", "go away", "screw you", "piss off", "get lost",
+            "hate you", "leave me alone",
+        ]
+        _profanity = ["fuck", "shit", "bullshit", "damn", "asshole", "bastard", "bitch", "crap", "suck", "sucks"]
+
+        if any(w in lower for w in _insult_words):
+            return EmotionalEvent(
+                event_type=EventType.NEGATIVE_FEEDBACK,
+                intensity=max(0.6, detected.arousal),
+                source="user",
+            )
+        if any(p in lower for p in _hostile_phrases):
+            return EmotionalEvent(
+                event_type=EventType.CONFLICT,
+                intensity=max(0.7, detected.arousal),
+                source="user",
+            )
+        if any(w in lower for w in _profanity):
+            return EmotionalEvent(
+                event_type=EventType.NEGATIVE_FEEDBACK,
+                intensity=max(0.5, detected.arousal),
+                source="user",
+            )
+
+        # Resolution / apology keywords
+        if any(w in lower for w in ["sorry", "apologize", "resolved", "forgive", "peace"]):
+            return EmotionalEvent(
+                event_type=EventType.RESOLUTION,
+                intensity=0.6,
+                source="user",
+            )
+
+        # Positive feedback keywords
+        _positive_words = [
+            "thank", "grateful", "appreciate", "love", "great job",
+            "wonderful", "amazing", "awesome", "fantastic", "excellent",
+            "brilliant", "outstanding", "incredible", "superb", "perfect",
+            "beautiful", "impressive", "magnificent",
+        ]
+        if any(w in lower for w in _positive_words):
+            return EmotionalEvent(
+                event_type=EventType.POSITIVE_FEEDBACK,
+                intensity=max(0.3, detected.valence),
+                source="user",
+            )
+
+        # General negativity keywords
+        if any(w in lower for w in ["wrong", "bad", "terrible", "awful", "disappointed"]):
+            return EmotionalEvent(
+                event_type=EventType.NEGATIVE_FEEDBACK,
+                intensity=max(0.4, 1.0 - detected.valence),
+                source="user",
+            )
+
+        if any(w in lower for w in ["surprise", "unexpected", "wow", "shock"]):
+            return EmotionalEvent(
+                event_type=EventType.SURPRISE,
+                intensity=max(0.4, detected.arousal),
+                source="user",
+            )
+
+        if any(w in lower for w in ["warm", "kind", "sweet", "care", "hug"]):
+            return EmotionalEvent(
+                event_type=EventType.WARMTH,
+                intensity=max(0.3, detected.valence),
+                source="user",
+            )
+
+        # Contagion-driven fallback
+        if detected.valence < 0.25 and detected.arousal > 0.6:
+            return EmotionalEvent(
+                event_type=EventType.NEGATIVE_FEEDBACK,
+                intensity=detected.arousal,
+                source="user",
+            )
+
+        if detected.valence > 0.75:
+            return EmotionalEvent(
+                event_type=EventType.POSITIVE_FEEDBACK,
+                intensity=detected.valence,
+                source="user",
+            )
+
+        # Default: regular user message
+        intensity = max(abs(detected.arousal - 0.5), abs(detected.valence - 0.5))
+        return EmotionalEvent(
+            event_type=EventType.USER_MESSAGE,
+            intensity=max(0.1, min(1.0, intensity)),
+            source="user",
+        )
+
+    def _detect_topics(self, text: str) -> list[TopicProfile]:
+        """Detect active topics. Uses LLM when available, falls back to substring matching."""
+        all_topic_profiles = self.topic_profiles.all_profiles()
+        if not all_topic_profiles:
+            return []
+
+        # Try LLM detection
+        result = self._detect_topics_via_llm(text, all_topic_profiles)
+        if result is not None:
+            return result
+
+        # Fallback to substring matching
+        topics = []
+        lower = text.lower()
+        for tp in all_topic_profiles:
+            if tp.topic.lower() in lower:
+                topics.append(tp)
+        return topics
+
+    def _detect_topics_via_llm(
+        self, text: str, all_profiles: list[TopicProfile]
+    ) -> list[TopicProfile] | None:
+        """LLM-based topic detection. Returns None on failure."""
+        prompt_template = get_config().detect_topics_prompt
+        if not prompt_template:
+            return None
+
+        known_list = ", ".join(tp.topic for tp in all_profiles)
+        prompt = prompt_template.replace("{known_topics}", known_list)
+
+        try:
+            raw = self._llm_backend.generate(prompt, text)
+            raw = raw.strip()
+            if raw.startswith("```"):
+                raw = re.sub(r"^```(?:json)?\s*", "", raw)
+                raw = re.sub(r"\s*```$", "", raw)
+            data = json.loads(raw)
+
+            matched_names = set(t.lower() for t in data.get("topics", []))
+            return [tp for tp in all_profiles if tp.topic.lower() in matched_names]
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _event_valence(event: EmotionalEvent) -> float:
+        """Map event to signed valence for trust math."""
+        positive = {EventType.POSITIVE_FEEDBACK, EventType.RESOLUTION, EventType.WARMTH}
+        negative = {EventType.NEGATIVE_FEEDBACK, EventType.CONFLICT, EventType.BETRAYAL}
+        if event.event_type in positive:
+            return event.intensity
+        elif event.event_type in negative:
+            return -event.intensity
+        return 0.0

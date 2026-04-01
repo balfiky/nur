@@ -1,0 +1,82 @@
+# Modulator configuration for Project Nur v1
+# Start exaggerated — dampen later
+
+half_lives:
+  arousal: 120.0       # seconds (~2 min)
+  valence: 1800.0      # seconds (~30 min)
+  certainty: 600.0     # seconds (~10 min)
+  bonding: 86400.0     # seconds (~1 day)
+
+baselines:
+  arousal: 0.5
+  valence: 0.5
+  certainty: 0.5
+  bonding: 0.5
+  energy: 1.0
+
+energy:
+  drain_per_message: 0.02
+  drain_per_spike: 0.08
+  recovery_rate_per_hour: 0.1
+
+spike_threshold: 0.8
+
+contagion:
+  factor: 0.3
+  cap: 0.15
+
+# Event → modulator impact maps
+event_impacts:
+  user_message:
+    arousal: 0.05
+    energy: -0.02
+  positive_feedback:
+    valence: 0.25
+    certainty: 0.10
+    bonding: 0.05
+    arousal: 0.10
+  negative_feedback:
+    valence: -0.25
+    certainty: -0.15
+    arousal: 0.20
+  conflict:
+    valence: -0.35
+    certainty: -0.20
+    arousal: 0.40
+    bonding: -0.10
+    energy: -0.10
+  resolution:
+    valence: 0.20
+    certainty: 0.15
+    arousal: -0.10
+  surprise:
+    arousal: 0.40
+    certainty: -0.30
+  betrayal:
+    valence: -0.50
+    bonding: -0.30
+    certainty: -0.40
+    arousal: 0.50
+    energy: -0.15
+  warmth:
+    valence: 0.20
+    bonding: 0.10
+    arousal: -0.05
+  silence:
+    arousal: -0.10
+    certainty: -0.05
+  topic_shift:
+    arousal: 0.05
+    certainty: -0.05
+
+# Long-term memory / ACT-R retrieval
+memory:
+  trust_positive_delta: 0.02
+  trust_negative_delta: -0.15
+  confidence_threshold: 0.6
+  act_r_decay: 0.5
+  emotional_bias_weight: 0.3
+  spike_retrieval_bonus: 3.0
+  topic_context_bonus: 2.0
+  person_context_bonus: 1.5
+  short_term_max_entries: 200

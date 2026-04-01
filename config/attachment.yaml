@@ -1,0 +1,24 @@
+# Attachment style configuration
+# v1: locked to secure. Other styles exist for future use.
+
+active_style: secure
+
+styles:
+  secure:
+    # Proportional bonding — no modification
+    positive_multiplier: 1.0
+    negative_multiplier: 1.0
+  anxious:
+    # Rises fast, falls fast
+    positive_multiplier: 1.5
+    negative_multiplier: 1.3
+  avoidant:
+    # Rises slow, caps low
+    positive_multiplier: 0.5
+    negative_multiplier: 0.7
+    bonding_cap: 0.6
+  disorganized:
+    # Unpredictable oscillation
+    multiplier_min: 0.5
+    multiplier_max: 2.0
+    sign_flip: true
