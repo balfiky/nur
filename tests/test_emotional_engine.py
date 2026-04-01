@@ -31,7 +31,7 @@ class TestModulatorState:
     def test_to_dict(self):
         s = ModulatorState()
         d = s.to_dict()
-        assert set(d.keys()) == {"arousal", "valence", "certainty", "bonding", "energy"}
+        assert set(d.keys()) == {"arousal", "valence", "certainty", "bonding", "energy", "resolution"}
 
     def test_copy_is_independent(self):
         s = ModulatorState(arousal=0.8)

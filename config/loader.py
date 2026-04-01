@@ -115,6 +115,17 @@ class ContradictionConfig:
 
 
 @dataclass
+class ResolutionConfig:
+    decay_rates: dict[str, float] = field(default_factory=lambda: {
+        "contradiction": 0.02,
+        "topic": 0.05,
+        "commitment": 0.0,
+        "spike": 0.03,
+        "dialogue_deadlock": 0.10,
+    })
+
+
+@dataclass
 class ContagionDetectionConfig:
     caps_ratio_threshold: float = 0.5
     exclamation_boost: float = 0.1
@@ -147,6 +158,7 @@ class NurConfig:
     self_model: SelfModelConfig = field(default_factory=SelfModelConfig)
     topic: TopicConfig = field(default_factory=TopicConfig)
     contradiction: ContradictionConfig = field(default_factory=ContradictionConfig)
+    resolution: ResolutionConfig = field(default_factory=ResolutionConfig)
     contagion_detection: ContagionDetectionConfig = field(default_factory=ContagionDetectionConfig)
 
     # Event impacts
@@ -227,6 +239,14 @@ def load_config(config_dir: str | Path | None = None) -> NurConfig:
             topic_context_bonus=m.get("topic_context_bonus", 2.0),
             person_context_bonus=m.get("person_context_bonus", 1.5),
             short_term_max_entries=m.get("short_term_max_entries", 200),
+        )
+
+    # Resolution
+    if "resolution" in mod:
+        r = mod["resolution"]
+        decay = r.get("decay_rates", {})
+        cfg.resolution = ResolutionConfig(
+            decay_rates={**ResolutionConfig().decay_rates, **decay},
         )
 
     # --- Attachment ---

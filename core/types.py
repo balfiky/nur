@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 
 
 # ---------------------------------------------------------------------------
@@ -17,22 +18,24 @@ from typing import Any
 # ---------------------------------------------------------------------------
 
 class ModulatorName(str, Enum):
-    """The five v1 modulators (resolution deferred to v2)."""
+    """The six modulators (resolution added in v2)."""
     AROUSAL = "arousal"
     VALENCE = "valence"
     CERTAINTY = "certainty"
     BONDING = "bonding"
     ENERGY = "energy"
+    RESOLUTION = "resolution"
 
 
 @dataclass
 class ModulatorState:
-    """Snapshot of all five modulators at a point in time."""
+    """Snapshot of all six modulators at a point in time."""
     arousal: float = 0.5
     valence: float = 0.5
     certainty: float = 0.5
     bonding: float = 0.5
     energy: float = 1.0
+    resolution: float = 0.0
 
     def __post_init__(self) -> None:
         self._clamp_all()
@@ -143,6 +146,16 @@ class PersonProfile:
 
 
 @dataclass
+class DefenseEvent:
+    """Record of a single defense activation, stored in self-profile."""
+    timestamp: float
+    defense_type: str  # "rationalization" | "deflection" | "minimization" | "projection"
+    raw_intensity: float
+    expressed_intensity: float
+    suppression_delta: float
+
+
+@dataclass
 class SelfProfile:
     """The AI's model of itself — same mechanism as person profiles."""
     observed_traits: list[str] = field(default_factory=list)
@@ -150,6 +163,8 @@ class SelfProfile:
     flaws: list[str] = field(default_factory=list)
     triggers: list[str] = field(default_factory=list)
     dissonance: float = 0.0  # gap between self-model and recent behavior
+    maturity_score: float = 0.0  # 0.0-1.0, grows with self-awareness (v2)
+    defense_log: list[DefenseEvent] = field(default_factory=list)
 
 
 @dataclass
@@ -221,3 +236,67 @@ class PipelineContext:
     short_term_history: list[ShortTermEntry] = field(default_factory=list)
     contradiction_flags: list[str] = field(default_factory=list)
     contagion: DetectedEmotion | None = None
+
+
+# ---------------------------------------------------------------------------
+# v2 Types — Resolution, Anticipation, Inner Dialogue, Defense
+# ---------------------------------------------------------------------------
+
+@dataclass
+class UnresolvedItem:
+    """An unresolved cognitive/emotional tension tracked by the resolution modulator."""
+    id: str
+    source: str  # "contradiction" | "topic" | "commitment" | "spike" | "dialogue_deadlock"
+    description: str
+    created_at: datetime
+    intensity: float  # 0.0-1.0
+    decay_rate: float  # per-hour decay
+    resolved: bool = False
+    resolved_at: Optional[datetime] = None
+
+    def __post_init__(self) -> None:
+        self.intensity = max(0.0, min(1.0, self.intensity))
+        self.decay_rate = max(0.0, self.decay_rate)
+
+
+@dataclass
+class Anticipation:
+    """Forward emotional prediction — what the system expects before processing."""
+    predicted_topics: list[str]
+    predicted_emotional_tone: str
+    modulator_pre_shifts: dict[str, float]
+    confidence: float  # 0-1
+    basis: str  # why this prediction
+
+
+@dataclass
+class DialogueRound:
+    """One round of fast/slow path negotiation."""
+    round_number: int
+    fast_path_candidate: str
+    slow_path_evaluation: str
+    slow_path_approved: bool
+    objection_reason: Optional[str] = None
+    revision_notes: Optional[str] = None
+
+
+@dataclass
+class InnerDialogueTrace:
+    """Full trace of the inner dialogue deliberation."""
+    rounds: list[DialogueRound]
+    final_candidate: str
+    total_llm_calls: int
+    reached_deadlock: bool
+    deadlock_resolution: Optional[str] = None  # "arbiter" | None
+    dominant_path: str = "fast"  # "fast" | "slow" | "arbiter"
+    tension_level: float = 0.0  # 0-1
+
+
+@dataclass
+class DefenseActivation:
+    """Record of a defense mechanism activation."""
+    defense_type: str  # "rationalization" | "deflection" | "minimization" | "projection"
+    raw_intensity: float
+    expressed_intensity: float
+    suppression_delta: float  # the gap — how much is being hidden
+    reason: str

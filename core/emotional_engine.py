@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import math
 import time
+from datetime import datetime, timezone
 
 from config.loader import get_config
 from core.types import (
@@ -20,6 +21,7 @@ from core.types import (
     EventType,
     ModulatorName,
     ModulatorState,
+    UnresolvedItem,
 )
 
 # ---------------------------------------------------------------------------
@@ -48,6 +50,7 @@ def _load_constants() -> tuple[
     float,  # spike_threshold
     float,  # contagion_factor
     float,  # contagion_cap
+    dict[str, float],  # resolution_decay_rates
 ]:
     cfg = get_config()
     half_lives = dict(cfg.half_lives)
@@ -64,6 +67,7 @@ def _load_constants() -> tuple[
         cfg.spike_threshold,
         cfg.contagion_engine.factor,
         cfg.contagion_engine.cap,
+        dict(cfg.resolution.decay_rates),
     )
 
 
@@ -76,6 +80,7 @@ def _load_constants() -> tuple[
     SPIKE_INTENSITY_THRESHOLD,
     _CONTAGION_FACTOR,
     _CONTAGION_CAP,
+    RESOLUTION_DECAY_RATES,
 ) = _load_constants()
 
 
@@ -93,6 +98,9 @@ class EmotionalEngine:
         self.attachment = attachment
         self.half_lives = half_lives or dict(DEFAULT_HALF_LIVES)
         self._last_update_time = time.time()
+        # v2: resolution modulator
+        self.unresolved_items: list[UnresolvedItem] = []
+        self._resolution_decay_rates = dict(RESOLUTION_DECAY_RATES)
 
     # ------------------------------------------------------------------
     # Core operations
@@ -128,6 +136,10 @@ class EmotionalEngine:
             if mod == ModulatorName.ENERGY:
                 # Energy recovers toward 1.0 based on rest time
                 self._recover_energy(elapsed_seconds)
+                continue
+            if mod == ModulatorName.RESOLUTION:
+                # Resolution decays via item-level mechanism, not half-life
+                self._decay_unresolved_items(elapsed_seconds)
                 continue
 
             half_life = self.half_lives.get(mod.value)
@@ -214,6 +226,58 @@ class EmotionalEngine:
         if s.valence < 0.3 and s.bonding < 0.3:
             return "detached"
         return "neutral"
+
+    # ------------------------------------------------------------------
+    # Resolution modulator (v2)
+    # ------------------------------------------------------------------
+
+    def add_unresolved(self, item: UnresolvedItem) -> None:
+        """Add an unresolved tension item and recalculate resolution."""
+        self.unresolved_items.append(item)
+        self._recalculate_resolution()
+
+    def resolve_item(self, item_id: str) -> bool:
+        """Mark an item as resolved. Returns True if found."""
+        for item in self.unresolved_items:
+            if item.id == item_id and not item.resolved:
+                item.resolved = True
+                item.resolved_at = datetime.now(timezone.utc)
+                self._recalculate_resolution()
+                return True
+        return False
+
+    def active_unresolved(self) -> list[UnresolvedItem]:
+        """Return all active (unresolved) items."""
+        return [i for i in self.unresolved_items if not i.resolved]
+
+    def _recalculate_resolution(self) -> None:
+        """Recompute resolution modulator from active unresolved items."""
+        active = self.active_unresolved()
+        if not active:
+            self.state.resolution = 0.0
+            return
+        weighted = sum(i.intensity * self._time_weight(i) for i in active)
+        self.state.resolution = max(0.0, min(1.0, weighted))
+
+    def _time_weight(self, item: UnresolvedItem) -> float:
+        """Weight factor based on age — older items with decay weigh less."""
+        now = datetime.now(timezone.utc)
+        created = item.created_at
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        age_hours = (now - created).total_seconds() / 3600.0
+        if item.decay_rate <= 0.0:
+            return 1.0  # no decay (e.g. commitments)
+        decayed = max(0.0, 1.0 - item.decay_rate * age_hours)
+        return decayed
+
+    def _decay_unresolved_items(self, elapsed_seconds: float) -> None:
+        """Apply time-based intensity decay to unresolved items."""
+        hours = elapsed_seconds / 3600.0
+        for item in self.active_unresolved():
+            if item.decay_rate > 0.0:
+                item.intensity = max(0.0, item.intensity - item.decay_rate * hours)
+        self._recalculate_resolution()
 
     # ------------------------------------------------------------------
     # Internal helpers

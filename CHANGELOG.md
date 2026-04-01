@@ -4,6 +4,72 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.2.0 — 2026-04-01 (v2: The Inner Life)
+
+v2 adds deliberation, dread, and self-protection. Four interconnected features that give the system an inner life.
+
+### Resolution Modulator (Phase 1)
+- 6th modulator tracking unresolved cognitive/emotional tension
+- Per-source decay rates: contradictions (0.02/hr), topics (0.05/hr), commitments (0/hr), spikes (0.03/hr), deadlocks (0.10/hr)
+- Item-level tracking: add, resolve, recalculate weighted sum
+- Integrated into EmotionalEngine snapshot and decay cycles
+
+### Anticipation Engine (Phase 2)
+- Forward emotional modeling — predicts before processing
+- 4 pure heuristics (zero LLM calls): topic trajectory, person patterns, unresolved aging, temporal patterns
+- 30% intensity cap on pre-shifts, 0.3 confidence gate
+- Sensitive topic detection from 2+ mentions in last 3 messages
+
+### Inner Dialogue (Phase 3)
+- Iterative fast/slow path deliberation (2-3 rounds)
+- Fast path: gut reaction based on emotional state
+- Slow path: reflective evaluation against values, self-profile, unresolved items
+- Arbiter on round 3 deadlock (logged as unresolved item)
+- Control dynamics: arousal bypass (>0.8), energy bypass (<0.2), resolution insistence (>0.6)
+- 4 prompt templates: fast_path.md, slow_path.md, fast_path_revision.md, arbiter.md
+
+### Defense Mechanisms (Phase 4)
+- 4 types: rationalization, deflection, minimization, projection
+- Pure logic selection + prompt instruction injection (zero LLM calls)
+- Comfort threshold: 0.5 + trust×0.2 + maturity×0.2 + bonding×0.1
+- Suppression factor degrades with maturity (never fully gone)
+- Defense events logged in self-profile for pattern detection
+
+### Pipeline v2 Flow (Phase 5)
+- Full v2 processing: anticipation → contagion → event → resolution → inner dialogue → defense → master LLM
+- Debug payload includes all v2 layers (anticipation, dialogue_trace, defense_activation, unresolved_count)
+- v1 behavior fully preserved
+- LLM call budget: 5-9 per message (typical: 6)
+
+### New Types
+- UnresolvedItem, Anticipation, DialogueRound, InnerDialogueTrace, DefenseActivation, DefenseEvent
+- ModulatorName.RESOLUTION, resolution field in ModulatorState
+- maturity_score and defense_log in SelfProfile
+
+### Debug Dashboard (Phase 6)
+- Resolution gauge (6th modulator, orange)
+- Anticipation section: predicted topics, tone, confidence, pre-shifts, basis
+- Inner Dialogue section: rounds with fast/slow candidates, approval/objection status, tension meter, dominant path, LLM call count
+- Defense section: type, raw vs expressed intensity bars, suppression delta, reason
+- Unresolved Items section: source tags, descriptions, intensity, decay rate
+- `/debug` endpoint extended with resolution, unresolved_count, unresolved_items
+- `/chat` debug payload serializes all v2 fields (anticipation, dialogue_trace, defense_activation, unresolved_items)
+
+### Calibration Scenarios (Phase 7)
+- test_v2_scenarios.py with 30 scripted calibration tests across 5 scenarios
+- Deflection under low trust: arousal + trust thresholds, instruction injection, pipeline integration
+- Inner dialogue disagreement: multi-round objection/approval, slow path unresolved references, deadlock → unresolved item, bypass overrides
+- Anticipation pre-shift: topic trajectory detection, 30% cap verified, confidence gating, pipeline wiring
+- Defense degradation: monotonic suppression decrease across all 4 types at maturity 0.0/0.25/0.5/0.75/1.0, expressed intensity grows, suppression delta shrinks, defense logging
+- Full pipeline end-to-end: all debug fields, LLM budget, session arc, defense under pressure, v1 preserved
+
+### Testing
+- 476 tests total (188 new v2 tests + 288 v1 preserved)
+- test_resolution.py (19), test_anticipation.py (27), test_inner_dialogue.py (38), test_defense_mechanisms.py (36), test_pipeline_v2.py (29), test_interface.py v2 (9), test_v2_scenarios.py (30)
+- Zero v1 regressions
+
+---
+
 ## v0.1.0 — 2026-04-01 (v1 Complete)
 
 First complete version. All v1 systems built, tested, and wired together.

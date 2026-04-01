@@ -39,6 +39,30 @@ header .emotion-label { font-size: 14px; color: #8888aa; }
 .gauge-fill.certainty { background: #339af0; }
 .gauge-fill.bonding { background: #cc5de8; }
 .gauge-fill.energy { background: #ffd43b; }
+.gauge-fill.resolution { background: #ff922b; }
+
+/* v2 sections */
+.v2-tag { font-size: 9px; color: #ff922b; margin-left: 6px; vertical-align: middle; }
+.dialogue-round { font-size: 11px; background: #12121e; border-left: 2px solid #339af0; padding: 6px 8px; margin-bottom: 6px; border-radius: 0 4px 4px 0; }
+.dialogue-round .round-header { color: #339af0; font-weight: bold; margin-bottom: 3px; }
+.dialogue-round .fast { color: #ff6b6b; }
+.dialogue-round .slow { color: #51cf66; }
+.dialogue-round .approved { color: #51cf66; }
+.dialogue-round .objection { color: #ff6b6b; }
+.dialogue-round .candidate-text { color: #bbb; font-size: 10px; margin: 2px 0; white-space: pre-wrap; max-height: 60px; overflow-y: auto; }
+.defense-box { font-size: 11px; background: #1f1212; border-left: 2px solid #ff6b6b; padding: 6px 8px; border-radius: 0 4px 4px 0; }
+.defense-box .defense-type { color: #ff6b6b; font-weight: bold; text-transform: uppercase; }
+.defense-box .intensity-bar { display: flex; gap: 4px; align-items: center; margin: 4px 0; }
+.defense-box .bar-track { flex: 1; height: 6px; background: #1a1a2a; border-radius: 3px; position: relative; overflow: hidden; }
+.defense-box .bar-raw { position: absolute; height: 100%; background: #ff6b6b88; border-radius: 3px; }
+.defense-box .bar-expressed { position: absolute; height: 100%; background: #ff6b6b; border-radius: 3px; }
+.anticipation-box { font-size: 11px; background: #121a1f; border-left: 2px solid #ff922b; padding: 6px 8px; border-radius: 0 4px 4px 0; }
+.anticipation-box .topic-tag { background: #2a1f12; color: #ff922b; font-size: 10px; padding: 1px 5px; border-radius: 3px; margin-right: 3px; display: inline-block; }
+.unresolved-item { font-size: 11px; background: #1a1212; border-left: 2px solid #ff922b; padding: 5px 8px; margin-bottom: 4px; border-radius: 0 4px 4px 0; }
+.unresolved-item .source-tag { font-size: 9px; background: #2a1a12; color: #ff922b; padding: 1px 4px; border-radius: 2px; }
+.tension-meter { display: flex; align-items: center; gap: 6px; font-size: 11px; margin-top: 4px; }
+.tension-track { flex: 1; height: 4px; background: #1a1a2a; border-radius: 2px; overflow: hidden; }
+.tension-fill { height: 100%; background: linear-gradient(90deg, #51cf66, #ffd43b, #ff6b6b); border-radius: 2px; transition: width 0.5s ease; }
 
 /* Profile info */
 .profile-item { font-size: 12px; color: #aaa; margin-bottom: 4px; }
@@ -82,6 +106,7 @@ header .emotion-label { font-size: 14px; color: #8888aa; }
         <div class="gauge"><div class="gauge-label"><span>Certainty</span><span id="val-certainty">0.50</span></div><div class="gauge-bar"><div class="gauge-fill certainty" id="bar-certainty" style="width:50%"></div></div></div>
         <div class="gauge"><div class="gauge-label"><span>Bonding</span><span id="val-bonding">0.50</span></div><div class="gauge-bar"><div class="gauge-fill bonding" id="bar-bonding" style="width:50%"></div></div></div>
         <div class="gauge"><div class="gauge-label"><span>Energy</span><span id="val-energy">1.00</span></div><div class="gauge-bar"><div class="gauge-fill energy" id="bar-energy" style="width:100%"></div></div></div>
+        <div class="gauge"><div class="gauge-label"><span>Resolution</span><span id="val-resolution">0.00</span></div><div class="gauge-bar"><div class="gauge-fill resolution" id="bar-resolution" style="width:0%"></div></div></div>
       </div>
     </div>
 
@@ -119,6 +144,27 @@ header .emotion-label { font-size: 14px; color: #8888aa; }
       <h2>Self-Check</h2>
       <div class="profile-item"><span class="label">Passed:</span> <span id="selfCheckPassed">—</span></div>
       <div class="profile-item"><span class="label">Issues:</span> <span id="selfCheckIssues">—</span></div>
+    </div>
+
+    <div class="debug-section">
+      <h2>Anticipation<span class="v2-tag">v2</span></h2>
+      <div id="anticipation"><span class="profile-item">—</span></div>
+    </div>
+
+    <div class="debug-section">
+      <h2>Inner Dialogue<span class="v2-tag">v2</span></h2>
+      <div id="dialogueTrace"><span class="profile-item">—</span></div>
+    </div>
+
+    <div class="debug-section">
+      <h2>Defense<span class="v2-tag">v2</span></h2>
+      <div id="defense"><span class="profile-item">None</span></div>
+    </div>
+
+    <div class="debug-section">
+      <h2>Unresolved Items<span class="v2-tag">v2</span></h2>
+      <div class="profile-item"><span class="label">Count:</span> <span id="unresolvedCount">0</span></div>
+      <div id="unresolvedItems"></div>
     </div>
   </div>
 </div>
@@ -161,8 +207,8 @@ function updateDebug(d) {
   // Emotion label
   document.getElementById('emotionLabel').textContent = d.emotion_label || 'neutral';
 
-  // Modulators
-  const mods = ['arousal', 'valence', 'certainty', 'bonding', 'energy'];
+  // Modulators (6 including resolution)
+  const mods = ['arousal', 'valence', 'certainty', 'bonding', 'energy', 'resolution'];
   for (const m of mods) {
     const val = d.modulator_snapshot[m] || 0;
     document.getElementById('val-' + m).textContent = val.toFixed(2);
@@ -208,7 +254,127 @@ function updateDebug(d) {
   // Self-check
   document.getElementById('selfCheckPassed').textContent = d.self_check_passed ? 'yes' : 'NO';
   document.getElementById('selfCheckIssues').textContent = d.self_check_issues.join('; ') || '—';
+
+  // v2: Anticipation
+  updateAnticipation(d.anticipation);
+
+  // v2: Inner dialogue
+  updateDialogueTrace(d.dialogue_trace);
+
+  // v2: Defense
+  updateDefense(d.defense_activation);
+
+  // v2: Unresolved
+  document.getElementById('unresolvedCount').textContent = d.unresolved_count || 0;
+  updateUnresolvedItems(d.unresolved_items);
 }
+
+function updateAnticipation(ant) {
+  const el = document.getElementById('anticipation');
+  if (!ant || ant.confidence === 0) {
+    el.innerHTML = '<span class="profile-item">No prediction</span>';
+    return;
+  }
+  const topics = ant.predicted_topics.length > 0
+    ? ant.predicted_topics.map(t => '<span class="topic-tag">' + esc(t) + '</span>').join('')
+    : '<span style="color:#666">none</span>';
+  const shifts = Object.entries(ant.modulator_pre_shifts || {})
+    .map(([k, v]) => k + ': ' + (v > 0 ? '+' : '') + v.toFixed(2))
+    .join(', ') || 'none';
+  el.innerHTML =
+    '<div class="anticipation-box">' +
+    '<div><span class="label">Topics:</span> ' + topics + '</div>' +
+    '<div><span class="label">Tone:</span> ' + esc(ant.predicted_emotional_tone) + '</div>' +
+    '<div><span class="label">Confidence:</span> ' + ant.confidence.toFixed(2) + '</div>' +
+    '<div><span class="label">Pre-shifts:</span> ' + shifts + '</div>' +
+    '<div style="color:#666;font-size:10px;margin-top:2px">' + esc(ant.basis) + '</div>' +
+    '</div>';
+}
+
+function updateDialogueTrace(trace) {
+  const el = document.getElementById('dialogueTrace');
+  if (!trace) {
+    el.innerHTML = '<span class="profile-item">—</span>';
+    return;
+  }
+  let html = '';
+  for (const r of trace.rounds) {
+    const status = r.slow_path_approved
+      ? '<span class="approved">APPROVED</span>'
+      : '<span class="objection">OBJECTION</span>';
+    html += '<div class="dialogue-round">' +
+      '<div class="round-header">Round ' + r.round_number + ' ' + status + '</div>' +
+      '<div><span class="fast">Fast:</span></div>' +
+      '<div class="candidate-text">' + esc(truncate(r.fast_path_candidate, 200)) + '</div>' +
+      '<div><span class="slow">Slow:</span></div>' +
+      '<div class="candidate-text">' + esc(truncate(r.slow_path_evaluation, 200)) + '</div>';
+    if (r.objection_reason) {
+      html += '<div style="color:#ff6b6b;font-size:10px">Objection: ' + esc(r.objection_reason) + '</div>';
+    }
+    html += '</div>';
+  }
+  // Summary bar
+  const deadlock = trace.reached_deadlock
+    ? '<span class="flag">DEADLOCK' + (trace.deadlock_resolution ? ' → ' + trace.deadlock_resolution : '') + '</span> '
+    : '';
+  html += '<div class="tension-meter">' +
+    '<span>Tension</span>' +
+    '<div class="tension-track"><div class="tension-fill" style="width:' + (trace.tension_level * 100) + '%"></div></div>' +
+    '<span>' + trace.tension_level.toFixed(2) + '</span>' +
+    '</div>';
+  html += '<div style="font-size:10px;color:#888;margin-top:4px">' +
+    deadlock +
+    'Path: ' + trace.dominant_path +
+    ' &middot; LLM calls: ' + trace.total_llm_calls +
+    '</div>';
+  el.innerHTML = html;
+}
+
+function updateDefense(defense) {
+  const el = document.getElementById('defense');
+  if (!defense) {
+    el.innerHTML = '<span class="profile-item">None</span>';
+    return;
+  }
+  const rawPct = (defense.raw_intensity * 100).toFixed(0);
+  const exprPct = (defense.expressed_intensity * 100).toFixed(0);
+  el.innerHTML =
+    '<div class="defense-box">' +
+    '<div class="defense-type">' + defense.defense_type + '</div>' +
+    '<div class="intensity-bar">' +
+    '<span style="width:55px">Raw</span>' +
+    '<div class="bar-track"><div class="bar-raw" style="width:' + rawPct + '%"></div></div>' +
+    '<span style="width:35px;text-align:right">' + defense.raw_intensity.toFixed(2) + '</span>' +
+    '</div>' +
+    '<div class="intensity-bar">' +
+    '<span style="width:55px">Expressed</span>' +
+    '<div class="bar-track"><div class="bar-expressed" style="width:' + exprPct + '%"></div></div>' +
+    '<span style="width:35px;text-align:right">' + defense.expressed_intensity.toFixed(2) + '</span>' +
+    '</div>' +
+    '<div style="color:#ff922b;font-size:10px">Suppressed: ' + defense.suppression_delta.toFixed(2) + '</div>' +
+    '<div style="color:#666;font-size:10px;margin-top:2px">' + esc(defense.reason) + '</div>' +
+    '</div>';
+}
+
+function updateUnresolvedItems(items) {
+  const el = document.getElementById('unresolvedItems');
+  if (!items || items.length === 0) {
+    el.innerHTML = '';
+    return;
+  }
+  el.innerHTML = items.map(item => {
+    const decayLabel = item.decay_rate === 0 ? 'no decay' : item.decay_rate.toFixed(2) + '/hr';
+    return '<div class="unresolved-item">' +
+      '<span class="source-tag">' + item.source + '</span> ' +
+      '<span style="color:#ccc">' + esc(truncate(item.description, 100)) + '</span>' +
+      '<div style="color:#888;font-size:10px">intensity: ' + item.intensity.toFixed(2) +
+      ' &middot; decay: ' + decayLabel + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function truncate(s, n) { return s && s.length > n ? s.substring(0, n) + '...' : (s || ''); }
 
 async function endSession() {
   try {
@@ -236,7 +402,7 @@ async function applyRest() {
     // Refresh debug display
     const debugRes = await fetch('/debug');
     const debugData = await debugRes.json();
-    const mods = ['arousal', 'valence', 'certainty', 'bonding', 'energy'];
+    const mods = ['arousal', 'valence', 'certainty', 'bonding', 'energy', 'resolution'];
     for (const m of mods) {
       const val = debugData.modulator_snapshot[m] || 0;
       document.getElementById('val-' + m).textContent = val.toFixed(2);

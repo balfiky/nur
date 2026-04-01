@@ -69,6 +69,15 @@ event_impacts:
     arousal: 0.05
     certainty: -0.05
 
+# Resolution modulator — per-source decay rates (per hour)
+resolution:
+  decay_rates:
+    contradiction: 0.02    # slow — they nag
+    topic: 0.05            # medium — fade unless re-triggered
+    commitment: 0.0        # never — must be explicitly resolved
+    spike: 0.03            # slow — emotional residue lingers
+    dialogue_deadlock: 0.10  # fast — system moves on
+
 # Long-term memory / ACT-R retrieval
 memory:
   trust_positive_delta: 0.02

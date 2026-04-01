@@ -24,7 +24,7 @@ from pipeline import CognitivePipeline
 # App setup
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="Project Nūr", version="0.1.0")
+app = FastAPI(title="Project Nūr", version="0.2.0")
 
 # Global pipeline instance (single user for v1)
 _pipeline: CognitivePipeline | None = None
@@ -83,12 +83,25 @@ def chat(req: ChatRequest) -> ChatResponse:
 @app.get("/debug")
 def debug() -> dict:
     pipe = get_pipeline()
+    unresolved = pipe.engine.active_unresolved()
     return {
         "modulator_snapshot": pipe.engine.snapshot(),
         "emotion_label": pipe.engine.to_emotion_label(),
         "energy": pipe.engine.state.energy,
         "short_term_count": len(pipe.short_term),
         "long_term_count": pipe.long_term.count(),
+        "unresolved_count": len(unresolved),
+        "unresolved_items": [
+            {
+                "id": item.id,
+                "source": item.source,
+                "description": item.description,
+                "intensity": item.intensity,
+                "decay_rate": item.decay_rate,
+                "created_at": item.created_at.isoformat(),
+            }
+            for item in unresolved
+        ],
     }
 
 
@@ -201,4 +214,70 @@ def _debug_to_dict(debug) -> dict:
     d["generation_attempts"] = debug.generation_attempts
     d["energy_after"] = debug.energy_after
     d["emotion_label"] = debug.emotion_label
+
+    # v2: Anticipation
+    ant = debug.anticipation
+    d["anticipation"] = (
+        {
+            "predicted_topics": ant.predicted_topics,
+            "predicted_emotional_tone": ant.predicted_emotional_tone,
+            "modulator_pre_shifts": ant.modulator_pre_shifts,
+            "confidence": ant.confidence,
+            "basis": ant.basis,
+        }
+        if ant else None
+    )
+
+    # v2: Inner dialogue trace
+    trace = debug.dialogue_trace
+    if trace:
+        d["dialogue_trace"] = {
+            "rounds": [
+                {
+                    "round_number": r.round_number,
+                    "fast_path_candidate": r.fast_path_candidate,
+                    "slow_path_evaluation": r.slow_path_evaluation,
+                    "slow_path_approved": r.slow_path_approved,
+                    "objection_reason": r.objection_reason,
+                    "revision_notes": r.revision_notes,
+                }
+                for r in trace.rounds
+            ],
+            "final_candidate": trace.final_candidate,
+            "total_llm_calls": trace.total_llm_calls,
+            "reached_deadlock": trace.reached_deadlock,
+            "deadlock_resolution": trace.deadlock_resolution,
+            "dominant_path": trace.dominant_path,
+            "tension_level": trace.tension_level,
+        }
+    else:
+        d["dialogue_trace"] = None
+
+    # v2: Defense activation
+    defense = debug.defense_activation
+    d["defense_activation"] = (
+        {
+            "defense_type": defense.defense_type,
+            "raw_intensity": defense.raw_intensity,
+            "expressed_intensity": defense.expressed_intensity,
+            "suppression_delta": defense.suppression_delta,
+            "reason": defense.reason,
+        }
+        if defense else None
+    )
+
+    # v2: Resolution
+    d["unresolved_count"] = debug.unresolved_count
+    d["unresolved_items"] = [
+        {
+            "id": item.id,
+            "source": item.source,
+            "description": item.description,
+            "intensity": item.intensity,
+            "decay_rate": item.decay_rate,
+            "created_at": item.created_at.isoformat(),
+        }
+        for item in (debug.unresolved_items or [])
+    ]
+
     return d

@@ -107,9 +107,82 @@ class TestRestEndpoint:
         assert data["energy_after"] > energy_before
 
 
+class TestV2DebugFields:
+    """Verify v2 debug fields are present in chat and debug endpoints."""
+
+    def test_chat_has_anticipation(self, client):
+        debug = client.post("/chat", json={"message": "Hello"}).json()["debug"]
+        assert "anticipation" in debug
+        ant = debug["anticipation"]
+        assert ant is not None
+        assert "predicted_topics" in ant
+        assert "confidence" in ant
+        assert "basis" in ant
+
+    def test_chat_has_dialogue_trace(self, client):
+        debug = client.post("/chat", json={"message": "Hello"}).json()["debug"]
+        assert "dialogue_trace" in debug
+        trace = debug["dialogue_trace"]
+        assert trace is not None
+        assert "rounds" in trace
+        assert len(trace["rounds"]) >= 1
+        assert "fast_path_candidate" in trace["rounds"][0]
+        assert "slow_path_approved" in trace["rounds"][0]
+        assert "tension_level" in trace
+        assert "dominant_path" in trace
+        assert "total_llm_calls" in trace
+
+    def test_chat_has_defense_field(self, client):
+        debug = client.post("/chat", json={"message": "Hello"}).json()["debug"]
+        assert "defense_activation" in debug
+        # Calm message — defense should be None
+        assert debug["defense_activation"] is None
+
+    def test_chat_has_unresolved_count(self, client):
+        debug = client.post("/chat", json={"message": "Hello"}).json()["debug"]
+        assert "unresolved_count" in debug
+        assert isinstance(debug["unresolved_count"], int)
+
+    def test_chat_has_unresolved_items(self, client):
+        debug = client.post("/chat", json={"message": "Hello"}).json()["debug"]
+        assert "unresolved_items" in debug
+        assert isinstance(debug["unresolved_items"], list)
+
+    def test_chat_has_resolution_in_snapshot(self, client):
+        debug = client.post("/chat", json={"message": "Hello"}).json()["debug"]
+        assert "resolution" in debug["modulator_snapshot"]
+
+    def test_debug_endpoint_has_resolution(self, client):
+        resp = client.get("/debug").json()
+        assert "resolution" in resp["modulator_snapshot"]
+        assert "unresolved_count" in resp
+        assert "unresolved_items" in resp
+
+    def test_spike_creates_unresolved_in_debug(self, client):
+        debug = client.post(
+            "/chat",
+            json={"message": "You betrayed and deceived me completely!"},
+        ).json()["debug"]
+        if debug["is_spike"]:
+            assert debug["unresolved_count"] > 0
+            assert len(debug["unresolved_items"]) > 0
+            item = debug["unresolved_items"][0]
+            assert "source" in item
+            assert "intensity" in item
+            assert "decay_rate" in item
+
+
 class TestIndexPage:
     def test_serves_html(self, client):
         resp = client.get("/")
         assert resp.status_code == 200
         assert "Project Nūr" in resp.text
         assert "<!DOCTYPE html>" in resp.text
+
+    def test_has_v2_sections(self, client):
+        html = client.get("/").text
+        assert "Anticipation" in html
+        assert "Inner Dialogue" in html
+        assert "Defense" in html
+        assert "Unresolved Items" in html
+        assert "Resolution" in html

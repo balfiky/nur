@@ -1,21 +1,22 @@
 """Cognitive pipeline orchestrator.
 
-Wires all modules together following the v1 processing flow:
- 1. Input arrives
- 2. Contagion: detect user tone → bounded mirror (arousal + valence only)
+v2 processing flow:
+ 1. Anticipation: predict emotional trajectory (0 LLM calls)
+ 2. Contagion: detect user tone → bounded mirror (1 LLM call)
  3. Context switch: load person profile baseline_shift
- 4. PSI engine: update 5 modulators from input + drives + energy
- 5. Short-term memory: store emotional reaction
- 6. Spike check: if intensity > 0.8 → heavy write to LT
- 7. Memory retrieval: ACT-R activation biased by current state
- 8. Profile lookup: person + self + topic
- 9. Contradiction check: compare against profiles (self + others)
-10. Generate response (1 LLM call with full context)
-11. Self-check (rule-based + optional LLM — tone, consistency, overconfidence)
-12. Output delivered
-13. Update short-term memory with outcome
-14. Drain energy
-15. [Session end] Digestion (1 LLM call)
+ 4. Event classification: categorize input (0 LLM calls, rule-based)
+ 5. PSI engine: update 6 modulators from input + drives + energy
+ 6. Resolution update: check for new/resolved tension items (0 LLM calls)
+ 7. Short-term memory: store emotional reaction
+ 8. Spike check: if intensity > 0.8 → heavy write to LT
+ 9. Memory retrieval: ACT-R activation biased by current state
+10. Profile lookup: person + self + topic
+11. Contradiction check: compare against profiles (self + others)
+12. Inner dialogue: 2-3 round fast/slow deliberation (2-5 LLM calls)
+13. Defense mechanisms: filter output if needed (0 LLM calls)
+14. Master LLM: generate final response (1 LLM call)
+15. Post-processing: update memory, drain energy
+16. [Session end] Digestion (0-1 LLM call)
 """
 
 from __future__ import annotations
@@ -27,15 +28,19 @@ from dataclasses import dataclass, field
 
 from config.loader import get_config
 from core.types import (
+    Anticipation,
+    DefenseActivation,
     DetectedEmotion,
     EmotionalEvent,
     EventType,
+    InnerDialogueTrace,
     LongTermEntry,
     ModulatorState,
     PipelineContext,
     PersonProfile,
     SelfProfile,
     TopicProfile,
+    UnresolvedItem,
     ValueHierarchy,
 )
 from core.emotional_engine import EmotionalEngine, SPIKE_INTENSITY_THRESHOLD
@@ -55,6 +60,9 @@ from core.dual_process.generator import (
     ResponseGenerator,
 )
 from core.dual_process.self_check import SelfChecker
+from core.dual_process.inner_dialogue import InnerDialogue
+from core.anticipation import AnticipationEngine
+from core.defense_mechanisms import DEFENSE_INSTRUCTIONS, DefenseMechanism
 
 
 # ---------------------------------------------------------------------------
@@ -104,6 +112,19 @@ class DebugState:
     # Emotion label (for display)
     emotion_label: str = ""
 
+    # v2: Anticipation
+    anticipation: Anticipation | None = None
+
+    # v2: Inner dialogue
+    dialogue_trace: InnerDialogueTrace | None = None
+
+    # v2: Defense mechanisms
+    defense_activation: DefenseActivation | None = None
+
+    # v2: Resolution
+    unresolved_count: int = 0
+    unresolved_items: list[UnresolvedItem] = field(default_factory=list)
+
 
 # ---------------------------------------------------------------------------
 # Pipeline response
@@ -121,7 +142,7 @@ class PipelineResponse:
 # ---------------------------------------------------------------------------
 
 class CognitivePipeline:
-    """Orchestrates the full v1 cognitive processing flow."""
+    """Orchestrates the full v2 cognitive processing flow."""
 
     def __init__(
         self,
@@ -145,9 +166,14 @@ class CognitivePipeline:
         self.topic_profiles = TopicProfileManager(db_path=db_path)
         self.contradiction_detector = ContradictionDetector(self.profile_store)
 
-        # Generation — all share the same backend
+        # v1 generation (still used as master LLM)
         self.generator = ResponseGenerator(backend=self._llm_backend)
         self.self_checker = SelfChecker(llm_client=self._llm_backend)
+
+        # v2: inner dialogue, anticipation, defense
+        self.inner_dialogue = InnerDialogue(backend=self._llm_backend)
+        self.anticipation_engine = AnticipationEngine()
+        self.defense_mechanism = DefenseMechanism()
 
         # Values (static in v1)
         self.values = ValueHierarchy()
@@ -160,16 +186,38 @@ class CognitivePipeline:
     # ------------------------------------------------------------------
 
     def process(self, user_message: str, user_id: str = "default") -> PipelineResponse:
-        """Process a user message through the full cognitive pipeline.
+        """Process a user message through the full v2 cognitive pipeline.
+
+        Flow: anticipation → contagion → context → event → resolution →
+              memory → profiles → contradiction → inner dialogue →
+              defense → master LLM → post-processing.
 
         Returns the response text and full debug state.
         """
         debug = DebugState(user_message=user_message, user_id=user_id)
+        person = self.person_profiles.get_or_create(user_id)
 
-        # ---- Step 2: Contagion ----
+        # ---- Step 1: ANTICIPATION (0 LLM calls) ----
+        recent_msgs = [
+            m["content"] for m in self._conversation_history
+            if m["role"] == "user"
+        ][-5:]
+        all_topics = self.topic_profiles.all_profiles()
+        topic_dict = {tp.topic: tp for tp in all_topics}
+
+        anticipation = self.anticipation_engine.predict(
+            recent_messages=recent_msgs,
+            person_profile=person,
+            topic_profiles=topic_dict,
+            current_state=self.engine.state,
+            unresolved_items=self.engine.active_unresolved(),
+        )
+        self.anticipation_engine.apply_pre_shift(self.engine.state, anticipation)
+        debug.anticipation = anticipation
+
+        # ---- Step 2: CONTAGION (1 LLM call) ----
         detected = detect_emotion(user_message, llm_client=self._llm_backend)
         debug.detected_emotion = detected
-        person = self.person_profiles.get_or_create(user_id)
         self.engine.apply_contagion(detected.arousal, detected.valence, person.trust)
 
         # ---- Step 3: Context switch ----
@@ -177,18 +225,26 @@ class CognitivePipeline:
         self.engine.apply_context_shift(shift)
         debug.baseline_shift_applied = shift.to_dict()
 
-        # ---- Step 4: PSI engine update ----
+        # ---- Step 4: Event classification + PSI engine update ----
         event = self._classify_event(user_message, detected)
         is_spike = self.engine.update(event)
         debug.event_classified = event.event_type.value
         debug.event_intensity = event.intensity
         debug.is_spike = is_spike
+
+        # ---- Step 5: Resolution update (0 LLM calls) ----
+        # Check if this event creates new unresolved items
+        self._check_resolution_sources(event, user_message, user_id)
+        active_unresolved = self.engine.active_unresolved()
+        debug.unresolved_count = len(active_unresolved)
+        debug.unresolved_items = list(active_unresolved)
+
         debug.modulator_snapshot = self.engine.snapshot()
 
-        # ---- Step 5: Short-term memory ----
+        # ---- Step 6: Short-term memory ----
         self.short_term.record(event, self.engine.state)
 
-        # ---- Step 6: Spike check ----
+        # ---- Step 7: Spike check ----
         if is_spike:
             spike_entry = LongTermEntry(
                 timestamp=time.time(),
@@ -201,7 +257,7 @@ class CognitivePipeline:
             )
             self.long_term.store_spike(spike_entry)
 
-        # ---- Step 7: Memory retrieval ----
+        # ---- Step 8: Memory retrieval ----
         retrieved = self.long_term.retrieve(
             self.engine.state,
             source_person=user_id,
@@ -209,26 +265,23 @@ class CognitivePipeline:
         )
         debug.retrieved_memories = retrieved
 
-        # ---- Step 8: Profile lookup ----
+        # ---- Step 9: Profile lookup ----
         person = self.person_profiles.get_or_create(user_id)
         self_prof = self.self_profile.get_profile()
-        # Get topic profiles for any topics mentioned (simple keyword match)
         active_topics = self._detect_topics(user_message)
         debug.person_profile = person
         debug.self_profile = self_prof
         debug.topic_profiles = active_topics
 
-        # ---- Step 9: Contradiction check ----
+        # ---- Step 10: Contradiction check ----
         contradiction_flags: list[str] = []
 
-        # Check person contradictions
         person_expected = self.person_profiles.get_expected_traits(user_id)
         if person_expected:
             person_result = self.contradiction_detector.detect(user_id, person_expected)
             for c in person_result.contradictions:
                 contradiction_flags.append(c.description)
 
-        # Check self contradictions
         self_expected = self.self_profile.get_expected_traits()
         if self_expected:
             self_result = self.contradiction_detector.detect(SELF_ENTITY_ID, self_expected)
@@ -237,7 +290,45 @@ class CognitivePipeline:
 
         debug.contradiction_flags = contradiction_flags
 
-        # ---- Step 10: Build context and generate ----
+        # ---- Step 11: INNER DIALOGUE (2-5 LLM calls) ----
+        contagion_summary = (
+            f"arousal={detected.arousal:.2f}, valence={detected.valence:.2f}, "
+            f"intensity={detected.intensity:.2f}"
+        )
+        short_term_summary = f"{len(self.short_term)} entries in short-term memory"
+
+        dialogue_trace = self.inner_dialogue.deliberate(
+            user_message=user_message,
+            state=self.engine.state,
+            person=person,
+            self_profile=self_prof,
+            values=self.values,
+            memories=retrieved,
+            unresolved=self.engine.active_unresolved(),
+            contagion_summary=contagion_summary,
+            short_term_summary=short_term_summary,
+        )
+        debug.dialogue_trace = dialogue_trace
+
+        # If deadlock, feed it to resolution modulator
+        deadlock_item = self.inner_dialogue.create_deadlock_item(dialogue_trace)
+        if deadlock_item:
+            self.engine.add_unresolved(deadlock_item)
+            active_unresolved = self.engine.active_unresolved()
+            debug.unresolved_count = len(active_unresolved)
+            debug.unresolved_items = list(active_unresolved)
+
+        # ---- Step 12: DEFENSE MECHANISMS (0 LLM calls) ----
+        filtered_output, defense = self.defense_mechanism.evaluate(
+            inner_dialogue_output=dialogue_trace.final_candidate,
+            modulator_state=self.engine.state,
+            self_profile=self_prof,
+            person_profile=person,
+            topic_profiles=active_topics,
+        )
+        debug.defense_activation = defense
+
+        # ---- Step 13: MASTER LLM (1 LLM call) ----
         ctx = PipelineContext(
             modulator_snapshot=self.engine.snapshot(),
             person_profile=person,
@@ -250,18 +341,25 @@ class CognitivePipeline:
             contagion=detected,
         )
 
+        # Inject defense instruction into contradiction_flags (prompt injection point)
+        if defense:
+            instruction = DEFENSE_INSTRUCTIONS.get(defense.defense_type, "")
+            if instruction:
+                ctx.contradiction_flags = ctx.contradiction_flags + [
+                    f"[Defense active: {instruction}]"
+                ]
+
         gen_result = self.generator.generate(
             ctx, user_message, self._conversation_history
         )
         debug.generation_attempts = 1
 
-        # ---- Step 11: Self-check ----
+        # ---- Self-check (v1 preserved) ----
         check_result = self.self_checker.check(gen_result.response, ctx)
         debug.self_check_passed = check_result.passed
         debug.self_check_issues = check_result.issues
 
         if check_result.failed:
-            # Regenerate with correction note
             correction_ctx = PipelineContext(
                 modulator_snapshot=ctx.modulator_snapshot,
                 person_profile=ctx.person_profile,
@@ -284,9 +382,7 @@ class CognitivePipeline:
 
         debug.response = gen_result.response
 
-        # ---- Step 12: Output delivered (nothing to do here) ----
-
-        # ---- Step 13: Update short-term memory with outcome ----
+        # ---- Step 14: Post-processing ----
         outcome_event = EmotionalEvent(
             event_type=EventType.USER_MESSAGE,
             intensity=0.1,
@@ -295,12 +391,11 @@ class CognitivePipeline:
         )
         self.short_term.record(outcome_event, self.engine.state)
 
-        # ---- Step 14: Drain energy ----
         self.engine.drain_energy(intensity=event.intensity)
         debug.energy_after = self.engine.state.energy
         debug.emotion_label = self.engine.to_emotion_label()
 
-        # ---- Update conversation history ----
+        # Update conversation history
         self._conversation_history.append({"role": "user", "content": user_message})
         self._conversation_history.append({"role": "assistant", "content": gen_result.response})
 
@@ -311,12 +406,43 @@ class CognitivePipeline:
             context=event.event_type.value,
         )
 
-        # ---- Update trust per-message based on event valence ----
+        # Update trust per-message based on event valence
         event_valence = self._event_valence(event)
         if event_valence != 0.0:
             self.person_profiles.update_trust(user_id, valence=event_valence)
 
         return PipelineResponse(response=gen_result.response, debug=debug)
+
+    # ------------------------------------------------------------------
+    # Resolution source detection (v2)
+    # ------------------------------------------------------------------
+
+    def _check_resolution_sources(
+        self, event: EmotionalEvent, text: str, user_id: str,
+    ) -> None:
+        """Check if the current event should create or resolve unresolved items."""
+        from datetime import datetime, timezone
+        from core.types import UnresolvedItem
+        import uuid
+
+        # Spike not processed → unresolved
+        if event.intensity >= SPIKE_INTENSITY_THRESHOLD:
+            self.engine.add_unresolved(UnresolvedItem(
+                id=f"spike_{uuid.uuid4().hex[:8]}",
+                source="spike",
+                description=f"Emotional spike: {event.event_type.value} (intensity {event.intensity:.2f})",
+                created_at=datetime.now(timezone.utc),
+                intensity=min(0.9, event.intensity * 0.8),
+                decay_rate=0.03,
+            ))
+
+        # Resolution events may resolve existing items
+        if event.event_type == EventType.RESOLUTION:
+            # Resolve the oldest active item (simplified — full resolution
+            # matching is a v2.5+ feature)
+            active = self.engine.active_unresolved()
+            if active:
+                self.engine.resolve_item(active[0].id)
 
     # ------------------------------------------------------------------
     # Session management
