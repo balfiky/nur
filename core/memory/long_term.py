@@ -133,7 +133,10 @@ class LongTermMemory:
         scored: list[tuple[float, LongTermEntry]] = []
         for row in rows:
             entry = self._row_to_entry(row)
-            activation = self._compute_activation(entry, now, current_state)
+            access_count = row["access_count"]
+            activation = self._compute_activation(
+                entry, access_count, now, current_state,
+            )
 
             # Topic and person context boost
             if topic and entry.topic and topic.lower() in entry.topic.lower():
@@ -147,23 +150,22 @@ class LongTermMemory:
         # Sort by activation descending
         scored.sort(key=lambda x: x[0], reverse=True)
 
-        # Mark accessed
+        # Batch-update access counts for retrieved memories
         top = scored[:limit]
-        for _, entry in top:
-            if entry.id is not None:
-                self._mark_accessed(entry.id)
+        ids_to_mark = [entry.id for _, entry in top if entry.id is not None]
+        if ids_to_mark:
+            self._mark_accessed_batch(ids_to_mark)
 
         return [entry for _, entry in top]
 
     def _compute_activation(
-        self, entry: LongTermEntry, now: float, current_state: ModulatorState
+        self,
+        entry: LongTermEntry,
+        access_count: int,
+        now: float,
+        current_state: ModulatorState,
     ) -> float:
         """ACT-R base-level activation + emotional bias + spike bonus."""
-        row = self._conn.execute(
-            "SELECT access_count FROM memories WHERE id = ?", (entry.id,)
-        ).fetchone()
-        access_count = row["access_count"] if row else 0
-
         # Base-level: ln(n+1) - d * ln(T+1)
         age_seconds = max(1.0, now - entry.timestamp)
         base = math.log(access_count + 1) - ACT_R_DECAY * math.log(age_seconds)
@@ -182,10 +184,12 @@ class LongTermMemory:
 
         return base + emotional_bias + spike_bonus
 
-    def _mark_accessed(self, memory_id: int) -> None:
-        self._conn.execute(
+    def _mark_accessed_batch(self, memory_ids: list[int]) -> None:
+        """Batch-update access counts and timestamps in a single commit."""
+        now = time.time()
+        self._conn.executemany(
             "UPDATE memories SET access_count = access_count + 1, last_accessed = ? WHERE id = ?",
-            (time.time(), memory_id),
+            [(now, mid) for mid in memory_ids],
         )
         self._conn.commit()
 
