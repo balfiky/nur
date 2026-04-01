@@ -4,6 +4,16 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.3.4 — 2026-04-01 (Warm message bypass)
+
+### Positive high-arousal messages skip inner dialogue
+- "I love you so much" etc. no longer trigger full deliberation
+- New `WARM_VALENCE_THRESHOLD = 0.6`: high arousal + positive valence + low resolution = skip
+- Inner dialogue reserved for conflict/tension (high arousal + negative/uncertain valence)
+- 503 tests, zero regressions
+
+---
+
 ## v0.3.3 — 2026-04-01 (Thinking mode off for all calls)
 
 ### All LLM calls now use thinking mode disabled

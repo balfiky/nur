@@ -41,6 +41,7 @@ ENERGY_BYPASS_THRESHOLD = 0.2     # too tired to deliberate
 RESOLUTION_INSIST_THRESHOLD = 0.6  # slow path insists on unresolved items
 CALM_AROUSAL_THRESHOLD = 0.55     # near-baseline arousal + low resolution = skip entirely
 CALM_RESOLUTION_THRESHOLD = 0.3   # below this + near-baseline arousal = skip entirely
+WARM_VALENCE_THRESHOLD = 0.6      # positive arousal + low resolution = skip (no conflict)
 
 _PROMPT_MAP = {
     "fast_path.md": "fast_path_prompt",
@@ -417,9 +418,12 @@ class InnerDialogue:
         # Low energy → too tired, 1 round only
         if state.energy < ENERGY_BYPASS_THRESHOLD:
             return 1
-        # Calm message → nothing charged, skip inner dialogue entirely (0 rounds)
-        if state.arousal < CALM_AROUSAL_THRESHOLD and state.resolution < CALM_RESOLUTION_THRESHOLD:
-            return 0
+        # Calm or warm message → no conflict to deliberate, skip entirely (0 rounds)
+        if state.resolution < CALM_RESOLUTION_THRESHOLD:
+            if state.arousal < CALM_AROUSAL_THRESHOLD:
+                return 0  # calm: low arousal, nothing charged
+            if state.valence > WARM_VALENCE_THRESHOLD:
+                return 0  # warm: high arousal but positive — no conflict
         # High resolution → slow path insists, allow all 3 rounds
         if state.resolution > RESOLUTION_INSIST_THRESHOLD:
             return MAX_ROUNDS
