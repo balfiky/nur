@@ -6,10 +6,13 @@ Jarvis is an AI assistant with persistent emotional state. It doesn't simulate e
 
 ## Status
 
-**v1 is complete.** All core systems are built, tested (288 tests), and wired together.
+**v2 is complete.** All core systems built, tested (476 tests), zero regressions.
 
+v1 gave it a brain that remembers and adapts.
+v2 gives it deliberation, dread, and self-protection.
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.
 See [PROJECT_NUR_ARCHITECTURE.md](PROJECT_NUR_ARCHITECTURE.md) for the full vision.
-See [PROJECT_NUR_BUILD_PLAN.md](PROJECT_NUR_BUILD_PLAN.md) for v1/v2 roadmap.
 
 ## Quick Start
 
@@ -68,7 +71,13 @@ print(result.response)
 print(result.debug.modulator_snapshot)
 print(result.debug.emotion_label)
 
-# End session (triggers memory digestion)
+# v2 debug fields
+print(result.debug.anticipation)          # Forward emotional prediction
+print(result.debug.dialogue_trace)        # Inner dialogue rounds
+print(result.debug.defense_activation)    # Defense mechanism (if fired)
+print(result.debug.unresolved_count)      # Active unresolved tensions
+
+# End session
 digested = pipe.end_session(user_id="paco")
 print(digested.summary)
 
@@ -82,7 +91,7 @@ pipe.apply_rest(hours=8.0)
 
 ### The Core Idea
 
-Emotions are not discrete labels. They are configurations of **five continuous modulators**:
+Emotions are not discrete labels. They are configurations of **six continuous modulators**:
 
 | Modulator | Half-life | What it represents |
 |-----------|-----------|-------------------|
@@ -91,6 +100,7 @@ Emotions are not discrete labels. They are configurations of **five continuous m
 | Certainty | ~10 min | Confidence in understanding — low = anxious |
 | Bonding | ~days | Connection to the person being talked to |
 | Energy | drain/rest | Cognitive resource — drains with usage, recovers with time |
+| Resolution | item-decay | Unresolved cognitive/emotional tension (v2) |
 
 These combine to produce emergent emotions: arousal=0.9 + valence=0.1 + certainty=0.9 = anger. Same modulators at low energy = irritability. No labels are assigned — they emerge from the math.
 
@@ -98,32 +108,63 @@ These combine to produce emergent emotions: arousal=0.9 + valence=0.1 + certaint
 
 | Theory | Contribution | Where in code |
 |--------|-------------|---------------|
-| **PSI Theory** (Dorner) | 5 continuous modulators, exponential decay, energy as resource | `core/emotional_engine.py` |
+| **PSI Theory** (Dorner) | 6 continuous modulators, exponential decay, energy as resource | `core/emotional_engine.py` |
 | **ACT-R** (Anderson) | Memory activation = recency x frequency x emotional bias | `core/memory/long_term.py` |
-| **CLARION** (Sun) | Dual-process: generate response + self-check | `core/dual_process/` |
+| **CLARION** (Sun) | Dual-process: iterative fast/slow deliberation + self-check | `core/dual_process/` |
 
-### v1 Processing Flow (15 steps)
+### v2 Processing Flow
 
 ```
- 1. Input arrives
- 2. Contagion: detect user tone -> bounded mirror (arousal + valence)
+ 1. ANTICIPATION: predict emotional trajectory from context (0 LLM calls)
+ 2. Contagion: detect user tone -> bounded mirror (1 LLM call)
  3. Context switch: load person profile baseline_shift
- 4. PSI engine: update 5 modulators from event + drives + energy
- 5. Short-term memory: store emotional reaction
- 6. Spike check: intensity > 0.8 -> immediate write to long-term
- 7. Memory retrieval: ACT-R activation biased by current state
- 8. Profile lookup: person + self + topic
- 9. Contradiction check: compare behavior against profiles
-10. Generate response (1 LLM call with full context)
-11. Self-check (rule-based + optional LLM)
-12. Output delivered
-13. Update short-term memory with outcome
-14. Drain energy
-15. [Session end] Digestion (1 LLM call)
+ 4. PSI engine: update 6 modulators from event + drives + energy
+ 5. RESOLUTION: check for new/resolved tension items (0 LLM calls)
+ 6. Short-term memory: store emotional reaction
+ 7. Spike check: intensity > 0.8 -> immediate write to long-term
+ 8. Memory retrieval: ACT-R activation biased by current state
+ 9. Profile lookup: person + self + topic
+10. Contradiction check: compare behavior against profiles
+11. INNER DIALOGUE: 2-3 round fast/slow deliberation (2-5 LLM calls)
+12. DEFENSE MECHANISMS: filter output if needed (0 LLM calls)
+13. Master LLM: generate final response (1 LLM call)
+14. Self-check (rule-based + optional LLM)
+15. Post-processing: update memory, drain energy
+16. [Session end] Digestion (0-1 LLM call)
 ```
 
-**LLM calls per message:** 2-4 (contagion + classify + generate + optional self-check)
-**LLM calls at session end:** 1 (digestion)
+**LLM calls per message:** 5-9 (typical: 6)
+
+---
+
+## v2 Features
+
+### Resolution Modulator
+
+6th modulator tracking unresolved cognitive/emotional tension. Sources: spikes not processed, contradictions, dodged topics, commitments, inner dialogue deadlocks. Each source has a different decay rate — commitments never decay, deadlocks fade fast.
+
+### Inner Dialogue
+
+Iterative fast/slow path deliberation (2-3 rounds). The fast path generates a gut reaction; the slow path evaluates against values, self-profile, and unresolved items. If they disagree, the fast path revises. After 3 rounds of disagreement, an arbiter synthesizes both positions, and the deadlock is logged as an unresolved item.
+
+Control dynamics: high arousal (>0.8) or low energy (<0.2) bypass deliberation. High resolution (>0.6) forces the slow path to insist on all 3 rounds.
+
+### Anticipation
+
+Forward emotional modeling. Before processing the current message, the system predicts what's coming and pre-adjusts modulators at 30% intensity. Pure heuristics — no LLM calls. Fires on sensitive topic buildup, person behavioral patterns, unresolved item aging, and temporal patterns (Monday stress, late night vulnerability).
+
+### Defense Mechanisms
+
+A filter between inner dialogue and the master LLM. When raw emotional intensity exceeds the comfort threshold, defenses reshape the output via prompt instructions:
+
+| Defense | Trigger | Effect |
+|---------|---------|--------|
+| Rationalization | Extreme valence + sensitive topic | Reframes emotion as logic |
+| Deflection | High arousal + low trust | Redirects to safer topic |
+| Minimization | Over-intensity pattern in self-profile | Dampens expressed intensity |
+| Projection | High arousal + low maturity | Attributes feelings to other |
+
+Defense strength degrades with maturity — at maturity 1.0, defenses are at ~50% strength (never fully gone). The gap between raw and expressed intensity measures how much the system is hiding from itself.
 
 ---
 
@@ -132,7 +173,7 @@ These combine to produce emergent emotions: arousal=0.9 + valence=0.1 + certaint
 ```
 nur/
 |-- config/                          # Configuration (YAML + prompt templates)
-|   |-- modulators.yaml              # Decay curves, baselines, spike threshold, energy, event impacts
+|   |-- modulators.yaml              # Decay curves, baselines, spike threshold, energy, resolution
 |   |-- attachment.yaml              # Attachment style (locked to secure in v1)
 |   |-- profiles_schema.yaml         # Profile configs (person, self, topic, contradiction, contagion)
 |   |-- values_seed.yaml             # Value hierarchy (static in v1)
@@ -143,13 +184,19 @@ nur/
 |       |-- digestion.md             # Session digestion / memory consolidation
 |       |-- contagion.md             # Emotional detection from user text
 |       |-- classify_event.md        # Event type classification
-|       +-- detect_topics.md         # Topic identification
+|       |-- detect_topics.md         # Topic identification
+|       |-- fast_path.md             # Inner dialogue: gut reaction (v2)
+|       |-- slow_path.md             # Inner dialogue: reflective evaluation (v2)
+|       |-- fast_path_revision.md    # Inner dialogue: revision after objection (v2)
+|       +-- arbiter.md              # Inner dialogue: deadlock synthesis (v2)
 |
 |-- core/                            # Core modules
-|   |-- types.py                     # ALL shared type contracts (dataclasses, enums)
-|   |-- emotional_engine.py          # PSI modulator state machine (5 modulators, decay, energy)
+|   |-- types.py                     # ALL shared type contracts (v1 + v2 dataclasses, enums)
+|   |-- emotional_engine.py          # PSI modulator state machine (6 modulators, decay, energy, resolution)
 |   |-- contagion.py                 # Emotional contagion (LLM + rule-based fallback)
 |   |-- llm_client.py                # MiniMax API client (OpenAI-compatible)
+|   |-- anticipation.py              # Forward emotional modeling (v2, pure heuristics)
+|   |-- defense_mechanisms.py        # Defense filter (v2, pure logic + prompt injection)
 |   |-- memory/
 |   |   |-- short_term.py            # In-memory emotional event buffer
 |   |   |-- long_term.py             # SQLite-backed persistent memory (ACT-R retrieval)
@@ -162,13 +209,14 @@ nur/
 |   |   +-- contradiction.py         # Contradiction detection (self + others)
 |   +-- dual_process/
 |       |-- generator.py             # Response generation (LLMBackend protocol, prompt builder)
-|       +-- self_check.py            # Rule-based + optional LLM self-check
+|       |-- self_check.py            # Rule-based + optional LLM self-check
+|       +-- inner_dialogue.py        # Iterative fast/slow deliberation (v2)
 |
-|-- pipeline.py                      # CognitivePipeline — orchestrates the full 15-step flow
+|-- pipeline.py                      # CognitivePipeline — orchestrates the full v2 flow
 |-- interface/
 |   |-- api.py                       # FastAPI backend (REST + WebSocket)
 |   +-- static/
-|       +-- index.html               # Chat UI + debug dashboard
+|       +-- index.html               # Chat UI + v2 debug dashboard
 |
 |-- tests/
 |   |-- test_emotional_engine.py     # 22 tests — modulators, decay, energy, contagion, attachment
@@ -178,10 +226,16 @@ nur/
 |   |-- test_dual_process.py         # 15 tests — prompt building, generation, self-check
 |   |-- test_pipeline.py             # 29 tests — full pipeline, event classification, LLM paths
 |   |-- test_config.py               # 36 tests — YAML loading, defaults, singleton
-|   |-- test_interface.py            # 11 tests — API endpoints
+|   |-- test_interface.py            # 20 tests — API endpoints + v2 debug fields
 |   |-- test_llm_client.py           # 11 tests — MiniMax client, think-tag stripping
 |   |-- test_calibration.py          # 27 tests — multi-session calibration scenarios
 |   |-- test_emotional_journey.py    # 12 tests — end-to-end emotional journey scenarios
+|   |-- test_resolution.py           # 19 tests — resolution modulator (v2)
+|   |-- test_anticipation.py         # 27 tests — anticipation engine (v2)
+|   |-- test_inner_dialogue.py       # 38 tests — inner dialogue deliberation (v2)
+|   |-- test_defense_mechanisms.py   # 36 tests — defense types + suppression (v2)
+|   |-- test_pipeline_v2.py          # 29 tests — v2 pipeline integration (v2)
+|   |-- test_v2_scenarios.py         # 30 tests — v2 calibration scenarios (v2)
 |   |-- run_journey_report.py        # Detailed journey report with numeric output
 |   +-- calibration/
 |       |-- scenarios.py             # Scripted multi-session scenarios
@@ -190,7 +244,8 @@ nur/
 |-- PROJECT_NUR_ARCHITECTURE.md      # Full architectural vision (PSI + ACT-R + CLARION)
 |-- PROJECT_NUR_BUILD_PLAN.md        # v1/v2 roadmap with build phases
 |-- BUILD_ALL.md                     # Phase-by-phase build instructions
-|-- CLAUDE.md                        # AI assistant instructions
+|-- CHANGELOG.md                     # Version history
+|-- CLAUDE.md                        # AI assistant instructions + v2 design spec
 |-- pyproject.toml                   # Python project config
 +-- README.md                        # This file
 ```
@@ -205,20 +260,26 @@ All data structures that flow between modules. Every module imports from here.
 
 | Type | Description |
 |------|-------------|
-| `ModulatorName` | Enum: arousal, valence, certainty, bonding, energy |
-| `ModulatorState` | Snapshot of all 5 modulators (auto-clamped 0.0-1.0) |
+| `ModulatorName` | Enum: arousal, valence, certainty, bonding, energy, resolution |
+| `ModulatorState` | Snapshot of all 6 modulators (auto-clamped 0.0-1.0) |
 | `EventType` | Enum: user_message, positive_feedback, negative_feedback, conflict, resolution, surprise, betrayal, warmth, silence, topic_shift |
 | `EmotionalEvent` | An event with type, intensity (0.0-1.0), source, metadata, timestamp |
 | `ShortTermEntry` | timestamp + event + emotion_snapshot |
 | `LongTermEntry` | Distilled memory: summary, emotional_valence, trust_delta, topic, source_person, confidence, spike flag, ACT-R activation |
 | `PersonProfile` | trust, reliability, emotional_volatility, stress_response, baseline_shift, primacy_weight, interaction_count |
-| `SelfProfile` | observed_traits, strengths, flaws, triggers, dissonance score |
+| `SelfProfile` | observed_traits, strengths, flaws, triggers, dissonance, maturity_score, defense_log |
 | `TopicProfile` | topic name, emotional_charge, avoidance flag, conflict_count |
 | `BaselineShift` | Per-person modulator resting state adjustment |
 | `ValueHierarchy` | Ranked weighted values (static in v1) |
 | `DetectedEmotion` | arousal, valence, certainty, intensity (from contagion) |
 | `AttachmentStyle` | Enum: secure, anxious, avoidant, disorganized |
-| `PipelineContext` | Full context assembled for LLM: modulators + profiles + memories + values + contradictions |
+| `PipelineContext` | Full context assembled for LLM |
+| `UnresolvedItem` | Unresolved tension: id, source, description, intensity, decay_rate (v2) |
+| `Anticipation` | Forward prediction: topics, tone, pre-shifts, confidence, basis (v2) |
+| `DialogueRound` | One fast/slow negotiation round (v2) |
+| `InnerDialogueTrace` | Full deliberation trace: rounds, final candidate, tension level (v2) |
+| `DefenseActivation` | Defense record: type, raw/expressed intensity, suppression delta (v2) |
+| `DefenseEvent` | Logged defense for self-profile pattern detection (v2) |
 
 ### core/emotional_engine.py — PSI State Machine
 
@@ -240,17 +301,70 @@ engine.apply_context_shift(baseline_shift)
 # Drain energy after processing
 engine.drain_energy(intensity=0.5)
 
+# Resolution modulator (v2)
+engine.add_unresolved(item)            # Add unresolved tension item
+engine.resolve_item(item_id)           # Resolve by ID
+engine.active_unresolved()             # List active items
+
 # Read state
-engine.snapshot()                      # -> {"arousal": 0.7, "valence": 0.3, ...}
+engine.snapshot()                      # -> {"arousal": 0.7, "valence": 0.3, ..., "resolution": 0.4}
 engine.to_emotion_label()              # -> "angry" (for logging only)
 ```
 
-**Key constants** (from config/modulators.yaml):
-- Half-lives: arousal=120s, valence=1800s, certainty=600s, bonding=86400s
-- Spike threshold: 0.8
-- Energy drain: 0.02/message + 0.08/spike
-- Energy recovery: 0.1/hour
-- Contagion cap: +/-0.15, factor: 0.3
+### core/anticipation.py — Forward Modeling (v2)
+
+```python
+engine = AnticipationEngine()
+
+anticipation = engine.predict(
+    recent_messages=["msg1", "msg2"],
+    person_profile=person,
+    topic_profiles={"breakup": topic_profile},
+    current_state=modulator_state,
+    unresolved_items=unresolved_list,
+)
+# anticipation.predicted_topics, .confidence, .modulator_pre_shifts, .basis
+
+engine.apply_pre_shift(state, anticipation)  # Applies at 30% intensity, gated by confidence >= 0.3
+```
+
+4 heuristics (zero LLM calls): topic trajectory, person patterns, unresolved aging, temporal patterns.
+
+### core/dual_process/inner_dialogue.py — Deliberation (v2)
+
+```python
+dialogue = InnerDialogue(backend=llm_client)
+
+trace = dialogue.deliberate(
+    user_message="Hello",
+    state=modulator_state,
+    person=person_profile,
+    self_profile=self_profile,
+    values=value_hierarchy,
+    memories=retrieved_memories,
+    unresolved=unresolved_items,
+)
+# trace.rounds, .final_candidate, .total_llm_calls, .reached_deadlock, .tension_level
+```
+
+Control dynamics: arousal > 0.8 or energy < 0.2 → bypass (1 round). Resolution > 0.6 → insist (3 rounds).
+
+### core/defense_mechanisms.py — Defense Filter (v2)
+
+```python
+dm = DefenseMechanism()
+
+filtered_output, activation = dm.evaluate(
+    inner_dialogue_output="I feel really upset.",
+    modulator_state=state,
+    self_profile=self_prof,
+    person_profile=person,
+)
+# activation.defense_type, .raw_intensity, .expressed_intensity, .suppression_delta
+```
+
+Comfort threshold: `0.5 + trust*0.2 + maturity*0.2 + bonding*0.1`, clamped [0.3, 0.95].
+Suppression: `base + (1-base) * maturity * 0.5` — defenses weaken with growth but never vanish.
 
 ### core/memory/ — Dual Memory System
 
@@ -260,10 +374,6 @@ stm = ShortTermMemory(max_entries=200)
 stm.record(event, modulator_state)
 stm.recent(5)                          # Last 5 entries
 stm.emotional_arc()                    # List of (timestamp, valence) pairs
-stm.average_intensity()
-stm.peak_intensity()
-stm.valence_drift()                    # Last valence - first valence
-stm.clear()
 ```
 
 **LongTermMemory** — SQLite-backed, persists across sessions:
@@ -272,109 +382,11 @@ ltm = LongTermMemory(db_path="jarvis.db")
 ltm.store(entry)                       # Only if confidence >= 0.6 or spike
 ltm.store_spike(entry)                 # Force-write, bypasses confidence threshold
 ltm.retrieve(current_state, source_person="paco", limit=5)  # ACT-R biased retrieval
-ltm.count()
-ltm.all()
-ltm.by_person("paco")
-ltm.by_topic("work")
-LongTermMemory.compute_trust_delta(valence)  # +0.02 positive, -0.15 negative
-```
-
-**Digestion** — runs at session end:
-```python
-result = digest_session(short_term, long_term, source_person="paco",
-                        llm_client=client, conversation_history=history)
-# Returns DigestedSession: summary, arc_label, trust_delta, spike_events,
-#   memories_written, energy_drain, topics, unresolved_flags
 ```
 
 ### core/profiles/ — Unified Profiling
 
-All profiles use the same underlying `ProfileStore` observation/trait mechanism. The AI profiles itself using the exact same mechanism it uses to profile others.
-
-**PersonProfileManager:**
-```python
-pm = PersonProfileManager(profile_store, db_path="jarvis.db")
-profile = pm.get_or_create("paco")     # Load or create
-pm.update_trust("paco", valence=0.8)   # Asymmetric: +0.02 pos, -0.15 neg
-pm.record_interaction("paco", {"engagement": 0.7}, context="warmth")
-pm.get_baseline_shift("paco")          # -> BaselineShift for context switching
-pm.get_expected_traits("paco")         # For contradiction detection
-```
-
-**SelfProfileManager:**
-```python
-sm = SelfProfileManager(profile_store)
-profile = sm.get_profile()             # -> SelfProfile with strengths, flaws, triggers
-sm.record_behavior("patient", 0.8)     # Observe own behavior
-sm.get_expected_traits()               # For self-contradiction detection
-```
-
-**TopicProfileManager:**
-```python
-tm = TopicProfileManager(db_path="jarvis.db")
-tm.get_or_create("work")
-tm.record_negative("work", intensity=0.8)  # Charge increases (toward 1.0)
-tm.record_positive("work", intensity=0.5)  # Charge decreases (toward 0.0)
-tm.record_conflict("work")                 # Increments conflict_count
-# Avoidance triggers at: charge >= 0.7 or conflict_count >= 3
-```
-
-**ContradictionDetector:**
-```python
-cd = ContradictionDetector(profile_store)
-result = cd.detect("paco", expected_traits)
-# result.contradictions: list of {trait, expected, observed, divergence, description}
-```
-
-### core/contagion.py — Emotional Detection
-
-```python
-from core.contagion import detect_emotion
-
-# With LLM (returns arousal, valence, certainty, intensity from JSON)
-result = detect_emotion("I'm so angry!", llm_client=client)
-
-# Without LLM (rule-based keyword fallback)
-result = detect_emotion("I'm so angry!")
-# result.arousal = 0.8, result.valence = 0.15
-```
-
-50+ regex patterns for keyword matching. LLM returns JSON `{"arousal", "valence", "certainty", "intensity"}`. Falls back to rules if JSON parsing fails.
-
-### core/llm_client.py — MiniMax API Client
-
-```python
-from core.llm_client import LLMClient
-
-client = LLMClient(
-    api_key="your-key",                    # or MINIMAX_API_KEY env var
-    base_url="https://api.minimax.io/v1",  # default
-    model="MiniMax-M2.7-highspeed",        # default (Plus-Highspeed plan)
-)
-response = client.generate(system_prompt, user_message)
-```
-
-Conforms to the `LLMBackend` protocol. Strips `<think>...</think>` reasoning tags from M2.7 responses.
-
-### core/dual_process/ — Generation + Self-Check
-
-**ResponseGenerator:**
-```python
-gen = ResponseGenerator(backend=client)
-result = gen.generate(pipeline_context, user_message, conversation_history)
-# result.response, result.system_prompt, result.correction_note
-```
-
-Builds system prompt from `config/prompts/generator.md` template, injecting modulator state, profiles, memories, values, contradictions, and behavioral guidance.
-
-**SelfChecker:**
-```python
-checker = SelfChecker(llm_client=client)
-result = checker.check(response_text, pipeline_context)
-# result.passed, result.failed, result.issues, result.correction_note
-```
-
-Rule-based checks (always run): tone fit, overconfidence, bluntness, energy-awareness, contradiction acknowledgment. Optional LLM check when client is available.
+All profiles use the same underlying `ProfileStore` mechanism. The AI profiles itself using the exact same mechanism it uses to profile others (entity ID `__self__`).
 
 ### pipeline.py — Cognitive Pipeline
 
@@ -384,19 +396,13 @@ pipe = CognitivePipeline(
     db_path="jarvis.db",     # ":memory:" for transient
 )
 
-# Process a message (full 15-step flow)
 result = pipe.process("Hello!", user_id="paco")
 result.response               # The generated response
-result.debug                  # DebugState with full transparency
+result.debug                  # DebugState with full v1 + v2 transparency
 
-# End session
 digested = pipe.end_session(user_id="paco")
-
-# Simulate rest between sessions
 pipe.apply_rest(hours=8.0)
 ```
-
-Event classification and topic detection use LLM when available, fall back to rule-based keyword matching.
 
 ---
 
@@ -404,12 +410,12 @@ Event classification and topic detection use LLM when available, fall back to ru
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/chat` | Send message, get response + debug state |
-| GET | `/debug` | Current emotional state snapshot |
+| POST | `/chat` | Send message, get response + full debug state (v1 + v2 fields) |
+| GET | `/debug` | Current emotional state snapshot + resolution + unresolved items |
 | POST | `/session/end` | End session, trigger digestion |
 | POST | `/rest` | Simulate rest period (energy recovery) |
 | WS | `/ws` | WebSocket for streaming chat |
-| GET | `/` | Web UI (chat + debug dashboard) |
+| GET | `/` | Web UI (chat + v2 debug dashboard) |
 
 ### POST /chat
 ```json
@@ -420,17 +426,30 @@ Event classification and topic detection use LLM when available, fall back to ru
 {
   "response": "Hey.",
   "debug": {
-    "modulator_snapshot": {"arousal": 0.52, "valence": 0.65, ...},
+    "modulator_snapshot": {"arousal": 0.52, "valence": 0.65, "resolution": 0.0, ...},
     "event_classified": "warmth",
     "event_intensity": 0.4,
     "is_spike": false,
     "emotion_label": "content",
-    "person_profile": {"person_id": "paco", "trust": 0.58, "interaction_count": 12},
-    "self_check_passed": true,
+    "anticipation": {"predicted_topics": [], "confidence": 0.0, "basis": "no heuristic fired", ...},
+    "dialogue_trace": {"rounds": [...], "tension_level": 0.0, "dominant_path": "fast", ...},
+    "defense_activation": null,
+    "unresolved_count": 0,
+    "unresolved_items": [],
     ...
   }
 }
 ```
+
+### Debug Dashboard
+
+The web UI at `/` includes real-time visualization of:
+- 6 modulator gauges (arousal, valence, certainty, bonding, energy, resolution)
+- Anticipation predictions (topics, tone, confidence, pre-shifts)
+- Inner dialogue rounds (fast/slow candidates, approval/objection, tension meter)
+- Defense activation (type, raw vs expressed intensity bars, suppression delta)
+- Unresolved items list (source, description, intensity, decay rate)
+- Event classification, profiles, contradictions, memories, self-check
 
 ---
 
@@ -453,52 +472,26 @@ Controls the emotional engine math:
 | `contagion.factor` | 0.3 | Contagion mirroring strength |
 | `contagion.cap` | 0.15 | Maximum contagion shift per update |
 | `event_impacts.*` | varies | Per-event-type modulator deltas |
-
-### config/profiles_schema.yaml
-
-Controls profiling behavior:
-
-| Key | Default | Description |
-|-----|---------|-------------|
-| `person.trust_positive_delta` | 0.02 | Trust gain per positive interaction |
-| `person.trust_negative_delta` | -0.15 | Trust loss per negative interaction (7.5x asymmetry) |
-| `topic.charge_negative_delta` | 0.10 | Topic charge gain per negative mention |
-| `topic.avoidance_charge_threshold` | 0.7 | Charge level triggering topic avoidance |
-| `contradiction.threshold` | 0.3 | Divergence threshold for contradiction flags |
-| `self_model.strength_threshold` | 0.7 | Trait score above which it's a "strength" |
-| `self_model.flaw_threshold` | 0.6 | Trait score above which negative trait is a "flaw" |
-
-### config/prompts/
-
-Markdown templates with `{placeholder}` variables, loaded at startup:
-
-| File | Used by | Placeholders |
-|------|---------|-------------|
-| `generator.md` | ResponseGenerator | `{modulator_state}`, `{self_profile}`, `{person_name}`, `{person_profile}`, `{topic_profiles}`, `{values}`, `{retrieved_memories}`, `{contradiction_flags}`, `{behavioral_guidance}` |
-| `self_check.md` | SelfChecker | `{modulator_state}`, `{self_profile}`, `{person_profile}`, `{contradiction_flags}` |
-| `digestion.md` | digest_session | `{emotional_arc}`, `{events}`, `{conversation_history}` |
-| `contagion.md` | detect_emotion | None (user message passed directly) |
-| `classify_event.md` | _classify_event | `{arousal}`, `{valence}`, `{certainty}`, `{intensity}` |
-| `detect_topics.md` | _detect_topics | `{known_topics}` |
+| `resolution.decay_rates.*` | varies | Per-source decay rates (v2) |
 
 ---
 
 ## Key Design Decisions
 
 ### Asymmetric Trust (7.5x negativity bias)
-Trust builds slowly (+0.02 per positive event) but breaks fast (-0.15 per negative). Two insults erase more trust than five compliments build. This mirrors the psychological negativity bias.
+Trust builds slowly (+0.02 per positive event) but breaks fast (-0.15 per negative). Two insults erase more trust than five compliments build.
 
 ### Spike Bypass
 Events with intensity >= 0.8 write directly to long-term memory, bypassing the confidence threshold. One betrayal can override months of positive accumulation.
 
 ### Unified Self/Other Profiling
-The AI profiles itself using the exact same `ProfileStore` mechanism it uses to profile others. Entity ID `__self__` is treated identically to any person ID. Same contradiction detection, same trait extraction.
+The AI profiles itself using the exact same `ProfileStore` mechanism it uses to profile others. Entity ID `__self__` is treated identically to any person ID.
 
 ### LLM Fallback Architecture
-Every text-interpretation function (contagion, event classification, topic detection) tries LLM first, falls back to rule-based keyword matching. This means:
-- Tests work without API keys (MockLLMBackend returns non-JSON, triggers fallback)
-- Production uses LLM for nuanced understanding
-- System degrades gracefully if API is down
+Every text-interpretation function tries LLM first, falls back to rule-based keyword matching. Tests work without API keys.
+
+### Defense Degradation
+Defense mechanisms weaken with maturity but never fully disappear. At maturity 1.0, suppression is ~50% of its base strength. The suppression delta (raw - expressed intensity) measures how much the system is hiding from itself.
 
 ### Config-Driven Constants
 All magic numbers live in YAML files. No hardcoded thresholds in module code. The `get_config()` singleton loads once and is shared across all modules.
@@ -518,47 +511,30 @@ All magic numbers live in YAML files. No hardcoded thresholds in module code. Th
 | test_dual_process | 15 | Prompt building, response generation, self-check rules |
 | test_pipeline | 29 | Full pipeline flow, event classification, LLM integration |
 | test_config | 36 | YAML loading, defaults, prompt loading, singleton behavior |
-| test_interface | 11 | REST API endpoints, WebSocket, HTML serving |
+| test_interface | 20 | REST API endpoints, WebSocket, HTML serving, v2 debug fields |
 | test_llm_client | 11 | MiniMax client, auth headers, think-tag stripping |
-| test_calibration | 27 | Multi-session scenarios (trust, betrayal, contagion, energy) |
+| test_calibration | 27 | Multi-session calibration scenarios |
 | test_emotional_journey | 12 | End-to-end emotional journey (10 scenarios) |
-| **Total** | **288** | |
-
-### Emotional Journey Scenarios
-
-The `test_emotional_journey.py` file tests 10 realistic scenarios:
-
-1. **Trust building** — 5 warm messages, assert valence/bonding/trust increase
-2. **Betrayal after trust** — Build trust then send hostile messages, assert crash
-3. **Trust asymmetry** — Prove 2 negatives erase more than 5 positives built
-4. **Energy drain** — 15 intense messages, assert energy depleted
-5. **Session persistence** — Trust and memories survive across pipeline instances
-6. **Emotional contagion** — Excited input raises arousal, depressed drops valence
-7. **Context switching** — Different users get different emotional starting positions
-8. **Topic sensitivity** — Negative topic charge persists and affects modulators
-9. **Spike detection** — Extreme messages trigger spikes and direct LT writes
-10. **Decay over time** — Arousal decays fast (120s), valence recovers slowly (1800s)
-
-Run `python -m tests.run_journey_report` for detailed numeric output.
+| test_resolution | 19 | Resolution modulator, item decay, recalculation (v2) |
+| test_anticipation | 27 | Topic trajectory, person patterns, temporal, confidence gating (v2) |
+| test_inner_dialogue | 38 | Deliberation rounds, bypass, deadlock, prompt building (v2) |
+| test_defense_mechanisms | 36 | All defense types, suppression, comfort threshold, logging (v2) |
+| test_pipeline_v2 | 29 | v2 pipeline integration, LLM budget, v1 preservation (v2) |
+| test_v2_scenarios | 30 | v2 calibration: deflection, disagreement, anticipation, degradation (v2) |
+| **Total** | **476** | |
 
 ---
 
-## v2 Roadmap
+## Future Roadmap
 
-v1 is complete. v2 adds the "human layer":
+v2 phases 1-7 are complete. Future features:
 
-| Feature | Description | LLM cost |
-|---------|-------------|----------|
-| v2.1 Resolution modulator | 6th modulator for unfinished business | 0 |
-| v2.2 Inner dialogue | Iterative fast/slow path negotiation | +2-3 calls |
-| v2.3 Anticipation | Predict next moves, pre-shift modulators | +1 call |
-| v2.4 Defense mechanisms | Rationalization, deflection, minimization, projection | +0-1 call |
-| v2.5 Dynamic value drift | Values evolve from accumulated experience | 0 |
-| v2.6 Attachment variants | Unlock anxious/avoidant/disorganized styles | 0 |
-| v2.7 Deep self-reflection | Periodic pattern extraction across sessions | +1 call/N sessions |
-| v2.8 Growth tracking | Milestone detection and personality evolution | 0 |
-
-See [PROJECT_NUR_BUILD_PLAN.md](PROJECT_NUR_BUILD_PLAN.md) for full details.
+| Feature | Description |
+|---------|-------------|
+| v2.5 Dynamic value drift | Values evolve from accumulated experience |
+| v2.6 Attachment variants | Unlock anxious/avoidant/disorganized styles |
+| v2.7 Deep self-reflection | Periodic pattern extraction across sessions |
+| v2.8 Growth tracking | Milestone detection and personality evolution |
 
 ---
 
