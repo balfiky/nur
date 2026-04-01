@@ -12,16 +12,19 @@ v2 processing flow:
  9. Memory retrieval: ACT-R activation biased by current state
 10. Profile lookup: person + self + topic
 11. Contradiction check: compare against profiles (self + others)
-12. Inner dialogue: 2-3 round fast/slow deliberation (2-5 LLM calls)
+12. Inner dialogue: fast/slow deliberation only for non-spike unresolved tension
+    (0-5 LLM calls; spike-only turns skip)
 13. Defense mechanisms: filter output if needed (0 LLM calls)
 14. Master LLM: generate final response (1 LLM call)
-15. Self-check: rule-based default; LLM only when intensity > 0.7 (0-1 LLM calls)
+15. Self-check: rule-based default; LLM only for extreme/high-risk turns
+    (0-1 LLM calls)
 16. Post-processing: update memory, drain energy
 17. [Session end] Digestion (0-1 LLM call)
 
-LLM call budget: 1-6 per message (typical: 1). Inner dialogue only fires when
-non-spike unresolved items exist (contradictions, deadlocks). Spike residue alone
-does not trigger extra calls on follow-up turns.
+LLM call budget: 1-6 per message (typical: 1). Spike-only hostility should stay
+on the generator path unless a separate high-risk condition warrants LLM
+self-check. Inner dialogue only fires when non-spike unresolved items exist
+(contradictions, deadlocks, etc.).
 """
 
 from __future__ import annotations
@@ -407,7 +410,7 @@ class CognitivePipeline:
         checker = (
             self._self_check_llm
             if self._should_use_llm_self_check(
-                event, contradiction_flags, dialogue_trace, defense,
+                event, contradiction_flags, dialogue_trace,
             )
             else self.self_checker
         )
@@ -541,7 +544,6 @@ class CognitivePipeline:
         event: EmotionalEvent,
         contradiction_flags: list[str],
         dialogue_trace: InnerDialogueTrace | None,
-        defense: DefenseActivation | None,
     ) -> bool:
         """Use the LLM self-check only when the turn truly warrants it."""
         if event.intensity > 0.85:
@@ -549,8 +551,6 @@ class CognitivePipeline:
         if contradiction_flags:
             return True
         if dialogue_trace is not None and dialogue_trace.reached_deadlock:
-            return True
-        if defense is not None:
             return True
         return False
 

@@ -113,10 +113,10 @@ class TestV2EndToEnd:
 
 
 # ---------------------------------------------------------------------------
-# LLM call budget: 2-6 per message
-# Calm messages: fast(1) + master(1) = 2 (slow path skipped)
-# Charged messages: fast(1) + slow(1) + master(1) = 3
-# High-intensity: may add self-check LLM = +1
+# LLM call budget: 1-6 per message
+# Calm messages: master(1) = 1
+# Spike-only hostility: master(1), or + self-check for extreme/high-risk turns
+# Non-spike unresolved tension: fast/slow + master = 2-6
 # ---------------------------------------------------------------------------
 
 class TestLLMCallBudget:

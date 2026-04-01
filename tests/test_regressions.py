@@ -440,7 +440,7 @@ class TestSelfCheckCorrectionNote:
 
 class TestLLMCallReduction:
     """Pipeline should use rule-based paths for contagion, event classification,
-    topic detection, and self-check (unless intensity > 0.7)."""
+    topic detection, and self-check unless the turn is truly high-risk."""
 
     def test_calm_message_1_llm_call(self):
         """Calm message: master(1) = 1 LLM call (inner dialogue skipped entirely)."""
@@ -478,7 +478,7 @@ class TestLLMCallReduction:
             )
 
     def test_self_check_llm_only_on_high_intensity(self):
-        """Self-check uses LLM only when event intensity > 0.7."""
+        """LLM self-check is reserved for truly high-risk turns."""
         from tests.test_pipeline_v2 import CountingLLMBackend
 
         # Low intensity message
@@ -493,7 +493,8 @@ class TestLLMCallReduction:
         pipe_high.process("You betrayed and deceived me completely!", user_id="alice")
         calls_high = backend_high.call_count
 
-        # High intensity should have more calls (self-check LLM fires)
+        # High-risk intensity should have at least as many calls, since the
+        # LLM self-check may activate there.
         assert calls_high >= calls_low, (
             f"High intensity ({calls_high}) should have >= calls than low ({calls_low})"
         )
@@ -546,24 +547,33 @@ class TestStickyDialogueAndTimings:
         pipe.process("how r u", user_id="alice")
         assert backend.call_count == 1
 
-    def test_hostile_turn_may_use_extra_calls(self):
-        """A hostile turn may use more than 1 call on that turn."""
+    def test_spike_only_hostile_turn_skips_dialogue(self):
+        """A spike-only hostile turn should stay on the generator path."""
+        backend = self._CountingBackend()
+        pipe = CognitivePipeline(llm_backend=backend)
+        result = pipe.process("I hate you", user_id="alice")
+        assert result.debug.dialogue_trace.dominant_path == "skip"
+        assert result.debug.dialogue_trace.total_llm_calls == 0
+        assert backend.call_count == 1, (
+            f"Expected spike-only hostile turn to use 1 call, got {backend.call_count}"
+        )
+
+    def test_extreme_turn_may_still_use_llm_self_check(self):
+        """More extreme hostile turns may still pay the extra check."""
         backend = self._CountingBackend()
         pipe = CognitivePipeline(llm_backend=backend)
         pipe.process("You betrayed and deceived me completely!", user_id="alice")
-        # Hostile spike may trigger inner dialogue or LLM self-check
         assert backend.call_count >= 1
 
     def test_calm_after_spike_skips_dialogue_and_llm_self_check(self):
         """After a hostile spike leaves only spike unresolved items,
-        a calm follow-up skips inner dialogue. LLM self-check may fire
-        if defense activates from residual arousal, but inner dialogue
-        must stay skipped (0 rounds)."""
+        a calm follow-up skips inner dialogue and must not escalate to
+        LLM self-check just because defense activates from residual arousal."""
         backend = self._CountingBackend()
         pipe = CognitivePipeline(llm_backend=backend)
 
         # Hostile spike — creates spike unresolved item
-        pipe.process("You betrayed and deceived me completely!", user_id="alice")
+        pipe.process("I hate you", user_id="alice")
 
         # Verify spike created unresolved items
         active = pipe.engine.active_unresolved()
@@ -572,15 +582,15 @@ class TestStickyDialogueAndTimings:
             f"Expected only spike unresolved, got: {[u.source for u in active]}"
         )
 
-        # Simulate time passing so arousal decays and defense doesn't fire
-        pipe.engine.state.arousal = 0.5
-        pipe.engine.state.valence = 0.5
-
-        # Calm follow-up — should be 1 call (master only, no dialogue, no defense)
+        # Calm follow-up — should be 1 call (master only). Defense may still
+        # activate, but that alone must not trigger LLM self-check.
         backend.call_count = 0
-        result = pipe.process("how r u", user_id="alice")
+        result = pipe.process("how r u again", user_id="alice")
         assert result.debug.dialogue_trace.dominant_path == "skip"
         assert result.debug.dialogue_trace.total_llm_calls == 0
+        assert result.debug.defense_activation is not None, (
+            "Residual arousal should still be able to trigger a defense here"
+        )
         assert backend.call_count == 1, (
             f"Expected 1 call for calm turn after spike, got {backend.call_count}"
         )

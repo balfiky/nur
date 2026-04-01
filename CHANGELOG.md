@@ -4,6 +4,27 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.3.6 — 2026-04-02 (Spike-only turns back to 1 call)
+
+### What changed
+- Spike-only unresolved tension no longer triggers inner dialogue in [`core/dual_process/inner_dialogue.py`](./core/dual_process/inner_dialogue.py)
+- High-arousal hostile turns like `"I hate you"` now stay on the generator path instead of paying an extra fast-path call
+- LLM self-check no longer escalates just because a defense activated; it now stays reserved for extreme intensity, contradictions, or dialogue deadlock
+- Added a new regression test that locks in the exact bug: spike-only hostility should stay at 1 LLM call
+- Updated call-budget comments/docs to match the new runtime behavior
+
+### Why
+- The previous spike-only fix handled calm follow-up turns, but hostile spike turns still paid extra latency on the same turn
+- Defense activation from residual arousal was also still forcing an unnecessary LLM self-check on later calm turns
+- In practice this meant the web UI still felt slow exactly when emotionally charged state updates happened
+
+### Testing
+- 509 tests collected
+- 489 non-interface tests passed in this runner
+- `tests/test_interface.py` remains unchanged but still hangs under this tool's `TestClient` harness
+
+---
+
 ## v0.3.5 — 2026-04-02 (Sticky-spike fix + self-check tightening + timing)
 
 ### Fix: sticky inner-dialogue activation after spikes

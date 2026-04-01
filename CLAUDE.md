@@ -7,7 +7,7 @@ Read CHANGELOG.md for version history and what changed when.
 
 ## v2 Status: COMPLETE + LATENCY OPTIMIZATION
 
-v1 (288 tests) + v2 phases 1-7 (188 tests) + regression/optimization tests (27) = 508 tests, zero regressions.
+v1 (288 tests) + v2 phases 1-7 (188 tests) + regression/optimization tests (28) = 509 tests.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -22,7 +22,7 @@ v1 (288 tests) + v2 phases 1-7 (188 tests) + regression/optimization tests (27) 
 - pipeline.py — Full v2 cognitive pipeline orchestrator
 - interface/ — FastAPI + WebSocket + debug dashboard
 - config/ — YAML configs + 10 prompt templates
-- tests/ — 508 tests including calibration, journey, v2 integration, and regression tests
+- tests/ — 509 tests including calibration, journey, v2 integration, and regression tests
 
 ### What's NOT built (future features)
 - Dynamic value drift (v2.5)
@@ -39,9 +39,9 @@ v1 (288 tests) + v2 phases 1-7 (188 tests) + regression/optimization tests (27) 
 - Python 3.10+, FastAPI for web, YAML for config
 - LLM functions always have rule-based fallback (graceful degradation)
 - Contagion, event classification, topic detection: always rule-based (0 LLM calls)
-- Self-check: rule-based by default; LLM only when intensity > 0.85, contradictions, deadlock, or defense
+- Self-check: rule-based by default; LLM only when intensity > 0.85, contradictions, or dialogue deadlock
 - Inner dialogue: skipped unless non-spike unresolved items exist AND resolution > 0.6
-- Calm messages after spikes: spike-only unresolved items don't trigger dialogue → 1 LLM call
+- Spike-only turns and calm follow-ups after spikes stay on the 1-call generator path
 - LLMClientFast: thinking mode disabled — used for ALL calls (generator, inner dialogue, self-check)
 - LLMClient uses requests.Session for connection reuse
 - Config-driven constants — no hardcoded thresholds in module code
@@ -70,7 +70,7 @@ v1 (288 tests) + v2 phases 1-7 (188 tests) + regression/optimization tests (27) 
 - Model returns `<think>...</think>` reasoning tags — stripped by LLMClient
 
 ## Testing
-- `pytest` runs all 508 tests
+- `pytest` collects 509 tests
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 
@@ -123,7 +123,7 @@ Four features, deeply interconnected:
 
 **Data flow:** Anticipation runs first (pre-event). Resolution updates with the event. Inner dialogue deliberates using the full emotional state including resolution. Defense mechanisms filter the output before it reaches the master LLM.
 
-**LLM call budget:** 4-7 calls per message (up from v1's 2-3). Typical: 4-5.
+**LLM call budget:** 1-6 calls per message. Typical: 1. Non-spike unresolved tension is what expands the budget.
 
 ---
 
@@ -593,12 +593,12 @@ async def process_message_v2(self, user_message: str, person_id: str) -> Respons
     )
     self.anticipation.apply_pre_shift(self.engine, anticipation)
 
-    # 2. EVENT PROCESSING (0 LLM calls — existing v1)
+    # 2. EVENT PROCESSING (0 LLM calls — rule-based)
     event = self.classify_event(user_message, person)
     self.engine.update(event)
 
-    # 3. CONTAGION (1 LLM call — existing v1)
-    detected_emotion = await self.contagion.detect(user_message)
+    # 3. CONTAGION (0 LLM calls — rule-based)
+    detected_emotion = self.contagion.detect(user_message)
     self.engine.apply_contagion(detected_emotion, person.bonding)
 
     # 4. RESOLUTION UPDATE (0 LLM calls)
@@ -609,7 +609,7 @@ async def process_message_v2(self, user_message: str, person_id: str) -> Respons
     # 5. MEMORY RETRIEVAL (0 LLM calls — existing v1)
     memories = self.memory.retrieve(user_message, state)
 
-    # 6. INNER DIALOGUE (2-5 LLM calls)
+    # 6. INNER DIALOGUE (0-5 LLM calls)
     dialogue_trace = await self.inner_dialogue.deliberate(
         user_message=user_message,
         state=self.engine.snapshot(),
@@ -637,7 +637,10 @@ async def process_message_v2(self, user_message: str, person_id: str) -> Respons
         trace=dialogue_trace
     )
 
-    # 9. POST-PROCESSING (existing v1)
+    # 9. SELF-CHECK (0-1 LLM calls, high-risk only)
+    response = self.self_check_if_needed(response, event, dialogue_trace)
+
+    # 10. POST-PROCESSING (existing v1)
     self.short_term.add(user_message, response, self.engine.snapshot())
     await self.memory.maybe_digest(self.engine.snapshot())
 
@@ -659,15 +662,16 @@ async def process_message_v2(self, user_message: str, person_id: str) -> Respons
 |------|-------|-------|
 | Anticipation | 0 | Pure heuristic |
 | Event classification | 0 | Rule-based |
-| Contagion | 1 | Existing v1 |
+| Contagion | 0 | Rule-based |
 | Resolution | 0 | Pure logic |
 | Memory retrieval | 0 | ACT-R math |
-| Inner dialogue (min) | 2 | Fast + slow, approved round 1 |
+| Inner dialogue (min) | 0 | Skipped for calm and spike-only turns |
 | Inner dialogue (max) | 5 | 2 rounds + arbiter |
 | Defense | 0 | Prompt mod only |
 | Master LLM | 1 | Final response |
+| Self-check | 0-1 | Rule-based unless high-risk |
 | Digestion | 0-1 | Session end only |
-| **Total** | **4-7** | **Typical: 4-5** |
+| **Total** | **1-6** | **Typical: 1** |
 
 ---
 
@@ -768,7 +772,7 @@ Commit after each phase. Run v1 tests after each to catch regressions.
 ### Full pipeline
 - End-to-end: anticipation → event → contagion → resolution → dialogue → defense → response
 - Verify debug payload contains all layers
-- Verify LLM calls within 4-7 budget
+- Verify LLM calls within 1-6 budget
 
 ---
 

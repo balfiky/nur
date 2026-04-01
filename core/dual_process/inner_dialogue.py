@@ -420,17 +420,21 @@ class InnerDialogue:
         """Determine max deliberation rounds from emotional state.
 
         Skips inner dialogue unless there is genuine unresolved tension that
-        is not purely spike residue. A calm turn after a hostile spike should
-        not pay the latency cost of deliberation.
+        is not purely spike residue. A raw spike should affect the emotional
+        state immediately, but spike-only unresolved items should not add an
+        extra deliberation round on top of the master generator.
         """
         unresolved = unresolved or []
 
-        # If the current event is mild and the only unresolved items are
-        # spike residue, skip — there is nothing to deliberate about.
-        if current_event_intensity < 0.4:
-            non_spike = [u for u in unresolved if u.source != "spike"]
-            if not non_spike:
-                return 0
+        # Spike-only unresolved items do not justify a separate fast/slow
+        # dialogue. The generator already sees the current emotional state.
+        if unresolved and all(u.source == "spike" for u in unresolved):
+            return 0
+
+        # Mild turns with no substantive unresolved tension should stay on
+        # the 1-call generator path.
+        if current_event_intensity < 0.4 and not unresolved:
+            return 0
 
         # Only deliberate when unresolved tension is high enough
         if state.resolution > RESOLUTION_INSIST_THRESHOLD:
