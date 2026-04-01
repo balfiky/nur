@@ -2,9 +2,9 @@
 
 v2 processing flow:
  1. Anticipation: predict emotional trajectory (0 LLM calls)
- 2. Contagion: detect user tone → bounded mirror (1 LLM call)
+ 2. Contagion: detect user tone → bounded mirror (0 LLM calls — rule-based)
  3. Context switch: load person profile baseline_shift
- 4. Event classification: categorize input (0 LLM calls, rule-based)
+ 4. Event classification: categorize input (0 LLM calls — rule-based)
  5. PSI engine: update 6 modulators from input + drives + energy
  6. Resolution update: check for new/resolved tension items (0 LLM calls)
  7. Short-term memory: store emotional reaction
@@ -15,8 +15,11 @@ v2 processing flow:
 12. Inner dialogue: 2-3 round fast/slow deliberation (2-5 LLM calls)
 13. Defense mechanisms: filter output if needed (0 LLM calls)
 14. Master LLM: generate final response (1 LLM call)
-15. Post-processing: update memory, drain energy
-16. [Session end] Digestion (0-1 LLM call)
+15. Self-check: rule-based default; LLM only when intensity > 0.7 (0-1 LLM calls)
+16. Post-processing: update memory, drain energy
+17. [Session end] Digestion (0-1 LLM call)
+
+LLM call budget: 3-6 per message (typical: 3-4). Down from 4-7 in v0.2.4.
 """
 
 from __future__ import annotations
@@ -168,7 +171,9 @@ class CognitivePipeline:
 
         # v1 generation (still used as master LLM)
         self.generator = ResponseGenerator(backend=self._llm_backend)
-        self.self_checker = SelfChecker(llm_client=self._llm_backend)
+        # Self-checker: rule-based by default; LLM only for high-intensity turns
+        self.self_checker = SelfChecker(llm_client=None)
+        self._self_check_llm = SelfChecker(llm_client=self._llm_backend)
 
         # v2: inner dialogue, anticipation, defense
         self.inner_dialogue = InnerDialogue(backend=self._llm_backend)
@@ -226,8 +231,8 @@ class CognitivePipeline:
         self.anticipation_engine.apply_pre_shift(self.engine.state, anticipation)
         debug.anticipation = anticipation
 
-        # ---- Step 2: CONTAGION (1 LLM call) ----
-        detected = detect_emotion(user_message, llm_client=self._llm_backend)
+        # ---- Step 2: CONTAGION (0 LLM calls — rule-based) ----
+        detected = detect_emotion(user_message, llm_client=None)
         debug.detected_emotion = detected
         self.engine.apply_contagion(detected.arousal, detected.valence, person.trust)
 
@@ -373,8 +378,9 @@ class CognitivePipeline:
         )
         debug.generation_attempts = 1
 
-        # ---- Self-check (v1 preserved) ----
-        check_result = self.self_checker.check(gen_result.response, ctx)
+        # ---- Self-check (rule-based default; LLM only when intensity > 0.7) ----
+        checker = self._self_check_llm if event.intensity > 0.7 else self.self_checker
+        check_result = checker.check(gen_result.response, ctx)
         debug.self_check_passed = check_result.passed
         debug.self_check_issues = check_result.issues
 
@@ -612,14 +618,9 @@ class CognitivePipeline:
     ) -> EmotionalEvent:
         """Classify user message into an EmotionalEvent.
 
-        Uses LLM when available, falls back to rule-based heuristics.
+        Always uses rule-based heuristics (0 LLM calls).
+        LLM classification available via _classify_event_via_llm() if needed.
         """
-        # Try LLM classification
-        result = self._classify_event_via_llm(text, detected)
-        if result is not None:
-            return result
-
-        # Fallback to rule-based
         return self._classify_event_via_rules(text, detected)
 
     def _classify_event_via_llm(
@@ -780,17 +781,14 @@ class CognitivePipeline:
         )
 
     def _detect_topics(self, text: str) -> list[TopicProfile]:
-        """Detect active topics. Uses LLM when available, falls back to substring matching."""
+        """Detect active topics via substring matching (0 LLM calls).
+
+        LLM detection available via _detect_topics_via_llm() if needed.
+        """
         all_topic_profiles = self.topic_profiles.all_profiles()
         if not all_topic_profiles:
             return []
 
-        # Try LLM detection
-        result = self._detect_topics_via_llm(text, all_topic_profiles)
-        if result is not None:
-            return result
-
-        # Fallback to substring matching
         topics = []
         lower = text.lower()
         for tp in all_topic_profiles:

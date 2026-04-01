@@ -532,7 +532,7 @@ class TestFullPipelineEndToEnd:
         assert d.defense_activation is None or isinstance(d.defense_activation, DefenseActivation)
 
     def test_llm_calls_in_budget(self):
-        """Each message uses 5-9 LLM calls (contagion + classify + dialogue + master + self_check)."""
+        """Each message uses 2-6 LLM calls (dialogue + master, self-check LLM only on high intensity)."""
         backend = CountingLLMBackend()
         pipe = CognitivePipeline(llm_backend=backend)
 
@@ -540,7 +540,7 @@ class TestFullPipelineEndToEnd:
             before = backend.call_count
             pipe.process(f"Message {i}", user_id="alice")
             calls = backend.call_count - before
-            assert 3 <= calls <= 9, f"Message {i}: {calls} calls out of budget"
+            assert 2 <= calls <= 6, f"Message {i}: {calls} calls out of budget"
 
     def test_full_session_arc(self):
         """Greeting → warmth → spike → resolution → end session."""

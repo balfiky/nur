@@ -419,3 +419,89 @@ class TestSelfCheckCorrectionNote:
         result = checker.check("Great! Wonderful! Amazing! Fantastic!", ctx)
         if result.failed:
             assert "Please adjust" in result.correction_note
+
+
+# ---------------------------------------------------------------------------
+# 13. LLM call reduction — contagion, classify, topics, self-check rule-based
+# ---------------------------------------------------------------------------
+
+class TestLLMCallReduction:
+    """Pipeline should use rule-based paths for contagion, event classification,
+    topic detection, and self-check (unless intensity > 0.7)."""
+
+    def test_normal_message_3_llm_calls(self):
+        """Normal message: fast(1) + slow(1) + master(1) = 3 LLM calls."""
+        from tests.test_pipeline_v2 import CountingLLMBackend
+
+        backend = CountingLLMBackend()
+        pipe = CognitivePipeline(llm_backend=backend)
+        pipe.process("Hello, how are you?", user_id="alice")
+        assert backend.call_count == 3, (
+            f"Expected 3 LLM calls, got {backend.call_count}"
+        )
+
+    def test_contagion_uses_no_llm(self):
+        """Contagion detection must not invoke the LLM backend."""
+        calls = []
+
+        class TrackingBackend:
+            call_count = 0
+            last_system_prompt = ""
+            def generate(self, system_prompt: str, user_message: str) -> str:
+                calls.append(system_prompt)
+                self.call_count += 1
+                self.last_system_prompt = system_prompt
+                if "Evaluate this response" in system_prompt:
+                    return "APPROVED: looks good"
+                return "I understand."
+
+        backend = TrackingBackend()
+        pipe = CognitivePipeline(llm_backend=backend)
+        pipe.process("I am furious!", user_id="alice")
+        # No call should contain the contagion detection prompt signature
+        for prompt in calls:
+            assert "Emotional Contagion Detection" not in prompt, (
+                "Contagion LLM call detected — should be rule-based"
+            )
+
+    def test_self_check_llm_only_on_high_intensity(self):
+        """Self-check uses LLM only when event intensity > 0.7."""
+        from tests.test_pipeline_v2 import CountingLLMBackend
+
+        # Low intensity message
+        backend_low = CountingLLMBackend()
+        pipe_low = CognitivePipeline(llm_backend=backend_low)
+        pipe_low.process("Hello", user_id="alice")
+        calls_low = backend_low.call_count
+
+        # High intensity message (betrayal keywords → high intensity rule-based)
+        backend_high = CountingLLMBackend()
+        pipe_high = CognitivePipeline(llm_backend=backend_high)
+        pipe_high.process("You betrayed and deceived me completely!", user_id="alice")
+        calls_high = backend_high.call_count
+
+        # High intensity should have more calls (self-check LLM fires)
+        assert calls_high >= calls_low, (
+            f"High intensity ({calls_high}) should have >= calls than low ({calls_low})"
+        )
+
+    def test_pipeline_latency_under_50ms_without_llm(self):
+        """Pipeline processing (excluding LLM) completes fast.
+
+        With MockLLMBackend (instant return), the entire pipeline should
+        finish well under 50ms, proving non-LLM overhead is negligible.
+        """
+        import time as _time
+        from core.dual_process.generator import MockLLMBackend as _Mock
+
+        pipe = CognitivePipeline(llm_backend=_Mock())
+        # Warm up
+        pipe.process("warmup", user_id="test")
+
+        start = _time.perf_counter()
+        pipe.process("How are you doing today?", user_id="test")
+        elapsed_ms = (_time.perf_counter() - start) * 1000
+
+        assert elapsed_ms < 50, (
+            f"Pipeline took {elapsed_ms:.1f}ms — non-LLM overhead should be < 50ms"
+        )

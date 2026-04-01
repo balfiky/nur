@@ -4,6 +4,25 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.3.0 — 2026-04-01 (LLM call reduction)
+
+Removed LLM dependency from contagion, event classification, topic detection, and self-check (default path). Cuts typical LLM calls from 4-5 to 3 per message.
+
+### Changes
+- **Contagion**: always rule-based (50+ keyword patterns, certainty/intensity signals)
+- **Event classification**: always rule-based (keyword matching with detected emotion)
+- **Topic detection**: always rule-based (substring matching against known topics)
+- **Self-check**: rule-based by default; LLM self-check only when turn intensity > 0.7
+- LLM methods still exist on the pipeline for future use, just not called in the default path
+- Pipeline docstring updated with new LLM budget: 3-6 per message (typical: 3-4)
+
+### Testing
+- 500 tests total (4 new latency/call-reduction regression tests)
+- Latency test: full pipeline < 50ms with mock LLM (proves non-LLM overhead is negligible)
+- Zero regressions
+
+---
+
 ## v0.2.4 — 2026-04-01 (Memory retrieval optimization)
 
 ### Optimization: long-term memory retrieval

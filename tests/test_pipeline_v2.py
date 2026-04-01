@@ -94,50 +94,49 @@ class TestV2EndToEnd:
 
 
 # ---------------------------------------------------------------------------
-# LLM call budget: 4-7 per message
+# LLM call budget: 3-6 per message (contagion, classify, topics, self-check
+# are now rule-based; self-check LLM only when intensity > 0.7)
 # ---------------------------------------------------------------------------
 
 class TestLLMCallBudget:
-    def test_typical_message_4_calls(self):
-        """Normal message: contagion(1) + inner dialogue fast+slow(2) + master(1) = 4."""
+    def test_typical_message_3_calls(self):
+        """Normal message: fast(1) + slow(1) + master(1) = 3."""
         backend = CountingLLMBackend()
         pipe = CognitivePipeline(llm_backend=backend)
         pipe.process("How are you today?", user_id="alice")
-        # MockLLMBackend returns "I understand." → slow path parses as APPROVED
-        # So: contagion(1) + fast(1) + slow(1) + master(1) = 4
-        assert 4 <= backend.call_count <= 7, f"Expected 4-7 calls, got {backend.call_count}"
+        assert 3 <= backend.call_count <= 6, f"Expected 3-6 calls, got {backend.call_count}"
 
     def test_call_count_at_minimum(self):
         """Verify minimum with mock that approves round 1.
 
-        contagion=1, classify_event_llm=1, fast=1, slow=1, master=1, self_check=1 → 6.
+        fast=1, slow=1, master=1 → 3 (contagion, classify, topics, self-check all rule-based).
         """
         backend = CountingLLMBackend()
         pipe = CognitivePipeline(llm_backend=backend)
         pipe.process("Hello", user_id="alice")
-        assert backend.call_count == 6
+        assert backend.call_count == 3
 
     def test_high_arousal_bypasses_inner_dialogue(self):
         """High arousal → fast path only (skips slow path).
 
-        contagion(1) + classify(1) + fast_only(1) + master(1) + self_check(1) = 5.
+        fast_only(1) + master(1) = 2.
         """
         backend = CountingLLMBackend()
         pipe = CognitivePipeline(llm_backend=backend)
         pipe.engine.state.arousal = 0.95
         pipe.process("Emergency!", user_id="alice")
-        assert backend.call_count == 5
+        assert backend.call_count == 2
 
     def test_low_energy_bypasses_inner_dialogue(self):
         """Low energy → fast path only, fewer calls.
 
-        contagion(1) + classify(1) + fast_only(1) + master(1) + self_check(1) = 5.
+        fast_only(1) + master(1) = 2.
         """
         backend = CountingLLMBackend()
         pipe = CognitivePipeline(llm_backend=backend)
         pipe.engine.state.energy = 0.1
         pipe.process("Hello", user_id="alice")
-        assert backend.call_count == 5
+        assert backend.call_count == 2
 
     def test_multiple_messages_budget_consistent(self):
         """Each message stays within budget."""
@@ -147,7 +146,7 @@ class TestLLMCallBudget:
             before = backend.call_count
             pipe.process(f"Message {i}", user_id="alice")
             calls_this_msg = backend.call_count - before
-            assert 3 <= calls_this_msg <= 7, (
+            assert 2 <= calls_this_msg <= 6, (
                 f"Message {i}: {calls_this_msg} calls"
             )
 
