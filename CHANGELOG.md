@@ -4,6 +4,15 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.2.4 — 2026-04-01 (Memory retrieval optimization)
+
+### Optimization: long-term memory retrieval
+- `_compute_activation()` no longer re-queries `access_count` — uses value already loaded from the row
+- `_mark_accessed_batch()` replaces per-item `_mark_accessed()` — single `executemany` + one commit instead of N queries + N commits
+- No behavior change: same activation math, same retrieval order, same access tracking
+
+---
+
 ## v0.2.3 — 2026-04-01 (Final verification fixes)
 
 ### Fix 12: Self-check correction_note propagation
