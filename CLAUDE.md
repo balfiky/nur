@@ -5,9 +5,9 @@ Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
 Read CHANGELOG.md for version history and what changed when.
 
-## v2 Status: PHASES 1-5 COMPLETE + ALL VERIFICATION FIXES + LLM CALL REDUCTION
+## v2 Status: COMPLETE + LATENCY OPTIMIZATION
 
-v1 (288 tests) + v2 phases 1-7 (188 tests) + regression tests (24) = 500 tests, zero regressions.
+v1 (288 tests) + v2 phases 1-7 (188 tests) + regression/optimization tests (27) = 503 tests, zero regressions.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -22,7 +22,7 @@ v1 (288 tests) + v2 phases 1-7 (188 tests) + regression tests (24) = 500 tests, 
 - pipeline.py — Full v2 cognitive pipeline orchestrator
 - interface/ — FastAPI + WebSocket + debug dashboard
 - config/ — YAML configs + 10 prompt templates
-- tests/ — 500 tests including calibration, journey, v2 integration, and regression tests
+- tests/ — 503 tests including calibration, journey, v2 integration, and regression tests
 
 ### What's NOT built (future features)
 - Dynamic value drift (v2.5)
@@ -40,6 +40,9 @@ v1 (288 tests) + v2 phases 1-7 (188 tests) + regression tests (24) = 500 tests, 
 - LLM functions always have rule-based fallback (graceful degradation)
 - Contagion, event classification, topic detection: always rule-based (0 LLM calls)
 - Self-check: rule-based by default; LLM only when turn intensity > 0.7
+- Calm messages (arousal < 0.55, resolution < 0.3): skip slow path → 2 LLM calls
+- LLMClientFast: thinking mode disabled — used for inner dialogue + self-check
+- LLMClient uses requests.Session for connection reuse
 - Config-driven constants — no hardcoded thresholds in module code
 - Start exaggerated emotional effects, dampen later during calibration
 
@@ -66,7 +69,7 @@ v1 (288 tests) + v2 phases 1-7 (188 tests) + regression tests (24) = 500 tests, 
 - Model returns `<think>...</think>` reasoning tags — stripped by LLMClient
 
 ## Testing
-- `pytest` runs all 500 tests
+- `pytest` runs all 503 tests
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 

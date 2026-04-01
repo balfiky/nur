@@ -4,7 +4,7 @@ import json
 import pytest
 from unittest.mock import patch, MagicMock
 
-from core.llm_client import LLMClient
+from core.llm_client import LLMClient, LLMClientFast
 
 
 class TestLLMClient:
@@ -17,14 +17,14 @@ class TestLLMClient:
         }
         return mock_resp
 
-    @patch("core.llm_client.requests.post")
+    @patch("requests.Session.post")
     def test_generate_success(self, mock_post):
         mock_post.return_value = self._mock_response("Test response")
         client = LLMClient(api_key="test-key")
         result = client.generate("System prompt", "User message")
         assert result == "Test response"
 
-    @patch("core.llm_client.requests.post")
+    @patch("requests.Session.post")
     def test_sends_correct_payload(self, mock_post):
         mock_post.return_value = self._mock_response()
         client = LLMClient(api_key="test-key", model="MiniMax-M2.1")
@@ -36,18 +36,12 @@ class TestLLMClient:
         assert payload["messages"][0] == {"role": "system", "content": "You are Jarvis."}
         assert payload["messages"][1] == {"role": "user", "content": "Hello"}
 
-    @patch("core.llm_client.requests.post")
-    def test_sends_auth_header(self, mock_post):
-        mock_post.return_value = self._mock_response()
+    def test_sends_auth_header(self):
         client = LLMClient(api_key="my-secret-key")
-        client.generate("sys", "msg")
+        assert client._session.headers["Authorization"] == "Bearer my-secret-key"
+        assert client._session.headers["Content-Type"] == "application/json"
 
-        call_args = mock_post.call_args
-        headers = call_args.kwargs.get("headers") or call_args[1].get("headers")
-        assert headers["Authorization"] == "Bearer my-secret-key"
-        assert headers["Content-Type"] == "application/json"
-
-    @patch("core.llm_client.requests.post")
+    @patch("requests.Session.post")
     def test_correct_url(self, mock_post):
         mock_post.return_value = self._mock_response()
         client = LLMClient(api_key="k", base_url="https://api.minimax.io/v1")
@@ -56,7 +50,7 @@ class TestLLMClient:
         url = mock_post.call_args[0][0]
         assert url == "https://api.minimax.io/v1/chat/completions"
 
-    @patch("core.llm_client.requests.post")
+    @patch("requests.Session.post")
     def test_http_error_raises(self, mock_post):
         mock_resp = MagicMock()
         mock_resp.status_code = 500
@@ -68,16 +62,11 @@ class TestLLMClient:
             client.generate("sys", "msg")
 
     @patch.dict("os.environ", {"MINIMAX_API_KEY": "env-key"})
-    @patch("core.llm_client.requests.post")
-    def test_api_key_from_env(self, mock_post):
-        mock_post.return_value = self._mock_response()
+    def test_api_key_from_env(self):
         client = LLMClient()  # no explicit key
-        client.generate("sys", "msg")
+        assert client._session.headers["Authorization"] == "Bearer env-key"
 
-        headers = mock_post.call_args.kwargs.get("headers") or mock_post.call_args[1].get("headers")
-        assert headers["Authorization"] == "Bearer env-key"
-
-    @patch("core.llm_client.requests.post")
+    @patch("requests.Session.post")
     def test_custom_base_url(self, mock_post):
         mock_post.return_value = self._mock_response()
         client = LLMClient(api_key="k", base_url="http://localhost:8080/v1")
@@ -86,7 +75,7 @@ class TestLLMClient:
         url = mock_post.call_args[0][0]
         assert url == "http://localhost:8080/v1/chat/completions"
 
-    @patch("core.llm_client.requests.post")
+    @patch("requests.Session.post")
     def test_strips_think_tags(self, mock_post):
         mock_post.return_value = self._mock_response(
             "<think>\nLet me reason about this...\nThe user wants X.\n</think>\nHere is my answer."
@@ -96,7 +85,7 @@ class TestLLMClient:
         assert result == "Here is my answer."
         assert "<think>" not in result
 
-    @patch("core.llm_client.requests.post")
+    @patch("requests.Session.post")
     def test_strips_multiple_think_tags(self, mock_post):
         mock_post.return_value = self._mock_response(
             "<think>first</think> Hello <think>second</think> world"
@@ -106,14 +95,14 @@ class TestLLMClient:
         assert result == "Hello  world"
         assert "<think>" not in result
 
-    @patch("core.llm_client.requests.post")
+    @patch("requests.Session.post")
     def test_no_think_tags_unchanged(self, mock_post):
         mock_post.return_value = self._mock_response("Just a normal response.")
         client = LLMClient(api_key="k")
         result = client.generate("sys", "msg")
         assert result == "Just a normal response."
 
-    @patch("core.llm_client.requests.post")
+    @patch("requests.Session.post")
     def test_conforms_to_llm_backend_protocol(self, mock_post):
         """LLMClient must work wherever LLMBackend is expected."""
         mock_post.return_value = self._mock_response("response")
@@ -124,3 +113,36 @@ class TestLLMClient:
         gen = ResponseGenerator(backend=client)
         result = gen.generate(PipelineContext(), "Hello")
         assert result.response == "response"
+
+
+class TestLLMClientFast:
+    def _mock_response(self, content: str = "Hello!") -> MagicMock:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "choices": [{"message": {"content": content}}]
+        }
+        return mock_resp
+
+    def test_thinking_disabled(self):
+        client = LLMClientFast(api_key="k")
+        assert client._thinking is False
+
+    @patch("requests.Session.post")
+    def test_sends_thinking_disabled(self, mock_post):
+        mock_post.return_value = self._mock_response("Fast response")
+        client = LLMClientFast(api_key="k")
+        client.generate("sys", "msg")
+
+        payload = mock_post.call_args.kwargs.get("json") or mock_post.call_args[1].get("json")
+        assert payload["thinking"] == {"type": "disabled"}
+
+    @patch("requests.Session.post")
+    def test_thinking_enabled_by_default(self, mock_post):
+        """Regular LLMClient does NOT send thinking=disabled."""
+        mock_post.return_value = self._mock_response("Full response")
+        client = LLMClient(api_key="k")
+        client.generate("sys", "msg")
+
+        payload = mock_post.call_args.kwargs.get("json") or mock_post.call_args[1].get("json")
+        assert "thinking" not in payload

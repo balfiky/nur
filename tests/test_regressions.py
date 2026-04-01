@@ -429,15 +429,15 @@ class TestLLMCallReduction:
     """Pipeline should use rule-based paths for contagion, event classification,
     topic detection, and self-check (unless intensity > 0.7)."""
 
-    def test_normal_message_3_llm_calls(self):
-        """Normal message: fast(1) + slow(1) + master(1) = 3 LLM calls."""
+    def test_calm_message_2_llm_calls(self):
+        """Calm message: fast(1) + master(1) = 2 LLM calls (slow path skipped)."""
         from tests.test_pipeline_v2 import CountingLLMBackend
 
         backend = CountingLLMBackend()
         pipe = CognitivePipeline(llm_backend=backend)
         pipe.process("Hello, how are you?", user_id="alice")
-        assert backend.call_count == 3, (
-            f"Expected 3 LLM calls, got {backend.call_count}"
+        assert backend.call_count == 2, (
+            f"Expected 2 LLM calls for calm message, got {backend.call_count}"
         )
 
     def test_contagion_uses_no_llm(self):

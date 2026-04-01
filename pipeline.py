@@ -150,10 +150,14 @@ class CognitivePipeline:
     def __init__(
         self,
         llm_backend: LLMBackend | None = None,
+        llm_backend_fast: LLMBackend | None = None,
         db_path: str = ":memory:",
     ) -> None:
-        # Single LLM backend shared across all components
+        # Full backend for generation (thinking mode on)
         self._llm_backend = llm_backend or MockLLMBackend()
+        # Fast backend for evaluation/classification (thinking mode off)
+        # Falls back to full backend if no fast backend provided
+        self._llm_backend_fast = llm_backend_fast or self._llm_backend
 
         # Core engine
         self.engine = EmotionalEngine()
@@ -169,14 +173,14 @@ class CognitivePipeline:
         self.topic_profiles = TopicProfileManager(db_path=db_path)
         self.contradiction_detector = ContradictionDetector(self.profile_store)
 
-        # v1 generation (still used as master LLM)
+        # Master generator uses full backend (thinking on)
         self.generator = ResponseGenerator(backend=self._llm_backend)
         # Self-checker: rule-based by default; LLM only for high-intensity turns
         self.self_checker = SelfChecker(llm_client=None)
-        self._self_check_llm = SelfChecker(llm_client=self._llm_backend)
+        self._self_check_llm = SelfChecker(llm_client=self._llm_backend_fast)
 
-        # v2: inner dialogue, anticipation, defense
-        self.inner_dialogue = InnerDialogue(backend=self._llm_backend)
+        # Inner dialogue uses fast backend (no thinking needed for gut reaction + evaluation)
+        self.inner_dialogue = InnerDialogue(backend=self._llm_backend_fast)
         self.anticipation_engine = AnticipationEngine()
         self.defense_mechanism = DefenseMechanism()
 

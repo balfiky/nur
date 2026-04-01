@@ -2,6 +2,10 @@
 
 Default model: MiniMax-M2.7-highspeed (Plus-Highspeed token plan).
 Uses the requests library directly — no SDK dependency.
+
+Two client modes:
+- LLMClient: full reasoning (thinking mode on) — for generation
+- LLMClientFast: no reasoning (thinking mode off) — for evaluation/classification
 """
 
 from __future__ import annotations
@@ -13,25 +17,32 @@ import requests
 
 
 class LLMClient:
-    """MiniMax API client conforming to the LLMBackend protocol."""
+    """MiniMax API client conforming to the LLMBackend protocol.
+
+    Uses a persistent requests.Session for HTTP connection reuse (keep-alive),
+    avoiding repeated TCP + TLS handshakes to the API server.
+    """
 
     def __init__(
         self,
         api_key: str | None = None,
         base_url: str = "https://api.minimax.io/v1",
         model: str = "MiniMax-M2.7-highspeed",
+        thinking: bool = True,
     ) -> None:
         self._api_key = api_key or os.environ.get("MINIMAX_API_KEY", "")
         self._base_url = base_url.rstrip("/")
         self._model = model
+        self._thinking = thinking
+        self._session = requests.Session()
+        self._session.headers.update({
+            "Authorization": f"Bearer {self._api_key}",
+            "Content-Type": "application/json",
+        })
 
     def generate(self, system_prompt: str, user_message: str) -> str:
         """Send a chat completion request and return the response text."""
         url = f"{self._base_url}/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {self._api_key}",
-            "Content-Type": "application/json",
-        }
         payload = {
             "model": self._model,
             "messages": [
@@ -40,11 +51,27 @@ class LLMClient:
             ],
         }
 
-        resp = requests.post(url, json=payload, headers=headers, timeout=60)
+        # Disable thinking mode when not needed (faster responses)
+        if not self._thinking:
+            payload["thinking"] = {"type": "disabled"}
+
+        resp = self._session.post(url, json=payload, timeout=60)
         resp.raise_for_status()
 
         data = resp.json()
         content = data["choices"][0]["message"]["content"]
-        # Strip MiniMax M2.1 reasoning tags
+        # Strip reasoning tags if present (safety net)
         content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL)
         return content.strip()
+
+
+class LLMClientFast(LLMClient):
+    """LLM client with thinking mode disabled — for evaluation and classification."""
+
+    def __init__(
+        self,
+        api_key: str | None = None,
+        base_url: str = "https://api.minimax.io/v1",
+        model: str = "MiniMax-M2.7-highspeed",
+    ) -> None:
+        super().__init__(api_key=api_key, base_url=base_url, model=model, thinking=False)

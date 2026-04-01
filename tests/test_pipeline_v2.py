@@ -94,27 +94,27 @@ class TestV2EndToEnd:
 
 
 # ---------------------------------------------------------------------------
-# LLM call budget: 3-6 per message (contagion, classify, topics, self-check
-# are now rule-based; self-check LLM only when intensity > 0.7)
+# LLM call budget: 2-6 per message
+# Calm messages: fast(1) + master(1) = 2 (slow path skipped)
+# Charged messages: fast(1) + slow(1) + master(1) = 3
+# High-intensity: may add self-check LLM = +1
 # ---------------------------------------------------------------------------
 
 class TestLLMCallBudget:
-    def test_typical_message_3_calls(self):
-        """Normal message: fast(1) + slow(1) + master(1) = 3."""
+    def test_calm_message_2_calls(self):
+        """Calm message (low arousal, no resolution): fast(1) + master(1) = 2."""
         backend = CountingLLMBackend()
         pipe = CognitivePipeline(llm_backend=backend)
         pipe.process("How are you today?", user_id="alice")
-        assert 3 <= backend.call_count <= 6, f"Expected 3-6 calls, got {backend.call_count}"
+        assert backend.call_count == 2, f"Expected 2 calls for calm message, got {backend.call_count}"
 
-    def test_call_count_at_minimum(self):
-        """Verify minimum with mock that approves round 1.
-
-        fast=1, slow=1, master=1 → 3 (contagion, classify, topics, self-check all rule-based).
-        """
+    def test_charged_message_3_calls(self):
+        """Charged message (arousal > 0.4): fast(1) + slow(1) + master(1) = 3."""
         backend = CountingLLMBackend()
         pipe = CognitivePipeline(llm_backend=backend)
-        pipe.process("Hello", user_id="alice")
-        assert backend.call_count == 3
+        pipe.engine.state.arousal = 0.6  # above calm threshold
+        pipe.process("This is frustrating", user_id="alice")
+        assert backend.call_count == 3, f"Expected 3 calls for charged message, got {backend.call_count}"
 
     def test_high_arousal_bypasses_inner_dialogue(self):
         """High arousal → fast path only (skips slow path).

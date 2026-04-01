@@ -4,21 +4,38 @@ All notable changes to Project Nur are documented here.
 
 ---
 
-## v0.3.0 — 2026-04-01 (LLM call reduction)
+## v0.3.0 — 2026-04-01 (Latency optimization)
 
-Removed LLM dependency from contagion, event classification, topic detection, and self-check (default path). Cuts typical LLM calls from 4-5 to 3 per message.
+Deep latency reduction: fewer LLM calls, no-thinking mode, connection reuse, calm bypass. Typical calls per message: 2 (down from 5 in v0.2.x).
 
-### Changes
+### LLM call reduction
 - **Contagion**: always rule-based (50+ keyword patterns, certainty/intensity signals)
 - **Event classification**: always rule-based (keyword matching with detected emotion)
 - **Topic detection**: always rule-based (substring matching against known topics)
 - **Self-check**: rule-based by default; LLM self-check only when turn intensity > 0.7
-- LLM methods still exist on the pipeline for future use, just not called in the default path
-- Pipeline docstring updated with new LLM budget: 3-6 per message (typical: 3-4)
+
+### Calm message bypass
+- When arousal < 0.55 and resolution < 0.3, slow path is skipped entirely
+- Calm messages: fast(1) + master(1) = 2 LLM calls
+- Charged messages: fast(1) + slow(1) + master(1) = 3 LLM calls
+
+### Thinking mode control
+- `LLMClient(thinking=True)`: full reasoning — used for master generator
+- `LLMClientFast` (thinking disabled): used for inner dialogue fast/slow paths and self-check
+- Eliminates `<think>` chain-of-thought overhead on calls that don't need reasoning
+
+### HTTP connection reuse
+- `LLMClient` now uses `requests.Session()` with persistent headers
+- Reuses TCP + TLS connections across calls, avoiding ~100-300ms handshake per call
+
+### Architecture
+- Pipeline accepts `llm_backend_fast` parameter for no-thinking client
+- `interface/api.py` wires `LLMClient` (generator) + `LLMClientFast` (everything else)
+- Inner dialogue constants: `CALM_AROUSAL_THRESHOLD=0.55`, `CALM_RESOLUTION_THRESHOLD=0.3`
 
 ### Testing
-- 500 tests total (4 new latency/call-reduction regression tests)
-- Latency test: full pipeline < 50ms with mock LLM (proves non-LLM overhead is negligible)
+- 503 tests total (3 new LLMClientFast tests + updated call budget tests)
+- Latency test: full pipeline < 50ms with mock LLM (non-LLM overhead is negligible)
 - Zero regressions
 
 ---

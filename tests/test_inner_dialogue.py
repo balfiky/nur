@@ -16,6 +16,7 @@ from core.types import (
 )
 from core.dual_process.inner_dialogue import (
     AROUSAL_BYPASS_THRESHOLD,
+    CALM_AROUSAL_THRESHOLD,
     ENERGY_BYPASS_THRESHOLD,
     MAX_ROUNDS,
     RESOLUTION_INSIST_THRESHOLD,
@@ -26,6 +27,13 @@ from core.dual_process.inner_dialogue import (
     build_revision_prompt,
     build_arbiter_prompt,
 )
+
+
+def _charged_state(**overrides) -> ModulatorState:
+    """ModulatorState with arousal above calm threshold so slow path fires."""
+    defaults = {"arousal": CALM_AROUSAL_THRESHOLD + 0.1}
+    defaults.update(overrides)
+    return ModulatorState(**defaults)
 
 
 # ---------------------------------------------------------------------------
@@ -118,7 +126,7 @@ class TestRound1Approval:
         dialogue = InnerDialogue(backend=backend)
         trace = dialogue.deliberate(
             user_message="I'm feeling down",
-            state=ModulatorState(),
+            state=_charged_state(),
         )
         assert len(trace.rounds) == 1
         assert trace.rounds[0].slow_path_approved is True
@@ -133,7 +141,7 @@ class TestRound1Approval:
             "APPROVED: all good",
         ])
         dialogue = InnerDialogue(backend=backend)
-        trace = dialogue.deliberate("hello", state=ModulatorState())
+        trace = dialogue.deliberate("hello", state=_charged_state())
         r = trace.rounds[0]
         assert r.round_number == 1
         assert r.fast_path_candidate == "Gut response here."
@@ -157,7 +165,7 @@ class TestRound2Revision:
         dialogue = InnerDialogue(backend=backend)
         trace = dialogue.deliberate(
             user_message="I'm really upset",
-            state=ModulatorState(),
+            state=_charged_state(),
         )
         assert len(trace.rounds) == 2
         assert trace.rounds[0].slow_path_approved is False
@@ -176,7 +184,7 @@ class TestRound2Revision:
             "APPROVED: ok now",
         ])
         dialogue = InnerDialogue(backend=backend)
-        trace = dialogue.deliberate("help", state=ModulatorState())
+        trace = dialogue.deliberate("help", state=_charged_state())
         assert trace.rounds[1].revision_notes is not None
         assert "dismissive" in trace.rounds[1].revision_notes
 
@@ -188,7 +196,7 @@ class TestRound2Revision:
             "APPROVED: ok",
         ])
         dialogue = InnerDialogue(backend=backend)
-        trace = dialogue.deliberate("msg", state=ModulatorState())
+        trace = dialogue.deliberate("msg", state=_charged_state())
         # 1 objection out of 2 rounds = 0.5 tension
         assert trace.tension_level == pytest.approx(0.5, abs=0.01)
 
@@ -210,7 +218,7 @@ class TestRound3Deadlock:
         dialogue = InnerDialogue(backend=backend)
         trace = dialogue.deliberate(
             user_message="What do you think?",
-            state=ModulatorState(),
+            state=_charged_state(),
         )
         assert len(trace.rounds) == 3
         assert trace.total_llm_calls == 5
@@ -226,7 +234,7 @@ class TestRound3Deadlock:
             "synthesis",
         ])
         dialogue = InnerDialogue(backend=backend)
-        trace = dialogue.deliberate("msg", state=ModulatorState())
+        trace = dialogue.deliberate("msg", state=_charged_state())
         # 2 objections out of 3 rounds ≈ 0.67
         assert trace.tension_level > 0.5
 
@@ -237,7 +245,7 @@ class TestRound3Deadlock:
             "arbiter synthesis",
         ])
         dialogue = InnerDialogue(backend=backend)
-        trace = dialogue.deliberate("msg", state=ModulatorState())
+        trace = dialogue.deliberate("msg", state=_charged_state())
         item = dialogue.create_deadlock_item(trace)
         assert item is not None
         assert item.source == "dialogue_deadlock"
@@ -327,7 +335,7 @@ class TestEnergyBypass:
         dialogue = InnerDialogue(backend=backend)
         trace = dialogue.deliberate(
             user_message="test",
-            state=ModulatorState(energy=0.2),
+            state=_charged_state(energy=0.2),
         )
         assert trace.total_llm_calls >= 2
 
@@ -392,7 +400,7 @@ class TestResolutionInsistence:
         dialogue = InnerDialogue(backend=backend)
         trace = dialogue.deliberate(
             user_message="good morning",
-            state=ModulatorState(),
+            state=_charged_state(),
             unresolved=items,
         )
         # Check that the slow path prompt contained the unresolved item
@@ -493,7 +501,7 @@ class TestTraceIntegrity:
         """Default MockLLMBackend returns 'I understand.' — unparseable triggers
         retry then objection, leading to multi-round deliberation."""
         dialogue = InnerDialogue()
-        trace = dialogue.deliberate("hello", state=ModulatorState())
+        trace = dialogue.deliberate("hello", state=_charged_state())
         # Mock returns "I understand." which is unparseable → retry → still unparseable → objection
         # This causes round 2+ (revision + slow check + retry + possibly arbiter)
         assert len(trace.rounds) >= 2
@@ -553,7 +561,7 @@ class TestEdgeCases:
             "response", "APPROVED: ok",
         ])
         dialogue = InnerDialogue(backend=backend)
-        dialogue.deliberate("test", state=ModulatorState(), self_profile=self_p)
+        dialogue.deliberate("test", state=_charged_state(), self_profile=self_p)
         slow_prompt = backend.prompts[1][0]
         assert "empathetic" in slow_prompt
         assert "avoidant" in slow_prompt
