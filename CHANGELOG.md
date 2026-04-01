@@ -4,6 +4,16 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.3.1 — 2026-04-01 (Connection retry fix)
+
+### Fix: RemoteDisconnected crash
+- `LLMClient.generate()` now retries once on `ConnectionError` (stale keep-alive)
+- MiniMax server closes idle connections; `requests.Session` reused dead socket on 3rd+ call
+- Single retry is sufficient — reconnects on the fresh attempt
+- 503 tests, zero regressions
+
+---
+
 ## v0.3.0 — 2026-04-01 (Latency optimization)
 
 Deep latency reduction: fewer LLM calls, no-thinking mode, connection reuse, calm bypass. Typical calls per message: 2 (down from 5 in v0.2.x).

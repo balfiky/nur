@@ -55,7 +55,11 @@ class LLMClient:
         if not self._thinking:
             payload["thinking"] = {"type": "disabled"}
 
-        resp = self._session.post(url, json=payload, timeout=60)
+        # Retry once on connection error (server closes idle keep-alive connections)
+        try:
+            resp = self._session.post(url, json=payload, timeout=60)
+        except (requests.ConnectionError, requests.exceptions.ConnectionError):
+            resp = self._session.post(url, json=payload, timeout=60)
         resp.raise_for_status()
 
         data = resp.json()
