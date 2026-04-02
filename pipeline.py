@@ -50,6 +50,7 @@ from core.types import (
     PipelineContext,
     PersonProfile,
     SelfProfile,
+    ToolCategory,
     TopicProfile,
     ToolTrace,
     UnresolvedItem,
@@ -76,6 +77,15 @@ from core.dual_process.inner_dialogue import InnerDialogue
 from core.anticipation import AnticipationEngine
 from core.defense_mechanisms import DEFENSE_INSTRUCTIONS, DefenseMechanism
 from core.dual_process.tool_loop import run_tool_loop
+from core.tool_memory import (
+    ToolMemoryEffects,
+    compute_tool_trust_delta,
+    create_long_term_entry,
+    create_tool_event,
+    create_tool_unresolved_item,
+    derive_tool_self_observations,
+    is_salient_episode,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -141,6 +151,7 @@ class DebugState:
     # Agentic tools (Phase 0+)
     tool_trace: ToolTrace | None = None
     action_variables: ActionVariables | None = None
+    tool_memory_effects: ToolMemoryEffects | None = None
 
     # Timing instrumentation (ms)
     stage_timings_ms: dict[str, float] = field(default_factory=dict)
@@ -422,6 +433,64 @@ class CognitivePipeline:
             debug.tool_trace = tool_loop_result.trace
             debug.action_variables = tool_loop_result.action_variables
             tool_context_summary = tool_loop_result.tool_context_summary
+
+            # ---- Step 11c: TOOL MEMORY COUPLING ----
+            trace = tool_loop_result.trace
+            if trace.executed_results:
+                effects = ToolMemoryEffects()
+                failure_count = 0
+
+                for result, observation in zip(trace.executed_results, trace.observations):
+                    cap = self._tool_executor._registry.get(result.tool_name)
+                    category = cap.category if cap else ToolCategory.READ_ONLY
+
+                    if not result.success:
+                        failure_count += 1
+
+                    # Short-term memory record
+                    tool_event = create_tool_event(result, observation, self.engine.state)
+                    self.short_term.record(tool_event, self.engine.state)
+                    effects.short_term_recorded = True
+
+                    # Long-term memory (salient episodes only)
+                    if is_salient_episode(result, observation, category, failure_count):
+                        lt_entry = create_long_term_entry(
+                            result, observation, category, user_id=user_id,
+                        )
+                        self.long_term.store(lt_entry)
+                        effects.long_term_written = True
+                        effects.long_term_summary = lt_entry.summary
+
+                    # Self-observations from tool behavior
+                    self_obs = derive_tool_self_observations(
+                        result, observation, category,
+                        tool_loop_result.action_variables,
+                        trace.final_decision,
+                        failure_count=failure_count,
+                    )
+                    for trait, value, context in self_obs:
+                        self.self_profile.record_behavior(trait, value, context)
+                        effects.self_observations.append(f"{trait}={value:.2f}")
+
+                    # Unresolved items from tool failures
+                    unresolved = create_tool_unresolved_item(
+                        result, observation, category, failure_count=failure_count,
+                    )
+                    if unresolved:
+                        self.engine.add_unresolved(unresolved)
+                        effects.unresolved_items_created.append(unresolved.id)
+
+                    # Trust delta from tool outcome
+                    trust_delta = compute_tool_trust_delta(
+                        result, category, tool_loop_result.action_variables,
+                    )
+                    if trust_delta != 0.0 and person:
+                        person.trust = max(0.0, min(1.0, person.trust + trust_delta))
+                        self.person_profiles.save(person)
+                        effects.trust_delta += trust_delta
+
+                debug.tool_memory_effects = effects
+
             timings["tool_loop"] = (time.perf_counter() - _ts_tool) * 1000
 
         # ---- Step 12: DEFENSE MECHANISMS (0 LLM calls) ----

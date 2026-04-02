@@ -5,9 +5,9 @@ Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
 Read CHANGELOG.md for version history and what changed when.
 
-## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 2
+## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 3
 
-The full test suite currently collects 785 tests.
+The full test suite currently collects 840 tests.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -28,8 +28,9 @@ The full test suite currently collects 785 tests.
 - core/action_variables.py — Action-variable derivation from modulators (pure math, 0 LLM calls)
 - core/tool_appraisal.py — Tool outcome appraisal (ToolResult → ToolObservation with emotional deltas)
 - core/dual_process/tool_loop.py — Cognitive tool bridge: intent detection, arbiter, execute+appraise loop
+- core/tool_memory.py — Tool episode memory coupling: short-term records, salient long-term writes, self-observations, unresolved items, trust deltas
 - tools/ — Agentic tools package: registry, executor, builtin tools (filesystem, shell, web search)
-- tests/ — 785 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, and agentic tools Phase 0+1+2 coverage
+- tests/ — 840 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, and agentic tools Phase 0+1+2+3 coverage
 
 ### What's NOT built (future features)
 - Dynamic value drift (v2.5)
@@ -165,8 +166,25 @@ The full test suite currently collects 785 tests.
 - Debug API serializes tool_trace + action_variables
 - No MCP, no multi-step planner, no autonomous background tasks yet
 
+## Agentic Tools Phase 3 (Memory and self-model coupling — completed)
+- `core/tool_memory.py` — tool episode memory coupling (all deterministic, 0 LLM calls)
+  - `create_tool_event()` → EmotionalEvent for short-term memory
+  - `is_salient_episode()` → salience check (destructive, failures, strong shifts)
+  - `create_long_term_entry()` → LongTermEntry with compact summary, spike bypass for failures
+  - `derive_tool_self_observations()` → behavioral traits (methodical, decisive, reckless, frustrated, persistent, hesitant, avoidant)
+  - `create_tool_unresolved_item()` → UnresolvedItem (tool_failure, blocked_action, incomplete_task)
+  - `compute_tool_trust_delta()` → conservative trust (+0.01 helpful read, -0.03 destructive/reckless failure)
+- Pipeline step 11c: tool memory coupling after tool loop execution
+- Short-term memory records for every tool execution
+- Salient episodes written to long-term SQLite memory
+- Self-observations fed to SelfProfileManager
+- Unresolved items from failures feed resolution modulator
+- Trust deltas applied to person profile
+- `DebugState.tool_memory_effects` + debug API serialization
+- No MCP, no multi-step planner, no autonomous background tasks yet
+
 ## Testing
-- `pytest` collects 785 tests
+- `pytest` collects 840 tests
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 

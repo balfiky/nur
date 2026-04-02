@@ -305,6 +305,20 @@ def _debug_to_dict(debug) -> dict:
         if av else None
     )
 
+    # Tool memory effects (Phase 3)
+    tme = debug.tool_memory_effects
+    d["tool_memory_effects"] = (
+        {
+            "short_term_recorded": tme.short_term_recorded,
+            "long_term_written": tme.long_term_written,
+            "long_term_summary": tme.long_term_summary,
+            "self_observations": tme.self_observations,
+            "unresolved_items_created": tme.unresolved_items_created,
+            "trust_delta": tme.trust_delta,
+        }
+        if tme else None
+    )
+
     # Timing
     d["stage_timings_ms"] = debug.stage_timings_ms
 

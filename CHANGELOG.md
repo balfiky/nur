@@ -4,6 +4,50 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.12.0 — 2026-04-02 (Agentic Tools Phase 3: memory and self-model coupling)
+
+Tool episodes now persist into memory, self-model, and unresolved tension — making tool behavior part of Jarvis's ongoing identity and emotional history.
+
+### Tool memory coupling (`core/tool_memory.py`)
+- `create_tool_event()` — creates EmotionalEvent for short-term memory from tool results
+- `is_salient_episode()` — determines if a tool episode warrants long-term persistence
+  - Always salient: destructive actions, failures, repeated failures (≥2), strong certainty/valence shifts
+- `create_long_term_entry()` — builds LongTermEntry with compact summary (max 200 chars)
+  - Failures stored with high confidence (0.9) and spike=True (bypass threshold)
+  - Destructive success gets cautious negative valence (-0.1)
+- `derive_tool_self_observations()` — extracts behavioral traits from tool outcomes
+  - Success: methodical (read/cognitive), decisive (destructive), technically_competent
+  - High-risk write/destructive: reckless
+  - Failure: frustrated; repeated failure: persistent
+  - Clarify decision: hesitant; refuse/defer: avoidant
+  - Capped at 3 observations per turn
+- `create_tool_unresolved_item()` — creates UnresolvedItem from tool failures
+  - Sources: tool_failure (decay 0.08), blocked_action (decay 0.05), incomplete_task (decay 0.10)
+  - Intensity scales with failure count
+- `compute_tool_trust_delta()` — conservative trust effects
+  - Successful read/cognitive: +0.01
+  - Failed destructive or reckless failure: -0.03
+  - All other outcomes: 0.0 (neutral)
+- `ToolMemoryEffects` dataclass for debug visibility
+
+### Pipeline integration (`pipeline.py`)
+- Step 11c: Tool memory coupling runs after tool loop execution
+- Short-term memory records for every tool execution
+- Salient episodes written to long-term memory (SQLite)
+- Self-observations fed to SelfProfileManager after each tool result
+- Unresolved items from failures added to resolution modulator
+- Trust deltas applied directly to person profile and persisted
+- `tool_memory_effects` field added to DebugState
+
+### Debug API (`runtime/debug/api.py`)
+- `tool_memory_effects` serialized in `_debug_to_dict()` with all fields
+
+### Tests
+- 55 new tests in `tests/test_agentic_tools_phase3.py`
+- Full suite: 840 tests passing
+
+---
+
 ## v0.11.0 — 2026-04-02 (Agentic Tools Phase 2: cognitive tool loop)
 
 Integrates tool use into cognition. The pipeline can now decide between direct response and tool use, execute a bounded tool loop, appraise the result, and continue to generation.
