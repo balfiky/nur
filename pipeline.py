@@ -160,7 +160,19 @@ class CognitivePipeline:
         llm_backend: LLMBackend | None = None,
         llm_backend_fast: LLMBackend | None = None,
         db_path: str = ":memory:",
+        self_db_path: str | None = None,
     ) -> None:
+        """Create a cognitive pipeline.
+
+        Args:
+            llm_backend: Primary LLM backend.
+            llm_backend_fast: Fast backend (thinking off). Falls back to primary.
+            db_path: Per-user database path for memories, person profiles,
+                     topic profiles, and person observations.
+            self_db_path: Shared database path for self-model observations and
+                          defense history.  When None, falls back to db_path
+                          (single-DB mode, backward compatible).
+        """
         # Primary backend (used if no fast backend provided)
         self._llm_backend = llm_backend or MockLLMBackend()
         # Fast backend (thinking mode off) — used for ALL calls
@@ -174,12 +186,19 @@ class CognitivePipeline:
         self.short_term = ShortTermMemory()
         self.long_term = LongTermMemory(db_path=db_path)
 
-        # Profiles (shared store)
-        self.profile_store = ProfileStore(db_path=db_path)
-        self.person_profiles = PersonProfileManager(self.profile_store, db_path=db_path)
-        self.self_profile = SelfProfileManager(self.profile_store)
+        # Per-user profile store (person observations + extracted traits)
+        self._person_profile_store = ProfileStore(db_path=db_path)
+        self.person_profiles = PersonProfileManager(self._person_profile_store, db_path=db_path)
         self.topic_profiles = TopicProfileManager(db_path=db_path)
-        self.contradiction_detector = ContradictionDetector(self.profile_store)
+
+        # Shared self-model store (self observations + defense events)
+        effective_self_db = self_db_path if self_db_path is not None else db_path
+        self._self_profile_store = ProfileStore(db_path=effective_self_db)
+        self.self_profile = SelfProfileManager(self._self_profile_store)
+
+        # Contradiction detectors — one per store
+        self._person_contradiction = ContradictionDetector(self._person_profile_store)
+        self._self_contradiction = ContradictionDetector(self._self_profile_store)
 
         # Master generator uses fast backend (thinking off — prompt has full context)
         self.generator = ResponseGenerator(backend=self._llm_backend_fast)
@@ -316,13 +335,13 @@ class CognitivePipeline:
 
         person_expected = self.person_profiles.get_expected_traits(user_id)
         if person_expected:
-            person_result = self.contradiction_detector.detect(user_id, person_expected)
+            person_result = self._person_contradiction.detect(user_id, person_expected)
             for c in person_result.contradictions:
                 contradiction_flags.append(c.description)
 
         self_expected = self.self_profile.get_expected_traits()
         if self_expected:
-            self_result = self.contradiction_detector.detect(SELF_ENTITY_ID, self_expected)
+            self_result = self._self_contradiction.detect(SELF_ENTITY_ID, self_expected)
             for c in self_result.contradictions:
                 contradiction_flags.append(c.description)
 
@@ -633,6 +652,33 @@ class CognitivePipeline:
                         intensity=min(0.7, tp.emotional_charge),
                         decay_rate=0.05,
                     ))
+
+    # ------------------------------------------------------------------
+    # Lifecycle
+    # ------------------------------------------------------------------
+
+    def close(self) -> None:
+        """Close all database connections held by this pipeline.
+
+        Call this when the pipeline is no longer needed (session eviction,
+        shutdown). Safe to call multiple times.
+        """
+        self.long_term.close()
+        self._person_profile_store.close()
+        self._self_profile_store.close()
+        self.person_profiles.close()
+        self.topic_profiles.close()
+
+    def restore_state(
+        self,
+        snapshot: dict[str, float],
+        saved_at: float | None = None,
+    ) -> None:
+        """Restore emotional engine state from a persisted snapshot.
+
+        Convenience wrapper around EmotionalEngine.restore() for runtime use.
+        """
+        self.engine.restore(snapshot, saved_at=saved_at)
 
     # ------------------------------------------------------------------
     # Session management

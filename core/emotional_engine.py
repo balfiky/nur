@@ -105,6 +105,35 @@ class EmotionalEngine:
         self._context_shift: BaselineShift | None = None
 
     # ------------------------------------------------------------------
+    # State restore (Phase 0 — runtime support)
+    # ------------------------------------------------------------------
+
+    def restore(
+        self,
+        snapshot: dict[str, float],
+        saved_at: float | None = None,
+    ) -> None:
+        """Restore modulator state from a snapshot dict.
+
+        Args:
+            snapshot: Dict of modulator name → value (same format as snapshot()).
+            saved_at: Unix timestamp when the snapshot was saved. If provided,
+                      elapsed wall-clock time is computed and decay is applied
+                      before use, so restored state reflects time passing.
+        """
+        for mod in ModulatorName:
+            if mod.value in snapshot:
+                val = max(0.0, min(1.0, snapshot[mod.value]))
+                setattr(self.state, mod.value, val)
+
+        if saved_at is not None:
+            elapsed = time.time() - saved_at
+            if elapsed > 0:
+                self.decay(elapsed)
+
+        self._last_update_time = time.time()
+
+    # ------------------------------------------------------------------
     # Core operations
     # ------------------------------------------------------------------
 

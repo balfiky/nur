@@ -13,6 +13,7 @@ import sqlite3
 import time
 
 from config.loader import get_config
+from core.schema import ensure_schema_version
 from core.types import BaselineShift, PersonProfile
 from core.profiles.base import Observation, ProfileStore
 
@@ -36,6 +37,7 @@ class PersonProfileManager:
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._create_tables()
+        ensure_schema_version(self._conn)
 
     def _create_tables(self) -> None:
         self._conn.execute("""

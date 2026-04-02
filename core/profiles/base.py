@@ -14,6 +14,7 @@ import time
 from dataclasses import dataclass, field
 
 from config.loader import get_config
+from core.schema import ensure_schema_version
 
 # ---------------------------------------------------------------------------
 # Config-driven constants (loaded from config/profiles_schema.yaml)
@@ -56,6 +57,7 @@ class ProfileStore:
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._create_tables()
+        ensure_schema_version(self._conn)
 
     def _create_tables(self) -> None:
         self._conn.execute("""

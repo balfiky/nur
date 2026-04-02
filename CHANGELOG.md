@@ -4,6 +4,40 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.4.0 — 2026-04-02 (Phase 0: Runtime embedding)
+
+Mandatory Nūr-side changes to support the Jarvis Runtime. No external behavior changes.
+
+### EmotionalEngine.restore()
+- `restore(snapshot, saved_at=None)` restores modulators from a dict snapshot
+- If `saved_at` (unix timestamp) is provided, elapsed wall-clock time is computed and decay is applied before use
+- `CognitivePipeline.restore_state()` convenience wrapper added
+
+### CognitivePipeline.close()
+- Closes all database connections (long-term memory, profile stores, person profiles, topic profiles)
+- Safe to call multiple times (idempotent)
+
+### Shared vs per-user storage split
+- New `self_db_path` parameter on `CognitivePipeline.__init__`
+- Per-user storage (`db_path`): long-term memories, person profiles, person observations, topic profiles
+- Shared storage (`self_db_path`): self-model observations, defense events
+- When `self_db_path` is None, falls back to `db_path` (backward compatible)
+- Two separate `ProfileStore` instances: `_person_profile_store` (per-user) and `_self_profile_store` (shared)
+- Two `ContradictionDetector` instances: `_person_contradiction` and `_self_contradiction`
+
+### Schema version support
+- `core/schema.py`: `SCHEMA_VERSION = 1`, `ensure_schema_version(conn)`, `SchemaVersionError`
+- `schema_version` table added to all SQLite databases (ProfileStore, LongTermMemory, PersonProfileManager, TopicProfileManager)
+- Unknown future schema versions fail loudly with `SchemaVersionError`
+- Older versions migrate forward (no migrations yet — just version bump)
+
+### Testing
+- 535 tests total (26 new Phase 0 tests)
+- `test_phase0.py`: restore behavior, elapsed decay, close(), shared self-profile isolation, schema version checks
+- Zero regressions
+
+---
+
 ## v0.3.6 — 2026-04-02 (Spike-only turns back to 1 call)
 
 ### What changed

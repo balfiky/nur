@@ -5,9 +5,9 @@ Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
 Read CHANGELOG.md for version history and what changed when.
 
-## v2 Status: COMPLETE + LATENCY OPTIMIZATION
+## v2 Status: COMPLETE + LATENCY OPTIMIZATION + PHASE 0 RUNTIME EMBEDDING
 
-v1 (288 tests) + v2 phases 1-7 (188 tests) + regression/optimization tests (28) = 509 tests.
+v1 (288 tests) + v2 phases 1-7 (188 tests) + regression/optimization (28) + Phase 0 (26) = 535 tests.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -22,7 +22,8 @@ v1 (288 tests) + v2 phases 1-7 (188 tests) + regression/optimization tests (28) 
 - pipeline.py — Full v2 cognitive pipeline orchestrator
 - interface/ — FastAPI + WebSocket + debug dashboard
 - config/ — YAML configs + 10 prompt templates
-- tests/ — 509 tests including calibration, journey, v2 integration, and regression tests
+- core/schema.py — Schema version management for all SQLite databases
+- tests/ — 535 tests including calibration, journey, v2 integration, regression, and Phase 0 tests
 
 ### What's NOT built (future features)
 - Dynamic value drift (v2.5)
@@ -54,7 +55,7 @@ v1 (288 tests) + v2 phases 1-7 (188 tests) + regression/optimization tests (28) 
 - All LLM text interpretation: try JSON parse from LLM, fall back to keywords on failure
 - Trust asymmetry: +0.02 positive, -0.15 negative (7.5x negativity bias), per-turn only (no session-end trust)
 - Spike threshold: intensity >= 0.8 bypasses confidence threshold for long-term memory writes
-- Self-profiling uses entity ID `__self__` with same ProfileStore as person profiles
+- Self-profiling uses entity ID `__self__` with its own ProfileStore (`_self_profile_store`)
 - Inner dialogue candidate flows into generator as draft to refine (v2 fix)
 - Context shift is non-additive: `set_context_shift()` stores resting target, not accumulated delta
 - Auto-decay between turns: pipeline tracks `_last_turn_time`, decays at start of `process()`
@@ -69,8 +70,18 @@ v1 (288 tests) + v2 phases 1-7 (188 tests) + regression/optimization tests (28) 
 - API key via MINIMAX_API_KEY env var
 - Model returns `<think>...</think>` reasoning tags — stripped by LLMClient
 
+## Phase 0 (Runtime embedding — completed)
+- `EmotionalEngine.restore(snapshot, saved_at=None)` — restore modulators + elapsed decay
+- `CognitivePipeline.close()` — close all DB connections (idempotent)
+- `CognitivePipeline.restore_state(snapshot, saved_at=None)` — convenience wrapper
+- `self_db_path` parameter on pipeline — split shared self-model from per-user storage
+- `_person_profile_store` (per-user) vs `_self_profile_store` (shared) — two ProfileStore instances
+- `_person_contradiction` and `_self_contradiction` — two ContradictionDetector instances
+- `core/schema.py` — SCHEMA_VERSION=1, ensure_schema_version(), SchemaVersionError
+- All SQLite databases carry schema_version table; future versions fail loudly
+
 ## Testing
-- `pytest` collects 509 tests
+- `pytest` collects 535 tests
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 
