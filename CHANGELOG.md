@@ -4,6 +4,37 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.8.0 — 2026-04-02 (Phase 4: Runtime debug API)
+
+Session-aware debug API replacing the old single-pipeline debug model.
+
+### Debug API (`runtime/debug/api.py`)
+- `GET /sessions` — list active sessions with rel_key, user_id, idle_seconds, queue_size, has_debug
+- `GET /sessions/{rel_key}/debug` — per-user debug: live modulators, emotion label, memory counts, unresolved items, full last_turn debug snapshot
+- `POST /sessions/{rel_key}/reset` — evict session (digest + persist + close)
+- Reads from SessionManager — no separate pipeline, no global state
+- 404 for non-existent sessions on both debug and reset endpoints
+
+### Debug state capture (`runtime/sessions/user_session.py`)
+- `last_debug: DebugState` stored on UserSession after each `process()` call
+- Full v1/v2 debug fields preserved in serialization: contagion, event classification, profiles, contradictions, anticipation, inner dialogue trace, defense activation, stage timings
+
+### Config + wiring
+- `RuntimeConfig` gains `debug_host` (default `127.0.0.1`) and `debug_port` (default `8077`)
+- `runtime_config.yaml` updated with debug section
+- Debug server runs as background uvicorn task in JarvisApp
+- Graceful shutdown stops debug server alongside channels
+
+### Testing
+- 617 tests total (15 new debug API tests)
+- `TestSessionListing` (4): empty, lists active, field validation, has_debug flag
+- `TestPerUserDebug` (5): live state, last_turn, v2 fields, 404, modulator reflection
+- `TestPerUserReset` (3): eviction, 404, removed from listing
+- `TestSessionIsolation` (3): different states, reset isolation, correct last_turn per user
+- Zero regressions
+
+---
+
 ## v0.7.0 — 2026-04-02 (Phase 3: Timeouts, shutdown, DB safety)
 
 Timer-driven inactivity, graceful shutdown, and shared DB hardening.

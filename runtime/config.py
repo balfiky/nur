@@ -26,6 +26,10 @@ class RuntimeConfig:
     telegram_poll_timeout: int = 30
     dedupe_ttl: float = 60.0
 
+    # Debug API
+    debug_host: str = "127.0.0.1"
+    debug_port: int = 8077
+
     @property
     def shared_db_path(self) -> str:
         return os.path.join(self.data_dir, "shared", "self_model.db")

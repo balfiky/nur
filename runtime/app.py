@@ -8,6 +8,7 @@ import signal
 
 from runtime.config import RuntimeConfig
 from runtime.channels.console import ConsoleChannel
+from runtime.debug.api import create_debug_app
 from runtime.llm.backend import create_llm_backend
 from runtime.sessions.manager import SessionManager
 
@@ -17,7 +18,7 @@ log = logging.getLogger(__name__)
 class JarvisApp:
     """Lifecycle manager for the Jarvis Runtime.
 
-    Wires together the session manager, LLM backend, and channels.
+    Wires together the session manager, LLM backend, channels, and debug API.
     Handles graceful shutdown on SIGINT / SIGTERM.
     """
 
@@ -30,6 +31,7 @@ class JarvisApp:
         self._shutdown_event = asyncio.Event()
         self._console: ConsoleChannel | None = None
         self._telegram = None  # TelegramChannel | None
+        self._debug_server = None  # uvicorn.Server | None
 
     async def run(self) -> None:
         """Start channels and block until shutdown."""
@@ -41,6 +43,9 @@ class JarvisApp:
                 loop.add_signal_handler(sig, self._signal_shutdown)
             except NotImplementedError:
                 pass
+
+        # Start debug API server
+        debug_task = asyncio.create_task(self._start_debug_server())
 
         # Start Telegram channel if token is configured
         telegram_task = None
@@ -61,7 +66,33 @@ class JarvisApp:
                     await telegram_task
                 except asyncio.CancelledError:
                     pass
+            debug_task.cancel()
+            try:
+                await debug_task
+            except asyncio.CancelledError:
+                pass
             await self.shutdown()
+
+    async def _start_debug_server(self) -> None:
+        """Start the debug API server (runs as a background task)."""
+        import uvicorn
+
+        debug_app = create_debug_app(self.session_manager)
+        config = uvicorn.Config(
+            debug_app,
+            host=self.config.debug_host,
+            port=self.config.debug_port,
+            log_level="warning",
+        )
+        self._debug_server = uvicorn.Server(config)
+        log.info(
+            "Debug API at http://%s:%d/sessions",
+            self.config.debug_host, self.config.debug_port,
+        )
+        try:
+            await self._debug_server.serve()
+        except asyncio.CancelledError:
+            self._debug_server.should_exit = True
 
     async def _start_telegram(self) -> None:
         """Start the Telegram channel (runs as a background task)."""
@@ -88,6 +119,9 @@ class JarvisApp:
 
         if self._telegram is not None:
             await self._telegram.stop()
+
+        if self._debug_server is not None:
+            self._debug_server.should_exit = True
 
         log.info("Shutting down runtime")
         await self.session_manager.shutdown()

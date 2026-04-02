@@ -7,7 +7,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 
-from pipeline import CognitivePipeline
+from pipeline import CognitivePipeline, DebugState
 from runtime.sessions.persistence import load_engine_state, save_engine_state
 
 log = logging.getLogger(__name__)
@@ -45,6 +45,7 @@ class UserSession:
         self._queue: asyncio.Queue[MessageEnvelope] = asyncio.Queue(maxsize=max_queue)
         self._worker_task: asyncio.Task | None = None
         self._stopped = False
+        self.last_debug: DebugState | None = None
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -135,6 +136,7 @@ class UserSession:
                 result = await asyncio.to_thread(
                     self.pipeline.process, envelope.text, envelope.user_id,
                 )
+                self.last_debug = result.debug
                 if not envelope.future.cancelled():
                     envelope.future.set_result(result.response)
             except asyncio.CancelledError:

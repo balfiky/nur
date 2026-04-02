@@ -8,3 +8,7 @@ telegram_token: ""
 telegram_allowlist: []   # numeric user IDs; empty = allow all
 telegram_poll_timeout: 30
 dedupe_ttl: 60
+
+# Debug API
+debug_host: "127.0.0.1"
+debug_port: 8077
