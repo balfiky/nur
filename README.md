@@ -69,6 +69,9 @@ pytest
 # Phase 11 human-likeness regression pack
 python -m evals --tag phase11
 
+# Detailed Phase 11 trace report
+python -m tests.run_phase11_report
+
 # Specific test suite
 pytest tests/test_emotional_journey.py -v
 
@@ -617,11 +620,11 @@ All magic numbers live in YAML files. No hardcoded thresholds in module code. Th
 
 ## Future Roadmap
 
-v2 phases 1-7 and runtime phases 0-4 are complete. Phase 11.1 and 11.2 are now landed. The remaining high-value path is:
+v2 phases 1-7 and runtime phases 0-4 are complete. The lean Phase 11 track is now landed. The next work should stay narrow and evidence-driven:
 
 | Feature | Description |
 |---------|-------------|
-| Phase 11.3 Response strategy selector | Choose validate / repair / ground / challenge gently based on appraisal + relationship context |
+| Soak and calibration | Run real conversations, inspect failures, and only fix clustered non-human patterns |
 | v2.7 Deep self-reflection | Periodic pattern extraction across sessions |
 | v2.8 Growth tracking | Milestone detection and personality evolution |
 | v2.9 Expression-state regulation | Make felt state vs shown state explicit and inspectable |

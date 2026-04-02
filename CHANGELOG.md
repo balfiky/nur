@@ -4,6 +4,27 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.20.2 — 2026-04-02 (Phase 11 reporting utility)
+
+Adds a focused developer script for inspecting Phase 11 human-likeness behavior turn by turn.
+
+### Reporting utility (`tests/run_phase11_report.py`)
+- Added `python -m tests.run_phase11_report`
+- Runs the existing `phase11` eval scenarios and prints:
+  - the normal pass/fail assertion report
+  - a detailed per-turn trace with event classification, appraisal target/move, selected response strategy, relationship summary, and session-end digestion
+- Supports `--scenario <id>` for a single Phase 11 scenario
+- Supports `--json` for structured output
+
+### Tests
+- Added `tests/test_phase11_report.py`
+
+### Docs
+- `README.md` — added the Phase 11 trace-report command
+- `README.md` — future roadmap now reflects that the lean Phase 11 track is complete and the next step is soak/calibration, not more architecture
+
+---
+
 ## v0.20.1 — 2026-04-02 (Phase 11 eval automation and strategy/appraisal fixes)
 
 Adds an automated Phase 11 human-likeness regression pack and tightens a few strategy/appraisal edges it exposed.
