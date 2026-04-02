@@ -4,6 +4,50 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.18.0 — 2026-04-02 (Phase 9: Evaluation, calibration, and benchmark harness)
+
+Adds a dedicated evaluation layer that makes Jarvis measurable, comparable across revisions, and easier to tune. No new user-facing features — purely instrumentation and regression infrastructure.
+
+### Evaluation framework (`evals/`)
+- `evals/types.py` — `EvalScenario`, `EvalTurn`, `EvalAssertion`, `EvalResult`, `EvalReport`, `EvalMetrics`, `ModulatorRange`
+  - 14 assertion kinds: tool_used, tool_not_used, tool_category, decision, modulator_range, unresolved_created/resolved, task_plan_created/continued/completed, proactive_triggered/suppressed, debug_field, response_contains, response_not_empty, custom
+  - Scenarios describe initial state, conversation turns, expected tool/emotional/task/proactive behavior, with range-based assertions
+- `evals/runner.py` — deterministic runner executing scenarios through the real `CognitivePipeline`
+  - `run_scenario()`, `run_scenarios()`, `run_by_tag()` — single, batch, and tag-filtered execution
+  - Per-assertion checking against pipeline response + debug state
+  - Proactive evaluation support with configurable idle simulation
+  - Performance metrics collection: LLM calls, tool calls, latency, stage timings, defense activations
+- `evals/reporting.py` — text and JSON report generators
+  - Text: pass/fail summary, per-scenario metrics, failure details
+  - JSON: full structured output with turn modulators, assertion results, metrics
+- `evals/__main__.py` — CLI entrypoint: `python -m evals [--tag TAG] [--json] [--list]`
+
+### Golden behavior suites (`evals/scenarios.py`)
+- 20 scenarios across 6 suites:
+  - **Emotional core** (5): warm greeting, hostile spike, escalation, energy drain, de-escalation recovery
+  - **Tool loop** (6): file read, list dir, conversational no-trigger, web search, failure emotional effects, debug trace population
+  - **Task planning** (2): multi-step plan creation, single-step no-plan
+  - **Proactive** (2): suppressed when calm, suppressed when low energy
+  - **Defense/resolution** (2): defense with low trust, contradiction unresolved tension
+  - **Relationship** (3): high trust positive, low trust guarded, independent user states
+- 56 assertions total, all passing
+
+### Performance counters
+- LLM call count, tool call count, total latency, per-stage timings
+- Proactive count, task loop count, unresolved items created, defense activations
+- All counters appear in both text and JSON report output
+
+### Tests
+- 52 new tests in `tests/test_evals.py`
+  - Framework unit tests: types, assertion checking, modulator ranges
+  - Reporting tests: text format, JSON validity, metrics display
+  - Scenario definition tests: counts, IDs unique, tags present
+  - Integration tests: 12 scenarios run through real pipeline with mock backend
+  - Runner tests: batch, tag filtering, metrics collection
+- Full suite: 1144 tests passing
+
+---
+
 ## v0.17.2 — 2026-04-02 (Phase 8 correctness fix: proactive active-work guard)
 
 Fixes the remaining Phase 8 race where a long proactive run could still be

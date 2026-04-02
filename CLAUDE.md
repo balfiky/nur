@@ -5,9 +5,9 @@ Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
 Read CHANGELOG.md for version history and what changed when.
 
-## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 8
+## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 8 + EVAL PHASE 9
 
-The full test suite currently collects 1092 tests.
+The full test suite currently collects 1144 tests.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -33,7 +33,8 @@ The full test suite currently collects 1092 tests.
 - core/proactive.py — Proactive behavior evaluation: trigger collection, scoring, bound enforcement, action selection (0 LLM calls)
 - tools/ — Agentic tools package: registry, executor, builtin tools (filesystem, shell, web, browser, calendar)
 - tools/mcp/ — MCP bridge: client protocol, adapter, category inference, register_mcp_tools()
-- tests/ — 1092 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, and agentic tools Phase 0+1+2+3+4+5+6+7+8 coverage
+- evals/ — Evaluation and benchmark harness: structured scenarios, deterministic runner, assertion-based behavioral checks, text/JSON reporting, CLI entrypoint
+- tests/ — 1144 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, agentic tools Phase 0+1+2+3+4+5+6+7+8, and eval Phase 9 coverage
 
 ### What's NOT built (future features)
 - Dynamic value drift (v2.5)
@@ -260,8 +261,25 @@ The full test suite currently collects 1092 tests.
   - `_run_proactive()` acquires per-user lock — same serialization as normal message processing
   - `process_proactive()` applies elapsed decay before evaluation — same as `process()` Step 0
 
+## Phase 9 (Evaluation, calibration, and benchmark harness — completed)
+- `evals/types.py` — EvalScenario, EvalTurn, EvalAssertion, EvalResult, EvalReport, EvalMetrics, ModulatorRange
+  - 14 assertion kinds: tool_used, tool_not_used, tool_category, decision, modulator_range, unresolved_created/resolved, task_plan_created/continued/completed, proactive_triggered/suppressed, debug_field, response_contains, response_not_empty, custom
+  - Range-based assertions — no brittle exact-value checks
+- `evals/runner.py` — deterministic runner: `run_scenario()`, `run_scenarios()`, `run_by_tag()`
+  - Executes through real CognitivePipeline with mock backend
+  - Proactive evaluation with configurable idle simulation
+  - Performance metrics: LLM calls, tool calls, latency, stage timings, defense activations
+- `evals/reporting.py` — text and JSON report generators
+- `evals/scenarios.py` — 20 golden behavior scenarios across 6 suites
+  - Emotional core (5), tool loop (6), task planning (2), proactive (2), defense/resolution (2), relationship (3)
+  - 56 assertions total
+- `evals/__main__.py` — CLI: `python -m evals [--tag TAG] [--json] [--list]`
+- No new user-facing features, no external dependencies
+
 ## Testing
-- `pytest` collects 1092 tests
+- `pytest` collects 1144 tests
+- `python -m evals` for the full evaluation benchmark (20 scenarios, 56 assertions)
+- `python -m evals --tag emotional` for suite-specific runs
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 
