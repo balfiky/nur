@@ -50,7 +50,7 @@ _STRONG_EMOTION_VALENCE = 0.06     # |valence delta| above this is salient
 # Trust deltas (conservative, respects existing asymmetry)
 # ---------------------------------------------------------------------------
 
-_TRUST_POSITIVE_TOOL = 0.01   # successful helpful action
+_TRUST_POSITIVE_TOOL = 0.015  # successful helpful action
 _TRUST_NEGATIVE_TOOL = -0.03  # reckless or failed destructive action
 
 

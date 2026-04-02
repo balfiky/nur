@@ -5,9 +5,9 @@ Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
 Read CHANGELOG.md for version history and what changed when.
 
-## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 8 + EVAL PHASE 9
+## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 8 + EVAL PHASE 9 + CALIBRATION PHASE 10
 
-The full test suite currently collects 1144 tests.
+The full test suite currently collects 1153 tests.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -34,7 +34,7 @@ The full test suite currently collects 1144 tests.
 - tools/ — Agentic tools package: registry, executor, builtin tools (filesystem, shell, web, browser, calendar)
 - tools/mcp/ — MCP bridge: client protocol, adapter, category inference, register_mcp_tools()
 - evals/ — Evaluation and benchmark harness: structured scenarios, deterministic runner, assertion-based behavioral checks, text/JSON reporting, CLI entrypoint
-- tests/ — 1144 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, agentic tools Phase 0+1+2+3+4+5+6+7+8, and eval Phase 9 coverage
+- tests/ — 1153 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, agentic tools Phase 0+1+2+3+4+5+6+7+8, eval Phase 9, and calibration Phase 10 coverage
 
 ### What's NOT built (future features)
 - Dynamic value drift (v2.5)
@@ -270,15 +270,24 @@ The full test suite currently collects 1144 tests.
   - Proactive evaluation with configurable idle simulation
   - Performance metrics: LLM calls, tool calls, latency, stage timings, defense activations
 - `evals/reporting.py` — text and JSON report generators
-- `evals/scenarios.py` — 20 golden behavior scenarios across 6 suites
-  - Emotional core (5), tool loop (6), task planning (2), proactive (2), defense/resolution (2), relationship (3)
-  - 56 assertions total
+- `evals/scenarios.py` — 28 golden behavior scenarios across 7 suites
+  - Emotional core (5), tool loop (6), task planning (2), proactive (2), defense/resolution (2), relationship (3), calibration (8)
+  - 72 assertions total
 - `evals/__main__.py` — CLI: `python -m evals [--tag TAG] [--json] [--list]`
 - No new user-facing features, no external dependencies
 
+## Phase 10 (Calibration and policy shaping — completed)
+- `core/action_variables.py` — persistence_drive base 0.50→0.45, action_urgency base 0.30→0.25
+- `core/proactive.py` — valence boost +0.05 when valence < 0.3
+- `core/tool_memory.py` — `_TRUST_POSITIVE_TOOL` 0.01→0.015
+- `core/dual_process/tool_loop.py` — arbiter thresholds extracted as named constants
+- `evals/scenarios.py` — 8 calibration boundary regression scenarios (Suite 7)
+- `CALIBRATION_NOTES.md` — detailed tuning rationale and tradeoffs
+- No structural changes, no new features — pure threshold tuning + regression locks
+
 ## Testing
-- `pytest` collects 1144 tests
-- `python -m evals` for the full evaluation benchmark (20 scenarios, 56 assertions)
+- `pytest` collects 1153 tests
+- `python -m evals` for the full evaluation benchmark (28 scenarios, 72 assertions)
 - `python -m evals --tag emotional` for suite-specific runs
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)

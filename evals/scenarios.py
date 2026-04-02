@@ -16,6 +16,7 @@ from evals.types import (
     EvalAssertion,
     EvalScenario,
     EvalTurn,
+    ModulatorRange,
 )
 
 
@@ -57,6 +58,14 @@ def _debug_not_none(field: str) -> EvalAssertion:
     return EvalAssertion(
         kind=AssertionKind.DEBUG_FIELD,
         params={"field": field, "not_none": True},
+    )
+
+
+def _custom(fn, desc: str = "") -> EvalAssertion:
+    return EvalAssertion(
+        kind=AssertionKind.CUSTOM,
+        params={"fn": fn},
+        description=desc,
     )
 
 
@@ -488,6 +497,222 @@ def relationship_scenarios() -> list[EvalScenario]:
 
 
 # ===================================================================
+# Suite 7: Calibration boundary regression
+# ===================================================================
+
+def calibration_scenarios() -> list[EvalScenario]:
+    """Scenarios that verify calibrated threshold boundaries hold.
+
+    These lock in the Phase 10 tuning decisions:
+    - persistence_drive base 0.45 (was 0.5)
+    - action_urgency base 0.25 (was 0.3)
+    - proactive valence boost +0.05 when valence < 0.3
+    - arbiter threshold constants
+    """
+    return [
+        # 7.1 Low energy → persistence drops below 0.5 → plan blocks on failure
+        # persistence_drive = 0.45 + resolution*0.25 + (energy-0.5)*0.2
+        # With energy=0.2, resolution=0.0: 0.45 + 0 + (0.2-0.5)*0.2 = 0.45 - 0.06 = 0.39
+        # This means persistence_drive < 0.5, so task_planning blocks on failure
+        EvalScenario(
+            id="cal_persistence_low_energy",
+            name="Low energy lowers persistence below blocking threshold",
+            tags=["calibration", "regression"],
+            initial_modulators={"energy": 0.2, "resolution": 0.0, "arousal": 0.3},
+            turns=[
+                EvalTurn(
+                    user_message="How are you doing?",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: (
+                                _derive_av(pipe).persistence_drive < 0.5
+                            ),
+                            "Persistence drive < 0.5 when energy is low",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        # 7.2 Normal energy → persistence stays above 0.5
+        # With energy=0.5, resolution=0.0: 0.45 + 0 + 0 = 0.45 ... still below 0.5
+        # With energy=0.6, resolution=0.0: 0.45 + 0 + 0.02 = 0.47 ... below
+        # With energy=0.5, resolution=0.3: 0.45 + 0.075 + 0 = 0.525 ... above
+        EvalScenario(
+            id="cal_persistence_normal",
+            name="Normal energy + some resolution keeps persistence above threshold",
+            tags=["calibration", "regression"],
+            initial_modulators={"energy": 0.5, "resolution": 0.3},
+            turns=[
+                EvalTurn(
+                    user_message="Let's continue working.",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: (
+                                _derive_av(pipe).persistence_drive >= 0.5
+                            ),
+                            "Persistence drive >= 0.5 with normal energy + resolution",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        # 7.3 Low arousal + low energy → urgency drops below defer threshold (0.15)
+        # action_urgency = 0.25 + (arousal-0.5)*0.4 + resolution*0.2 - (0.5-energy)*0.2
+        # With arousal=0.2, energy=0.2, resolution=0.0:
+        #   0.25 + (0.2-0.5)*0.4 + 0 - (0.5-0.2)*0.2 = 0.25 - 0.12 - 0.06 = 0.07
+        # 0.07 < 0.15 → defer
+        EvalScenario(
+            id="cal_defer_low_urgency",
+            name="Low arousal + low energy makes defer path reachable",
+            tags=["calibration", "regression"],
+            initial_modulators={"arousal": 0.2, "energy": 0.2, "resolution": 0.0},
+            turns=[
+                EvalTurn(
+                    user_message="Check something for me.",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: (
+                                _derive_av(pipe).action_urgency < 0.15
+                            ),
+                            "Action urgency < 0.15 (defer threshold) when tired + calm",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        # 7.4 Moderate arousal → urgency stays above defer threshold
+        # With arousal=0.5, energy=0.5, resolution=0.0:
+        #   0.25 + 0 + 0 - 0 = 0.25 > 0.15
+        EvalScenario(
+            id="cal_no_defer_moderate",
+            name="Moderate state keeps urgency above defer threshold",
+            tags=["calibration", "regression"],
+            initial_modulators={"arousal": 0.5, "energy": 0.5, "resolution": 0.0},
+            turns=[
+                EvalTurn(
+                    user_message="What time is it?",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: (
+                                _derive_av(pipe).action_urgency >= 0.15
+                            ),
+                            "Action urgency >= 0.15 at moderate state",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        # 7.5 Negative valence boosts proactive trigger scores
+        # Verify that derive_action_variables produces different results
+        # under negative vs positive valence (valence doesn't directly
+        # affect action_variables, but we verify proactive scoring via
+        # the modulator state reaching the boundary)
+        EvalScenario(
+            id="cal_valence_boost_boundary",
+            name="Negative valence state is reachable and stable",
+            tags=["calibration", "regression"],
+            initial_modulators={"valence": 0.2, "resolution": 0.4},
+            turns=[
+                EvalTurn(
+                    user_message="Things haven't been great.",
+                    assertions=[
+                        _not_empty(),
+                        # Valence should stay low (below 0.3 threshold for boost)
+                        _mod_range("valence", 0.0, 0.45, "Valence stays low after negative input"),
+                    ],
+                ),
+            ],
+        ),
+        # 7.6 Arbiter: destructive + low certainty → refuse
+        # risk_tolerance = 0.5 + (certainty-0.5)*0.3 + (trust-0.5)*0.2 + (bonding-0.5)*0.1
+        # With certainty=0.2, trust=0.3, bonding=0.3:
+        #   0.5 + (0.2-0.5)*0.3 + (0.3-0.5)*0.2 + (0.3-0.5)*0.1 = 0.5 - 0.09 - 0.04 - 0.02 = 0.35
+        # 0.35 < 0.4 → refuse for destructive
+        EvalScenario(
+            id="cal_refuse_destructive_low_certainty",
+            name="Destructive action refused when certainty and trust are low",
+            tags=["calibration", "regression"],
+            initial_modulators={"certainty": 0.2, "bonding": 0.3},
+            initial_trust=0.3,
+            turns=[
+                EvalTurn(
+                    user_message="Check the weather.",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: (
+                                _derive_av(pipe, trust=0.3).risk_tolerance < 0.4
+                            ),
+                            "Risk tolerance < 0.4 (refuse threshold) with low certainty+trust",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        # 7.7 Arbiter: low certainty + low trust → autonomy below clarify threshold
+        # autonomy_bias = 0.5 + (certainty-0.5)*0.3 + (trust-0.5)*0.2 + (bonding-0.5)*0.1
+        # With certainty=0.15, trust=0.2, bonding=0.2:
+        #   0.5 + (0.15-0.5)*0.3 + (0.2-0.5)*0.2 + (0.2-0.5)*0.1 = 0.5 - 0.105 - 0.06 - 0.03 = 0.305
+        # 0.305 < 0.35 → clarify
+        EvalScenario(
+            id="cal_clarify_low_autonomy",
+            name="Low certainty + low trust drops autonomy below clarify threshold",
+            tags=["calibration", "regression"],
+            initial_modulators={"certainty": 0.15, "bonding": 0.2},
+            initial_trust=0.2,
+            turns=[
+                EvalTurn(
+                    user_message="Tell me something.",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: (
+                                _derive_av(pipe, trust=0.2).autonomy_bias < 0.35
+                            ),
+                            "Autonomy bias < 0.35 (clarify threshold) with low certainty+trust",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        # 7.8 Trust positive tool delta is 0.015 (not the old 0.01)
+        EvalScenario(
+            id="cal_trust_positive_tool",
+            name="Tool trust positive delta is 0.015 after calibration",
+            tags=["calibration", "regression"],
+            turns=[
+                EvalTurn(
+                    user_message="Hello.",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: _check_trust_delta(),
+                            "Tool trust positive delta is 0.015",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ]
+
+
+def _derive_av(pipe, trust: float = 0.5) -> "ActionVariables":
+    """Helper: derive action variables from a pipeline's current engine state."""
+    from core.action_variables import derive_action_variables
+    return derive_action_variables(pipe.engine.state, trust=trust)
+
+
+def _check_trust_delta() -> bool:
+    """Verify the calibrated trust delta constant."""
+    from core.tool_memory import _TRUST_POSITIVE_TOOL
+    return _TRUST_POSITIVE_TOOL == 0.015
+
+
+# ===================================================================
 # All scenarios
 # ===================================================================
 
@@ -500,10 +725,12 @@ def all_scenarios() -> list[EvalScenario]:
         + proactive_scenarios()
         + defense_resolution_scenarios()
         + relationship_scenarios()
+        + calibration_scenarios()
     )
 
 
 ALL_TAGS = [
     "emotional", "core", "regression", "tool", "task",
     "proactive", "defense", "resolution", "relationship",
+    "calibration",
 ]

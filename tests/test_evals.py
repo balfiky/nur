@@ -33,6 +33,7 @@ from evals.scenarios import (
     proactive_scenarios,
     defense_resolution_scenarios,
     relationship_scenarios,
+    calibration_scenarios,
 )
 
 
@@ -332,6 +333,9 @@ class TestScenarioDefinitions:
     def test_defense_resolution_count(self):
         assert len(defense_resolution_scenarios()) >= 2
 
+    def test_calibration_count(self):
+        assert len(calibration_scenarios()) >= 6
+
 
 # ===================================================================
 # Integration: run scenarios through real pipeline
@@ -433,6 +437,50 @@ class TestIntegrationScenarios:
 
     def test_independent_users(self):
         scenario = relationship_scenarios()[2]
+        result = run_scenario(scenario)
+        assert result.passed, _failures(result)
+
+
+class TestCalibrationScenarios:
+    """Integration tests for Phase 10 calibration boundary scenarios."""
+
+    def test_persistence_low_energy(self):
+        scenario = calibration_scenarios()[0]
+        result = run_scenario(scenario)
+        assert result.passed, _failures(result)
+
+    def test_persistence_normal(self):
+        scenario = calibration_scenarios()[1]
+        result = run_scenario(scenario)
+        assert result.passed, _failures(result)
+
+    def test_defer_low_urgency(self):
+        scenario = calibration_scenarios()[2]
+        result = run_scenario(scenario)
+        assert result.passed, _failures(result)
+
+    def test_no_defer_moderate(self):
+        scenario = calibration_scenarios()[3]
+        result = run_scenario(scenario)
+        assert result.passed, _failures(result)
+
+    def test_valence_boost_boundary(self):
+        scenario = calibration_scenarios()[4]
+        result = run_scenario(scenario)
+        assert result.passed, _failures(result)
+
+    def test_refuse_destructive_low_certainty(self):
+        scenario = calibration_scenarios()[5]
+        result = run_scenario(scenario)
+        assert result.passed, _failures(result)
+
+    def test_clarify_low_autonomy(self):
+        scenario = calibration_scenarios()[6]
+        result = run_scenario(scenario)
+        assert result.passed, _failures(result)
+
+    def test_trust_positive_tool_delta(self):
+        scenario = calibration_scenarios()[7]
         result = run_scenario(scenario)
         assert result.passed, _failures(result)
 

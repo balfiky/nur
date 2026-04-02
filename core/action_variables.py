@@ -52,7 +52,7 @@ def derive_action_variables(
 
     # -- action_urgency --
     # Higher with arousal and resolution; lower with low energy
-    action_urgency = 0.3
+    action_urgency = 0.25
     action_urgency += (state.arousal - 0.5) * 0.4      # activated → urgent
     action_urgency += (state.resolution) * 0.2          # unfinished business → urgent
     action_urgency -= (0.5 - min(state.energy, 0.5)) * 0.2  # tired → less urgent
@@ -66,7 +66,7 @@ def derive_action_variables(
 
     # -- persistence_drive --
     # Higher with resolution and energy; lower when tired
-    persistence_drive = 0.5
+    persistence_drive = 0.45
     persistence_drive += (state.resolution) * 0.25     # unfinished → persistent
     persistence_drive += (state.energy - 0.5) * 0.2    # energized → persistent
     if defense_active:

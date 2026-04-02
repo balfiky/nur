@@ -406,13 +406,13 @@ class TestComputeToolTrustDelta:
         delta = compute_tool_trust_delta(
             _ok_result(), ToolCategory.READ_ONLY, _default_action_vars(),
         )
-        assert delta == 0.01
+        assert delta == 0.015
 
     def test_successful_cognitive_positive(self):
         delta = compute_tool_trust_delta(
             _ok_result(), ToolCategory.COGNITIVE, _default_action_vars(),
         )
-        assert delta == 0.01
+        assert delta == 0.015
 
     def test_successful_write_neutral(self):
         delta = compute_tool_trust_delta(

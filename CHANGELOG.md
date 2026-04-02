@@ -4,6 +4,37 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.19.0 — 2026-04-02 (Phase 10: Calibration and policy shaping)
+
+Tunes decision heuristics based on eval results, extracts arbiter thresholds as named constants, and adds calibration boundary regression scenarios.
+
+### Calibration changes
+- `core/action_variables.py` — persistence_drive base 0.50 → 0.45 (plans block under moderate fatigue instead of always continuing)
+- `core/action_variables.py` — action_urgency base 0.30 → 0.25 (defer path reachable when tired + calm)
+- `core/proactive.py` — valence boost +0.05 when `valence < 0.3` (negative mood amplifies unfinished-business triggers)
+- `core/tool_memory.py` — `_TRUST_POSITIVE_TOOL` 0.01 → 0.015 (tool trust asymmetry 1:3 → 1:2, still conservative)
+- `core/dual_process/tool_loop.py` — arbiter thresholds extracted as named constants: `REFUSE_RISK_TOLERANCE`, `CLARIFY_AUTONOMY_BIAS`, `CLARIFY_WRITE_THRESHOLD`, `DEFER_URGENCY_THRESHOLD`
+
+### Calibration boundary scenarios (`evals/scenarios.py`)
+- 8 new scenarios in Suite 7 (calibration regression):
+  - Persistence drive below/above blocking threshold at different energy levels
+  - Defer path reachable with low arousal + low energy
+  - No defer at moderate state
+  - Negative valence boundary for proactive boost
+  - Refuse destructive with low certainty + trust
+  - Clarify when autonomy bias drops below threshold
+  - Tool trust positive delta is 0.015
+
+### Documentation
+- `CALIBRATION_NOTES.md` — detailed notes on what was tuned, original vs new values, rationale, tradeoffs
+
+### Tests
+- 9 new tests in `tests/test_evals.py` (8 calibration integration + 1 count check)
+- 28/28 eval scenarios passing (72/72 assertions)
+- Full suite: 1153 tests passing
+
+---
+
 ## v0.18.0 — 2026-04-02 (Phase 9: Evaluation, calibration, and benchmark harness)
 
 Adds a dedicated evaluation layer that makes Jarvis measurable, comparable across revisions, and easier to tune. No new user-facing features — purely instrumentation and regression infrastructure.

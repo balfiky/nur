@@ -52,6 +52,12 @@ from tools.executor import ToolExecutor
 DEFAULT_MAX_EXECUTIONS = 2
 HARD_CAP_EXECUTIONS = 3
 
+# Arbiter decision thresholds (Section 11 of design spec)
+REFUSE_RISK_TOLERANCE = 0.4       # destructive + risk below this → refuse
+CLARIFY_AUTONOMY_BIAS = 0.35     # autonomy below this → clarify
+CLARIFY_WRITE_THRESHOLD = 0.65   # write/destructive + clarification above this → clarify
+DEFER_URGENCY_THRESHOLD = 0.15   # urgency below this → defer
+
 
 # ---------------------------------------------------------------------------
 # Tool loop result
@@ -175,7 +181,7 @@ def make_tool_decision(
     tool category, and trust level.
     """
     # Refuse: destructive tool + low risk tolerance
-    if category == ToolCategory.DESTRUCTIVE and action_vars.risk_tolerance < 0.4:
+    if category == ToolCategory.DESTRUCTIVE and action_vars.risk_tolerance < REFUSE_RISK_TOLERANCE:
         return ToolDecision(
             decision="refuse",
             intent=intent,
@@ -183,7 +189,7 @@ def make_tool_decision(
         )
 
     # Clarify: low autonomy bias → ask first
-    if action_vars.autonomy_bias < 0.35:
+    if action_vars.autonomy_bias < CLARIFY_AUTONOMY_BIAS:
         return ToolDecision(
             decision="clarify",
             intent=intent,
@@ -192,7 +198,7 @@ def make_tool_decision(
 
     # Clarify: write/destructive + high clarification threshold
     if category in (ToolCategory.WRITE, ToolCategory.DESTRUCTIVE):
-        if action_vars.clarification_threshold > 0.65:
+        if action_vars.clarification_threshold > CLARIFY_WRITE_THRESHOLD:
             return ToolDecision(
                 decision="clarify",
                 intent=intent,
@@ -200,7 +206,7 @@ def make_tool_decision(
             )
 
     # Defer: extremely low urgency (too tired / no drive)
-    if action_vars.action_urgency < 0.15:
+    if action_vars.action_urgency < DEFER_URGENCY_THRESHOLD:
         return ToolDecision(
             decision="defer",
             intent=intent,

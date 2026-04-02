@@ -41,6 +41,7 @@ DEFAULT_ACTIVATION_THRESHOLD = 0.4  # trigger intensity must exceed this
 _RESOLUTION_BOOST = 0.15        # high resolution → more proactive
 _LOW_ENERGY_PENALTY = -0.10     # low energy → less proactive
 _HIGH_BONDING_BOOST = 0.05      # high bonding → more willing to reach out
+_LOW_VALENCE_BOOST = 0.05       # negative mood amplifies unfinished-business sense
 
 
 # ---------------------------------------------------------------------------
@@ -142,6 +143,10 @@ def _score_trigger(
         score += 0.05
     elif state.arousal > 0.8:
         score -= 0.10
+
+    # Negative mood amplifies the sense of unfinished business
+    if state.valence < 0.3:
+        score += _LOW_VALENCE_BOOST
 
     return max(0.0, min(1.0, score))
 
