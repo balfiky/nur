@@ -4,6 +4,31 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.17.2 — 2026-04-02 (Phase 8 correctness fix: proactive active-work guard)
+
+Fixes the remaining Phase 8 race where a long proactive run could still be
+evicted by the idle timer mid-execution.
+
+### Proactive active-work accounting (`runtime/sessions/user_session.py`, `runtime/sessions/manager.py`)
+- `UserSession` now tracks active work with an explicit counter instead of a
+  single shared boolean
+- Normal message processing and proactive execution both participate in the
+  same active-work lifecycle
+- Idle-time eviction and proactive sweeps now consult the explicit active-work
+  state instead of only `_processing`
+- `_run_proactive()` marks session work active for the full duration of
+  pipeline execution and callback delivery, then clears it in `finally`
+
+### Regression coverage (`tests/test_agentic_tools_phase8.py`)
+- Added a regression test proving `_timeout_evict()` will not evict a session
+  while proactive execution is in-flight
+
+### Tests
+- `pytest --collect-only -q` → `1092 tests collected`
+- `tests/test_agentic_tools_phase8.py` → `65 passed`
+
+---
+
 ## v0.17.1 — 2026-04-02 (Phase 8 correctness fixes: callback wiring, serialization, decay)
 
 Fixes three correctness issues in the Phase 8 proactive behavior implementation.

@@ -121,6 +121,40 @@ class SessionManager:
             handle.cancel()
         self._idle_timers.clear()
 
+    @staticmethod
+    def _session_has_active_work(session: UserSession) -> bool:
+        """Return whether a session currently has in-flight work.
+
+        Prefer the explicit active-work counter added on UserSession.
+        Fall back to ``_processing`` for tests that use light mocks.
+        """
+        descriptor = getattr(type(session), "has_active_work", None)
+        if isinstance(descriptor, property):
+            return bool(session.has_active_work)
+        return bool(getattr(session, "_processing", False))
+
+    @staticmethod
+    def _mark_session_work_started(session: UserSession) -> None:
+        """Mark a unit of session work as active.
+
+        Uses the real UserSession helpers when available, but still works
+        with mock sessions used in focused unit tests.
+        """
+        marker = getattr(type(session), "mark_work_started", None)
+        if callable(marker):
+            session.mark_work_started()
+        else:
+            session._processing = True
+
+    @staticmethod
+    def _mark_session_work_finished(session: UserSession) -> None:
+        """Mark a unit of session work as finished."""
+        marker = getattr(type(session), "mark_work_finished", None)
+        if callable(marker):
+            session.mark_work_finished()
+        else:
+            session._processing = False
+
     async def _timeout_evict(self, session_key: str) -> None:
         """Called by the idle timer — evict the session if truly idle.
 
@@ -134,7 +168,7 @@ class SessionManager:
         if session is None:
             return
         # Guard: don't evict while work is in-flight or queued
-        if not session._queue.empty() or session._processing:
+        if not session._queue.empty() or self._session_has_active_work(session):
             log.debug(
                 "Timeout for %s but work active — rescheduling", session_key,
             )
@@ -294,7 +328,7 @@ class SessionManager:
             snapshot = list(self._sessions.items())
 
         for session_key, session in snapshot:
-            if session._processing:
+            if self._session_has_active_work(session):
                 continue
             if not session._queue.empty():
                 continue
@@ -318,9 +352,19 @@ class SessionManager:
         pipeline = session.pipeline
         user_lock = session._user_lock
 
-        # Acquire per-user lock — same as _worker does for normal turns
-        if user_lock is not None:
-            async with user_lock:
+        self._mark_session_work_started(session)
+        try:
+            # Acquire per-user lock — same as _worker does for normal turns
+            if user_lock is not None:
+                async with user_lock:
+                    result = await asyncio.to_thread(
+                        pipeline.process_proactive,
+                        session.user_id,
+                        max_proactive=self.config.proactive_max_per_session,
+                        idle_threshold=self.config.proactive_idle_threshold,
+                        cooldown=self.config.proactive_cooldown,
+                    )
+            else:
                 result = await asyncio.to_thread(
                     pipeline.process_proactive,
                     session.user_id,
@@ -328,31 +372,25 @@ class SessionManager:
                     idle_threshold=self.config.proactive_idle_threshold,
                     cooldown=self.config.proactive_cooldown,
                 )
-        else:
-            result = await asyncio.to_thread(
-                pipeline.process_proactive,
-                session.user_id,
-                max_proactive=self.config.proactive_max_per_session,
-                idle_threshold=self.config.proactive_idle_threshold,
-                cooldown=self.config.proactive_cooldown,
-            )
-        if result is None:
-            return
+            if result is None:
+                return
 
-        # Store debug state
-        session.last_debug = result.debug
-        session.last_activity = time.time()
-        self._reset_idle_timer(session_key)
+            # Store debug state
+            session.last_debug = result.debug
+            session.last_activity = time.time()
+            self._reset_idle_timer(session_key)
 
-        log.info("Proactive message for %s: %s", session_key, result.response[:80])
+            log.info("Proactive message for %s: %s", session_key, result.response[:80])
 
-        # Deliver via callback
-        if self._proactive_callback is not None:
-            try:
-                cb_result = self._proactive_callback(
-                    session_key, session.user_id, result.response,
-                )
-                if asyncio.iscoroutine(cb_result):
-                    await cb_result
-            except Exception:
-                log.exception("Proactive callback failed for %s", session_key)
+            # Deliver via callback
+            if self._proactive_callback is not None:
+                try:
+                    cb_result = self._proactive_callback(
+                        session_key, session.user_id, result.response,
+                    )
+                    if asyncio.iscoroutine(cb_result):
+                        await cb_result
+                except Exception:
+                    log.exception("Proactive callback failed for %s", session_key)
+        finally:
+            self._mark_session_work_finished(session)

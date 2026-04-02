@@ -6,7 +6,7 @@ Jarvis is an AI assistant with persistent emotional state. It doesn't simulate e
 
 ## Status
 
-**v2 + Jarvis Runtime complete.** All core systems built; the test suite now collects 650 tests.
+**v2 + Jarvis Runtime complete.** All core systems built; the test suite now collects 1092 tests.
 
 v1 gave it a brain that remembers and adapts.
 v2 gives it deliberation, dread, and self-protection.
@@ -571,7 +571,7 @@ All magic numbers live in YAML files. No hardcoded thresholds in module code. Th
 | test_phase3 | 20 | Inactivity timeout, graceful shutdown, backpressure, WAL mode |
 | test_debug_api | 15 | Session listing, per-session debug, reset, isolation |
 | test_runtime_config | 21 | Config loading, local/backend selection, channel config |
-| **Total** | **650** | |
+| **Total** | **1092** | |
 
 ---
 

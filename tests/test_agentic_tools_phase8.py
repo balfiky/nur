@@ -922,6 +922,49 @@ class TestProactiveSerialization:
         loop.run_until_complete(mgr._proactive_sweep())
         session.pipeline.process_proactive.assert_not_called()
 
+    def test_timeout_evict_skips_during_proactive_execution(
+        self, _event_loop_policy, tmp_path,
+    ):
+        """Timeout eviction must treat proactive execution as active work."""
+        import asyncio
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from runtime.sessions.manager import SessionManager
+        from runtime.config import RuntimeConfig
+
+        loop = _event_loop_policy
+        cfg = RuntimeConfig(
+            data_dir=str(tmp_path),
+            llm_backend="mock",
+            proactive_enabled=True,
+        )
+        mgr = SessionManager(config=cfg)
+
+        session = MagicMock()
+        session._user_lock = asyncio.Lock()
+        session._processing = False
+        session._queue = MagicMock()
+        session._queue.empty.return_value = True
+        session.pipeline = MagicMock()
+        session.user_id = "user1"
+        session.last_activity = 0.0
+        mgr._sessions["console:user1:dm"] = session
+
+        async def patched_to_thread(fn, *args, **kwargs):
+            assert session._processing is True
+            await mgr._timeout_evict("console:user1:dm")
+            return None
+
+        with patch("asyncio.to_thread", patched_to_thread):
+            with patch.object(mgr, "evict_session", new=AsyncMock()) as evict_mock:
+                with patch.object(mgr, "_start_idle_timer") as timer_mock:
+                    loop.run_until_complete(
+                        mgr._run_proactive("console:user1:dm", session),
+                    )
+
+        evict_mock.assert_not_awaited()
+        timer_mock.assert_called_once_with("console:user1:dm")
+        assert session._processing is False
+
 
 class TestProactiveElapsedDecay:
     """Fix 3: process_proactive must decay engine state before evaluation."""

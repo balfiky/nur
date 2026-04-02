@@ -60,6 +60,7 @@ class UserSession:
         self._worker_task: asyncio.Task | None = None
         self._stopped = False
         self._processing = False
+        self._active_work_count = 0
         self._user_lock = user_lock
         self.last_debug: DebugState | None = None
 
@@ -114,6 +115,21 @@ class UserSession:
         """Save current engine state without ending the session."""
         save_engine_state(self.state_path, self.pipeline.engine.snapshot())
 
+    @property
+    def has_active_work(self) -> bool:
+        """Whether any in-flight work is currently mutating this session."""
+        return self._active_work_count > 0
+
+    def mark_work_started(self) -> None:
+        """Mark a unit of session work as active."""
+        self._active_work_count += 1
+        self._processing = True
+
+    def mark_work_finished(self) -> None:
+        """Mark a unit of session work as finished."""
+        self._active_work_count = max(0, self._active_work_count - 1)
+        self._processing = self._active_work_count > 0
+
     # ------------------------------------------------------------------
     # Message handling
     # ------------------------------------------------------------------
@@ -156,7 +172,7 @@ class UserSession:
             except asyncio.CancelledError:
                 break
 
-            self._processing = True
+            self.mark_work_started()
             try:
                 if self._user_lock is not None:
                     async with self._user_lock:
@@ -178,6 +194,6 @@ class UserSession:
                 if not envelope.future.done():
                     envelope.future.set_exception(exc)
             finally:
-                self._processing = False
+                self.mark_work_finished()
                 self._queue.task_done()
                 self.last_activity = time.time()
