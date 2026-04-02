@@ -4,6 +4,34 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.13.0 — 2026-04-02 (Agentic Tools Phase 4: runtime debug integration)
+
+Full observability for tool-aware turns through the runtime debug API.
+
+### Debug serialization fixes (`runtime/debug/api.py`)
+- Intent serialization now includes all fields: `expected_outcome`, `clarification_threshold`, `persistence_drive` (previously missing)
+- Observation serialization now includes `continue_tool_loop` (previously missing)
+- API version bumped to 0.9.0
+
+### Compact tool summary
+- `tool_summary` block added to debug output for quick inspection:
+  - `tool_used`, `tools_executed`, `last_tool_name`, `last_tool_success`, `decision`, `loop_count`
+- Returns `null` on non-tool turns or when no intents were proposed
+- `_build_tool_summary()` helper extracted for testability
+
+### Debug output structure (tool turns)
+- `tool_trace` — proposed intents (all 10 fields), final decision, executed results, observations (all 6 fields), loop count
+- `action_variables` — all 5 derived variables (risk_tolerance, action_urgency, clarification_threshold, persistence_drive, autonomy_bias)
+- `tool_memory_effects` — short-term recorded, long-term written, self-observations, unresolved items, trust delta
+- `tool_summary` — compact at-a-glance block
+- All fields null/absent on non-tool turns; JSON-serializable
+
+### Tests
+- 33 new tests in `tests/test_agentic_tools_phase4.py`
+- Full suite: 873 tests passing
+
+---
+
 ## v0.12.0 — 2026-04-02 (Agentic Tools Phase 3: memory and self-model coupling)
 
 Tool episodes now persist into memory, self-model, and unresolved tension — making tool behavior part of Jarvis's ongoing identity and emotional history.

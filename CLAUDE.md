@@ -5,9 +5,9 @@ Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
 Read CHANGELOG.md for version history and what changed when.
 
-## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 3
+## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 4
 
-The full test suite currently collects 840 tests.
+The full test suite currently collects 873 tests.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -30,7 +30,7 @@ The full test suite currently collects 840 tests.
 - core/dual_process/tool_loop.py — Cognitive tool bridge: intent detection, arbiter, execute+appraise loop
 - core/tool_memory.py — Tool episode memory coupling: short-term records, salient long-term writes, self-observations, unresolved items, trust deltas
 - tools/ — Agentic tools package: registry, executor, builtin tools (filesystem, shell, web search)
-- tests/ — 840 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, and agentic tools Phase 0+1+2+3 coverage
+- tests/ — 873 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, and agentic tools Phase 0+1+2+3+4 coverage
 
 ### What's NOT built (future features)
 - Dynamic value drift (v2.5)
@@ -183,8 +183,18 @@ The full test suite currently collects 840 tests.
 - `DebugState.tool_memory_effects` + debug API serialization
 - No MCP, no multi-step planner, no autonomous background tasks yet
 
+## Agentic Tools Phase 4 (Runtime debug integration — completed)
+- Full observability for tool-aware turns in `runtime/debug/api.py`
+- Intent serialization: all 10 fields (added `expected_outcome`, `clarification_threshold`, `persistence_drive`)
+- Observation serialization: all 6 fields (added `continue_tool_loop`)
+- `tool_summary` compact block: `tool_used`, `tools_executed`, `last_tool_name`, `last_tool_success`, `decision`, `loop_count`
+- `_build_tool_summary()` helper for testability
+- Debug API version bumped to 0.9.0
+- All tool debug fields null on non-tool turns; JSON-serializable
+- No MCP, no multi-step planner, no autonomous background tasks yet
+
 ## Testing
-- `pytest` collects 840 tests
+- `pytest` collects 873 tests
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 

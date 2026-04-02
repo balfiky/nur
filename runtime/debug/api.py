@@ -21,7 +21,7 @@ from runtime.sessions.manager import SessionManager
 def create_debug_app(session_manager: SessionManager) -> FastAPI:
     """Build a FastAPI application wired to a live SessionManager."""
 
-    app = FastAPI(title="Jarvis Runtime Debug", version="0.8.2")
+    app = FastAPI(title="Jarvis Runtime Debug", version="0.9.0")
 
     # ------------------------------------------------------------------
     # GET /sessions — list active sessions
@@ -254,9 +254,12 @@ def _debug_to_dict(debug) -> dict:
                     "tool_name": i.tool_name,
                     "arguments": i.arguments,
                     "reason": i.reason,
+                    "expected_outcome": i.expected_outcome,
                     "urgency": i.urgency,
                     "risk_tolerance": i.risk_tolerance,
                     "autonomy_bias": i.autonomy_bias,
+                    "clarification_threshold": i.clarification_threshold,
+                    "persistence_drive": i.persistence_drive,
                     "confidence": i.confidence,
                 }
                 for i in tt.proposed_intents
@@ -285,6 +288,7 @@ def _debug_to_dict(debug) -> dict:
                     "certainty_delta": o.certainty_delta,
                     "resolution_delta": o.resolution_delta,
                     "self_observation": o.self_observation,
+                    "continue_tool_loop": o.continue_tool_loop,
                 }
                 for o in tt.observations
             ],
@@ -292,6 +296,9 @@ def _debug_to_dict(debug) -> dict:
         }
     else:
         d["tool_trace"] = None
+
+    # Agentic tools: compact summary for quick inspection
+    d["tool_summary"] = _build_tool_summary(debug)
 
     av = debug.action_variables
     d["action_variables"] = (
@@ -323,3 +330,27 @@ def _debug_to_dict(debug) -> dict:
     d["stage_timings_ms"] = debug.stage_timings_ms
 
     return d
+
+
+def _build_tool_summary(debug) -> dict | None:
+    """Build a compact tool-activity summary for quick inspection.
+
+    Returns None when no tool activity occurred this turn.
+    """
+    tt = debug.tool_trace
+    if tt is None:
+        return None
+
+    executed = tt.executed_results
+    if not executed and not tt.proposed_intents:
+        return None
+
+    last = executed[-1] if executed else None
+    return {
+        "tool_used": len(executed) > 0,
+        "tools_executed": len(executed),
+        "last_tool_name": last.tool_name if last else None,
+        "last_tool_success": last.success if last else None,
+        "decision": tt.final_decision.decision if tt.final_decision else None,
+        "loop_count": tt.loop_count,
+    }
