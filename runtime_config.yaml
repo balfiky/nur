@@ -12,9 +12,12 @@ telegram_allowlist: []   # numeric user IDs; empty = allow all
 telegram_poll_timeout: 30
 dedupe_ttl: 60
 
-# LLM backend ("auto", "minimax", "mock")
+# LLM backend ("auto", "minimax", "openai_compatible", "mock")
 llm_backend: auto
-minimax_api_key: ""   # leave empty to use MINIMAX_API_KEY env var
+llm_base_url: ""      # e.g. http://127.0.0.1:8000/v1 for local vLLM
+llm_model: ""         # e.g. Qwen/Qwen3-30B-A3B
+llm_api_key: ""       # generic key for OpenAI-compatible backends (optional for local)
+minimax_api_key: ""   # backward-compatible MiniMax key; leave empty to use env
 
 # Debug API
 debug_host: "127.0.0.1"

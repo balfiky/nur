@@ -6,7 +6,7 @@ Jarvis is an AI assistant with persistent emotional state. It doesn't simulate e
 
 ## Status
 
-**v2 + Jarvis Runtime complete.** All core systems built, tested (643 tests), zero regressions.
+**v2 + Jarvis Runtime complete.** All core systems built; the test suite now collects 650 tests.
 
 v1 gave it a brain that remembers and adapts.
 v2 gives it deliberation, dread, and self-protection.
@@ -20,7 +20,7 @@ See [PROJECT_NUR_ARCHITECTURE.md](PROJECT_NUR_ARCHITECTURE.md) for the full visi
 ### Requirements
 
 - Python 3.10+ (3.11+ recommended)
-- MiniMax API key (for LLM features) or runs with mock backend for testing
+- MiniMax API key, a local OpenAI-compatible endpoint (for example vLLM), or mock backend for testing
 
 ### Install
 
@@ -35,6 +35,13 @@ pip install -e ".[dev]"
 ```bash
 # With real LLM (MiniMax M2.7-highspeed)
 export MINIMAX_API_KEY="your-key-here"
+python main.py
+
+# With local vLLM / OpenAI-compatible backend
+# runtime_config.yaml:
+#   llm_backend: openai_compatible
+#   llm_base_url: http://127.0.0.1:8000/v1
+#   llm_model: Qwen/Qwen3-30B-A3B
 python main.py
 
 # Without LLM (mock backend — useful for development)
@@ -265,7 +272,7 @@ nur/
 |   |-- sessions/
 |   |   |-- manager.py               # SessionManager: create, evict, shutdown, backpressure
 |   |   |-- user_session.py          # UserSession: queue + worker + asyncio.to_thread
-|   |   +-- persistence.py           # Atomic engine_state.json save/load
+|   |   +-- persistence.py           # Atomic session-state JSON save/load
 |   |-- llm/
 |   |   +-- backend.py               # create_llm_backend() factory
 |   +-- debug/
@@ -559,12 +566,12 @@ All magic numbers live in YAML files. No hardcoded thresholds in module code. Th
 | test_v2_scenarios | 30 | v2 calibration: deflection, disagreement, anticipation, degradation (v2) |
 | test_regressions | 28 | Regression locks for v2 fixes (fixes 1-13, spike-only, sticky-spike) |
 | test_phase0 | 26 | Restore, elapsed decay, close, shared self-profile, schema versions |
-| test_runtime | 21 | Console e2e, serialization, persistence, lifecycle, shared self-model |
+| test_runtime | 24 | Console e2e, serialization, session-state persistence, lifecycle, shared self-model |
 | test_telegram | 26 | Dedupe, normalization, allowlist, commands, typing indicators |
 | test_phase3 | 20 | Inactivity timeout, graceful shutdown, backpressure, WAL mode |
-| test_debug_api | 15 | Session listing, per-user debug, reset, isolation |
-| test_runtime_config | 17 | Config loading, backend selection, channel config |
-| **Total** | **643** | |
+| test_debug_api | 15 | Session listing, per-session debug, reset, isolation |
+| test_runtime_config | 21 | Config loading, local/backend selection, channel config |
+| **Total** | **650** | |
 
 ---
 

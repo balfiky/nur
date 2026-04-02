@@ -3,7 +3,7 @@
 Covers:
 - Console end-to-end (message → session manager → pipeline → response)
 - Per-user serialization (no concurrent processing for the same user)
-- State save/load (engine_state.json round-trip)
+- State save/load (engine state JSON round-trip)
 - Restart restore (reload from disk with elapsed decay)
 - Session lifecycle (create, evict, capacity limits)
 - Session identity (session_key vs rel_key, DM/group separation)
@@ -255,7 +255,7 @@ class TestSessionStatePersistence:
                 await manager.shutdown()
 
                 # State file should exist
-                state_path = config.user_state_path("console:user")
+                state_path = config.session_state_path("console:user:direct")
                 state = load_engine_state(state_path)
                 assert state is not None
                 assert "modulator_snapshot" in state
@@ -274,7 +274,7 @@ class TestSessionStatePersistence:
                 await manager.evict_session("console:user:direct")
 
                 assert "console:user:direct" not in manager.active_sessions
-                state_path = config.user_state_path("console:user")
+                state_path = config.session_state_path("console:user:direct")
                 assert load_engine_state(state_path) is not None
 
         asyncio.run(run())
@@ -315,7 +315,7 @@ class TestRestartRestore:
         """Restored state has elapsed decay applied based on saved_at."""
         with tempfile.TemporaryDirectory() as tmpdir:
             config = _make_config(tmpdir)
-            state_path = config.user_state_path("console:testuser")
+            state_path = config.session_state_path("console:testuser:direct")
 
             # Manually write a state as if saved 2 hours ago with high arousal
             snapshot = {
@@ -339,6 +339,32 @@ class TestRestartRestore:
                 assert state["arousal"] < 0.9
                 # Valence should have moved toward baseline (0.5)
                 assert state["valence"] > 0.1
+                await manager.shutdown()
+
+            asyncio.run(run())
+
+    def test_restore_legacy_per_user_state_path(self):
+        """If only the legacy per-user engine_state.json exists, it still restores."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config = _make_config(tmpdir)
+            legacy_state_path = config.user_state_path("console:legacy")
+
+            os.makedirs(os.path.dirname(legacy_state_path), exist_ok=True)
+            with open(legacy_state_path, "w") as f:
+                json.dump({
+                    "modulator_snapshot": {
+                        "arousal": 0.9, "valence": 0.2, "certainty": 0.5,
+                        "bonding": 0.5, "energy": 0.4, "resolution": 0.0,
+                    },
+                    "saved_at": time.time(),
+                }, f)
+
+            async def run():
+                manager = SessionManager(config, backend_factory=_mock_factory)
+                await _send(manager, "hi", user_id="legacy")
+                session = manager.active_sessions["console:legacy:direct"]
+                state = session.pipeline.engine.snapshot()
+                assert state["arousal"] > 0.5
                 await manager.shutdown()
 
             asyncio.run(run())
@@ -489,6 +515,15 @@ class TestIdentityKeys:
         assert "telegram_12345" in config.user_data_dir("telegram:12345")
         assert ":" not in config.user_data_dir("telegram:12345")
 
+    def test_session_state_path_is_chat_specific(self):
+        """Session state files are separate per chat context."""
+        config = RuntimeConfig(data_dir="/tmp/test")
+        dm = config.session_state_path("telegram:12345:dm")
+        group = config.session_state_path("telegram:12345:group99")
+        assert dm != group
+        assert dm.endswith("/sessions/dm.json")
+        assert group.endswith("/sessions/group99.json")
+
 
 # =========================================================================
 # Session identity: DM vs group-chat separation (regression)
@@ -556,7 +591,7 @@ class TestSessionIdentitySeparation:
         asyncio.run(run())
 
     def test_both_chat_contexts_share_per_user_storage(self):
-        """Different chat contexts for the same user share rel_key and state path."""
+        """Different chat contexts share relational storage but not hot state files."""
         async def run():
             with tempfile.TemporaryDirectory() as tmpdir:
                 config = _make_config(tmpdir)
@@ -568,12 +603,43 @@ class TestSessionIdentitySeparation:
                     grp = manager.active_sessions["telegram:42:group"]
                     # Both share the same rel_key (user identity)
                     assert dm.rel_key == grp.rel_key == "telegram:42"
-                    # Both share the same engine_state.json path
-                    assert dm.state_path == grp.state_path
+                    # Both persist under the same per-user directory
+                    assert os.path.dirname(os.path.dirname(dm.state_path)) == os.path.dirname(os.path.dirname(grp.state_path))
+                    # But keep distinct session state files
+                    assert dm.state_path != grp.state_path
                     # But have distinct session keys
                     assert dm.session_key != grp.session_key
                 finally:
                     await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_chat_contexts_persist_independent_hot_state(self):
+        """Different chat contexts restore their own engine state snapshots."""
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                config = _make_config(tmpdir)
+
+                manager1 = SessionManager(config, backend_factory=_mock_factory)
+                await manager1.handle_message("telegram", "42", "dm", "I am furious!")
+                await manager1.handle_message("telegram", "42", "group", "Thanks, you're great!")
+                await manager1.shutdown()
+
+                dm_saved = load_engine_state(config.session_state_path("telegram:42:dm"))
+                group_saved = load_engine_state(config.session_state_path("telegram:42:group"))
+                assert dm_saved is not None
+                assert group_saved is not None
+                assert dm_saved["modulator_snapshot"] != group_saved["modulator_snapshot"]
+
+                manager2 = SessionManager(config, backend_factory=_mock_factory)
+                await manager2.handle_message("telegram", "42", "dm", "hi again")
+                await manager2.handle_message("telegram", "42", "group", "hi again")
+                dm_after = manager2.active_sessions["telegram:42:dm"].pipeline.engine.snapshot()
+                group_after = manager2.active_sessions["telegram:42:group"].pipeline.engine.snapshot()
+                try:
+                    assert dm_after != group_after
+                finally:
+                    await manager2.shutdown()
 
         asyncio.run(run())
 

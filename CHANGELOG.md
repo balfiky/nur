@@ -4,6 +4,38 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.8.2 — 2026-04-02 (Runtime backend + session-state cleanup)
+
+Closes the remaining runtime gaps after the pre-merge review.
+
+### Fix 1: Session-specific hot-state persistence (`runtime/config.py`, `runtime/sessions/manager.py`)
+- Engine state now persists per **session_key** instead of one shared `engine_state.json` per user
+- Hot state files live under `data/{platform}_{user_id}/sessions/{chat_id}.json`
+- Different chat contexts for the same user no longer overwrite one another on shutdown
+- Legacy per-user `engine_state.json` is still restored once as a backward-compatible fallback
+
+### Fix 2: Real OpenAI-compatible runtime backend (`runtime/llm/backend.py`, `runtime/config.py`, `runtime_config.yaml`)
+- Added `OpenAICompatibleLLMBackend` with sync `generate(system_prompt, user_message)` semantics
+- `RuntimeConfig` now supports `llm_backend`, `llm_base_url`, `llm_model`, and `llm_api_key`
+- `create_llm_backend(config)` now supports:
+  - `mock`
+  - `minimax`
+  - `openai_compatible`
+  - `auto` → prefers local OpenAI-compatible config, otherwise MiniMax, otherwise Mock
+- `runtime_config.yaml` now documents local vLLM / OpenAI-compatible settings
+
+### Fix 3: Debug API naming sync (`runtime/debug/api.py`, tests/docs)
+- Debug routes now consistently refer to `session_key`, not `rel_key`
+- Reset responses now return `session_key`
+- Runtime docs/tests now match the implemented route contract
+
+### Testing
+- `pytest --collect-only -q` → `650 tests collected`
+- `tests/test_runtime_config.py` → `21 passed`
+- Async runtime-focused pytest slices still behave inconsistently in this runner, so broader verification here is based on code inspection plus updated regression tests
+
+---
+
 ## v0.8.1 — 2026-04-02 (Runtime pre-merge fixes)
 
 Five pre-merge fixes closing spec gaps in the Jarvis Runtime.

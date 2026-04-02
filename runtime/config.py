@@ -30,8 +30,11 @@ class RuntimeConfig:
     dedupe_ttl: float = 60.0
 
     # LLM backend
-    llm_backend: str = "auto"      # "auto", "minimax", "mock"
-    minimax_api_key: str = ""      # overridden by MINIMAX_API_KEY env var if empty
+    llm_backend: str = "auto"      # "auto", "minimax", "openai_compatible", "mock"
+    llm_base_url: str = ""         # for OpenAI-compatible backends (e.g. local vLLM)
+    llm_model: str = ""            # model name for OpenAI-compatible backends
+    llm_api_key: str = ""          # generic API key (optional for local backends)
+    minimax_api_key: str = ""      # backward-compatible alias / fallback
 
     # Debug API
     debug_host: str = "127.0.0.1"
@@ -68,4 +71,27 @@ class RuntimeConfig:
         return os.path.join(self.user_data_dir(rel_key), "nur.db")
 
     def user_state_path(self, rel_key: str) -> str:
+        """Legacy per-user engine-state path kept for backward-compatible restore."""
         return os.path.join(self.user_data_dir(rel_key), "engine_state.json")
+
+    def session_state_path(self, session_key: str) -> str:
+        """Per-session engine-state path.
+
+        Session state is keyed by ``platform:user_id:chat_id`` so different chat
+        contexts for the same user restore independently while still sharing the
+        same per-user relational storage.
+        """
+        platform, user_id, chat_id = session_key.split(":", 2)
+        rel_key = f"{platform}:{user_id}"
+        safe_chat = _safe_path_token(chat_id)
+        return os.path.join(self.user_data_dir(rel_key), "sessions", f"{safe_chat}.json")
+
+
+def _safe_path_token(value: str) -> str:
+    """Filesystem-safe token for path segments derived from runtime keys."""
+    return (
+        value.replace(":", "_")
+        .replace("/", "_")
+        .replace("\\", "_")
+        .replace("..", "_")
+    )

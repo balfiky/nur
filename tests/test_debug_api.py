@@ -2,8 +2,8 @@
 
 Covers:
 - Session listing (GET /sessions)
-- Per-user debug retrieval (GET /sessions/{rel_key}/debug)
-- Per-user reset (POST /sessions/{rel_key}/reset)
+- Per-session debug retrieval (GET /sessions/{session_key}/debug)
+- Per-session reset (POST /sessions/{session_key}/reset)
 - Session isolation in debug output
 - Debug state populated after message processing
 - 404 for non-existent sessions
@@ -131,7 +131,7 @@ class TestSessionListing:
 
 
 # =========================================================================
-# GET /sessions/{rel_key}/debug — per-user debug view
+# GET /sessions/{session_key}/debug — per-session debug view
 # =========================================================================
 
 class TestPerUserDebug:
@@ -247,7 +247,7 @@ class TestPerUserDebug:
 
 
 # =========================================================================
-# POST /sessions/{rel_key}/reset — per-user reset
+# POST /sessions/{session_key}/reset — per-session reset
 # Uses httpx.AsyncClient to stay on the same event loop as sessions.
 # =========================================================================
 
@@ -266,7 +266,7 @@ class TestPerUserReset:
                         resp = await ac.post("/sessions/console:alice:direct/reset")
                     assert resp.status_code == 200
                     assert resp.json()["status"] == "evicted"
-                    assert resp.json()["rel_key"] == "console:alice:direct"
+                    assert resp.json()["session_key"] == "console:alice:direct"
 
                     assert "console:alice:direct" not in manager.active_sessions
                 finally:

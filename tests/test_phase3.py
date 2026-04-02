@@ -84,7 +84,7 @@ class TestInactivityTimeout:
                 manager = SessionManager(config, backend_factory=_mock_factory)
                 try:
                     await _send(manager, "I am so frustrated!")
-                    state_path = config.user_state_path("console:user")
+                    state_path = config.session_state_path("console:user:direct")
 
                     await asyncio.sleep(0.3)
                     await asyncio.sleep(0.05)
@@ -167,7 +167,7 @@ class TestGracefulShutdown:
 
                 # Both state files should exist
                 for uid in ("alice", "bob"):
-                    path = config.user_state_path(f"console:{uid}")
+                    path = config.session_state_path(f"console:{uid}:direct")
                     state = load_engine_state(path)
                     assert state is not None, f"Missing state for {uid}"
                     assert "modulator_snapshot" in state
@@ -455,7 +455,7 @@ class TestUnresolvedItemsPersistence:
                 manager = SessionManager(config, backend_factory=_mock_factory)
                 try:
                     await _send(manager, "hello")
-                    state_path = config.user_state_path("console:user")
+                    state_path = config.session_state_path("console:user:direct")
 
                     # Wait for timeout eviction
                     await asyncio.sleep(0.2)

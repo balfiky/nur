@@ -7,7 +7,7 @@ Read CHANGELOG.md for version history and what changed when.
 
 ## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES
 
-v1 (288) + v2 (188) + regression (28) + Phase 0 (26) + Runtime Phase 1 (21) + Telegram (26) + Phase 3 (20) + Debug API (15) + pre-merge fixes (26) = 643 tests.
+The full test suite currently collects 650 tests.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -25,7 +25,7 @@ v1 (288) + v2 (188) + regression (28) + Phase 0 (26) + Runtime Phase 1 (21) + Te
 - core/schema.py — Schema version management for all SQLite databases
 - runtime/ — Jarvis Runtime: session manager, console + Telegram channels, debug API, state persistence, LLM backend factory
 - main.py — Runtime entry point (`python main.py`)
-- tests/ — 617 tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, and debug API tests
+- tests/ — 650 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, and runtime-config coverage
 
 ### What's NOT built (future features)
 - Dynamic value drift (v2.5)
@@ -85,19 +85,21 @@ v1 (288) + v2 (188) + regression (28) + Phase 0 (26) + Runtime Phase 1 (21) + Te
 ## Phase 1 (Console runtime — completed)
 - `runtime/sessions/manager.py` — SessionManager: lazy creation, backpressure, eviction, shutdown
 - `runtime/sessions/user_session.py` — UserSession: asyncio.Queue + worker + asyncio.to_thread
-- `runtime/sessions/persistence.py` — save/load engine_state.json (atomic writes)
+- `runtime/sessions/persistence.py` — save/load session-state JSON (atomic writes)
 - `runtime/channels/console.py` — ConsoleChannel: async stdin, routes through session manager
-- `runtime/llm/backend.py` — `create_llm_backend(config)` factory, config-driven backend selection
+- `runtime/llm/backend.py` — MiniMax + OpenAI-compatible `create_llm_backend(config)` factory
 - `runtime/config.py` — RuntimeConfig: data_dir, limits, timeout, channels, LLM backend, debug
 - `runtime/app.py` — JarvisApp: orchestrator with signal-based graceful shutdown
 - `main.py` — Entry point: `python main.py` (loads runtime_config.yaml)
 - Identity: relationship key = `platform:user_id`, session key = `platform:user_id:chat_id`
 - Sessions keyed by session_key — DM and group-chat contexts get separate active sessions
 - Storage keyed by rel_key: `data/{platform}_{user_id}/nur.db`, `data/shared/self_model.db`
+- Hot engine state keyed by session_key: `data/{platform}_{user_id}/sessions/{chat_id}.json`
 - Per-user `asyncio.Lock` serializes pipeline access across chat contexts for the same user
 - Per-user processing serialized; different users can overlap (separate threads)
 - Nūr remains synchronous — runtime wraps via asyncio.to_thread
 - `RuntimeConfig.from_yaml(path)` loads config from YAML; defaults on missing file
+- Runtime backend config supports `mock`, `minimax`, and `openai_compatible`
 - `console_enabled` config flag — headless Telegram-only runtime supported
 
 ## Phase 2 (Telegram channel — completed)
@@ -132,7 +134,7 @@ v1 (288) + v2 (188) + regression (28) + Phase 0 (26) + Runtime Phase 1 (21) + Te
 - Debug server runs as background task in JarvisApp via uvicorn
 
 ## Testing
-- `pytest` collects 643 tests
+- `pytest` collects 650 tests
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 

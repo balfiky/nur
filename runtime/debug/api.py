@@ -5,8 +5,8 @@ All data is read from the SessionManager — no separate pipeline.
 
 Endpoints:
     GET  /sessions                    — list active sessions
-    GET  /sessions/{rel_key}/debug    — per-user debug view
-    POST /sessions/{rel_key}/reset    — evict (digest + persist) a session
+    GET  /sessions/{session_key}/debug    — per-session debug view
+    POST /sessions/{session_key}/reset    — evict (digest + persist) a session
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from runtime.sessions.manager import SessionManager
 def create_debug_app(session_manager: SessionManager) -> FastAPI:
     """Build a FastAPI application wired to a live SessionManager."""
 
-    app = FastAPI(title="Jarvis Runtime Debug", version="0.7.0")
+    app = FastAPI(title="Jarvis Runtime Debug", version="0.8.2")
 
     # ------------------------------------------------------------------
     # GET /sessions — list active sessions
@@ -45,13 +45,13 @@ def create_debug_app(session_manager: SessionManager) -> FastAPI:
         ]
 
     # ------------------------------------------------------------------
-    # GET /sessions/{rel_key}/debug — per-user debug view
+    # GET /sessions/{session_key}/debug — per-session debug view
     # ------------------------------------------------------------------
 
-    @app.get("/sessions/{rel_key}/debug")
-    async def session_debug(rel_key: str) -> dict:
+    @app.get("/sessions/{session_key}/debug")
+    async def session_debug(session_key: str) -> dict:
         sessions = session_manager.active_sessions
-        session = sessions.get(rel_key)
+        session = sessions.get(session_key)
         if session is None:
             raise HTTPException(status_code=404, detail="Session not found")
 
@@ -60,7 +60,7 @@ def create_debug_app(session_manager: SessionManager) -> FastAPI:
         unresolved = engine.active_unresolved()
 
         result: dict = {
-            "session_key": rel_key,
+            "session_key": session_key,
             "rel_key": session.rel_key,
             "user_id": session.user_id,
             "last_activity": session.last_activity,
@@ -91,16 +91,16 @@ def create_debug_app(session_manager: SessionManager) -> FastAPI:
         return result
 
     # ------------------------------------------------------------------
-    # POST /sessions/{rel_key}/reset — evict session
+    # POST /sessions/{session_key}/reset — evict session
     # ------------------------------------------------------------------
 
-    @app.post("/sessions/{rel_key}/reset")
-    async def reset_session(rel_key: str) -> dict:
+    @app.post("/sessions/{session_key}/reset")
+    async def reset_session(session_key: str) -> dict:
         sessions = session_manager.active_sessions
-        if rel_key not in sessions:
+        if session_key not in sessions:
             raise HTTPException(status_code=404, detail="Session not found")
-        await session_manager.evict_session(rel_key)
-        return {"status": "evicted", "rel_key": rel_key}
+        await session_manager.evict_session(session_key)
+        return {"status": "evicted", "session_key": session_key}
 
     return app
 

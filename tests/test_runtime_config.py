@@ -15,7 +15,8 @@ import pytest
 
 from core.dual_process.generator import MockLLMBackend
 from runtime.config import RuntimeConfig
-from runtime.llm.backend import create_llm_backend
+from core.llm_client import LLMClientFast
+from runtime.llm.backend import OpenAICompatibleLLMBackend, create_llm_backend
 
 
 # =========================================================================
@@ -35,6 +36,9 @@ class TestConfigFromYaml:
                     "console_enabled: false\n"
                     "telegram_token: abc123\n"
                     "telegram_allowlist: [100, 200]\n"
+                    "llm_base_url: http://localhost:8000/v1\n"
+                    "llm_model: Qwen/Qwen3-30B-A3B\n"
+                    "llm_api_key: local-key\n"
                     "llm_backend: minimax\n"
                     "minimax_api_key: sk-test\n"
                     "debug_host: 0.0.0.0\n"
@@ -48,6 +52,9 @@ class TestConfigFromYaml:
             assert config.console_enabled is False
             assert config.telegram_token == "abc123"
             assert config.telegram_allowlist == {"100", "200"}
+            assert config.llm_base_url == "http://localhost:8000/v1"
+            assert config.llm_model == "Qwen/Qwen3-30B-A3B"
+            assert config.llm_api_key == "local-key"
             assert config.llm_backend == "minimax"
             assert config.minimax_api_key == "sk-test"
             assert config.debug_host == "0.0.0.0"
@@ -114,6 +121,32 @@ class TestConfigFromYaml:
 # =========================================================================
 
 class TestBackendSelection:
+    def test_openai_compatible_backend(self):
+        """Explicit OpenAI-compatible config returns the generic sync backend."""
+        config = RuntimeConfig(
+            llm_backend="openai_compatible",
+            llm_base_url="http://localhost:8000/v1",
+            llm_model="Qwen/Test",
+        )
+        backend = create_llm_backend(config)
+        assert isinstance(backend, OpenAICompatibleLLMBackend)
+
+    def test_openai_compatible_requires_base_url_and_model(self):
+        """Explicit OpenAI-compatible backend fails loudly if under-configured."""
+        config = RuntimeConfig(llm_backend="openai_compatible")
+        with pytest.raises(ValueError, match="llm_base_url|llm_model"):
+            create_llm_backend(config)
+
+    def test_auto_prefers_openai_compatible_when_configured(self):
+        """Auto mode selects local OpenAI-compatible backend when configured."""
+        config = RuntimeConfig(
+            llm_backend="auto",
+            llm_base_url="http://localhost:8000/v1",
+            llm_model="Qwen/Test",
+        )
+        backend = create_llm_backend(config)
+        assert isinstance(backend, OpenAICompatibleLLMBackend)
+
     def test_mock_backend_forced(self):
         """llm_backend='mock' always returns MockLLMBackend."""
         config = RuntimeConfig(llm_backend="mock")
@@ -129,9 +162,16 @@ class TestBackendSelection:
     def test_auto_without_key_returns_mock(self, monkeypatch):
         """llm_backend='auto' with no API key returns MockLLMBackend."""
         monkeypatch.delenv("MINIMAX_API_KEY", raising=False)
+        monkeypatch.delenv("LLM_API_KEY", raising=False)
         config = RuntimeConfig(llm_backend="auto", minimax_api_key="")
         backend = create_llm_backend(config)
         assert isinstance(backend, MockLLMBackend)
+
+    def test_minimax_backend_with_config_key(self):
+        """Explicit MiniMax config returns the fast MiniMax client."""
+        config = RuntimeConfig(llm_backend="minimax", minimax_api_key="sk-test")
+        backend = create_llm_backend(config)
+        assert isinstance(backend, LLMClientFast)
 
     def test_no_config_falls_back_to_env(self, monkeypatch):
         """Without config, uses MINIMAX_API_KEY env var."""

@@ -22,8 +22,10 @@ class SessionManager:
 
     Sessions are keyed by **session_key** (``platform:user_id:chat_id``)
     so that the same user in a DM and a group chat gets separate active
-    sessions.  Persistent storage (DB, engine state) is keyed by
+    sessions. Persistent relational storage (DBs) is keyed by
     **rel_key** (``platform:user_id``) — the accumulated relationship.
+    Hot engine state snapshots are keyed by **session_key** so multiple
+    chat contexts do not overwrite one another on shutdown.
 
     A per-user ``asyncio.Lock`` serializes pipeline access across sessions
     for the same user, preventing concurrent SQLite writes to the shared
@@ -180,7 +182,7 @@ class SessionManager:
         rel_key: str,
         user_id: str,
     ) -> UserSession:
-        """Build a UserSession with pipeline, restore state if available."""
+        """Build a UserSession with pipeline, restoring session state if available."""
         data_dir = self.config.user_data_dir(rel_key)
         os.makedirs(data_dir, exist_ok=True)
         os.makedirs(os.path.dirname(self.config.shared_db_path), exist_ok=True)
@@ -195,9 +197,12 @@ class SessionManager:
             self_db_path=self.config.shared_db_path,
         )
 
-        # Restore engine state from disk if present
-        state_path = self.config.user_state_path(rel_key)
+        # Restore per-session engine state from disk if present. Fall back to the
+        # legacy per-user path so older runtime state still restores once.
+        state_path = self.config.session_state_path(session_key)
         saved = load_engine_state(state_path)
+        if saved is None:
+            saved = load_engine_state(self.config.user_state_path(rel_key))
         if saved is not None:
             pipeline.restore_state(
                 saved["modulator_snapshot"],
