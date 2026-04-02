@@ -245,6 +245,66 @@ def _debug_to_dict(debug) -> dict:
         for item in (debug.unresolved_items or [])
     ]
 
+    # Agentic tools
+    tt = debug.tool_trace
+    if tt:
+        d["tool_trace"] = {
+            "proposed_intents": [
+                {
+                    "tool_name": i.tool_name,
+                    "arguments": i.arguments,
+                    "reason": i.reason,
+                    "urgency": i.urgency,
+                    "risk_tolerance": i.risk_tolerance,
+                    "autonomy_bias": i.autonomy_bias,
+                    "confidence": i.confidence,
+                }
+                for i in tt.proposed_intents
+            ],
+            "final_decision": (
+                {
+                    "decision": tt.final_decision.decision,
+                    "rationale": tt.final_decision.rationale,
+                }
+                if tt.final_decision else None
+            ),
+            "executed_results": [
+                {
+                    "tool_name": r.tool_name,
+                    "success": r.success,
+                    "error": r.error,
+                    "latency_ms": r.latency_ms,
+                    "side_effect_summary": r.side_effect_summary,
+                }
+                for r in tt.executed_results
+            ],
+            "observations": [
+                {
+                    "summary": o.summary,
+                    "emotional_delta": o.emotional_delta,
+                    "certainty_delta": o.certainty_delta,
+                    "resolution_delta": o.resolution_delta,
+                    "self_observation": o.self_observation,
+                }
+                for o in tt.observations
+            ],
+            "loop_count": tt.loop_count,
+        }
+    else:
+        d["tool_trace"] = None
+
+    av = debug.action_variables
+    d["action_variables"] = (
+        {
+            "risk_tolerance": av.risk_tolerance,
+            "action_urgency": av.action_urgency,
+            "clarification_threshold": av.clarification_threshold,
+            "persistence_drive": av.persistence_drive,
+            "autonomy_bias": av.autonomy_bias,
+        }
+        if av else None
+    )
+
     # Timing
     d["stage_timings_ms"] = debug.stage_timings_ms
 

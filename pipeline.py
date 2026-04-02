@@ -14,6 +14,8 @@ v2 processing flow:
 11. Contradiction check: compare against profiles (self + others)
 12. Inner dialogue: fast/slow deliberation only for non-spike unresolved tension
     (0-5 LLM calls; spike-only turns skip)
+12b. Tool loop: detect intent → arbiter → execute → appraise (0+ tool calls;
+     skipped if no tool_executor configured)
 13. Defense mechanisms: filter output if needed (0 LLM calls)
 14. Master LLM: generate final response (1 LLM call)
 15. Self-check: rule-based default; LLM only for extreme/high-risk turns
@@ -36,6 +38,7 @@ from dataclasses import dataclass, field
 
 from config.loader import get_config
 from core.types import (
+    ActionVariables,
     Anticipation,
     DefenseActivation,
     DetectedEmotion,
@@ -72,6 +75,7 @@ from core.dual_process.self_check import SelfChecker
 from core.dual_process.inner_dialogue import InnerDialogue
 from core.anticipation import AnticipationEngine
 from core.defense_mechanisms import DEFENSE_INSTRUCTIONS, DefenseMechanism
+from core.dual_process.tool_loop import run_tool_loop
 
 
 # ---------------------------------------------------------------------------
@@ -136,6 +140,7 @@ class DebugState:
 
     # Agentic tools (Phase 0+)
     tool_trace: ToolTrace | None = None
+    action_variables: ActionVariables | None = None
 
     # Timing instrumentation (ms)
     stage_timings_ms: dict[str, float] = field(default_factory=dict)
@@ -165,6 +170,7 @@ class CognitivePipeline:
         llm_backend_fast: LLMBackend | None = None,
         db_path: str = ":memory:",
         self_db_path: str | None = None,
+        tool_executor: Any | None = None,
     ) -> None:
         """Create a cognitive pipeline.
 
@@ -176,6 +182,8 @@ class CognitivePipeline:
             self_db_path: Shared database path for self-model observations and
                           defense history.  When None, falls back to db_path
                           (single-DB mode, backward compatible).
+            tool_executor: Optional ToolExecutor for agentic tool use.
+                           When None, the tool loop is skipped entirely.
         """
         # Primary backend (used if no fast backend provided)
         self._llm_backend = llm_backend or MockLLMBackend()
@@ -224,6 +232,9 @@ class CognitivePipeline:
 
         # Conversation history for context
         self._conversation_history: list[dict[str, str]] = []
+
+        # Agentic tools (Phase 2+)
+        self._tool_executor = tool_executor
 
         # Time tracking for auto-decay between turns
         self._last_turn_time: float | None = None
@@ -396,6 +407,23 @@ class CognitivePipeline:
             debug.unresolved_count = len(active_unresolved)
             debug.unresolved_items = list(active_unresolved)
 
+        # ---- Step 11b: TOOL LOOP (0+ tool executions; skipped if no executor) ----
+        tool_context_summary = ""
+        if self._tool_executor is not None:
+            _ts_tool = time.perf_counter()
+            tool_loop_result = run_tool_loop(
+                user_message=user_message,
+                state=self.engine.state,
+                person=person,
+                defense_active=False,  # defense hasn't fired yet
+                executor=self._tool_executor,
+                engine=self.engine,
+            )
+            debug.tool_trace = tool_loop_result.trace
+            debug.action_variables = tool_loop_result.action_variables
+            tool_context_summary = tool_loop_result.tool_context_summary
+            timings["tool_loop"] = (time.perf_counter() - _ts_tool) * 1000
+
         # ---- Step 12: DEFENSE MECHANISMS (0 LLM calls) ----
         filtered_output, defense = self.defense_mechanism.evaluate(
             inner_dialogue_output=dialogue_trace.final_candidate,
@@ -424,6 +452,7 @@ class CognitivePipeline:
             contagion=detected,
             candidate_response=filtered_output,
             defense_instruction=defense_instruction,
+            tool_context_summary=tool_context_summary,
         )
 
         gen_result = self.generator.generate(

@@ -239,6 +239,8 @@ class PipelineContext:
     # v2: inner dialogue candidate and defense instruction
     candidate_response: str = ""
     defense_instruction: str = ""
+    # Agentic tools: summarized tool execution context for generator
+    tool_context_summary: str = ""
 
 
 # ---------------------------------------------------------------------------

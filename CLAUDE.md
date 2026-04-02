@@ -5,9 +5,9 @@ Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
 Read CHANGELOG.md for version history and what changed when.
 
-## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 1
+## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 2
 
-The full test suite currently collects 742 tests.
+The full test suite currently collects 785 tests.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -26,8 +26,10 @@ The full test suite currently collects 742 tests.
 - runtime/ — Jarvis Runtime: session manager, console + Telegram channels, debug API, state persistence, LLM backend factory
 - main.py — Runtime entry point (`python main.py`)
 - core/action_variables.py — Action-variable derivation from modulators (pure math, 0 LLM calls)
+- core/tool_appraisal.py — Tool outcome appraisal (ToolResult → ToolObservation with emotional deltas)
+- core/dual_process/tool_loop.py — Cognitive tool bridge: intent detection, arbiter, execute+appraise loop
 - tools/ — Agentic tools package: registry, executor, builtin tools (filesystem, shell, web search)
-- tests/ — 742 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, and agentic tools Phase 0+1 coverage
+- tests/ — 785 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, and agentic tools Phase 0+1+2 coverage
 
 ### What's NOT built (future features)
 - Dynamic value drift (v2.5)
@@ -152,8 +154,19 @@ The full test suite currently collects 742 tests.
 - 9 registered tools: fs.read_file, fs.list_dir, fs.search_text, fs.glob_paths, fs.write_file, fs.delete_path, shell.run_command, web.search, web.fetch
 - No pipeline tool loop, no MCP, no cognitive integration yet
 
+## Agentic Tools Phase 2 (Cognitive tool loop — completed)
+- `core/dual_process/tool_loop.py` — cognitive bridge: `detect_tool_intent()` heuristic, `make_tool_decision()` arbiter, `run_tool_loop()` orchestrator
+- `core/tool_appraisal.py` — `appraise_tool_result()` maps ToolResult → ToolObservation with emotional deltas
+- Pipeline integration: optional `tool_executor` param, tool loop after contradiction check, before defense
+- Action arbiter: 4 outcomes (execute, clarify, defer, refuse) driven by ActionVariables + category + trust
+- Bounded loop: default max 2 executions, hard cap 3
+- `DebugState.action_variables` + `tool_trace` populated on tool turns
+- `PipelineContext.tool_context_summary` — summarized tool results for generator (never raw output)
+- Debug API serializes tool_trace + action_variables
+- No MCP, no multi-step planner, no autonomous background tasks yet
+
 ## Testing
-- `pytest` collects 742 tests
+- `pytest` collects 785 tests
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 

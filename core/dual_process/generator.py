@@ -65,6 +65,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
     contradiction_section = _build_contradiction_section(ctx)
     guidance_section = _build_guidance_section(ctx)
     candidate_section = _build_candidate_section(ctx)
+    tool_section = _build_tool_context_section(ctx)
     defense_section = _build_defense_instruction_section(ctx)
 
     # If template loaded, fill placeholders
@@ -80,6 +81,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
         prompt = prompt.replace("{contradiction_flags}", contradiction_section)
         prompt = prompt.replace("{behavioral_guidance}", guidance_section)
         prompt = prompt.replace("{candidate_response}", candidate_section)
+        prompt = prompt.replace("{tool_context}", tool_section)
         prompt = prompt.replace("{defense_instruction}", defense_section)
         return prompt
 
@@ -97,6 +99,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
     parts.append(contradiction_section)
     parts.append(guidance_section)
     parts.append(candidate_section)
+    parts.append(tool_section)
     parts.append(defense_section)
     return "\n".join(parts)
 
@@ -203,6 +206,18 @@ def _build_candidate_section(ctx: PipelineContext) -> str:
     lines.append("")
     lines.append("Preserve the intent of this draft. Refine for tone and polish,")
     lines.append("but do not replace it with an unrelated response.")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _build_tool_context_section(ctx: PipelineContext) -> str:
+    if not ctx.tool_context_summary:
+        return ""
+    lines = ["## Tool Execution Results"]
+    lines.append(f"{ctx.tool_context_summary}")
+    lines.append("")
+    lines.append("Use the above results to inform your response.")
+    lines.append("Do not echo raw output verbatim — summarize and contextualize.")
     lines.append("")
     return "\n".join(lines)
 

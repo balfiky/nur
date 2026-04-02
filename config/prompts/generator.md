@@ -29,4 +29,6 @@ Rules:
 
 {candidate_response}
 
+{tool_context}
+
 {defense_instruction}

@@ -4,6 +4,63 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.11.0 — 2026-04-02 (Agentic Tools Phase 2: cognitive tool loop)
+
+Integrates tool use into cognition. The pipeline can now decide between direct response and tool use, execute a bounded tool loop, appraise the result, and continue to generation.
+
+### Tool-aware deliberation bridge (`core/dual_process/tool_loop.py`)
+- `detect_tool_intent()` — heuristic keyword matching for obvious action requests (filesystem, shell, web)
+- `make_tool_decision()` — deterministic action arbiter using ActionVariables + tool category + trust
+  - Four outcomes: execute, clarify, defer, refuse
+  - Destructive + low risk tolerance → refuse
+  - Low autonomy bias → clarify
+  - Write/destructive + high clarification threshold → clarify
+  - Very low urgency → defer
+- `run_tool_loop()` — full cognitive bridge: derive action vars → detect intent → decide → execute → appraise → apply deltas
+- Bounded loop: default max 2 executions, hard cap 3
+- Returns `ToolLoopResult` with trace, action variables, and generator-ready summary
+
+### Tool outcome appraisal (`core/tool_appraisal.py`)
+- `appraise_tool_result()` — maps ToolResult → ToolObservation with emotional deltas
+- Success: certainty +0.08, valence +0.02, energy -0.01, resolution -0.05
+- Empty output: certainty -0.06, resolution +0.05
+- Execution error: arousal +0.08, valence -0.08, certainty -0.10, resolution +0.10
+- Environment block (permission denied): arousal +0.05, certainty -0.05, resolution +0.06
+- Destructive success: arousal +0.04, energy -0.03, self-observation "decisive"
+- Self-observations: "methodical" (read success), "decisive" (destructive), "frustrated" (error), "hesitant" (block)
+
+### Pipeline integration (`pipeline.py`)
+- Optional `tool_executor` parameter on CognitivePipeline — when None, tool loop is skipped entirely
+- Tool loop inserted after contradiction check (step 11), before defense mechanisms (step 12)
+- Emotional deltas from tool appraisal applied directly to engine state
+- Tool context summarized for generator (never raw output) via `tool_context_summary`
+- No full pipeline recursion after tool results — lightweight appraisal loop only
+- `tool_loop` timing added to `stage_timings_ms`
+
+### Debug integration
+- `DebugState.action_variables: ActionVariables | None` — derived action variables per turn
+- `DebugState.tool_trace` populated on tool-involved turns (proposed intents, decision, results, observations, loop_count)
+- `_debug_to_dict()` serializes tool_trace and action_variables for the runtime debug API
+
+### Generator changes
+- `PipelineContext.tool_context_summary` — summarized tool execution context
+- Generator builds "Tool Execution Results" section from summary
+- `{tool_context}` placeholder added to generator.md prompt template
+- Generator instruction: "Do not echo raw output verbatim — summarize and contextualize"
+
+### Testing
+- 785 tests total (43 new Phase 2 tests)
+- `TestDetectToolIntent` (10): conversational skip, read_file, list_dir, search_text, run_command, web_search, fetch, delete, unavailable tool, cat
+- `TestMakeToolDecision` (7): execute read-only, refuse destructive, clarify low autonomy, clarify write+high threshold, defer low urgency, execute write normal, rationale included
+- `TestToolAppraisal` (6): success read, empty output, failure, destructive success, permission denied, failure resolution
+- `TestToolLoop` (7): no intent, successful execution, failed changes state, action vars populated, non-execute decision, bounded loop, intent gets action vars
+- `TestPipelineToolIntegration` (5): no executor, direct response, tool turn trace, timing, failed tool, existing behavior preserved
+- `TestDebugStateSerialization` (4): action vars field, with/without tool_trace, full pipeline serializable
+- `TestGeneratorToolContext` (2): no tool context, tool context in prompt
+- Zero regressions
+
+---
+
 ## v0.10.0 — 2026-04-02 (Agentic Tools Phase 1: builtin execution layer)
 
 Builtin tool implementations and execution orchestrator. No pipeline behavioral changes yet.
