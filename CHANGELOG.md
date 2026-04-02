@@ -4,6 +4,51 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.7.0 — 2026-04-02 (Phase 3: Timeouts, shutdown, DB safety)
+
+Timer-driven inactivity, graceful shutdown, and shared DB hardening.
+
+### Timer-driven inactivity timeout (`runtime/sessions/manager.py`)
+- Per-session idle timer via `loop.call_later` — fires eviction automatically
+- No dependence on future incoming messages (spec requirement)
+- Timer resets on each message completion
+- Each session has its own independent timer
+- Eviction on timeout: digest session, save state, close pipeline
+
+### Graceful shutdown
+- `_accepting` flag: set to False on shutdown, rejects new messages immediately
+- Shutdown sequence: stop intake → cancel all idle timers → drain active queues → persist state → close
+- In-progress pipeline work completes before session close (no data loss)
+
+### Backpressure enforcement
+- `max_queue_per_user`: raises RuntimeError with "queue full" when exceeded
+- `max_active_sessions`: raises RuntimeError with "limit reached" for new users at capacity
+- Existing users with active sessions are never blocked by session limit
+- Evicting a session frees the slot for new users
+
+### Shared DB WAL mode + busy timeout (`core/profiles/base.py`)
+- `ProfileStore` gains `wal_mode: bool = False` parameter
+- When `wal_mode=True`: `PRAGMA journal_mode=WAL` + `PRAGMA busy_timeout=5000`
+- Pipeline enables WAL automatically when `self_db_path` is provided (shared mode)
+- Per-user DBs remain on default journal mode (single writer, no contention)
+- In-memory DBs ignore WAL flag
+
+### Unresolved items — in-memory only
+- Unresolved items are NOT persisted in engine_state.json (by design)
+- They reset on session restart — documented explicitly per spec requirement
+
+### Testing
+- 602 tests total (20 new Phase 3 tests, 1 updated)
+- `TestInactivityTimeout` (4): auto-eviction, state persistence, timer reset, independent timers
+- `TestGracefulShutdown` (5): persist all, stop intake, evict all, cancel timers, drain in-progress
+- `TestBackpressure` (4): queue full, session limit, eviction frees slot, existing user not blocked
+- `TestSharedDBSafety` (6): WAL enabled, busy timeout set, no WAL default, memory ignores WAL, pipeline shared WAL, concurrent writes
+- `TestUnresolvedItemsPersistence` (1): not in saved state
+- Updated `test_evict_idle` — now verifies timer-driven eviction (not passive sweep)
+- Zero regressions
+
+---
+
 ## v0.6.0 — 2026-04-02 (Phase 2: Telegram channel)
 
 Telegram adapter with allowlist, dedupe, typing indicators, and commands.

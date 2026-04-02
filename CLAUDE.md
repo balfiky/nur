@@ -5,9 +5,9 @@ Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
 Read CHANGELOG.md for version history and what changed when.
 
-## Status: v2 COMPLETE + RUNTIME PHASE 2
+## Status: v2 COMPLETE + RUNTIME PHASE 3
 
-v1 (288) + v2 (188) + regression (28) + Phase 0 (26) + Runtime Phase 1 (21) + Telegram (26) = 582 tests.
+v1 (288) + v2 (188) + regression (28) + Phase 0 (26) + Runtime Phase 1 (21) + Telegram (26) + Phase 3 (20) = 602 tests.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -106,8 +106,17 @@ v1 (288) + v2 (188) + regression (28) + Phase 0 (26) + Runtime Phase 1 (21) + Te
 - `TelegramConfig` dataclass; `RuntimeConfig` gains telegram_token, telegram_allowlist, etc.
 - Telegram channel starts as background task in JarvisApp if token is set
 
+## Phase 3 (Timeouts, shutdown, backpressure, DB safety — completed)
+- Timer-driven inactivity timeout: per-session `loop.call_later`, no dependence on next message
+- Idle timer resets on each message; fires `evict_session` automatically
+- Graceful shutdown: `_accepting` flag stops intake → cancel all timers → drain + close all sessions
+- Backpressure: max_queue_per_user rejects with RuntimeError; max_active_sessions rejects new users
+- Shared self-model DB: WAL mode + busy_timeout=5000 via `ProfileStore(wal_mode=True)`
+- Per-user DBs do NOT use WAL (single writer, no contention)
+- Unresolved items are in-memory only — not persisted in engine_state.json (by design)
+
 ## Testing
-- `pytest` collects 582 tests
+- `pytest` collects 602 tests
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 

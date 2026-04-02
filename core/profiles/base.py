@@ -53,8 +53,11 @@ class ProfileStore:
     One database, multiple entity types sharing the same schema.
     """
 
-    def __init__(self, db_path: str = ":memory:") -> None:
+    def __init__(self, db_path: str = ":memory:", wal_mode: bool = False) -> None:
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
+        if wal_mode and db_path != ":memory:":
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.execute("PRAGMA busy_timeout=5000")
         self._conn.row_factory = sqlite3.Row
         self._create_tables()
         ensure_schema_version(self._conn)

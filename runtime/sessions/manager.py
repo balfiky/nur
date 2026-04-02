@@ -23,6 +23,10 @@ class SessionManager:
     Each user gets a dedicated CognitivePipeline and a serialized message
     queue.  Sessions are created lazily on first message and can be evicted
     on timeout or shutdown.
+
+    Timer-driven inactivity timeout: each session gets a per-session idle
+    timer (via ``loop.call_later``).  When it fires, the session is evicted
+    automatically — no dependence on future incoming messages.
     """
 
     def __init__(
@@ -33,7 +37,9 @@ class SessionManager:
         self.config = config
         self._backend_factory = backend_factory
         self._sessions: dict[str, UserSession] = {}
+        self._idle_timers: dict[str, asyncio.TimerHandle] = {}
         self._lock = asyncio.Lock()
+        self._accepting = True
 
     # ------------------------------------------------------------------
     # Public API
@@ -52,15 +58,59 @@ class SessionManager:
           relationship: platform:user_id
           session:      platform:user_id:chat_id
         """
+        if not self._accepting:
+            raise RuntimeError("Runtime is shutting down — not accepting messages")
+
         rel_key = f"{platform}:{user_id}"
 
         session = await self._get_or_create(rel_key, user_id)
-        return await session.send(text)
+        try:
+            return await session.send(text)
+        finally:
+            # Reset idle timer after each message (processed or failed)
+            self._reset_idle_timer(rel_key)
 
     @property
     def active_sessions(self) -> dict[str, UserSession]:
         """Read-only view of active sessions (for debug / inspection)."""
         return dict(self._sessions)
+
+    # ------------------------------------------------------------------
+    # Idle timers (per-session, timer-driven)
+    # ------------------------------------------------------------------
+
+    def _start_idle_timer(self, rel_key: str) -> None:
+        """Schedule an idle-timeout eviction for *rel_key*."""
+        self._cancel_idle_timer(rel_key)
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return  # no event loop — unit-test edge case
+        handle = loop.call_later(
+            self.config.session_timeout_seconds,
+            lambda rk=rel_key: asyncio.ensure_future(self._timeout_evict(rk)),
+        )
+        self._idle_timers[rel_key] = handle
+
+    def _cancel_idle_timer(self, rel_key: str) -> None:
+        handle = self._idle_timers.pop(rel_key, None)
+        if handle is not None:
+            handle.cancel()
+
+    def _reset_idle_timer(self, rel_key: str) -> None:
+        """Cancel and restart the idle timer for *rel_key*."""
+        if rel_key in self._sessions:
+            self._start_idle_timer(rel_key)
+
+    def _cancel_all_idle_timers(self) -> None:
+        for handle in self._idle_timers.values():
+            handle.cancel()
+        self._idle_timers.clear()
+
+    async def _timeout_evict(self, rel_key: str) -> None:
+        """Called by the idle timer — evict the session."""
+        log.info("Inactivity timeout for %s", rel_key)
+        await self.evict_session(rel_key)
 
     # ------------------------------------------------------------------
     # Session lifecycle
@@ -83,6 +133,7 @@ class SessionManager:
             session = self._create_session(rel_key, user_id)
             session.start()
             self._sessions[rel_key] = session
+            self._start_idle_timer(rel_key)
             log.info("Session created: %s", rel_key)
             return session
 
@@ -122,7 +173,8 @@ class SessionManager:
         )
 
     async def evict_session(self, rel_key: str) -> None:
-        """Evict a session: drain, end, save state, close pipeline."""
+        """Evict a session: cancel timer, drain, end, save state, close pipeline."""
+        self._cancel_idle_timer(rel_key)
         async with self._lock:
             session = self._sessions.pop(rel_key, None)
         if session is None:
@@ -134,6 +186,7 @@ class SessionManager:
         """Evict sessions that have been idle longer than the timeout.
 
         Returns the list of evicted relationship keys.
+        Note: with timer-driven eviction this is a fallback / manual sweep.
         """
         now = time.time()
         timeout = self.config.session_timeout_seconds
@@ -150,7 +203,14 @@ class SessionManager:
         return to_evict
 
     async def shutdown(self) -> None:
-        """Gracefully shut down all active sessions."""
+        """Gracefully shut down: stop intake → cancel timers → drain all sessions."""
+        # 1. Stop accepting new messages
+        self._accepting = False
+
+        # 2. Cancel all idle timers (we're evicting everything now)
+        self._cancel_all_idle_timers()
+
+        # 3. Drain and close every active session
         async with self._lock:
             keys = list(self._sessions.keys())
 

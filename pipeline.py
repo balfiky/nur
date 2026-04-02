@@ -192,8 +192,12 @@ class CognitivePipeline:
         self.topic_profiles = TopicProfileManager(db_path=db_path)
 
         # Shared self-model store (self observations + defense events)
+        # WAL mode + busy timeout when shared DB is explicitly separated
         effective_self_db = self_db_path if self_db_path is not None else db_path
-        self._self_profile_store = ProfileStore(db_path=effective_self_db)
+        self._self_profile_store = ProfileStore(
+            db_path=effective_self_db,
+            wal_mode=(self_db_path is not None),
+        )
         self.self_profile = SelfProfileManager(self._self_profile_store)
 
         # Contradiction detectors — one per store

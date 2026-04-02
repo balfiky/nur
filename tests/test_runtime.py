@@ -399,7 +399,7 @@ class TestSessionLifecycle:
         asyncio.run(run())
 
     def test_evict_idle(self):
-        """evict_idle removes sessions past the timeout threshold."""
+        """Sessions past the timeout are evicted automatically by timer."""
         async def run():
             with tempfile.TemporaryDirectory() as tmpdir:
                 config = _make_config(tmpdir, session_timeout_seconds=0.1)
@@ -408,10 +408,9 @@ class TestSessionLifecycle:
                     await _send(manager, "hi")
                     assert len(manager.active_sessions) == 1
 
-                    # Wait past the timeout
+                    # Wait past the timeout — timer-driven eviction fires
                     await asyncio.sleep(0.2)
-                    evicted = await manager.evict_idle()
-                    assert "console:user" in evicted
+                    await asyncio.sleep(0.05)
                     assert len(manager.active_sessions) == 0
                 finally:
                     await manager.shutdown()
