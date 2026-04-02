@@ -1,0 +1,4 @@
+data_dir: data
+max_queue_per_user: 3
+max_active_sessions: 10
+session_timeout_seconds: 1800

@@ -5,9 +5,9 @@ Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
 Read CHANGELOG.md for version history and what changed when.
 
-## v2 Status: COMPLETE + LATENCY OPTIMIZATION + PHASE 0 RUNTIME EMBEDDING
+## Status: v2 COMPLETE + RUNTIME PHASE 1
 
-v1 (288 tests) + v2 phases 1-7 (188 tests) + regression/optimization (28) + Phase 0 (26) = 535 tests.
+v1 (288) + v2 (188) + regression (28) + Phase 0 (26) + Runtime Phase 1 (21) = 556 tests.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -23,7 +23,9 @@ v1 (288 tests) + v2 phases 1-7 (188 tests) + regression/optimization (28) + Phas
 - interface/ — FastAPI + WebSocket + debug dashboard
 - config/ — YAML configs + 10 prompt templates
 - core/schema.py — Schema version management for all SQLite databases
-- tests/ — 535 tests including calibration, journey, v2 integration, regression, and Phase 0 tests
+- runtime/ — Jarvis Runtime: session manager, console channel, state persistence, LLM backend factory
+- main.py — Runtime entry point (`python main.py`)
+- tests/ — 556 tests including calibration, journey, v2, regression, Phase 0, and runtime tests
 
 ### What's NOT built (future features)
 - Dynamic value drift (v2.5)
@@ -80,8 +82,22 @@ v1 (288 tests) + v2 phases 1-7 (188 tests) + regression/optimization (28) + Phas
 - `core/schema.py` — SCHEMA_VERSION=1, ensure_schema_version(), SchemaVersionError
 - All SQLite databases carry schema_version table; future versions fail loudly
 
+## Phase 1 (Console runtime — completed)
+- `runtime/sessions/manager.py` — SessionManager: lazy creation, backpressure, eviction, shutdown
+- `runtime/sessions/user_session.py` — UserSession: asyncio.Queue + worker + asyncio.to_thread
+- `runtime/sessions/persistence.py` — save/load engine_state.json (atomic writes)
+- `runtime/channels/console.py` — ConsoleChannel: async stdin, routes through session manager
+- `runtime/llm/backend.py` — create_llm_backend() factory (one per pipeline)
+- `runtime/config.py` — RuntimeConfig: data_dir, max_queue_per_user, max_active_sessions, timeout
+- `runtime/app.py` — JarvisApp: orchestrator with signal-based graceful shutdown
+- `main.py` — Entry point: `python main.py`
+- Identity: relationship key = `platform:user_id`, session key = `platform:user_id:chat_id`
+- Storage: `data/{platform}_{user_id}/nur.db`, `data/shared/self_model.db`
+- Per-user processing serialized (queue); different users can overlap (separate threads)
+- Nūr remains synchronous — runtime wraps via asyncio.to_thread
+
 ## Testing
-- `pytest` collects 535 tests
+- `pytest` collects 556 tests
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 

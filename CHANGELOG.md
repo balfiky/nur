@@ -4,6 +4,69 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.5.0 — 2026-04-02 (Phase 1: Console runtime)
+
+First runtime layer around Nūr. Console-only. Nūr remains synchronous — the runtime wraps it with async lifecycle management.
+
+### Session manager (`runtime/sessions/manager.py`)
+- Lazy session creation on first message per relationship key (`platform:user_id`)
+- Backpressure: `max_active_sessions=10`, `max_queue_per_user=3`
+- `evict_session()` — drain queue, end session, save state, close pipeline
+- `evict_idle()` — evict sessions past timeout threshold
+- `shutdown()` — graceful drain of all active sessions
+
+### Per-user serialization (`runtime/sessions/user_session.py`)
+- Each user session has an `asyncio.Queue` and a background worker task
+- Worker calls `asyncio.to_thread(pipeline.process, ...)` — one message at a time
+- Different users CAN process concurrently (separate workers, separate threads)
+
+### State persistence (`runtime/sessions/persistence.py`)
+- `save_engine_state()` — atomic write (tmp + rename) of modulator snapshot + timestamp
+- `load_engine_state()` — read back from JSON
+- Saved on session eviction and shutdown
+- Restored with elapsed decay on session creation (via `pipeline.restore_state()`)
+
+### Console channel (`runtime/channels/console.py`)
+- `asyncio.to_thread(input, ...)` for non-blocking stdin reads
+- Routes through session manager with `platform=console`
+- `/quit` and `/exit` commands
+
+### Runtime config (`runtime/config.py`, `runtime_config.yaml`)
+- `RuntimeConfig` dataclass with data_dir, queue/session limits, timeout
+- Helper methods for per-user paths and shared DB path
+
+### LLM backend factory (`runtime/llm/backend.py`)
+- `create_llm_backend()` — returns MiniMax client or MockLLMBackend
+- One backend per pipeline (thread safety — `requests.Session` is not thread-safe)
+
+### App orchestrator (`runtime/app.py`, `main.py`)
+- `JarvisApp` wires session manager + console channel
+- Signal handler for SIGINT/SIGTERM → graceful shutdown
+- Entry point: `python main.py`
+
+### Identity keys (per spec section 6.0)
+- Relationship state key: `platform:user_id` (e.g., `console:user`)
+- Session state key: `platform:user_id:chat_id` (e.g., `console:user:direct`)
+- Data directory: `data/{platform}_{user_id}/` (colon-safe)
+
+### Storage layout
+- `data/{platform}_{user_id}/nur.db` — per-user Nūr database
+- `data/{platform}_{user_id}/engine_state.json` — modulator snapshot
+- `data/shared/self_model.db` — shared self-model across all users
+
+### Testing
+- 556 tests total (21 new runtime tests)
+- Console end-to-end: message → session manager → pipeline → response
+- Per-user serialization: concurrent messages never overlap; different users CAN overlap
+- State save/load: JSON round-trip, atomic writes, directory creation
+- Restart restore: reload from disk with elapsed decay applied
+- Session lifecycle: max sessions enforced, queue backpressure, idle eviction, shutdown
+- Identity keys: correct format, filesystem-safe directory names
+- Shared self-model: observations visible across user pipelines
+- Zero regressions
+
+---
+
 ## v0.4.0 — 2026-04-02 (Phase 0: Runtime embedding)
 
 Mandatory Nūr-side changes to support the Jarvis Runtime. No external behavior changes.
