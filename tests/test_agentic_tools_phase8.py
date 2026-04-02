@@ -747,3 +747,247 @@ class TestPhase8Regression:
         assert p._proactive_count == 0
         assert p._conversation_history == []
         assert p._active_task_plan is None
+
+
+# ===================================================================
+# Fix tests — proactive runtime correctness (callback, serialization, decay)
+# ===================================================================
+
+
+class TestProactiveCallbackWiring:
+    """Fix 1: JarvisApp must construct SessionManager with a real callback."""
+
+    def test_jarvis_app_passes_callback(self):
+        from runtime.app import JarvisApp
+        from runtime.config import RuntimeConfig
+        cfg = RuntimeConfig(llm_backend="mock", proactive_enabled=True)
+        app = JarvisApp(config=cfg)
+        assert app.session_manager._proactive_callback is not None
+
+    def test_jarvis_app_callback_is_deliver_proactive(self):
+        from runtime.app import JarvisApp
+        from runtime.config import RuntimeConfig
+        cfg = RuntimeConfig(llm_backend="mock")
+        app = JarvisApp(config=cfg)
+        cb = app.session_manager._proactive_callback
+        assert cb.__func__ is JarvisApp._deliver_proactive
+        assert cb.__self__ is app
+
+    def test_deliver_proactive_console(self, capsys):
+        """Console delivery prints to stdout."""
+        import asyncio
+        from runtime.app import JarvisApp
+        from runtime.config import RuntimeConfig
+        from runtime.channels.console import ConsoleChannel
+
+        cfg = RuntimeConfig(llm_backend="mock", console_enabled=True)
+        app = JarvisApp(config=cfg)
+        # Fake a console channel being active
+        app._console = object()  # truthy — delivery checks is not None
+
+        asyncio.get_event_loop().run_until_complete(
+            app._deliver_proactive("console:user:direct", "user", "hello proactive")
+        )
+        captured = capsys.readouterr()
+        assert "hello proactive" in captured.out
+
+    def test_deliver_proactive_bad_session_key(self, caplog):
+        """Malformed session_key logs a warning, does not crash."""
+        import asyncio
+        from runtime.app import JarvisApp
+        from runtime.config import RuntimeConfig
+
+        cfg = RuntimeConfig(llm_backend="mock")
+        app = JarvisApp(config=cfg)
+        # No exception
+        asyncio.get_event_loop().run_until_complete(
+            app._deliver_proactive("bad_key", "user", "msg")
+        )
+
+    def test_deliver_proactive_no_channel(self, caplog):
+        """Unknown platform logs warning, does not crash."""
+        import asyncio
+        from runtime.app import JarvisApp
+        from runtime.config import RuntimeConfig
+
+        cfg = RuntimeConfig(llm_backend="mock")
+        app = JarvisApp(config=cfg)
+        asyncio.get_event_loop().run_until_complete(
+            app._deliver_proactive("unknown:user:chat", "user", "msg")
+        )
+
+
+class TestProactiveSerialization:
+    """Fix 2: Proactive must acquire per-user lock, same as normal turns."""
+
+    @pytest.fixture
+    def _event_loop_policy(self):
+        """Ensure a running event loop for asyncio tests."""
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        yield loop
+        loop.close()
+
+    def test_run_proactive_acquires_user_lock(self, _event_loop_policy, tmp_path):
+        """_run_proactive must hold user_lock during pipeline execution."""
+        import asyncio
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from runtime.sessions.manager import SessionManager
+        from runtime.config import RuntimeConfig
+
+        loop = _event_loop_policy
+        cfg = RuntimeConfig(
+            data_dir=str(tmp_path),
+            llm_backend="mock",
+            proactive_enabled=True,
+        )
+        mgr = SessionManager(config=cfg)
+
+        lock = asyncio.Lock()
+        lock_acquired_during_process = False
+
+        original_to_thread = asyncio.to_thread
+
+        async def patched_to_thread(fn, *args, **kwargs):
+            nonlocal lock_acquired_during_process
+            lock_acquired_during_process = lock.locked()
+            return None  # process_proactive returns None → no action
+
+        # Create a fake session with the lock
+        session = MagicMock()
+        session._user_lock = lock
+        session._processing = False
+        session._queue = MagicMock()
+        session._queue.empty.return_value = True
+        session.pipeline = MagicMock()
+        session.user_id = "user1"
+        session.last_activity = 0.0  # very idle
+
+        with patch("asyncio.to_thread", patched_to_thread):
+            loop.run_until_complete(mgr._run_proactive("console:user1:dm", session))
+
+        assert lock_acquired_during_process, "user_lock must be held during process_proactive"
+
+    def test_no_proactive_during_processing(self, _event_loop_policy, tmp_path):
+        """_proactive_sweep skips sessions with _processing=True."""
+        import asyncio
+        from unittest.mock import MagicMock
+        from runtime.sessions.manager import SessionManager
+        from runtime.config import RuntimeConfig
+
+        loop = _event_loop_policy
+        cfg = RuntimeConfig(
+            data_dir=str(tmp_path),
+            llm_backend="mock",
+            proactive_enabled=True,
+            proactive_idle_threshold=1.0,
+        )
+        mgr = SessionManager(config=cfg)
+
+        session = MagicMock()
+        session._processing = True  # busy
+        session._queue = MagicMock()
+        session._queue.empty.return_value = True
+        session.last_activity = 0.0  # very idle
+
+        mgr._sessions["console:user1:dm"] = session
+        loop.run_until_complete(mgr._proactive_sweep())
+        # _run_proactive should NOT have been called (no pipeline access)
+        session.pipeline.process_proactive.assert_not_called()
+
+    def test_no_proactive_with_queued_work(self, _event_loop_policy, tmp_path):
+        """_proactive_sweep skips sessions with queued messages."""
+        import asyncio
+        from unittest.mock import MagicMock
+        from runtime.sessions.manager import SessionManager
+        from runtime.config import RuntimeConfig
+
+        loop = _event_loop_policy
+        cfg = RuntimeConfig(
+            data_dir=str(tmp_path),
+            llm_backend="mock",
+            proactive_enabled=True,
+            proactive_idle_threshold=1.0,
+        )
+        mgr = SessionManager(config=cfg)
+
+        session = MagicMock()
+        session._processing = False
+        session._queue = MagicMock()
+        session._queue.empty.return_value = False  # has queued work
+        session.last_activity = 0.0
+
+        mgr._sessions["console:user1:dm"] = session
+        loop.run_until_complete(mgr._proactive_sweep())
+        session.pipeline.process_proactive.assert_not_called()
+
+
+class TestProactiveElapsedDecay:
+    """Fix 3: process_proactive must decay engine state before evaluation."""
+
+    def test_elapsed_decay_applied(self):
+        """Engine.decay() is called before proactive evaluation."""
+        from pipeline import CognitivePipeline
+
+        p = CognitivePipeline()
+        # Set up state: process a message to establish _last_turn_time
+        p.process("hello")
+        old_time = p._last_turn_time
+
+        # Record initial arousal
+        initial_arousal = p.engine.state.arousal
+
+        # Fake elapsed time (simulate 600s idle)
+        p._last_turn_time = time.time() - 600
+
+        # Run proactive — should apply decay before evaluation
+        result = p.process_proactive("user1", idle_threshold=1.0)
+
+        # _last_turn_time should have been updated
+        assert p._last_turn_time > old_time
+
+    def test_elapsed_decay_changes_modulators(self):
+        """Modulators should be decayed by elapsed time before proactive eval."""
+        from pipeline import CognitivePipeline
+
+        p = CognitivePipeline()
+        p.process("hello")
+
+        # Spike arousal and set a past _last_turn_time
+        p.engine.state = ModulatorState(
+            arousal=0.9, valence=0.3, certainty=0.5,
+            bonding=0.5, energy=0.7, resolution=0.0,
+        )
+        p._last_turn_time = time.time() - 3600  # 1 hour ago
+
+        arousal_before = p.engine.state.arousal
+        p.process_proactive("user1", idle_threshold=1.0)
+        arousal_after = p.engine.state.arousal
+
+        # Arousal should have decayed toward resting point
+        assert arousal_after < arousal_before, (
+            f"Expected arousal to decay: {arousal_before} → {arousal_after}"
+        )
+
+    def test_last_turn_time_updated_on_proactive(self):
+        """_last_turn_time is set even when no action is taken."""
+        from pipeline import CognitivePipeline
+
+        p = CognitivePipeline()
+        p._last_turn_time = time.time() - 1000
+        old = p._last_turn_time
+
+        p.process_proactive("user1", idle_threshold=1.0)
+        assert p._last_turn_time > old
+
+    def test_first_proactive_no_decay_crash(self):
+        """No crash if _last_turn_time is None (no prior turns)."""
+        from pipeline import CognitivePipeline
+
+        p = CognitivePipeline()
+        assert p._last_turn_time is None
+        # Should not raise
+        result = p.process_proactive("user1", idle_threshold=0.0)
+        # _last_turn_time should now be set
+        assert p._last_turn_time is not None

@@ -703,7 +703,14 @@ class CognitivePipeline:
         person = self.person_profiles.get_or_create(user_id)
         self_prof = self.self_profile.get_profile()
 
-        idle_seconds = time.time() - self._last_turn_time if self._last_turn_time else 0.0
+        # Elapsed decay — same as process() Step 0
+        now = time.time()
+        idle_seconds = now - self._last_turn_time if self._last_turn_time else 0.0
+        if self._last_turn_time is not None:
+            elapsed = now - self._last_turn_time
+            if elapsed > 0:
+                self.engine.decay(elapsed)
+        self._last_turn_time = now
 
         # 1. Evaluate proactive triggers
         action, trace = evaluate_proactive(

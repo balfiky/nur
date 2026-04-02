@@ -32,6 +32,7 @@ class JarvisApp:
         self.session_manager = SessionManager(
             config=self.config,
             backend_factory=lambda: create_llm_backend(self.config),
+            proactive_callback=self._deliver_proactive,
         )
         self._shutdown_event = asyncio.Event()
         self._console: ConsoleChannel | None = None
@@ -148,6 +149,33 @@ class JarvisApp:
         await self.session_manager.shutdown()
         log.info("Runtime shutdown complete")
         self._shutdown_event.set()
+
+    async def _deliver_proactive(
+        self, session_key: str, user_id: str, message: str,
+    ) -> None:
+        """Route a proactive message to the appropriate channel.
+
+        Extracts platform and chat_id from session_key (platform:user_id:chat_id)
+        and delivers through the matching channel.
+        """
+        parts = session_key.split(":", 2)
+        if len(parts) < 3:
+            log.warning("Cannot deliver proactive — bad session_key: %s", session_key)
+            return
+        platform, _, chat_id = parts
+
+        if platform == "console" and self._console is not None:
+            print(f"Jarvis: {message}", flush=True)
+        elif platform == "telegram" and self._telegram is not None:
+            try:
+                await self._telegram._client.send_message(int(chat_id), message)
+            except Exception:
+                log.exception("Failed to deliver proactive to Telegram %s", chat_id)
+        else:
+            log.warning(
+                "No channel for proactive delivery: platform=%s session=%s",
+                platform, session_key,
+            )
 
     def _signal_shutdown(self) -> None:
         """Signal handler — triggers graceful shutdown."""

@@ -7,7 +7,7 @@ Read CHANGELOG.md for version history and what changed when.
 
 ## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 8
 
-The full test suite currently collects 1079 tests.
+The full test suite currently collects 1091 tests.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -33,7 +33,7 @@ The full test suite currently collects 1079 tests.
 - core/proactive.py — Proactive behavior evaluation: trigger collection, scoring, bound enforcement, action selection (0 LLM calls)
 - tools/ — Agentic tools package: registry, executor, builtin tools (filesystem, shell, web, browser, calendar)
 - tools/mcp/ — MCP bridge: client protocol, adapter, category inference, register_mcp_tools()
-- tests/ — 1079 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, and agentic tools Phase 0+1+2+3+4+5+6+7+8 coverage
+- tests/ — 1091 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, and agentic tools Phase 0+1+2+3+4+5+6+7+8 coverage
 
 ### What's NOT built (future features)
 - Dynamic value drift (v2.5)
@@ -254,9 +254,13 @@ The full test suite currently collects 1079 tests.
   - `JarvisApp` starts proactive loop as background task when enabled
 - `DebugState.proactive_trace` + debug API serialization (triggers, action, suppressed reasons, limits)
 - No open-ended loops, no multi-agent behavior, no cross-session plan persistence
+- Phase 8 correctness fixes (v0.17.1):
+  - `JarvisApp` wires `_deliver_proactive` callback — routes to console (print) or Telegram (send_message) by platform
+  - `_run_proactive()` acquires per-user lock — same serialization as normal message processing
+  - `process_proactive()` applies elapsed decay before evaluation — same as `process()` Step 0
 
 ## Testing
-- `pytest` collects 1079 tests
+- `pytest` collects 1091 tests
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 

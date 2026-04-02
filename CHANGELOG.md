@@ -4,6 +4,34 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.17.1 — 2026-04-02 (Phase 8 correctness fixes: callback wiring, serialization, decay)
+
+Fixes three correctness issues in the Phase 8 proactive behavior implementation.
+
+### Fix 1: Proactive delivery wiring (`runtime/app.py`)
+- `JarvisApp` now passes `_deliver_proactive` as `proactive_callback` to `SessionManager`
+- Console delivery: prints proactive messages to stdout (same format as normal responses)
+- Telegram delivery: sends proactive messages via `TelegramClient.send_message`
+- Routes based on platform extracted from session_key (`platform:user_id:chat_id`)
+- Graceful handling of unknown platforms and malformed session keys
+
+### Fix 2: Proactive serialization (`runtime/sessions/manager.py`)
+- `_run_proactive()` now acquires per-user lock (`session._user_lock`) before calling `pipeline.process_proactive`
+- Same serialization guarantee as `UserSession._worker` — no concurrent pipeline access
+- Proactive execution cannot overlap with normal message processing or another chat context for the same user
+
+### Fix 3: Elapsed decay before proactive evaluation (`pipeline.py`)
+- `process_proactive()` now applies `engine.decay(elapsed)` before trigger evaluation
+- Matches Step 0 of `process()` — modulators decay based on time since last turn
+- `_last_turn_time` updated after decay, before evaluation
+- No crash when `_last_turn_time` is None (first proactive check with no prior turns)
+
+### Tests
+- 12 new tests covering all three fixes: callback wiring (5), serialization (3), elapsed decay (4)
+- Full suite: 1091 tests passing
+
+---
+
 ## v0.17.0 — 2026-04-02 (Agentic Tools Phase 8: proactive and autonomous behavior)
 
 Adds bounded proactive behavior — Jarvis can now initiate actions and follow-up messages based on unresolved tension, pending tasks, commitments, and idle-time patterns. All autonomy is explicitly bounded and inspectable.

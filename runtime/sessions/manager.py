@@ -309,17 +309,33 @@ class SessionManager:
     async def _run_proactive(
         self, session_key: str, session: UserSession,
     ) -> None:
-        """Evaluate and optionally act on proactive triggers for a session."""
-        pipeline = session.pipeline
+        """Evaluate and optionally act on proactive triggers for a session.
 
-        # Run proactive evaluation on the pipeline (sync → thread)
-        result = await asyncio.to_thread(
-            pipeline.process_proactive,
-            session.user_id,
-            max_proactive=self.config.proactive_max_per_session,
-            idle_threshold=self.config.proactive_idle_threshold,
-            cooldown=self.config.proactive_cooldown,
-        )
+        Acquires the per-user lock so proactive execution never overlaps
+        with normal message processing or another chat context for the
+        same user — same serialization guarantee as UserSession._worker.
+        """
+        pipeline = session.pipeline
+        user_lock = session._user_lock
+
+        # Acquire per-user lock — same as _worker does for normal turns
+        if user_lock is not None:
+            async with user_lock:
+                result = await asyncio.to_thread(
+                    pipeline.process_proactive,
+                    session.user_id,
+                    max_proactive=self.config.proactive_max_per_session,
+                    idle_threshold=self.config.proactive_idle_threshold,
+                    cooldown=self.config.proactive_cooldown,
+                )
+        else:
+            result = await asyncio.to_thread(
+                pipeline.process_proactive,
+                session.user_id,
+                max_proactive=self.config.proactive_max_per_session,
+                idle_threshold=self.config.proactive_idle_threshold,
+                cooldown=self.config.proactive_cooldown,
+            )
         if result is None:
             return
 
