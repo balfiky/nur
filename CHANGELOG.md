@@ -4,6 +4,57 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.9.0 — 2026-04-02 (Agentic Tools Phase 0: types, traces, registry)
+
+Foundation for agentic tool use. Types, action-variable derivation, tool registry, and debug trace wiring. No execution, no pipeline behavioral changes.
+
+### Tool data model (`core/types.py`)
+- `ToolCategory` enum: READ_ONLY, WRITE, DESTRUCTIVE, EXTERNAL_ACTION, COGNITIVE
+- `ToolCapability`: registered tool description (name, category, arg_schema, streaming, network, MCP flags)
+- `ToolIntent`: cognitive action object with urgency, risk_tolerance, autonomy_bias, clarification_threshold, persistence_drive, confidence
+- `ToolDecision`: arbiter output (execute / clarify / defer / refuse)
+- `ToolResult`: structured execution output (success, error, metadata, latency, side effects)
+- `ToolObservation`: cognitively appraised tool result (emotional deltas, self-observation, unresolved item, loop continuation)
+- `ToolTrace`: full debug trace (proposed intents, final decision, results, observations, loop count)
+- `ActionVariables`: turn-level derived values for action shaping
+
+### Action-variable derivation (`core/action_variables.py`)
+- `derive_action_variables(state, trust, defense_active)` — pure math, zero LLM calls
+- Five derived variables: risk_tolerance, action_urgency, clarification_threshold, persistence_drive, autonomy_bias
+- Shaping rules per Section 8: arousal→urgency, certainty→autonomy, energy→persistence, resolution→persistence, trust→risk, defense→caution
+- All values clamped to [0, 1]
+
+### Tool registry (`tools/registry.py`)
+- `ToolRegistry` class: register(), get(), list_tools(category=), names(), len, contains
+- Category-filtered listing
+- Overwrite-on-duplicate semantics
+
+### Debug integration (`pipeline.py`)
+- `DebugState.tool_trace: ToolTrace | None = None` — safe default, no behavioral change
+- `ToolTrace` imported in pipeline
+
+### Package structure
+- `tools/__init__.py` — package marker
+- `tools/types.py` — thin re-export layer (source of truth remains `core/types.py`)
+
+### Testing
+- 697 tests total (47 new Phase 0 tests)
+- `TestToolCategory` (2): enum values, string enum
+- `TestToolCapability` (2): minimal and full construction
+- `TestToolIntent` (2): defaults, custom values
+- `TestToolDecision` (3): execute, clarify, with intent
+- `TestToolResult` (2): success, failure
+- `TestToolObservation` (2): defaults, with unresolved item
+- `TestToolTrace` (2): empty, populated
+- `TestActionVariables` (2): defaults, clamping
+- `TestDeriveActionVariables` (16): all shaping rules, both extremes, clamping
+- `TestToolRegistry` (9): empty, register/get, contains, list/filter, overwrite, sorted names
+- `TestDebugStateToolTrace` (4): default None, v2 fields intact, set trace, pipeline compat
+- `TestToolsTypesReexport` (1): re-export identity check
+- Zero regressions
+
+---
+
 ## v0.8.2 — 2026-04-02 (Runtime backend + session-state cleanup)
 
 Closes the remaining runtime gaps after the pre-merge review.

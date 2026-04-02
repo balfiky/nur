@@ -48,6 +48,7 @@ from core.types import (
     PersonProfile,
     SelfProfile,
     TopicProfile,
+    ToolTrace,
     UnresolvedItem,
     ValueHierarchy,
 )
@@ -132,6 +133,9 @@ class DebugState:
     # v2: Resolution
     unresolved_count: int = 0
     unresolved_items: list[UnresolvedItem] = field(default_factory=list)
+
+    # Agentic tools (Phase 0+)
+    tool_trace: ToolTrace | None = None
 
     # Timing instrumentation (ms)
     stage_timings_ms: dict[str, float] = field(default_factory=dict)

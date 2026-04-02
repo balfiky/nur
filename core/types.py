@@ -10,7 +10,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 
 # ---------------------------------------------------------------------------
@@ -303,3 +303,110 @@ class DefenseActivation:
     expressed_intensity: float
     suppression_delta: float  # the gap — how much is being hidden
     reason: str
+
+
+# ---------------------------------------------------------------------------
+# Agentic Tools — tool data model (Phase 0)
+# ---------------------------------------------------------------------------
+
+class ToolCategory(str, Enum):
+    """Category that every registered tool must declare."""
+    READ_ONLY = "read_only"
+    WRITE = "write"
+    DESTRUCTIVE = "destructive"
+    EXTERNAL_ACTION = "external_action"
+    COGNITIVE = "cognitive"
+
+
+@dataclass
+class ToolCapability:
+    """A registered tool's static description."""
+    name: str
+    description: str
+    category: ToolCategory
+    arg_schema: dict[str, Any] = field(default_factory=dict)
+    supports_streaming: bool = False
+    requires_network: bool = False
+    mcp_backed: bool = False
+
+
+@dataclass
+class ToolIntent:
+    """What Jarvis wants to do — the key cognitive action object."""
+    tool_name: str
+    arguments: dict[str, Any]
+    reason: str
+    expected_outcome: str
+    urgency: float = 0.5               # 0.0-1.0
+    risk_tolerance: float = 0.5        # 0.0-1.0
+    autonomy_bias: float = 0.5         # 0.0-1.0 (act now vs ask first)
+    clarification_threshold: float = 0.5  # 0.0-1.0
+    persistence_drive: float = 0.5     # 0.0-1.0
+    confidence: float = 0.5            # action confidence, not emotional certainty
+
+
+@dataclass
+class ToolDecision:
+    """Result of the cognitive action arbiter."""
+    decision: Literal["execute", "clarify", "defer", "refuse"]
+    intent: ToolIntent | None = None
+    rationale: str = ""
+
+
+@dataclass
+class ToolResult:
+    """Execution output from a tool, always structured."""
+    tool_name: str
+    success: bool
+    output: str
+    error: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    latency_ms: float = 0.0
+    side_effect_summary: str = ""
+
+
+@dataclass
+class ToolObservation:
+    """Cognitively appraised version of a tool result."""
+    summary: str
+    emotional_delta: dict[str, float] = field(default_factory=dict)
+    certainty_delta: float = 0.0
+    resolution_delta: float = 0.0
+    self_observation: str | None = None
+    unresolved_item: UnresolvedItem | None = None
+    continue_tool_loop: bool = False
+
+
+@dataclass
+class ToolTrace:
+    """Debug trace for every tool-involved turn."""
+    proposed_intents: list[ToolIntent] = field(default_factory=list)
+    final_decision: ToolDecision | None = None
+    executed_results: list[ToolResult] = field(default_factory=list)
+    observations: list[ToolObservation] = field(default_factory=list)
+    loop_count: int = 0
+
+
+# ---------------------------------------------------------------------------
+# Action Variables — derived per-turn from modulators (Section 8)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class ActionVariables:
+    """Turn-level derived variables that shape tool decisions.
+
+    Not stored modulators — computed fresh each turn from ModulatorState,
+    trust level, and defense state.
+    """
+    risk_tolerance: float = 0.5
+    action_urgency: float = 0.3
+    clarification_threshold: float = 0.5
+    persistence_drive: float = 0.5
+    autonomy_bias: float = 0.5
+
+    def __post_init__(self) -> None:
+        for attr in (
+            "risk_tolerance", "action_urgency", "clarification_threshold",
+            "persistence_drive", "autonomy_bias",
+        ):
+            setattr(self, attr, max(0.0, min(1.0, getattr(self, attr))))

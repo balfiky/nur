@@ -5,9 +5,9 @@ Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
 Read CHANGELOG.md for version history and what changed when.
 
-## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES
+## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 0
 
-The full test suite currently collects 650 tests.
+The full test suite currently collects 697 tests.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -25,7 +25,9 @@ The full test suite currently collects 650 tests.
 - core/schema.py — Schema version management for all SQLite databases
 - runtime/ — Jarvis Runtime: session manager, console + Telegram channels, debug API, state persistence, LLM backend factory
 - main.py — Runtime entry point (`python main.py`)
-- tests/ — 650 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, and runtime-config coverage
+- core/action_variables.py — Action-variable derivation from modulators (pure math, 0 LLM calls)
+- tools/ — Agentic tools package: registry skeleton, type re-exports
+- tests/ — 697 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, and agentic tools Phase 0 coverage
 
 ### What's NOT built (future features)
 - Dynamic value drift (v2.5)
@@ -133,8 +135,17 @@ The full test suite currently collects 650 tests.
 - `RuntimeConfig` gains `debug_host`, `debug_port` (default 127.0.0.1:8077)
 - Debug server runs as background task in JarvisApp via uvicorn
 
+## Agentic Tools Phase 0 (Types, traces, registry — completed)
+- Read AGENTIC_TOOLS_DESIGN.md for the full agentic tools spec
+- `core/types.py` extended with: ToolCategory, ToolCapability, ToolIntent, ToolDecision, ToolResult, ToolObservation, ToolTrace, ActionVariables
+- `core/action_variables.py` — `derive_action_variables(state, trust, defense_active)` pure derivation
+- `tools/registry.py` — `ToolRegistry` with register(), get(), list_tools(category=), names()
+- `tools/types.py` — thin re-export layer (source of truth is `core/types.py`)
+- `DebugState.tool_trace: ToolTrace | None = None` — safe default, no behavioral change
+- No tool execution, no MCP, no pipeline tool loop, no behavioral changes yet
+
 ## Testing
-- `pytest` collects 650 tests
+- `pytest` collects 697 tests
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 
