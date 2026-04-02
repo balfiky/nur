@@ -5,9 +5,9 @@ Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
 Read CHANGELOG.md for version history and what changed when.
 
-## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 5
+## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 6
 
-The full test suite currently collects 918 tests.
+The full test suite currently collects 969 tests.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -29,9 +29,9 @@ The full test suite currently collects 918 tests.
 - core/tool_appraisal.py — Tool outcome appraisal (ToolResult → ToolObservation with emotional deltas)
 - core/dual_process/tool_loop.py — Cognitive tool bridge: intent detection, arbiter, execute+appraise loop
 - core/tool_memory.py — Tool episode memory coupling: short-term records, salient long-term writes, self-observations, unresolved items, trust deltas
-- tools/ — Agentic tools package: registry, executor, builtin tools (filesystem, shell, web search)
+- tools/ — Agentic tools package: registry, executor, builtin tools (filesystem, shell, web, browser, calendar)
 - tools/mcp/ — MCP bridge: client protocol, adapter, category inference, register_mcp_tools()
-- tests/ — 918 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, and agentic tools Phase 0+1+2+3+4+5 coverage
+- tests/ — 969 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, and agentic tools Phase 0+1+2+3+4+5+6 coverage
 
 ### What's NOT built (future features)
 - Dynamic value drift (v2.5)
@@ -205,8 +205,17 @@ The full test suite currently collects 918 tests.
 - Same cognitive path as builtins: arbiter, appraisal, memory, debug
 - `MCPClient` and `register_mcp_tools` re-exported from `tools` package
 
+## Agentic Tools Phase 6 (Richer tools — completed)
+- `tools/builtin/browser.py` — `BrowserProvider` protocol, 5 tools: open_url, get_page_text, click, fill, screenshot
+- `tools/builtin/calendar.py` — `CalendarProvider` protocol, `CalendarEvent`, 3 tools: list_events, create_event, delete_event
+- `tools/builtin/web_search.py` — added `web.extract_text` (bounded at 5,000 chars), `extract_text` on WebProvider protocol
+- `core/dual_process/tool_loop.py` — heuristic patterns for browser, calendar, web.extract_text
+- `tools/__init__.py` — `register_builtins()` accepts optional `browser_provider`, `calendar_provider`
+- 18 total registered builtins: 6 fs + 1 shell + 3 web + 5 browser + 3 calendar
+- All provider-based, all pluggable, all mockable, all disabled-safe via NullProvider defaults
+
 ## Testing
-- `pytest` collects 918 tests
+- `pytest` collects 969 tests
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 

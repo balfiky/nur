@@ -4,6 +4,46 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.15.0 — 2026-04-02 (Agentic Tools Phase 6: richer tools)
+
+Expands the tool layer with browser automation, calendar, and richer web retrieval. Total registered builtins: 18 (was 9).
+
+### Browser automation (`tools/builtin/browser.py`)
+- `BrowserProvider` protocol with `NullBrowserProvider` default
+- 5 tools: `browser.open_url`, `browser.get_page_text`, `browser.click`, `browser.fill`, `browser.screenshot`
+- Categories: open/get/screenshot = READ_ONLY, click = EXTERNAL_ACTION, fill = WRITE
+- Page text truncated at 10,000 chars to prevent memory bloat
+- Pluggable — any Playwright/Selenium backend can implement the protocol
+
+### Calendar (`tools/builtin/calendar.py`)
+- `CalendarProvider` protocol with `NullCalendarProvider` default
+- `CalendarEvent` dataclass for normalized event representation
+- 3 tools: `calendar.list_events` (READ_ONLY), `calendar.create_event` (WRITE), `calendar.delete_event` (DESTRUCTIVE)
+- Pluggable — any Google Calendar/Outlook/iCal backend can implement the protocol
+
+### Richer web retrieval (`tools/builtin/web_search.py`)
+- Added `extract_text` method to `WebProvider` protocol
+- New `web.extract_text` capability — fetches and returns cleaned body text
+- Bounded at 5,000 chars with truncation indicator
+- Total web tools: search, fetch, extract_text
+
+### Tool loop patterns (`core/dual_process/tool_loop.py`)
+- Added heuristic patterns for browser: "browse to", "open in browser", "screenshot of", "take a screenshot"
+- Added heuristic patterns for calendar: "show events for", "check calendar", "what's on", "create event"
+- Added patterns for web.extract_text: "extract text from", "get readable text of"
+- New extractors: `date`, `title_date`
+
+### Registration (`tools/__init__.py`)
+- `register_builtins()` now accepts optional `browser_provider` and `calendar_provider`
+- All 18 tools registered in one call, no special-case paths
+
+### Tests
+- 51 new tests in `tests/test_agentic_tools_phase6.py`
+- Updated Phase 1 test for new tool count (9 → 18)
+- Full suite: 969 tests passing
+
+---
+
 ## v0.14.0 — 2026-04-02 (Agentic Tools Phase 5: MCP bridge)
 
 MCP tools are now first-class participants in Nūr cognition — same ToolCapability, same appraisal, same memory coupling as builtins.

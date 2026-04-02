@@ -81,6 +81,18 @@ _TOOL_PATTERNS: list[tuple[re.Pattern, str, str]] = [
     (re.compile(r"\bsearch\s+(?:the\s+)?web\s+for\s+[\"']?([^\"']+?)[\"']?\s*$", re.I), "web.search", "query"),
     (re.compile(r"\blook\s*up\s+[\"']?([^\"']+?)[\"']?\s+online", re.I), "web.search", "query"),
     (re.compile(r"\bfetch\s+(?:the\s+)?(?:url\s+|page\s+(?:at\s+)?)?(https?://\S+)", re.I), "web.fetch", "url"),
+    (re.compile(r"\bextract\s+(?:the\s+)?text\s+(?:from\s+)?(https?://\S+)", re.I), "web.extract_text", "url"),
+    (re.compile(r"\bget\s+(?:the\s+)?(?:readable\s+)?text\s+(?:from\s+|of\s+)?(https?://\S+)", re.I), "web.extract_text", "url"),
+    # Browser
+    (re.compile(r"\bopen\s+(?:the\s+)?(?:url\s+|page\s+(?:at\s+)?)?(https?://\S+)\s+in\s+(?:the\s+)?browser", re.I), "browser.open_url", "url"),
+    (re.compile(r"\bbrowse\s+(?:to\s+)?(https?://\S+)", re.I), "browser.open_url", "url"),
+    (re.compile(r"\bget\s+(?:the\s+)?page\s+text\s+(?:from\s+|of\s+)?(https?://\S+)", re.I), "browser.get_page_text", "url"),
+    (re.compile(r"\bscreenshot\s+(?:of\s+)?(https?://\S+)", re.I), "browser.screenshot", "url"),
+    (re.compile(r"\btake\s+(?:a\s+)?screenshot(?:\s+of\s+(https?://\S+))?", re.I), "browser.screenshot", "url"),
+    # Calendar
+    (re.compile(r"\b(?:list|show|what(?:'s| are)?)\s+(?:my\s+)?(?:calendar\s+)?events?\s+(?:for\s+|on\s+)(\S+)", re.I), "calendar.list_events", "date"),
+    (re.compile(r"\b(?:check|view)\s+(?:my\s+)?calendar\s+(?:for\s+|on\s+)(\S+)", re.I), "calendar.list_events", "date"),
+    (re.compile(r"\bcreate\s+(?:a\s+)?(?:calendar\s+)?event\s+[\"']([^\"']+)[\"']\s+(?:on|at|from)\s+(\S+)", re.I), "calendar.create_event", "title_date"),
 ]
 
 
@@ -131,6 +143,10 @@ def _extract_args(
         return {"content": groups[0], "path": groups[1]}
     elif extractor == "path_content" and len(groups) >= 2:
         return {"path": groups[0], "content": groups[1]}
+    elif extractor == "date":
+        return {"date": groups[0]}
+    elif extractor == "title_date" and len(groups) >= 2:
+        return {"title": groups[0], "start": groups[1], "end": groups[1]}
     return None
 
 

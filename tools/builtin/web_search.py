@@ -18,6 +18,9 @@ from tools.executor import ToolHandler
 # ---------------------------------------------------------------------------
 
 
+_MAX_EXTRACT_TEXT = 5_000  # cap extracted text to prevent memory bloat
+
+
 class WebProvider(Protocol):
     """Abstract interface for web search/fetch backends."""
 
@@ -27,6 +30,15 @@ class WebProvider(Protocol):
 
     def fetch(self, url: str) -> str:
         """Fetch a URL and return its text content."""
+        ...
+
+    def extract_text(self, url: str) -> str:
+        """Fetch a URL and return cleaned, readable text content.
+
+        Unlike fetch(), this should strip navigation, ads, scripts, and
+        return only the main body text — bounded for safe cognitive use.
+        Default implementation falls back to fetch() with truncation.
+        """
         ...
 
 
@@ -42,6 +54,9 @@ class NullWebProvider:
         raise RuntimeError("No web provider configured")
 
     def fetch(self, url: str) -> str:
+        raise RuntimeError("No web provider configured")
+
+    def extract_text(self, url: str) -> str:
         raise RuntimeError("No web provider configured")
 
 
@@ -63,6 +78,15 @@ CAPABILITIES: list[ToolCapability] = [
     ToolCapability(
         name="web.fetch",
         description="Fetch the text content of a URL",
+        category=ToolCategory.READ_ONLY,
+        arg_schema={
+            "url": {"type": "string", "required": True},
+        },
+        requires_network=True,
+    ),
+    ToolCapability(
+        name="web.extract_text",
+        description="Fetch a URL and return cleaned, readable body text (bounded)",
         category=ToolCategory.READ_ONLY,
         arg_schema={
             "url": {"type": "string", "required": True},
@@ -109,9 +133,25 @@ def create_handlers(provider: WebProvider | None = None) -> dict[str, ToolHandle
             side_effect_summary="none",
         )
 
+    def _extract_text(args: dict[str, Any]) -> ToolResult:
+        url = args["url"]
+        text = prov.extract_text(url)
+        truncated = len(text) > _MAX_EXTRACT_TEXT
+        output = text[:_MAX_EXTRACT_TEXT]
+        if truncated:
+            output += f"\n... (truncated, {len(text)} chars total)"
+        return ToolResult(
+            tool_name="web.extract_text",
+            success=True,
+            output=output,
+            metadata={"url": url, "length": len(text), "truncated": truncated},
+            side_effect_summary="none",
+        )
+
     return {
         "web.search": _search,
         "web.fetch": _fetch,
+        "web.extract_text": _extract_text,
     }
 
 
