@@ -4,6 +4,57 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.10.0 — 2026-04-02 (Agentic Tools Phase 1: builtin execution layer)
+
+Builtin tool implementations and execution orchestrator. No pipeline behavioral changes yet.
+
+### Tool executor (`tools/executor.py`)
+- `ToolExecutor` class: thin lookup → call → normalize orchestrator
+- Accepts a `ToolRegistry` for capability lookup and per-name handler binding
+- All failures (unknown tool, missing handler, handler exception) normalized into structured `ToolResult`
+- Latency tracked via `time.perf_counter` and set on every result
+
+### Filesystem tool (`tools/builtin/filesystem.py`)
+- 6 operations: `fs.read_file`, `fs.list_dir`, `fs.search_text`, `fs.glob_paths`, `fs.write_file`, `fs.delete_path`
+- Read bounded to 1 MB, search bounded to 100 matches
+- Regex-based text search across files with line numbers
+- Write creates parent directories, delete handles files and directories
+- Each operation registered as a `ToolCapability` with category (READ_ONLY / WRITE / DESTRUCTIVE)
+
+### Shell tool (`tools/builtin/shell.py`)
+- `shell.run_command(cmd, cwd=None, timeout_seconds=30)`
+- Captures stdout, stderr, exit code via `subprocess.run`
+- Timeout and OSError normalized into `ToolResult`
+- Category: WRITE
+
+### Web search/fetch tool (`tools/builtin/web_search.py`)
+- `web.search(query, limit=5)` and `web.fetch(url)`
+- Pluggable `WebProvider` protocol for testability
+- `NullWebProvider` default (errors until configured)
+- `create_handlers(provider)` factory for binding a provider
+- Category: READ_ONLY, `requires_network=True`
+
+### Registration helper (`tools/__init__.py`)
+- `register_builtins(registry, executor, web_provider=None)` wires all 9 builtin tools
+- Single call registers capabilities + handlers for filesystem, shell, and web
+
+### Testing
+- 742 tests total (45 new Phase 1 tests)
+- `TestExecutor` (5): success, unknown tool, no handler, exception normalized, latency
+- `TestFilesystemReadFile` (3): existing, missing, directory
+- `TestFilesystemListDir` (3): entries, missing, empty
+- `TestFilesystemSearchText` (5): matches, no matches, single file, invalid regex, missing path
+- `TestFilesystemGlobPaths` (3): match, no match, not a dir
+- `TestFilesystemWriteFile` (3): new, parent dirs, overwrite
+- `TestFilesystemDeletePath` (3): file, directory, missing
+- `TestShellRunCommand` (6): success, non-zero exit, stderr, timeout, cwd, default timeout
+- `TestWebSearch` (7): fake provider, limit, no results, fetch, null provider, error normalized, default handlers
+- `TestBuiltinRegistration` (5): names, count, categories, end-to-end, custom provider
+- `TestExecutorFilesystemIntegration` (2): write-read roundtrip, write-list-delete cycle
+- Zero regressions
+
+---
+
 ## v0.9.0 — 2026-04-02 (Agentic Tools Phase 0: types, traces, registry)
 
 Foundation for agentic tool use. Types, action-variable derivation, tool registry, and debug trace wiring. No execution, no pipeline behavioral changes.

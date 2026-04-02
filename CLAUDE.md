@@ -5,9 +5,9 @@ Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
 Read CHANGELOG.md for version history and what changed when.
 
-## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 0
+## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 1
 
-The full test suite currently collects 697 tests.
+The full test suite currently collects 742 tests.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -26,8 +26,8 @@ The full test suite currently collects 697 tests.
 - runtime/ — Jarvis Runtime: session manager, console + Telegram channels, debug API, state persistence, LLM backend factory
 - main.py — Runtime entry point (`python main.py`)
 - core/action_variables.py — Action-variable derivation from modulators (pure math, 0 LLM calls)
-- tools/ — Agentic tools package: registry skeleton, type re-exports
-- tests/ — 697 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, and agentic tools Phase 0 coverage
+- tools/ — Agentic tools package: registry, executor, builtin tools (filesystem, shell, web search)
+- tests/ — 742 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, and agentic tools Phase 0+1 coverage
 
 ### What's NOT built (future features)
 - Dynamic value drift (v2.5)
@@ -142,10 +142,18 @@ The full test suite currently collects 697 tests.
 - `tools/registry.py` — `ToolRegistry` with register(), get(), list_tools(category=), names()
 - `tools/types.py` — thin re-export layer (source of truth is `core/types.py`)
 - `DebugState.tool_trace: ToolTrace | None = None` — safe default, no behavioral change
-- No tool execution, no MCP, no pipeline tool loop, no behavioral changes yet
+
+## Agentic Tools Phase 1 (Builtin execution layer — completed)
+- `tools/executor.py` — `ToolExecutor`: lookup → call → normalize, all failures become structured `ToolResult`
+- `tools/builtin/filesystem.py` — 6 ops: read_file, list_dir, search_text, glob_paths, write_file, delete_path
+- `tools/builtin/shell.py` — `run_command(cmd, cwd, timeout_seconds)` via subprocess, captures stdout/stderr/exit
+- `tools/builtin/web_search.py` — `search(query, limit)` + `fetch(url)` behind pluggable `WebProvider` protocol
+- `tools/__init__.py` — `register_builtins(registry, executor, web_provider)` wires all 9 builtin tools
+- 9 registered tools: fs.read_file, fs.list_dir, fs.search_text, fs.glob_paths, fs.write_file, fs.delete_path, shell.run_command, web.search, web.fetch
+- No pipeline tool loop, no MCP, no cognitive integration yet
 
 ## Testing
-- `pytest` collects 697 tests
+- `pytest` collects 742 tests
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 
