@@ -4,9 +4,9 @@ All notable changes to Project Nur are documented here.
 
 ---
 
-## v0.20.0 — 2026-04-02 (Phase 11: appraisal and relationship-arc memory)
+## v0.20.0 — 2026-04-02 (Phase 11: appraisal, relationship memory, and response strategy)
 
-Starts the lean Phase 11 track aimed at making Nūr feel more human without adding prompt theater or heavy new subsystems. This release improves how Nūr interprets social meaning and how it carries relationship continuity across sessions.
+Starts the lean Phase 11 track aimed at making Nūr feel more human without adding prompt theater or heavy new subsystems. This release improves how Nūr interprets social meaning, carries relationship continuity across sessions, and selects a concrete response approach before generation.
 
 ### Deterministic social appraisal (`core/appraisal.py`, `core/types.py`, `pipeline.py`)
 - Added `AppraisalFrame` to represent turn-level social interpretation before emotional update:
@@ -34,6 +34,16 @@ Starts the lean Phase 11 track aimed at making Nūr feel more human without addi
 - Pipeline retrieves a compact `relationship_context` before generation and exposes it in debug output
 - Generator prompt now includes relationship context alongside regular long-term memory
 
+### Response strategy selector (`core/strategy.py`, `core/types.py`, `pipeline.py`)
+- Added `ResponseStrategy` enum: `validate`, `reassure`, `repair`, `ground`, `give_space`, `practical_help`, `challenge_gently`, `set_boundary`
+- Added `core/strategy.py` — deterministic strategy selection from appraisal + modulators + person profile + relationship context (0 LLM calls)
+- Priority-ordered selection: boundary → repair → give_space → ground → validate → reassure → practical_help → challenge_gently → fallback
+- `STRATEGY_INSTRUCTIONS` dict maps each strategy to a compact prompt directive
+- Pipeline runs strategy selection after defense (Step 13b), before generation
+- Strategy instruction injected into generator system prompt as `## Response Strategy` section
+- `DebugState.response_strategy` captures the chosen strategy for inspection
+- Debug API serializes `response_strategy` field
+
 ### Schema migration (`core/schema.py`)
 - Schema version bumped `1 -> 2`
 - Added a real migration path instead of placeholder version bumps
@@ -51,6 +61,7 @@ Starts the lean Phase 11 track aimed at making Nūr feel more human without addi
 ### Tests
 - Added `tests/test_appraisal.py`
 - Added `tests/test_relationship_memory.py`
+- Added `tests/test_strategy.py` — 27 tests covering all 8 strategies, priority ordering, pipeline integration, generator prompt injection, debug serialization
 - Expanded integration coverage in:
   - `tests/test_pipeline.py`
   - `tests/test_dual_process.py`

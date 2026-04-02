@@ -181,6 +181,9 @@ def _debug_to_dict(debug) -> dict:
     # Contradiction flags
     d["contradiction_flags"] = debug.contradiction_flags
 
+    # Response strategy
+    d["response_strategy"] = getattr(debug, "response_strategy", "") or ""
+
     # Generation
     d["response"] = debug.response
     d["self_check_passed"] = debug.self_check_passed

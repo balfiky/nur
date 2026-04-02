@@ -67,6 +67,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
     candidate_section = _build_candidate_section(ctx)
     tool_section = _build_tool_context_section(ctx)
     defense_section = _build_defense_instruction_section(ctx)
+    strategy_section = _build_strategy_section(ctx)
 
     # If template loaded, fill placeholders
     if template:
@@ -83,6 +84,10 @@ def build_system_prompt(ctx: PipelineContext) -> str:
         prompt = prompt.replace("{candidate_response}", candidate_section)
         prompt = prompt.replace("{tool_context}", tool_section)
         prompt = prompt.replace("{defense_instruction}", defense_section)
+        prompt = prompt.replace("{response_strategy}", strategy_section)
+        # Append strategy if placeholder was absent from template
+        if strategy_section and "{response_strategy}" not in template:
+            prompt = prompt.rstrip() + "\n\n" + strategy_section
         return prompt
 
     # Fallback: build in code (for backwards compatibility)
@@ -98,8 +103,10 @@ def build_system_prompt(ctx: PipelineContext) -> str:
     parts.append(memory_section)
     parts.append(contradiction_section)
     parts.append(guidance_section)
+
     parts.append(candidate_section)
     parts.append(tool_section)
+    parts.append(strategy_section)
     parts.append(defense_section)
     return "\n".join(parts)
 
@@ -237,6 +244,15 @@ def _build_defense_instruction_section(ctx: PipelineContext) -> str:
         return ""
     lines = ["## Defense Filter"]
     lines.append(f"{ctx.defense_instruction}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _build_strategy_section(ctx: PipelineContext) -> str:
+    if not ctx.response_strategy:
+        return ""
+    lines = ["## Response Strategy"]
+    lines.append(f"{ctx.response_strategy}")
     lines.append("")
     return "\n".join(lines)
 

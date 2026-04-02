@@ -5,9 +5,9 @@ Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
 Read CHANGELOG.md for version history and what changed when.
 
-## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 8 + EVAL PHASE 9 + CALIBRATION PHASE 10
+## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 8 + EVAL PHASE 9 + CALIBRATION PHASE 10 + PHASE 11.3
 
-The full test suite currently collects 1153 tests.
+The full test suite currently collects 1194 tests.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -33,8 +33,11 @@ The full test suite currently collects 1153 tests.
 - core/proactive.py — Proactive behavior evaluation: trigger collection, scoring, bound enforcement, action selection (0 LLM calls)
 - tools/ — Agentic tools package: registry, executor, builtin tools (filesystem, shell, web, browser, calendar)
 - tools/mcp/ — MCP bridge: client protocol, adapter, category inference, register_mcp_tools()
+- core/appraisal.py — Deterministic social appraisal (turn-level target/move/intent/vulnerability inference, 0 LLM calls)
+- core/memory/relationship.py — Relationship-arc memory (events, open loops, context builder)
+- core/strategy.py — Response strategy selector (8 strategies, deterministic, 0 LLM calls)
 - evals/ — Evaluation and benchmark harness: structured scenarios, deterministic runner, assertion-based behavioral checks, text/JSON reporting, CLI entrypoint
-- tests/ — 1153 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, agentic tools Phase 0+1+2+3+4+5+6+7+8, eval Phase 9, and calibration Phase 10 coverage
+- tests/ — 1194 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, agentic tools Phase 0+1+2+3+4+5+6+7+8, eval Phase 9, calibration Phase 10, and Phase 11 coverage
 
 ### What's NOT built (future features)
 - Dynamic value drift (v2.5)
@@ -285,8 +288,34 @@ The full test suite currently collects 1153 tests.
 - `CALIBRATION_NOTES.md` — detailed tuning rationale and tradeoffs
 - No structural changes, no new features — pure threshold tuning + regression locks
 
+## Phase 11 (Lean humanization — in progress)
+Three narrow, additive sub-phases that improve how Nūr interprets, remembers, and responds to social meaning.
+
+### Phase 11.1 (Social appraisal — completed)
+- `core/appraisal.py` — deterministic `appraise_message()` infers social intent before event classification
+- `core/types.py` — `AppraisalFrame` dataclass: target, social_move, intent, blame, vulnerability, affiliation_bid, mixed_affect
+- Pipeline: contagion → appraisal → event classification; external distress no longer damages trust
+- Debug API serializes `appraisal_frame`
+
+### Phase 11.2 (Relationship-arc memory — completed)
+- `core/memory/relationship.py` — `RelationshipMemory`: durable events (rupture, repair, commitment, recurring_tension) + open loops
+- `core/types.py` — `RelationshipEvent`, `OpenLoop`, `RelationshipContext`
+- Digestion extracts relational arcs from session history; generator prompt includes relationship context
+- Schema migration v1→v2 adds `relationship_events` and `open_loops` tables
+
+### Phase 11.3 (Response strategy selector — completed)
+- `core/strategy.py` — deterministic `select_strategy()` picks one of 8 approaches (0 LLM calls)
+- Strategies: validate, reassure, repair, ground, give_space, practical_help, challenge_gently, set_boundary
+- Selection inputs: `AppraisalFrame` + modulators + `PersonProfile` + `RelationshipContext`
+- Priority: boundary → repair → give_space → ground → validate → reassure → practical_help → challenge_gently
+- `STRATEGY_INSTRUCTIONS` dict provides compact prompt directives per strategy
+- Pipeline Step 13b: strategy selected after defense, before generation
+- `PipelineContext.response_strategy` carries the instruction into the generator prompt
+- `DebugState.response_strategy` + debug API serialization
+- `core/types.py` — `ResponseStrategy` enum
+
 ## Testing
-- `pytest` collects 1153 tests
+- `pytest` collects 1194 tests
 - `python -m evals` for the full evaluation benchmark (28 scenarios, 72 assertions)
 - `python -m evals --tag emotional` for suite-specific runs
 - `python -m tests.run_journey_report` for detailed emotional journey output

@@ -354,6 +354,22 @@ class AppraisalFrame:
 
 
 # ---------------------------------------------------------------------------
+# Response strategy
+# ---------------------------------------------------------------------------
+
+class ResponseStrategy(str, Enum):
+    """High-level response approach selected before generation."""
+    VALIDATE = "validate"
+    REASSURE = "reassure"
+    REPAIR = "repair"
+    GROUND = "ground"
+    GIVE_SPACE = "give_space"
+    PRACTICAL_HELP = "practical_help"
+    CHALLENGE_GENTLY = "challenge_gently"
+    SET_BOUNDARY = "set_boundary"
+
+
+# ---------------------------------------------------------------------------
 # Attachment (config, locked to secure in v1)
 # ---------------------------------------------------------------------------
 
@@ -385,6 +401,8 @@ class PipelineContext:
     # v2: inner dialogue candidate and defense instruction
     candidate_response: str = ""
     defense_instruction: str = ""
+    # Phase 11.3: response strategy hint for generator
+    response_strategy: str = ""
     # Agentic tools: summarized tool execution context for generator
     tool_context_summary: str = ""
 

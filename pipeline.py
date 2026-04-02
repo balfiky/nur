@@ -61,6 +61,7 @@ from core.types import (
     ValueHierarchy,
 )
 from core.appraisal import appraise_message
+from core.strategy import select_strategy, STRATEGY_INSTRUCTIONS
 from core.emotional_engine import EmotionalEngine, SPIKE_INTENSITY_THRESHOLD
 from core.memory.short_term import ShortTermMemory
 from core.memory.long_term import LongTermMemory
@@ -168,6 +169,9 @@ class DebugState:
     action_variables: ActionVariables | None = None
     tool_memory_effects: ToolMemoryEffects | None = None
     task_trace: TaskTrace | None = None
+
+    # Phase 11.3: Response strategy
+    response_strategy: str = ""
 
     # Proactive behavior (Phase 8)
     proactive_trace: ProactiveTrace | None = None
@@ -586,6 +590,15 @@ class CognitivePipeline:
         )
         debug.defense_activation = defense
 
+        # ---- Step 13b: RESPONSE STRATEGY (0 LLM calls) ----
+        strategy = select_strategy(
+            appraisal=appraisal,
+            modulators=self.engine.snapshot(),
+            person=person,
+            relationship=relationship_context,
+        )
+        debug.response_strategy = strategy.value
+
         # ---- Step 14: MASTER LLM (1 LLM call) ----
         _ts = time.perf_counter()
         defense_instruction = ""
@@ -606,6 +619,7 @@ class CognitivePipeline:
             contagion=detected,
             candidate_response=filtered_output,
             defense_instruction=defense_instruction,
+            response_strategy=STRATEGY_INSTRUCTIONS.get(strategy, ""),
             tool_context_summary=tool_context_summary,
         )
 
