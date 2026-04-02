@@ -6,6 +6,8 @@ from tools.registry import ToolRegistry
 from tools.executor import ToolExecutor
 from tools.builtin import filesystem, shell, web_search
 from tools.builtin.web_search import WebProvider
+from tools.mcp.adapter import register_mcp_tools
+from tools.mcp.client import MCPClient
 
 
 def register_builtins(

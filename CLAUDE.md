@@ -5,9 +5,9 @@ Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
 Read CHANGELOG.md for version history and what changed when.
 
-## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 4
+## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 5
 
-The full test suite currently collects 873 tests.
+The full test suite currently collects 918 tests.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -30,7 +30,8 @@ The full test suite currently collects 873 tests.
 - core/dual_process/tool_loop.py — Cognitive tool bridge: intent detection, arbiter, execute+appraise loop
 - core/tool_memory.py — Tool episode memory coupling: short-term records, salient long-term writes, self-observations, unresolved items, trust deltas
 - tools/ — Agentic tools package: registry, executor, builtin tools (filesystem, shell, web search)
-- tests/ — 873 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, and agentic tools Phase 0+1+2+3+4 coverage
+- tools/mcp/ — MCP bridge: client protocol, adapter, category inference, register_mcp_tools()
+- tests/ — 918 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, and agentic tools Phase 0+1+2+3+4+5 coverage
 
 ### What's NOT built (future features)
 - Dynamic value drift (v2.5)
@@ -193,8 +194,19 @@ The full test suite currently collects 873 tests.
 - All tool debug fields null on non-tool turns; JSON-serializable
 - No MCP, no multi-step planner, no autonomous background tasks yet
 
+## Agentic Tools Phase 5 (MCP bridge — completed)
+- `tools/mcp/client.py` — `MCPClient` protocol (discover + call), `MCPToolInfo`, `MCPCallResult`, `NullMCPClient`
+- `tools/mcp/adapter.py` — `MCPAdapter` (discover → ToolCapability + handlers), `infer_category()`, `register_mcp_tools()`
+- MCP tools namespaced as `mcp.{server_name}.{tool_name}`
+- Category inference: deterministic keyword matching on name/description, defaults to EXTERNAL_ACTION
+- `mcp_backed=True` + `requires_network=True` flags set automatically
+- Multiple MCP servers can coexist in one registry (different namespaces)
+- All exceptions normalized to ToolResult — no raw MCP errors leak
+- Same cognitive path as builtins: arbiter, appraisal, memory, debug
+- `MCPClient` and `register_mcp_tools` re-exported from `tools` package
+
 ## Testing
-- `pytest` collects 873 tests
+- `pytest` collects 918 tests
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 

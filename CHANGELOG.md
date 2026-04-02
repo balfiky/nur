@@ -4,6 +4,46 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.14.0 — 2026-04-02 (Agentic Tools Phase 5: MCP bridge)
+
+MCP tools are now first-class participants in Nūr cognition — same ToolCapability, same appraisal, same memory coupling as builtins.
+
+### MCP client abstraction (`tools/mcp/client.py`)
+- `MCPClient` protocol: `discover_tools()` → `list[MCPToolInfo]`, `call_tool()` → `MCPCallResult`
+- `MCPToolInfo` dataclass: name, description, input_schema, server_name
+- `MCPCallResult` dataclass: content, is_error, error_message, metadata
+- `NullMCPClient`: safe default when no MCP server is configured (returns empty/errors)
+- Protocol is `runtime_checkable` — any transport implementation is pluggable
+
+### MCP adapter (`tools/mcp/adapter.py`)
+- `MCPAdapter`: discovers MCP tools and converts to ToolCapability + handler functions
+- `infer_category()`: deterministic category assignment from tool name/description keywords
+  - READ_ONLY: get, list, read, search, fetch, query, find, show, view...
+  - WRITE: create, write, update, set, add, put, edit, modify...
+  - DESTRUCTIVE: delete, remove, drop, destroy, purge, clear...
+  - EXTERNAL_ACTION: send, post, publish, notify, email, trigger...
+  - Unknown tools default to EXTERNAL_ACTION (treated cautiously by arbiter)
+- Namespaced tool names: `mcp.{server_name}.{tool_name}` (e.g., `mcp.calendar.list_events`)
+- `mcp_backed=True` and `requires_network=True` flags set automatically
+- Handler functions capture MCPClient via closure; all exceptions normalized to ToolResult
+
+### Registration (`tools/mcp/adapter.py` + `tools/__init__.py`)
+- `register_mcp_tools(client, registry, executor, server_name)` — one-call registration
+- Multiple MCP servers can coexist (different namespaces)
+- Builtin and MCP tools share the same ToolRegistry and ToolExecutor
+- `MCPClient` and `register_mcp_tools` re-exported from `tools` package
+
+### Cognitive invariants preserved
+- MCP tools go through the same arbiter, appraisal, memory coupling, and debug path
+- No separate MCP planning path or agent behavior
+- Inner dialogue / tool loop treats MCP tools identically to builtins
+
+### Tests
+- 45 new tests in `tests/test_agentic_tools_phase5.py`
+- Full suite: 918 tests passing
+
+---
+
 ## v0.13.0 — 2026-04-02 (Agentic Tools Phase 4: runtime debug integration)
 
 Full observability for tool-aware turns through the runtime debug API.
