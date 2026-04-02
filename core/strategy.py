@@ -58,16 +58,30 @@ def select_strategy(
     ):
         return ResponseStrategy.REPAIR
 
+    # 2b. Apology into an active rupture should repair before anything else.
+    if appraisal.social_move == "apology" and has_open_loops:
+        return ResponseStrategy.REPAIR
+
     # 3. Give space — system is drained
     if energy < 0.2:
         return ResponseStrategy.GIVE_SPACE
 
     # 4. Ground — overwhelming activation or mixed signals
-    if arousal > 0.75 and (appraisal.mixed_affect or certainty < 0.3):
+    if (
+        arousal > 0.75 and (appraisal.mixed_affect or certainty < 0.3)
+    ) or (
+        appraisal.mixed_affect and appraisal.vulnerability > 0.5 and arousal > 0.6
+    ):
         return ResponseStrategy.GROUND
 
-    # 5. Validate — user is vulnerable and the issue is external
-    if appraisal.vulnerability > 0.5 and not appraisal.targets_assistant:
+    # 5. Validate — user is vulnerable or distressed and the issue is external
+    if (
+        not appraisal.targets_assistant
+        and (
+            appraisal.vulnerability > 0.5
+            or (appraisal.social_move == "complaint" and valence < 0.45)
+        )
+    ):
         return ResponseStrategy.VALIDATE
 
     # 6. Reassure — moderate vulnerability, decent relationship

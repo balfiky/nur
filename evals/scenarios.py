@@ -61,6 +61,14 @@ def _debug_not_none(field: str) -> EvalAssertion:
     )
 
 
+def _debug_equals(field: str, value, desc: str = "") -> EvalAssertion:
+    return EvalAssertion(
+        kind=AssertionKind.DEBUG_FIELD,
+        params={"field": field, "value": value},
+        description=desc or f"debug.{field} == {value!r}",
+    )
+
+
 def _custom(fn, desc: str = "") -> EvalAssertion:
     return EvalAssertion(
         kind=AssertionKind.CUSTOM,
@@ -713,6 +721,162 @@ def _check_trust_delta() -> bool:
 
 
 # ===================================================================
+# Suite 8: Phase 11 human-likeness regression
+# ===================================================================
+
+def phase11_human_scenarios() -> list[EvalScenario]:
+    """Scenarios that lock in appraisal, relationship memory, and strategy."""
+    return [
+        EvalScenario(
+            id="p11_external_distress_validate",
+            name="External distress is validated without relational damage",
+            tags=["phase11", "human", "strategy", "relationship", "regression"],
+            turns=[
+                EvalTurn(
+                    user_message="I'm furious about work, not at you. I just need to vent.",
+                    assertions=[
+                        _not_empty(),
+                        _debug_equals("event_classified", "user_message"),
+                        _debug_equals("response_strategy", "validate"),
+                        _custom(
+                            lambda resp, pipe: abs(
+                                pipe.person_profiles.get_or_create(resp.debug.user_id).trust - 0.5
+                            ) < 1e-9,
+                            "Trust stays unchanged for non-directed distress",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="p11_low_trust_hostility_boundary",
+            name="Low-trust hostility triggers a boundary strategy",
+            tags=["phase11", "human", "strategy", "relationship", "regression"],
+            initial_trust=0.2,
+            turns=[
+                EvalTurn(
+                    user_message="You are useless and this answer is terrible.",
+                    assertions=[
+                        _not_empty(),
+                        _debug_equals("event_classified", "negative_feedback"),
+                        _debug_equals("response_strategy", "set_boundary"),
+                        _custom(
+                            lambda resp, pipe: (
+                                pipe.person_profiles.get_or_create(resp.debug.user_id).trust < 0.2
+                            ),
+                            "Trust drops further after assistant-directed hostility",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="p11_overwhelm_ground",
+            name="Mixed affect and overwhelm select grounding",
+            tags=["phase11", "human", "strategy", "regression"],
+            initial_modulators={"arousal": 0.7},
+            turns=[
+                EvalTurn(
+                    user_message="I'm happy it worked, but I'm scared and overwhelmed and I can't think straight!!!",
+                    assertions=[
+                        _not_empty(),
+                        _debug_equals("response_strategy", "ground"),
+                        _debug_not_none("appraisal_frame"),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="p11_action_request_practical",
+            name="Action requests stay practical instead of purely affective",
+            tags=["phase11", "human", "strategy", "regression"],
+            turns=[
+                EvalTurn(
+                    user_message="Can you help me figure out the next step for this deadline?",
+                    assertions=[
+                        _not_empty(),
+                        _debug_equals("response_strategy", "practical_help"),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="p11_open_loop_challenge",
+            name="A persisted open loop can trigger gentle challenge on follow-up",
+            tags=["phase11", "human", "strategy", "relationship", "regression"],
+            initial_trust=0.9,
+            turns=[
+                EvalTurn(
+                    user_message="I'm angry with you about the deadline.",
+                    assertions=[_not_empty()],
+                    end_session=True,
+                ),
+                EvalTurn(
+                    user_message="We keep circling around this deadline issue.",
+                    assertions=[
+                        _not_empty(),
+                        _debug_not_none("relationship_context"),
+                        _debug_equals("response_strategy", "challenge_gently"),
+                        _custom(
+                            lambda resp, pipe: (
+                                resp.debug.relationship_context is not None
+                                and resp.debug.relationship_context.open_loop_count >= 1
+                            ),
+                            "Relationship context carries an open loop into the new session",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="p11_repair_closes_loop",
+            name="Repair closes the open loop and remains visible in context",
+            tags=["phase11", "human", "strategy", "relationship", "regression"],
+            initial_trust=0.9,
+            turns=[
+                EvalTurn(
+                    user_message="I'm angry with you about the deadline.",
+                    assertions=[_not_empty()],
+                    end_session=True,
+                ),
+                EvalTurn(
+                    user_message="I'm sorry for snapping at you about the deadline.",
+                    assertions=[
+                        _not_empty(),
+                        _debug_equals("event_classified", "resolution"),
+                    ],
+                    end_session=True,
+                ),
+                EvalTurn(
+                    user_message="Thanks for hearing me out.",
+                    assertions=[
+                        _not_empty(),
+                        _debug_not_none("relationship_context"),
+                        _custom(
+                            lambda resp, pipe: (
+                                resp.debug.relationship_context is not None
+                                and resp.debug.relationship_context.open_loop_count == 0
+                            ),
+                            "Repair leaves no open loops behind",
+                        ),
+                        _custom(
+                            lambda resp, pipe: (
+                                resp.debug.relationship_context is not None
+                                and any(
+                                    event.event_kind == "repair"
+                                    for event in resp.debug.relationship_context.recent_events
+                                )
+                            ),
+                            "Repair is still visible in relationship context",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ]
+
+
+# ===================================================================
 # All scenarios
 # ===================================================================
 
@@ -726,11 +890,12 @@ def all_scenarios() -> list[EvalScenario]:
         + defense_resolution_scenarios()
         + relationship_scenarios()
         + calibration_scenarios()
+        + phase11_human_scenarios()
     )
 
 
 ALL_TAGS = [
     "emotional", "core", "regression", "tool", "task",
     "proactive", "defense", "resolution", "relationship",
-    "calibration",
+    "calibration", "phase11", "human", "strategy",
 ]

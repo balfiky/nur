@@ -27,6 +27,7 @@ from evals.runner import run_scenario, run_scenarios, run_by_tag, _check_asserti
 from evals.reporting import text_report, json_report
 from evals.scenarios import (
     all_scenarios,
+    phase11_human_scenarios,
     emotional_core_scenarios,
     tool_loop_scenarios,
     task_planning_scenarios,
@@ -336,6 +337,9 @@ class TestScenarioDefinitions:
     def test_calibration_count(self):
         assert len(calibration_scenarios()) >= 6
 
+    def test_phase11_count(self):
+        assert len(phase11_human_scenarios()) >= 5
+
 
 # ===================================================================
 # Integration: run scenarios through real pipeline
@@ -485,6 +489,25 @@ class TestCalibrationScenarios:
         assert result.passed, _failures(result)
 
 
+class TestPhase11Scenarios:
+    """Integration tests for automated human-likeness regression."""
+
+    def test_external_distress_validate(self):
+        scenario = phase11_human_scenarios()[0]
+        result = run_scenario(scenario)
+        assert result.passed, _failures(result)
+
+    def test_open_loop_challenge(self):
+        scenario = phase11_human_scenarios()[4]
+        result = run_scenario(scenario)
+        assert result.passed, _failures(result)
+
+    def test_repair_closes_loop(self):
+        scenario = phase11_human_scenarios()[5]
+        result = run_scenario(scenario)
+        assert result.passed, _failures(result)
+
+
 class TestRunnerBatch:
     """Test batch runner and tag filtering."""
 
@@ -505,6 +528,13 @@ class TestRunnerBatch:
         scenarios = all_scenarios()
         report = run_by_tag(scenarios, "nonexistent_tag_xyz")
         assert report.total_scenarios == 0
+
+    def test_run_by_phase11_tag(self):
+        scenarios = all_scenarios()
+        report = run_by_tag(scenarios, "phase11")
+        assert report.total_scenarios >= 5
+        for r in report.results:
+            assert "phase11" in r.tags
 
 
 class TestMetricsCollection:

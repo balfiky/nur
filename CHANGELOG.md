@@ -4,6 +4,41 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.20.1 — 2026-04-02 (Phase 11 eval automation and strategy/appraisal fixes)
+
+Adds an automated Phase 11 human-likeness regression pack and tightens a few strategy/appraisal edges it exposed.
+
+### Eval harness (`evals/types.py`, `evals/runner.py`, `evals/scenarios.py`)
+- `EvalTurn.end_session` allows multi-session scenarios inside the existing eval runner
+- `run_scenario()` now persists `initial_trust` correctly before turns run
+- Runner closes the pipeline after each scenario
+- Added 6 `phase11` scenarios covering:
+  - external distress vs relational harm
+  - low-trust hostility -> `set_boundary`
+  - mixed-affect overwhelm -> `ground`
+  - actionable request -> `practical_help`
+  - persisted open loop -> `challenge_gently`
+  - apology/repair closing an open loop across sessions
+- New one-command regression path: `python -m evals --tag phase11`
+
+### Fixes surfaced by the new evals
+- `core/strategy.py`
+  - external non-directed complaints validate more often instead of defaulting to reassure
+  - mixed affect + vulnerability grounds earlier when the system is already activated
+  - apologies into active open loops choose `repair`
+- `core/appraisal.py`
+  - assistant-addressed apologies now target the assistant correctly
+- `core/memory/digestion.py`
+  - apology-based resolution can resolve existing relationship open loops even when appraisal target is imperfect
+- `pipeline.py`
+  - self-check regeneration now preserves `response_strategy` in the correction context
+
+### Docs
+- `README.md` — added Phase 11 eval command
+- `CLAUDE.md` — updated eval suite counts and Phase 11 tag guidance
+
+---
+
 ## v0.20.0 — 2026-04-02 (Phase 11: appraisal, relationship memory, and response strategy)
 
 Starts the lean Phase 11 track aimed at making Nūr feel more human without adding prompt theater or heavy new subsystems. This release improves how Nūr interprets social meaning, carries relationship continuity across sessions, and selects a concrete response approach before generation.

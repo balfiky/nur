@@ -273,9 +273,9 @@ The full test suite currently collects 1194 tests.
   - Proactive evaluation with configurable idle simulation
   - Performance metrics: LLM calls, tool calls, latency, stage timings, defense activations
 - `evals/reporting.py` — text and JSON report generators
-- `evals/scenarios.py` — 28 golden behavior scenarios across 7 suites
-  - Emotional core (5), tool loop (6), task planning (2), proactive (2), defense/resolution (2), relationship (3), calibration (8)
-  - 72 assertions total
+- `evals/scenarios.py` — 34 golden behavior scenarios across 8 suites
+  - Emotional core (5), tool loop (6), task planning (2), proactive (2), defense/resolution (2), relationship (3), calibration (8), Phase 11 human-likeness (6)
+  - 97 assertions total
 - `evals/__main__.py` — CLI: `python -m evals [--tag TAG] [--json] [--list]`
 - No new user-facing features, no external dependencies
 
@@ -316,8 +316,9 @@ Three narrow, additive sub-phases that improve how Nūr interprets, remembers, a
 
 ## Testing
 - `pytest` collects 1194 tests
-- `python -m evals` for the full evaluation benchmark (28 scenarios, 72 assertions)
+- `python -m evals` for the full evaluation benchmark (34 scenarios, 97 assertions)
 - `python -m evals --tag emotional` for suite-specific runs
+- `python -m evals --tag phase11` for appraisal/relationship/strategy regression
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 

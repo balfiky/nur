@@ -250,6 +250,22 @@ def appraise_message(text: str, detected: DetectedEmotion) -> AppraisalFrame:
     external_context = _contains_any(lower, _EXTERNAL_CONTEXT_MARKERS)
     surprise = _contains_any(lower, _SURPRISE_MARKERS)
 
+    assistant_addressed_apology = apology and (
+        second_person
+        or any(
+            phrase in lower
+            for phrase in (
+                "at you",
+                "to you",
+                "with you",
+                "for snapping at you",
+                "for yelling at you",
+                "for taking it out on you",
+                "for saying that to you",
+            )
+        )
+    )
+
     positive_hits = _count_hits(lower, _POSITIVE_MARKERS + _GRATITUDE_MARKERS)
     negative_hits = _count_hits(lower, _NEGATIVE_MARKERS + _NEGATIVE_EVAL_MARKERS)
     mixed_affect = positive_hits > 0 and negative_hits > 0 and any(
@@ -278,7 +294,7 @@ def appraise_message(text: str, detected: DetectedEmotion) -> AppraisalFrame:
 
     targeted_positive = (
         not explicit_not_at_assistant
-        and (gratitude or apology or (second_person and positive_hits > 0))
+        and (gratitude or assistant_addressed_apology or (second_person and positive_hits > 0))
     )
 
     reasons: list[str] = []
@@ -297,14 +313,14 @@ def appraise_message(text: str, detected: DetectedEmotion) -> AppraisalFrame:
 
     if targeted_negative:
         primary_target = "assistant"
+    elif targeted_positive:
+        primary_target = "assistant"
     elif self_target:
         primary_target = "self"
     elif explicit_not_at_assistant or betrayal or external_context or negative_hits > 0:
         primary_target = "external"
     elif action_request or support_request:
         primary_target = "shared_problem"
-    elif targeted_positive:
-        primary_target = "assistant"
     else:
         primary_target = "unknown"
 

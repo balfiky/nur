@@ -72,6 +72,7 @@ class EvalTurn:
     user_message: str
     assertions: list[EvalAssertion] = field(default_factory=list)
     user_id: str = "eval_user"
+    end_session: bool = False
 
 
 @dataclass

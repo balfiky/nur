@@ -55,3 +55,12 @@ class TestAppraisal:
         assert appraisal.social_move == "apology"
         assert appraisal.inferred_intent == "repair"
         assert appraisal.affiliation_bid >= 0.8
+
+    def test_assistant_addressed_apology_targets_assistant(self):
+        appraisal = appraise_message(
+            "I'm sorry for snapping at you about the deadline.",
+            _detected(arousal=0.5, valence=0.35, intensity=0.5),
+        )
+        assert appraisal.social_move == "apology"
+        assert appraisal.targets_assistant is True
+        assert appraisal.primary_target == "assistant"

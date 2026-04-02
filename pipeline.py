@@ -662,6 +662,7 @@ class CognitivePipeline:
                 contagion=ctx.contagion,
                 candidate_response=correction_candidate,
                 defense_instruction=ctx.defense_instruction,
+                response_strategy=ctx.response_strategy,
             )
             gen_result = self.generator.generate(
                 correction_ctx,

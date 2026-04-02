@@ -339,7 +339,14 @@ def _write_relationship_updates(
         user_messages = user_messages[-len(user_events):]
 
     for event, text in zip(user_events, user_messages):
-        if not bool(event.metadata.get("targets_assistant")):
+        targets_assistant = bool(event.metadata.get("targets_assistant"))
+        apology_repair = (
+            event.event_type == EventType.RESOLUTION
+            and event.metadata.get("social_move") == "apology"
+            and relationship_memory.count_open_loops(source_person) > 0
+        )
+
+        if not targets_assistant and not apology_repair:
             continue
         topic = _extract_topic_hint(text)
         related_key = _derive_related_key(text, topic)

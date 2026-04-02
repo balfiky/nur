@@ -95,6 +95,19 @@ class TestRepair:
         )
         assert s != ResponseStrategy.REPAIR
 
+    def test_apology_into_open_loop_repairs(self):
+        s = select_strategy(
+            appraisal=_appraisal(
+                social_move="apology",
+                inferred_intent="repair",
+                vulnerability=0.65,
+            ),
+            modulators=_modulators(),
+            person=_person(trust=0.7),
+            relationship=_relationship(open_loops=1),
+        )
+        assert s == ResponseStrategy.REPAIR
+
 
 # ---------------------------------------------------------------------------
 # Priority 3: give_space — low energy or withdrawal
@@ -136,6 +149,13 @@ class TestGround:
         )
         assert s == ResponseStrategy.GROUND
 
+    def test_mixed_affect_vulnerability_ground(self):
+        s = select_strategy(
+            appraisal=_appraisal(mixed_affect=True, vulnerability=0.6),
+            modulators=_modulators(arousal=0.65),
+        )
+        assert s == ResponseStrategy.GROUND
+
 
 # ---------------------------------------------------------------------------
 # Priority 5: validate — vulnerability + external target
@@ -169,6 +189,18 @@ class TestValidate:
         s = select_strategy(
             appraisal=_appraisal(),
             modulators=_modulators(valence=0.2),
+        )
+        assert s == ResponseStrategy.VALIDATE
+
+    def test_external_complaint_validates(self):
+        s = select_strategy(
+            appraisal=_appraisal(
+                social_move="complaint",
+                primary_target="external",
+                targets_assistant=False,
+                vulnerability=0.45,
+            ),
+            modulators=_modulators(valence=0.4),
         )
         assert s == ResponseStrategy.VALIDATE
 

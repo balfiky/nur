@@ -296,60 +296,70 @@ def run_scenario(scenario: EvalScenario) -> EvalResult:
     t_start = time.perf_counter()
 
     pipeline = _make_pipeline(scenario)
+    try:
+        # Apply initial trust if specified
+        if scenario.initial_trust is not None:
+            seen_users: set[str] = set()
+            for turn in scenario.turns:
+                if turn.user_id in seen_users:
+                    continue
+                person = pipeline.person_profiles.get_or_create(turn.user_id)
+                person.trust = scenario.initial_trust
+                pipeline.person_profiles.save(person)
+                seen_users.add(turn.user_id)
 
-    # Apply initial trust if specified
-    if scenario.initial_trust is not None:
-        for turn in scenario.turns:
-            person = pipeline.person_profiles.get_or_create(turn.user_id)
-            person.trust = scenario.initial_trust
+        turn_results: list[TurnResult] = []
+        responses: list[PipelineResponse] = []
 
-    turn_results: list[TurnResult] = []
-    responses: list[PipelineResponse] = []
+        for i, turn in enumerate(scenario.turns):
+            resp = pipeline.process(turn.user_message, user_id=turn.user_id)
+            responses.append(resp)
 
-    for i, turn in enumerate(scenario.turns):
-        resp = pipeline.process(turn.user_message, user_id=turn.user_id)
-        responses.append(resp)
+            assertion_results = [
+                _check_assertion(a, resp, pipeline)
+                for a in turn.assertions
+            ]
 
-        assertion_results = [
-            _check_assertion(a, resp, pipeline)
-            for a in turn.assertions
-        ]
+            turn_results.append(TurnResult(
+                turn_index=i,
+                user_message=turn.user_message,
+                response=resp.response,
+                assertion_results=assertion_results,
+                modulator_snapshot=dict(resp.debug.modulator_snapshot),
+            ))
 
-        turn_results.append(TurnResult(
-            turn_index=i,
-            user_message=turn.user_message,
-            response=resp.response,
-            assertion_results=assertion_results,
-            modulator_snapshot=dict(resp.debug.modulator_snapshot),
-        ))
+            if turn.end_session:
+                pipeline.end_session(user_id=turn.user_id)
 
-    # Proactive check
-    proactive_results: list[AssertionResult] = []
-    proactive_response: PipelineResponse | None = None
-    if scenario.check_proactive and scenario.proactive_assertions:
-        # Simulate idle time
-        pipeline._last_turn_time = time.time() - scenario.proactive_idle_seconds
-        proactive_response = pipeline.process_proactive(
-            user_id=scenario.turns[-1].user_id if scenario.turns else "eval_user",
-            idle_threshold=1.0,  # low threshold since we control idle_seconds
-        )
-        for a in scenario.proactive_assertions:
-            proactive_results.append(
-                _check_proactive_assertion(a, proactive_response, pipeline)
+        # Proactive check
+        proactive_results: list[AssertionResult] = []
+        proactive_response: PipelineResponse | None = None
+        if scenario.check_proactive and scenario.proactive_assertions:
+            # Simulate idle time
+            pipeline._last_turn_time = time.time() - scenario.proactive_idle_seconds
+            proactive_response = pipeline.process_proactive(
+                user_id=scenario.turns[-1].user_id if scenario.turns else "eval_user",
+                idle_threshold=1.0,  # low threshold since we control idle_seconds
             )
+            for a in scenario.proactive_assertions:
+                proactive_results.append(
+                    _check_proactive_assertion(a, proactive_response, pipeline)
+                )
 
-    elapsed = (time.perf_counter() - t_start) * 1000
-    metrics = _collect_metrics(responses, proactive_response)
+        elapsed = (time.perf_counter() - t_start) * 1000
+        metrics = _collect_metrics(responses, proactive_response)
 
-    return EvalResult(
-        scenario_id=scenario.id,
-        scenario_name=scenario.name,
-        tags=list(scenario.tags),
-        turn_results=turn_results,
-        proactive_results=proactive_results,
-        metrics=metrics,
-        elapsed_ms=elapsed,
-    )
+        return EvalResult(
+            scenario_id=scenario.id,
+            scenario_name=scenario.name,
+            tags=list(scenario.tags),
+            turn_results=turn_results,
+            proactive_results=proactive_results,
+            metrics=metrics,
+            elapsed_ms=elapsed,
+        )
+    finally:
+        pipeline.close()
 
 
 def run_scenarios(scenarios: list[EvalScenario]) -> EvalReport:

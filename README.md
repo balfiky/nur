@@ -66,6 +66,9 @@ Open http://localhost:8000 for the chat UI + debug dashboard.
 # All tests
 pytest
 
+# Phase 11 human-likeness regression pack
+python -m evals --tag phase11
+
 # Specific test suite
 pytest tests/test_emotional_journey.py -v
 
