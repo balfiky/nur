@@ -204,7 +204,7 @@ class TestMessageNormalization:
                     await channel.handle_update(
                         _make_update(user_id=42, chat_id=42)
                     )
-                    assert "telegram:42" in manager.active_sessions
+                    assert "telegram:42:42" in manager.active_sessions
                 finally:
                     await manager.shutdown()
 
@@ -370,12 +370,12 @@ class TestCommands:
                     await channel.handle_update(
                         _make_update(update_id=1, text="hi")
                     )
-                    assert "telegram:100" in manager.active_sessions
+                    assert "telegram:100:100" in manager.active_sessions
 
                     await channel.handle_update(
                         _make_update(update_id=2, text="/reset")
                     )
-                    assert "telegram:100" not in manager.active_sessions
+                    assert "telegram:100:100" not in manager.active_sessions
                     reset_msg = client.sent_messages[-1]["text"].lower()
                     assert "session" in reset_msg
                 finally:

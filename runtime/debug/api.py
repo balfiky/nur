@@ -33,7 +33,8 @@ def create_debug_app(session_manager: SessionManager) -> FastAPI:
         now = time.time()
         return [
             {
-                "rel_key": key,
+                "session_key": key,
+                "rel_key": session.rel_key,
                 "user_id": session.user_id,
                 "last_activity": session.last_activity,
                 "idle_seconds": round(now - session.last_activity, 1),
@@ -59,7 +60,8 @@ def create_debug_app(session_manager: SessionManager) -> FastAPI:
         unresolved = engine.active_unresolved()
 
         result: dict = {
-            "rel_key": rel_key,
+            "session_key": rel_key,
+            "rel_key": session.rel_key,
             "user_id": session.user_id,
             "last_activity": session.last_activity,
             # Live modulator state

@@ -20,13 +20,18 @@ class JarvisApp:
 
     Wires together the session manager, LLM backend, channels, and debug API.
     Handles graceful shutdown on SIGINT / SIGTERM.
+
+    Channel startup is config-driven:
+      - ``console_enabled=True``  → interactive stdin/stdout loop
+      - ``telegram_token`` set    → Telegram long-polling (background task)
+      - Both disabled             → debug API only (blocks on shutdown event)
     """
 
     def __init__(self, config: RuntimeConfig | None = None) -> None:
         self.config = config or RuntimeConfig()
         self.session_manager = SessionManager(
             config=self.config,
-            backend_factory=create_llm_backend,
+            backend_factory=lambda: create_llm_backend(self.config),
         )
         self._shutdown_event = asyncio.Event()
         self._console: ConsoleChannel | None = None
@@ -52,11 +57,14 @@ class JarvisApp:
         if self.config.telegram_token:
             telegram_task = asyncio.create_task(self._start_telegram())
 
-        # Console channel runs in foreground
-        self._console = ConsoleChannel(self.session_manager)
-
         try:
-            await self._console.start()
+            if self.config.console_enabled:
+                # Console runs in foreground — blocks until /quit or EOF
+                self._console = ConsoleChannel(self.session_manager)
+                await self._console.start()
+            else:
+                # Headless mode — block until shutdown signal
+                await self._shutdown_event.wait()
         except asyncio.CancelledError:
             pass
         finally:
@@ -131,6 +139,9 @@ class JarvisApp:
     def _signal_shutdown(self) -> None:
         """Signal handler — triggers graceful shutdown."""
         log.info("Shutdown signal received")
+        # Unblock headless wait
+        self._shutdown_event.set()
+        # Stop console if running
         if self._console is not None:
             asyncio.get_running_loop().call_soon_threadsafe(
                 lambda: asyncio.ensure_future(self._console.stop())

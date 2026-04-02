@@ -26,6 +26,16 @@ class UserSession:
 
     Messages are enqueued and processed one at a time by a background worker
     that runs the synchronous pipeline in a worker thread via asyncio.to_thread.
+
+    Parameters
+    ----------
+    session_key : str
+        Full session identity (platform:user_id:chat_id).
+    rel_key : str
+        Relationship identity (platform:user_id) — used for storage paths.
+    user_lock : asyncio.Lock | None
+        Shared per-user lock that serializes DB access across sessions
+        for the same user (different chat contexts).
     """
 
     def __init__(
@@ -35,7 +45,11 @@ class UserSession:
         pipeline: CognitivePipeline,
         state_path: str,
         max_queue: int = 3,
+        *,
+        session_key: str | None = None,
+        user_lock: asyncio.Lock | None = None,
     ) -> None:
+        self.session_key = session_key or rel_key
         self.rel_key = rel_key
         self.user_id = user_id
         self.pipeline = pipeline
@@ -45,6 +59,8 @@ class UserSession:
         self._queue: asyncio.Queue[MessageEnvelope] = asyncio.Queue(maxsize=max_queue)
         self._worker_task: asyncio.Task | None = None
         self._stopped = False
+        self._processing = False
+        self._user_lock = user_lock
         self.last_debug: DebugState | None = None
 
     # ------------------------------------------------------------------
@@ -55,7 +71,7 @@ class UserSession:
         """Start the background worker that drains the message queue."""
         self._stopped = False
         self._worker_task = asyncio.get_running_loop().create_task(
-            self._worker(), name=f"session-worker-{self.rel_key}",
+            self._worker(), name=f"session-worker-{self.session_key}",
         )
 
     async def drain_and_close(self) -> None:
@@ -72,23 +88,27 @@ class UserSession:
             except asyncio.CancelledError:
                 pass
 
-        # End session + save state in worker thread
-        await asyncio.to_thread(self._end_and_save)
+        # End session + save state in worker thread (with user lock if present)
+        if self._user_lock is not None:
+            async with self._user_lock:
+                await asyncio.to_thread(self._end_and_save)
+        else:
+            await asyncio.to_thread(self._end_and_save)
 
     def _end_and_save(self) -> None:
         """Synchronous: end session, persist state, close pipeline."""
         try:
             self.pipeline.end_session(user_id=self.user_id)
         except Exception:
-            log.exception("Error ending session for %s", self.rel_key)
+            log.exception("Error ending session for %s", self.session_key)
         try:
             save_engine_state(self.state_path, self.pipeline.engine.snapshot())
         except Exception:
-            log.exception("Error saving state for %s", self.rel_key)
+            log.exception("Error saving state for %s", self.session_key)
         try:
             self.pipeline.close()
         except Exception:
-            log.exception("Error closing pipeline for %s", self.rel_key)
+            log.exception("Error closing pipeline for %s", self.session_key)
 
     def save_state(self) -> None:
         """Save current engine state without ending the session."""
@@ -102,9 +122,10 @@ class UserSession:
         """Enqueue a message and wait for the response.
 
         Raises RuntimeError if the queue is full (backpressure).
+        Updates last_activity on acceptance (enqueue), not just on completion.
         """
         if self._stopped:
-            raise RuntimeError(f"Session {self.rel_key} is shutting down")
+            raise RuntimeError(f"Session {self.session_key} is shutting down")
 
         loop = asyncio.get_running_loop()
         future: asyncio.Future[str] = loop.create_future()
@@ -114,9 +135,12 @@ class UserSession:
             self._queue.put_nowait(envelope)
         except asyncio.QueueFull:
             raise RuntimeError(
-                f"Message queue full for {self.rel_key} "
+                f"Message queue full for {self.session_key} "
                 f"(max {self._queue.maxsize})"
             )
+
+        # Mark acceptance time — keeps session alive during long processing
+        self.last_activity = time.time()
 
         return await future
 
@@ -132,10 +156,17 @@ class UserSession:
             except asyncio.CancelledError:
                 break
 
+            self._processing = True
             try:
-                result = await asyncio.to_thread(
-                    self.pipeline.process, envelope.text, envelope.user_id,
-                )
+                if self._user_lock is not None:
+                    async with self._user_lock:
+                        result = await asyncio.to_thread(
+                            self.pipeline.process, envelope.text, envelope.user_id,
+                        )
+                else:
+                    result = await asyncio.to_thread(
+                        self.pipeline.process, envelope.text, envelope.user_id,
+                    )
                 self.last_debug = result.debug
                 if not envelope.future.cancelled():
                     envelope.future.set_result(result.response)
@@ -147,5 +178,6 @@ class UserSession:
                 if not envelope.future.done():
                     envelope.future.set_exception(exc)
             finally:
+                self._processing = False
                 self._queue.task_done()
                 self.last_activity = time.time()

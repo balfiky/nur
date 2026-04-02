@@ -262,8 +262,8 @@ class TelegramChannel:
             await self._client.send_message(chat_id, f"Unknown command: {cmd}")
 
     async def _cmd_status(self, user_id: str, chat_id: int) -> None:
-        rel_key = f"telegram:{user_id}"
-        session = self._manager.active_sessions.get(rel_key)
+        session_key = f"telegram:{user_id}:{chat_id}"
+        session = self._manager.active_sessions.get(session_key)
         if session is None:
             await self._client.send_message(chat_id, "No active session.")
             return
@@ -277,13 +277,13 @@ class TelegramChannel:
         await self._client.send_message(chat_id, "\n".join(lines))
 
     async def _cmd_reset(self, user_id: str, chat_id: int) -> None:
-        rel_key = f"telegram:{user_id}"
-        session = self._manager.active_sessions.get(rel_key)
+        session_key = f"telegram:{user_id}:{chat_id}"
+        session = self._manager.active_sessions.get(session_key)
         if session is None:
             await self._client.send_message(chat_id, "No active session to reset.")
             return
 
-        await self._manager.evict_session(rel_key)
+        await self._manager.evict_session(session_key)
         await self._client.send_message(
             chat_id, "Session digested, state saved, session closed.",
         )

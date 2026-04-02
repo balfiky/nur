@@ -6,10 +6,11 @@ Jarvis is an AI assistant with persistent emotional state. It doesn't simulate e
 
 ## Status
 
-**v2 is complete.** All core systems built, tested (476 tests), zero regressions.
+**v2 + Jarvis Runtime complete.** All core systems built, tested (643 tests), zero regressions.
 
 v1 gave it a brain that remembers and adapts.
 v2 gives it deliberation, dread, and self-protection.
+The runtime gives it a body — sessions, channels, persistence, and debug inspection.
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 See [PROJECT_NUR_ARCHITECTURE.md](PROJECT_NUR_ARCHITECTURE.md) for the full vision.
@@ -29,14 +30,23 @@ cd nur
 pip install -e ".[dev]"
 ```
 
-### Run the Server
+### Run via Jarvis Runtime (recommended)
 
 ```bash
 # With real LLM (MiniMax M2.7-highspeed)
 export MINIMAX_API_KEY="your-key-here"
-uvicorn interface.api:app --reload --port 8000
+python main.py
 
 # Without LLM (mock backend — useful for development)
+python main.py
+```
+
+Console channel starts by default. Set `telegram_token` in `runtime_config.yaml` to enable Telegram.
+Debug API at http://127.0.0.1:8077/sessions.
+
+### Run the standalone web server
+
+```bash
 uvicorn interface.api:app --reload --port 8000
 ```
 
@@ -116,7 +126,7 @@ These combine to produce emergent emotions: arousal=0.9 + valence=0.1 + certaint
 
 ```
  1. ANTICIPATION: predict emotional trajectory from context (0 LLM calls)
- 2. Contagion: detect user tone -> bounded mirror (1 LLM call)
+ 2. Contagion: detect user tone -> bounded mirror (0 LLM calls — rule-based)
  3. Context switch: load person profile baseline_shift
  4. PSI engine: update 6 modulators from event + drives + energy
  5. RESOLUTION: check for new/resolved tension items (0 LLM calls)
@@ -133,7 +143,7 @@ These combine to produce emergent emotions: arousal=0.9 + valence=0.1 + certaint
 16. [Session end] Digestion (0-1 LLM call)
 ```
 
-**LLM calls per message:** 5-9 (typical: 6)
+**LLM calls per message:** 1-6 (typical: 1)
 
 ---
 
@@ -245,6 +255,24 @@ nur/
 |-- PROJECT_NUR_BUILD_PLAN.md        # v1/v2 roadmap with build phases
 |-- BUILD_ALL.md                     # Phase-by-phase build instructions
 |-- CHANGELOG.md                     # Version history
+|-- runtime/                         # Jarvis Runtime — lifecycle, channels, persistence
+|   |-- app.py                       # JarvisApp orchestrator + signal handling
+|   |-- config.py                    # RuntimeConfig dataclass + path helpers
+|   |-- channels/
+|   |   |-- base.py                  # Channel protocol (start/stop)
+|   |   |-- console.py               # Async stdin console channel
+|   |   +-- telegram.py              # Telegram long-polling + commands + typing
+|   |-- sessions/
+|   |   |-- manager.py               # SessionManager: create, evict, shutdown, backpressure
+|   |   |-- user_session.py          # UserSession: queue + worker + asyncio.to_thread
+|   |   +-- persistence.py           # Atomic engine_state.json save/load
+|   |-- llm/
+|   |   +-- backend.py               # create_llm_backend() factory
+|   +-- debug/
+|       +-- api.py                   # Session-aware debug endpoints (FastAPI)
+|
+|-- main.py                          # Runtime entry point (python main.py)
+|-- runtime_config.yaml              # Runtime configuration (data_dir, limits, Telegram, debug)
 |-- CLAUDE.md                        # AI assistant instructions + v2 design spec
 |-- pyproject.toml                   # Python project config
 +-- README.md                        # This file
@@ -441,6 +469,14 @@ pipe.apply_rest(hours=8.0)
 }
 ```
 
+### Runtime Debug API (port 8077)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/sessions` | List active sessions (session_key, rel_key, user_id, idle_seconds, queue_size) |
+| GET | `/sessions/{session_key}/debug` | Live modulators, memory counts, unresolved items, last_turn debug |
+| POST | `/sessions/{session_key}/reset` | Evict session (digest + persist + close) |
+
 ### Debug Dashboard
 
 The web UI at `/` includes real-time visualization of:
@@ -521,13 +557,20 @@ All magic numbers live in YAML files. No hardcoded thresholds in module code. Th
 | test_defense_mechanisms | 36 | All defense types, suppression, comfort threshold, logging (v2) |
 | test_pipeline_v2 | 29 | v2 pipeline integration, LLM budget, v1 preservation (v2) |
 | test_v2_scenarios | 30 | v2 calibration: deflection, disagreement, anticipation, degradation (v2) |
-| **Total** | **476** | |
+| test_regressions | 28 | Regression locks for v2 fixes (fixes 1-13, spike-only, sticky-spike) |
+| test_phase0 | 26 | Restore, elapsed decay, close, shared self-profile, schema versions |
+| test_runtime | 21 | Console e2e, serialization, persistence, lifecycle, shared self-model |
+| test_telegram | 26 | Dedupe, normalization, allowlist, commands, typing indicators |
+| test_phase3 | 20 | Inactivity timeout, graceful shutdown, backpressure, WAL mode |
+| test_debug_api | 15 | Session listing, per-user debug, reset, isolation |
+| test_runtime_config | 17 | Config loading, backend selection, channel config |
+| **Total** | **643** | |
 
 ---
 
 ## Future Roadmap
 
-v2 phases 1-7 are complete. Future features:
+v2 phases 1-7 and runtime phases 0-4 are complete. Future features:
 
 | Feature | Description |
 |---------|-------------|
@@ -535,6 +578,7 @@ v2 phases 1-7 are complete. Future features:
 | v2.6 Attachment variants | Unlock anxious/avoidant/disorganized styles |
 | v2.7 Deep self-reflection | Periodic pattern extraction across sessions |
 | v2.8 Growth tracking | Milestone detection and personality evolution |
+| Runtime Phase 5 | WhatsApp channel, health endpoint, voice/image support, vector retrieval |
 
 ---
 

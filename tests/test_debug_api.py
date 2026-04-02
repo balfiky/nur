@@ -37,8 +37,9 @@ def _mock_factory():
 
 
 async def _send(manager: SessionManager, text: str,
-                user_id: str = "user", platform: str = "console") -> str:
-    return await manager.handle_message(platform, user_id, "direct", text)
+                user_id: str = "user", platform: str = "console",
+                chat_id: str = "direct") -> str:
+    return await manager.handle_message(platform, user_id, chat_id, text)
 
 
 def _setup(tmpdir: str, **config_overrides):
@@ -83,9 +84,9 @@ class TestSessionListing:
                     sessions = resp.json()
                     assert len(sessions) == 2
 
-                    keys = {s["rel_key"] for s in sessions}
-                    assert "console:alice" in keys
-                    assert "console:bob" in keys
+                    keys = {s["session_key"] for s in sessions}
+                    assert "console:alice:direct" in keys
+                    assert "console:bob:direct" in keys
                 finally:
                     await manager.shutdown()
 
@@ -102,6 +103,7 @@ class TestSessionListing:
                     resp = client.get("/sessions")
                     session = resp.json()[0]
 
+                    assert session["session_key"] == "console:alice:direct"
                     assert session["rel_key"] == "console:alice"
                     assert session["user_id"] == "alice"
                     assert isinstance(session["last_activity"], float)
@@ -141,10 +143,11 @@ class TestPerUserDebug:
                 try:
                     await _send(manager, "I am angry!", user_id="alice")
 
-                    resp = client.get("/sessions/console:alice/debug")
+                    resp = client.get("/sessions/console:alice:direct/debug")
                     assert resp.status_code == 200
                     data = resp.json()
 
+                    assert data["session_key"] == "console:alice:direct"
                     assert data["rel_key"] == "console:alice"
                     assert data["user_id"] == "alice"
                     assert isinstance(data["last_activity"], float)
@@ -180,7 +183,7 @@ class TestPerUserDebug:
                 try:
                     await _send(manager, "hello there", user_id="bob")
 
-                    resp = client.get("/sessions/console:bob/debug")
+                    resp = client.get("/sessions/console:bob:direct/debug")
                     data = resp.json()
 
                     last_turn = data["last_turn"]
@@ -204,7 +207,7 @@ class TestPerUserDebug:
                 try:
                     await _send(manager, "test", user_id="user")
 
-                    resp = client.get("/sessions/console:user/debug")
+                    resp = client.get("/sessions/console:user:direct/debug")
                     last_turn = resp.json()["last_turn"]
 
                     # v2 fields present (may be null with MockLLMBackend)
@@ -222,7 +225,7 @@ class TestPerUserDebug:
         """Requesting debug for a non-existent session returns 404."""
         with tempfile.TemporaryDirectory() as tmpdir:
             _, client, _ = _setup(tmpdir)
-            resp = client.get("/sessions/console:nobody/debug")
+            resp = client.get("/sessions/console:nobody:direct/debug")
             assert resp.status_code == 404
 
     def test_debug_modulators_reflect_emotion(self):
@@ -233,7 +236,7 @@ class TestPerUserDebug:
                 try:
                     await _send(manager, "I'm absolutely furious!", user_id="tester")
 
-                    resp = client.get("/sessions/console:tester/debug")
+                    resp = client.get("/sessions/console:tester:direct/debug")
                     mods = resp.json()["modulators"]
                     # After angry message, arousal should be elevated (> baseline 0.5)
                     assert mods["arousal"] > 0.5
@@ -256,16 +259,16 @@ class TestPerUserReset:
                 manager, _, app = _setup(tmpdir)
                 try:
                     await _send(manager, "hi", user_id="alice")
-                    assert "console:alice" in manager.active_sessions
+                    assert "console:alice:direct" in manager.active_sessions
 
                     ac = await _async_client(app)
                     async with ac:
-                        resp = await ac.post("/sessions/console:alice/reset")
+                        resp = await ac.post("/sessions/console:alice:direct/reset")
                     assert resp.status_code == 200
                     assert resp.json()["status"] == "evicted"
-                    assert resp.json()["rel_key"] == "console:alice"
+                    assert resp.json()["rel_key"] == "console:alice:direct"
 
-                    assert "console:alice" not in manager.active_sessions
+                    assert "console:alice:direct" not in manager.active_sessions
                 finally:
                     await manager.shutdown()
 
@@ -275,7 +278,7 @@ class TestPerUserReset:
         """Reset for a non-existent session returns 404."""
         with tempfile.TemporaryDirectory() as tmpdir:
             _, client, _ = _setup(tmpdir)
-            resp = client.post("/sessions/console:nobody/reset")
+            resp = client.post("/sessions/console:nobody:direct/reset")
             assert resp.status_code == 404
 
     def test_reset_removes_from_listing(self):
@@ -289,12 +292,12 @@ class TestPerUserReset:
 
                     ac = await _async_client(app)
                     async with ac:
-                        await ac.post("/sessions/console:alice/reset")
+                        await ac.post("/sessions/console:alice:direct/reset")
                         resp = await ac.get("/sessions")
 
-                    keys = {s["rel_key"] for s in resp.json()}
-                    assert "console:alice" not in keys
-                    assert "console:bob" in keys
+                    keys = {s["session_key"] for s in resp.json()}
+                    assert "console:alice:direct" not in keys
+                    assert "console:bob:direct" in keys
                 finally:
                     await manager.shutdown()
 
@@ -315,8 +318,8 @@ class TestSessionIsolation:
                     await _send(manager, "I am so happy!", user_id="alice")
                     await _send(manager, "I am really angry!", user_id="bob")
 
-                    alice_debug = client.get("/sessions/console:alice/debug").json()
-                    bob_debug = client.get("/sessions/console:bob/debug").json()
+                    alice_debug = client.get("/sessions/console:alice:direct/debug").json()
+                    bob_debug = client.get("/sessions/console:bob:direct/debug").json()
 
                     # Different users, different emotional states
                     assert alice_debug["user_id"] == "alice"
@@ -343,15 +346,15 @@ class TestSessionIsolation:
 
                     ac = await _async_client(app)
                     async with ac:
-                        await ac.post("/sessions/console:alice/reset")
+                        await ac.post("/sessions/console:alice:direct/reset")
 
                         # Bob should still be accessible
-                        resp = await ac.get("/sessions/console:bob/debug")
+                        resp = await ac.get("/sessions/console:bob:direct/debug")
                         assert resp.status_code == 200
                         assert resp.json()["user_id"] == "bob"
 
                         # Alice should be gone
-                        resp = await ac.get("/sessions/console:alice/debug")
+                        resp = await ac.get("/sessions/console:alice:direct/debug")
                         assert resp.status_code == 404
                 finally:
                     await manager.shutdown()
@@ -367,8 +370,8 @@ class TestSessionIsolation:
                     await _send(manager, "alice message", user_id="alice")
                     await _send(manager, "bob message", user_id="bob")
 
-                    alice_turn = client.get("/sessions/console:alice/debug").json()["last_turn"]
-                    bob_turn = client.get("/sessions/console:bob/debug").json()["last_turn"]
+                    alice_turn = client.get("/sessions/console:alice:direct/debug").json()["last_turn"]
+                    bob_turn = client.get("/sessions/console:bob:direct/debug").json()["last_turn"]
 
                     assert alice_turn["user_message"] == "alice message"
                     assert bob_turn["user_message"] == "bob message"

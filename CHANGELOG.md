@@ -4,6 +4,55 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.8.1 — 2026-04-02 (Runtime pre-merge fixes)
+
+Five pre-merge fixes closing spec gaps in the Jarvis Runtime.
+
+### Fix 1: Session identity semantics (`runtime/sessions/manager.py`, `user_session.py`)
+- Sessions now keyed by **session_key** (`platform:user_id:chat_id`), not rel_key
+- DM and group-chat contexts for the same user get separate active sessions
+- Relationship state (DB, engine_state.json) still keyed by **rel_key** (`platform:user_id`)
+- Per-user `asyncio.Lock` serializes pipeline access across chat contexts for the same user
+- `UserSession` gains `session_key`, `_user_lock`, `_processing` fields
+- Debug API listing now includes both `session_key` and `rel_key` fields
+
+### Fix 2: Config-driven LLM backend (`runtime/config.py`, `runtime/llm/backend.py`, `main.py`)
+- `RuntimeConfig.from_yaml(path)` classmethod loads `runtime_config.yaml` at startup
+- `main.py` now loads config from YAML instead of using defaults
+- `RuntimeConfig` gains `llm_backend` ("auto"/"minimax"/"mock") and `minimax_api_key` fields
+- `create_llm_backend(config)` uses config for backend selection, falls back to env var
+- `runtime_config.yaml` updated with `llm_backend`, `minimax_api_key`, `console_enabled` fields
+
+### Fix 3: Config-driven channel startup (`runtime/app.py`, `runtime/config.py`)
+- `RuntimeConfig` gains `console_enabled: bool = True`
+- `JarvisApp.run()` starts console only when `console_enabled=True`
+- Headless mode: when console disabled, blocks on `_shutdown_event.wait()`
+- Signal handler sets `_shutdown_event` for both console and headless modes
+- Telegram-only runtime works without console
+
+### Fix 4: Inactivity timeout semantics (`runtime/sessions/manager.py`, `user_session.py`)
+- Idle timer resets on message **acceptance** (enqueue), not only after processing completes
+- `_timeout_evict` checks `_processing` flag and queue state before evicting
+- Sessions with in-flight work or queued messages are never evicted — timer reschedules
+- `UserSession.send()` updates `last_activity` on enqueue
+- `UserSession._processing` flag set during pipeline.process()
+
+### Fix 5: Docs sync
+- CHANGELOG.md, CLAUDE.md, README.md updated to match final implementation
+- Design doc (`JARVIS_RUNTIME_DESIGN_REVISED.md`) left as-is — it is a pre-implementation spec; intentional deviations documented in CLAUDE.md
+
+### Testing
+- 643 tests total (26 new)
+- `TestSessionIdentitySeparation` (5): DM/group separation, independent state, shared storage, per-user lock
+- `TestConfigFromYaml` (7): full load, missing/empty/partial files, unknown keys, allowlist
+- `TestBackendSelection` (5): mock forced, auto fallback, env var, no config
+- `TestChannelConfig` (5): console enabled/disabled, headless, from_yaml
+- `TestTimeoutSemantics` (4): in-flight guard, queued guard, true inactivity, acceptance reset
+- All existing tests updated for session_key keying
+- Zero regressions
+
+---
+
 ## v0.8.0 — 2026-04-02 (Phase 4: Runtime debug API)
 
 Session-aware debug API replacing the old single-pipeline debug model.

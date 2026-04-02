@@ -5,9 +5,9 @@ Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
 Read CHANGELOG.md for version history and what changed when.
 
-## Status: v2 COMPLETE + RUNTIME PHASE 4
+## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES
 
-v1 (288) + v2 (188) + regression (28) + Phase 0 (26) + Runtime Phase 1 (21) + Telegram (26) + Phase 3 (20) + Debug API (15) = 617 tests.
+v1 (288) + v2 (188) + regression (28) + Phase 0 (26) + Runtime Phase 1 (21) + Telegram (26) + Phase 3 (20) + Debug API (15) + pre-merge fixes (26) = 643 tests.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -87,14 +87,18 @@ v1 (288) + v2 (188) + regression (28) + Phase 0 (26) + Runtime Phase 1 (21) + Te
 - `runtime/sessions/user_session.py` — UserSession: asyncio.Queue + worker + asyncio.to_thread
 - `runtime/sessions/persistence.py` — save/load engine_state.json (atomic writes)
 - `runtime/channels/console.py` — ConsoleChannel: async stdin, routes through session manager
-- `runtime/llm/backend.py` — create_llm_backend() factory (one per pipeline)
-- `runtime/config.py` — RuntimeConfig: data_dir, max_queue_per_user, max_active_sessions, timeout
+- `runtime/llm/backend.py` — `create_llm_backend(config)` factory, config-driven backend selection
+- `runtime/config.py` — RuntimeConfig: data_dir, limits, timeout, channels, LLM backend, debug
 - `runtime/app.py` — JarvisApp: orchestrator with signal-based graceful shutdown
-- `main.py` — Entry point: `python main.py`
+- `main.py` — Entry point: `python main.py` (loads runtime_config.yaml)
 - Identity: relationship key = `platform:user_id`, session key = `platform:user_id:chat_id`
-- Storage: `data/{platform}_{user_id}/nur.db`, `data/shared/self_model.db`
-- Per-user processing serialized (queue); different users can overlap (separate threads)
+- Sessions keyed by session_key — DM and group-chat contexts get separate active sessions
+- Storage keyed by rel_key: `data/{platform}_{user_id}/nur.db`, `data/shared/self_model.db`
+- Per-user `asyncio.Lock` serializes pipeline access across chat contexts for the same user
+- Per-user processing serialized; different users can overlap (separate threads)
 - Nūr remains synchronous — runtime wraps via asyncio.to_thread
+- `RuntimeConfig.from_yaml(path)` loads config from YAML; defaults on missing file
+- `console_enabled` config flag — headless Telegram-only runtime supported
 
 ## Phase 2 (Telegram channel — completed)
 - `runtime/channels/telegram.py` — TelegramClient (httpx), DedupeCache, TelegramChannel
@@ -108,7 +112,8 @@ v1 (288) + v2 (188) + regression (28) + Phase 0 (26) + Runtime Phase 1 (21) + Te
 
 ## Phase 3 (Timeouts, shutdown, backpressure, DB safety — completed)
 - Timer-driven inactivity timeout: per-session `loop.call_later`, no dependence on next message
-- Idle timer resets on each message; fires `evict_session` automatically
+- Idle timer resets on message acceptance (enqueue) AND completion; fires `evict_session` automatically
+- `_timeout_evict` guards against evicting sessions with in-flight or queued work — reschedules instead
 - Graceful shutdown: `_accepting` flag stops intake → cancel all timers → drain + close all sessions
 - Backpressure: max_queue_per_user rejects with RuntimeError; max_active_sessions rejects new users
 - Shared self-model DB: WAL mode + busy_timeout=5000 via `ProfileStore(wal_mode=True)`
@@ -117,9 +122,9 @@ v1 (288) + v2 (188) + regression (28) + Phase 0 (26) + Runtime Phase 1 (21) + Te
 
 ## Phase 4 (Runtime debug API — completed)
 - `runtime/debug/api.py` — session-aware FastAPI debug endpoints
-- `GET /sessions` — list active sessions (rel_key, user_id, idle_seconds, queue_size, has_debug)
-- `GET /sessions/{rel_key}/debug` — live modulators, memory counts, unresolved items, full last_turn debug state
-- `POST /sessions/{rel_key}/reset` — evict session (digest + persist)
+- `GET /sessions` — list active sessions (session_key, rel_key, user_id, idle_seconds, queue_size, has_debug)
+- `GET /sessions/{session_key}/debug` — live modulators, memory counts, unresolved items, full last_turn debug state
+- `POST /sessions/{session_key}/reset` — evict session (digest + persist)
 - Reads from SessionManager — no separate pipeline
 - `last_debug: DebugState` stored on UserSession after each process() call
 - `_debug_to_dict()` preserves all v1/v2 debug fields (anticipation, dialogue_trace, defense, timings)
@@ -127,7 +132,7 @@ v1 (288) + v2 (188) + regression (28) + Phase 0 (26) + Runtime Phase 1 (21) + Te
 - Debug server runs as background task in JarvisApp via uvicorn
 
 ## Testing
-- `pytest` collects 617 tests
+- `pytest` collects 643 tests
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 

@@ -10,6 +10,7 @@ Covers:
 - Shared DB WAL mode verification
 - Shared DB concurrent writes from multiple user sessions
 - Unresolved items are in-memory only (not persisted)
+- Timeout semantics: in-flight, queued, and true inactivity
 """
 
 from __future__ import annotations
@@ -44,8 +45,9 @@ def _mock_factory():
 
 
 async def _send(manager: SessionManager, text: str,
-                user_id: str = "user", platform: str = "console") -> str:
-    return await manager.handle_message(platform, user_id, "direct", text)
+                user_id: str = "user", platform: str = "console",
+                chat_id: str = "direct") -> str:
+    return await manager.handle_message(platform, user_id, chat_id, text)
 
 
 # =========================================================================
@@ -137,8 +139,8 @@ class TestInactivityTimeout:
                     await asyncio.sleep(0.20)
                     await asyncio.sleep(0.05)
 
-                    assert "console:alice" not in manager.active_sessions
-                    assert "console:bob" in manager.active_sessions
+                    assert "console:alice:direct" not in manager.active_sessions
+                    assert "console:bob:direct" in manager.active_sessions
                 finally:
                     await manager.shutdown()
 
@@ -316,7 +318,7 @@ class TestBackpressure:
                         await _send(manager, "hi", user_id="c")
 
                     # Evict a → slot opens
-                    await manager.evict_session("console:a")
+                    await manager.evict_session("console:a:direct")
                     resp = await _send(manager, "hi", user_id="c")
                     assert isinstance(resp, str)
                 finally:
@@ -464,6 +466,142 @@ class TestUnresolvedItemsPersistence:
                     # Only modulator_snapshot and saved_at — no unresolved_items
                     assert "unresolved_items" not in state
                     assert set(state.keys()) == {"modulator_snapshot", "saved_at"}
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+
+# =========================================================================
+# Timeout semantics: in-flight, queued, true inactivity (regression)
+# =========================================================================
+
+class TestTimeoutSemantics:
+    def test_inflight_processing_prevents_eviction(self):
+        """A session with in-flight pipeline work must not be evicted by timeout."""
+        evicted_during_processing = False
+
+        class SlowBackend:
+            def generate(self, system_prompt: str, user_message: str) -> str:
+                time.sleep(0.3)
+                return "done"
+
+        async def run():
+            nonlocal evicted_during_processing
+            with tempfile.TemporaryDirectory() as tmpdir:
+                # Timeout shorter than processing time
+                config = _make_config(tmpdir, session_timeout_seconds=0.1)
+                manager = SessionManager(
+                    config, backend_factory=lambda: SlowBackend(),
+                )
+                try:
+                    # Start slow processing — takes 300ms, timeout at 100ms
+                    task = asyncio.create_task(_send(manager, "slow"))
+
+                    # Wait enough for timeout to fire (but processing is in-flight)
+                    await asyncio.sleep(0.15)
+
+                    # Session should still exist (in-flight guard)
+                    if len(manager.active_sessions) == 0:
+                        evicted_during_processing = True
+
+                    # Let processing complete
+                    result = await task
+                    assert isinstance(result, str)
+                finally:
+                    await manager.shutdown()
+
+            assert not evicted_during_processing
+
+        asyncio.run(run())
+
+    def test_queued_messages_prevent_eviction(self):
+        """A session with queued messages must not be evicted by timeout."""
+
+        class SlowBackend:
+            def generate(self, system_prompt: str, user_message: str) -> str:
+                time.sleep(0.15)
+                return "ok"
+
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                config = _make_config(tmpdir, session_timeout_seconds=0.1)
+                manager = SessionManager(
+                    config, backend_factory=lambda: SlowBackend(),
+                )
+                try:
+                    # Fire two messages — first processes, second queues
+                    t1 = asyncio.create_task(_send(manager, "first"))
+                    await asyncio.sleep(0.02)
+                    t2 = asyncio.create_task(_send(manager, "second"))
+
+                    # Wait for timeout to fire while queue has messages
+                    await asyncio.sleep(0.12)
+                    assert len(manager.active_sessions) == 1  # not evicted
+
+                    # Let both finish
+                    await asyncio.gather(t1, t2)
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_timeout_fires_after_true_inactivity_only(self):
+        """Timeout evicts only after genuine inactivity (no processing, no queue)."""
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                config = _make_config(tmpdir, session_timeout_seconds=0.15)
+                manager = SessionManager(config, backend_factory=_mock_factory)
+                try:
+                    await _send(manager, "hello")
+                    assert len(manager.active_sessions) == 1
+
+                    # Send another message at 60% of timeout
+                    await asyncio.sleep(0.09)
+                    await _send(manager, "still here")
+                    assert len(manager.active_sessions) == 1
+
+                    # Wait full timeout from last message
+                    await asyncio.sleep(0.2)
+                    await asyncio.sleep(0.05)
+
+                    # Now it should be evicted
+                    assert len(manager.active_sessions) == 0
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_timer_resets_on_acceptance_not_just_completion(self):
+        """Timer resets when a message is accepted (enqueued), not only on completion."""
+
+        class MediumBackend:
+            def generate(self, system_prompt: str, user_message: str) -> str:
+                time.sleep(0.1)
+                return "ok"
+
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                # Timeout = 0.15s, processing = 0.1s
+                config = _make_config(tmpdir, session_timeout_seconds=0.15)
+                manager = SessionManager(
+                    config, backend_factory=lambda: MediumBackend(),
+                )
+                try:
+                    # First message: resets timer on acceptance
+                    result = await _send(manager, "first")
+                    assert isinstance(result, str)
+
+                    # Send another just before old timeout would fire
+                    await asyncio.sleep(0.12)
+                    # This acceptance should reset the timer
+                    task = asyncio.create_task(_send(manager, "second"))
+                    await asyncio.sleep(0.01)  # let enqueue happen
+
+                    # Session must still be alive
+                    assert len(manager.active_sessions) == 1
+
+                    await task
                 finally:
                     await manager.shutdown()
 

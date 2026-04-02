@@ -1,4 +1,4 @@
-"""Jarvis Runtime entry point — console mode."""
+"""Jarvis Runtime entry point."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ def main() -> None:
         level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
-    config = RuntimeConfig()
+    config = RuntimeConfig.from_yaml("runtime_config.yaml")
     app = JarvisApp(config)
     asyncio.run(app.run())
 

@@ -6,6 +6,7 @@ Covers:
 - State save/load (engine_state.json round-trip)
 - Restart restore (reload from disk with elapsed decay)
 - Session lifecycle (create, evict, capacity limits)
+- Session identity (session_key vs rel_key, DM/group separation)
 """
 
 from __future__ import annotations
@@ -40,8 +41,9 @@ def _mock_factory():
 
 
 async def _send(manager: SessionManager, text: str,
-                user_id: str = "user", platform: str = "console") -> str:
-    return await manager.handle_message(platform, user_id, "direct", text)
+                user_id: str = "user", platform: str = "console",
+                chat_id: str = "direct") -> str:
+    return await manager.handle_message(platform, user_id, chat_id, text)
 
 
 # =========================================================================
@@ -124,7 +126,7 @@ class TestConsoleEndToEnd:
                     assert len(manager.active_sessions) == 0
                     await _send(manager, "hi")
                     assert len(manager.active_sessions) == 1
-                    assert "console:user" in manager.active_sessions
+                    assert "console:user:direct" in manager.active_sessions
                 finally:
                     await manager.shutdown()
 
@@ -139,8 +141,8 @@ class TestConsoleEndToEnd:
                     await _send(manager, "hi", user_id="alice")
                     await _send(manager, "hi", user_id="bob")
                     assert len(manager.active_sessions) == 2
-                    assert "console:alice" in manager.active_sessions
-                    assert "console:bob" in manager.active_sessions
+                    assert "console:alice:direct" in manager.active_sessions
+                    assert "console:bob:direct" in manager.active_sessions
                 finally:
                     await manager.shutdown()
 
@@ -269,9 +271,9 @@ class TestSessionStatePersistence:
                 manager = SessionManager(config, backend_factory=_mock_factory)
 
                 await _send(manager, "hello")
-                await manager.evict_session("console:user")
+                await manager.evict_session("console:user:direct")
 
-                assert "console:user" not in manager.active_sessions
+                assert "console:user:direct" not in manager.active_sessions
                 state_path = config.user_state_path("console:user")
                 assert load_engine_state(state_path) is not None
 
@@ -292,14 +294,14 @@ class TestRestartRestore:
                 # Session 1: process a high-arousal message, then save
                 manager1 = SessionManager(config, backend_factory=_mock_factory)
                 await _send(manager1, "I'm furious!", user_id="alice")
-                session1 = manager1.active_sessions["console:alice"]
+                session1 = manager1.active_sessions["console:alice:direct"]
                 snap_before = dict(session1.pipeline.engine.snapshot())
                 await manager1.shutdown()
 
                 # Session 2: recreate — should restore from disk
                 manager2 = SessionManager(config, backend_factory=_mock_factory)
                 await _send(manager2, "hi", user_id="alice")
-                session2 = manager2.active_sessions["console:alice"]
+                session2 = manager2.active_sessions["console:alice:direct"]
                 snap_after = session2.pipeline.engine.snapshot()
 
                 # Arousal should be non-default (restored), potentially decayed
@@ -331,7 +333,7 @@ class TestRestartRestore:
             async def run():
                 manager = SessionManager(config, backend_factory=_mock_factory)
                 await _send(manager, "hi", user_id="testuser")
-                session = manager.active_sessions["console:testuser"]
+                session = manager.active_sessions["console:testuser:direct"]
                 state = session.pipeline.engine.snapshot()
                 # After 2 hours of decay, arousal should be significantly less than 0.95
                 assert state["arousal"] < 0.9
@@ -446,8 +448,8 @@ class TestSessionLifecycle:
 
                     # Both should point to the same shared DB file
                     sessions = manager.active_sessions
-                    s_alice = sessions["console:alice"]
-                    s_bob = sessions["console:bob"]
+                    s_alice = sessions["console:alice:direct"]
+                    s_bob = sessions["console:bob:direct"]
 
                     # Self-observations from alice should be visible to bob
                     from core.profiles.self_model import SELF_ENTITY_ID
@@ -467,15 +469,15 @@ class TestSessionLifecycle:
 # =========================================================================
 
 class TestIdentityKeys:
-    def test_relationship_key_format(self):
-        """Session is keyed by platform:user_id."""
+    def test_session_key_format(self):
+        """Session is keyed by platform:user_id:chat_id."""
         async def run():
             with tempfile.TemporaryDirectory() as tmpdir:
                 config = _make_config(tmpdir)
                 manager = SessionManager(config, backend_factory=_mock_factory)
                 try:
                     await manager.handle_message("telegram", "12345", "chat1", "hi")
-                    assert "telegram:12345" in manager.active_sessions
+                    assert "telegram:12345:chat1" in manager.active_sessions
                 finally:
                     await manager.shutdown()
 
@@ -486,3 +488,132 @@ class TestIdentityKeys:
         config = RuntimeConfig(data_dir="/tmp/test")
         assert "telegram_12345" in config.user_data_dir("telegram:12345")
         assert ":" not in config.user_data_dir("telegram:12345")
+
+
+# =========================================================================
+# Session identity: DM vs group-chat separation (regression)
+# =========================================================================
+
+class TestSessionIdentitySeparation:
+    def test_dm_and_group_create_separate_sessions(self):
+        """Same user in DM and group gets two independent active sessions."""
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                config = _make_config(tmpdir)
+                manager = SessionManager(config, backend_factory=_mock_factory)
+                try:
+                    await manager.handle_message("telegram", "42", "42", "hi dm")
+                    await manager.handle_message("telegram", "42", "group99", "hi group")
+                    assert len(manager.active_sessions) == 2
+                    assert "telegram:42:42" in manager.active_sessions
+                    assert "telegram:42:group99" in manager.active_sessions
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_dm_and_group_hold_different_emotional_states(self):
+        """Different chat contexts can diverge in emotional state."""
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                config = _make_config(tmpdir)
+                manager = SessionManager(config, backend_factory=_mock_factory)
+                try:
+                    await manager.handle_message(
+                        "telegram", "42", "dm", "I am furious!!!"
+                    )
+                    await manager.handle_message(
+                        "telegram", "42", "group", "Thanks, you're great!"
+                    )
+                    dm = manager.active_sessions["telegram:42:dm"]
+                    grp = manager.active_sessions["telegram:42:group"]
+                    # Pipelines are distinct objects
+                    assert dm.pipeline is not grp.pipeline
+                    # Emotional states should differ
+                    assert dm.pipeline.engine.snapshot() != grp.pipeline.engine.snapshot()
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_evicting_one_chat_context_leaves_other(self):
+        """Evicting DM session doesn't affect group session."""
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                config = _make_config(tmpdir)
+                manager = SessionManager(config, backend_factory=_mock_factory)
+                try:
+                    await manager.handle_message("telegram", "42", "dm", "hi")
+                    await manager.handle_message("telegram", "42", "group", "hi")
+                    assert len(manager.active_sessions) == 2
+
+                    await manager.evict_session("telegram:42:dm")
+                    assert "telegram:42:dm" not in manager.active_sessions
+                    assert "telegram:42:group" in manager.active_sessions
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_both_chat_contexts_share_per_user_storage(self):
+        """Different chat contexts for the same user share rel_key and state path."""
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                config = _make_config(tmpdir)
+                manager = SessionManager(config, backend_factory=_mock_factory)
+                try:
+                    await manager.handle_message("telegram", "42", "dm", "hi")
+                    await manager.handle_message("telegram", "42", "group", "hi")
+                    dm = manager.active_sessions["telegram:42:dm"]
+                    grp = manager.active_sessions["telegram:42:group"]
+                    # Both share the same rel_key (user identity)
+                    assert dm.rel_key == grp.rel_key == "telegram:42"
+                    # Both share the same engine_state.json path
+                    assert dm.state_path == grp.state_path
+                    # But have distinct session keys
+                    assert dm.session_key != grp.session_key
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_per_user_lock_serializes_across_chat_contexts(self):
+        """Messages for the same user in different chats never overlap."""
+        max_concurrent = 0
+        current = 0
+        lock = threading.Lock()
+
+        class TrackingBackend:
+            def generate(self, system_prompt: str, user_message: str) -> str:
+                nonlocal max_concurrent, current
+                with lock:
+                    current += 1
+                    max_concurrent = max(max_concurrent, current)
+                time.sleep(0.05)
+                with lock:
+                    current -= 1
+                return "ok"
+
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                config = _make_config(tmpdir)
+                manager = SessionManager(
+                    config, backend_factory=lambda: TrackingBackend(),
+                )
+                try:
+                    tasks = [
+                        asyncio.create_task(
+                            manager.handle_message("tg", "42", "dm", "msg1")
+                        ),
+                        asyncio.create_task(
+                            manager.handle_message("tg", "42", "group", "msg2")
+                        ),
+                    ]
+                    await asyncio.gather(*tasks)
+                finally:
+                    await manager.shutdown()
+
+            # Same user across chats — must be serialized
+            assert max_concurrent == 1
+
+        asyncio.run(run())

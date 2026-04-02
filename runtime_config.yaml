@@ -3,11 +3,18 @@ max_queue_per_user: 3
 max_active_sessions: 10
 session_timeout_seconds: 1800
 
+# Channels
+console_enabled: true
+
 # Telegram (leave token empty to disable)
 telegram_token: ""
 telegram_allowlist: []   # numeric user IDs; empty = allow all
 telegram_poll_timeout: 30
 dedupe_ttl: 60
+
+# LLM backend ("auto", "minimax", "mock")
+llm_backend: auto
+minimax_api_key: ""   # leave empty to use MINIMAX_API_KEY env var
 
 # Debug API
 debug_host: "127.0.0.1"
