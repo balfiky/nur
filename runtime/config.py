@@ -20,6 +20,12 @@ class RuntimeConfig:
     # Session lifecycle
     session_timeout_seconds: float = 1800.0  # 30 minutes
 
+    # Telegram
+    telegram_token: str = ""
+    telegram_allowlist: set[str] = field(default_factory=set)
+    telegram_poll_timeout: int = 30
+    dedupe_ttl: float = 60.0
+
     @property
     def shared_db_path(self) -> str:
         return os.path.join(self.data_dir, "shared", "self_model.db")

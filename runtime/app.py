@@ -29,9 +29,10 @@ class JarvisApp:
         )
         self._shutdown_event = asyncio.Event()
         self._console: ConsoleChannel | None = None
+        self._telegram = None  # TelegramChannel | None
 
     async def run(self) -> None:
-        """Start the console channel and block until shutdown."""
+        """Start channels and block until shutdown."""
         loop = asyncio.get_running_loop()
 
         # Install signal handlers (Unix only — ignored on Windows)
@@ -41,6 +42,12 @@ class JarvisApp:
             except NotImplementedError:
                 pass
 
+        # Start Telegram channel if token is configured
+        telegram_task = None
+        if self.config.telegram_token:
+            telegram_task = asyncio.create_task(self._start_telegram())
+
+        # Console channel runs in foreground
         self._console = ConsoleChannel(self.session_manager)
 
         try:
@@ -48,12 +55,39 @@ class JarvisApp:
         except asyncio.CancelledError:
             pass
         finally:
+            if telegram_task is not None:
+                telegram_task.cancel()
+                try:
+                    await telegram_task
+                except asyncio.CancelledError:
+                    pass
             await self.shutdown()
+
+    async def _start_telegram(self) -> None:
+        """Start the Telegram channel (runs as a background task)."""
+        from runtime.channels.telegram import (
+            TelegramChannel, TelegramClient, TelegramConfig,
+        )
+        tg_config = TelegramConfig(
+            token=self.config.telegram_token,
+            allowlist=self.config.telegram_allowlist,
+            poll_timeout=self.config.telegram_poll_timeout,
+            dedupe_ttl=self.config.dedupe_ttl,
+        )
+        client = TelegramClient(tg_config.token)
+        self._telegram = TelegramChannel(client, self.session_manager, tg_config)
+        try:
+            await self._telegram.start()
+        except asyncio.CancelledError:
+            await self._telegram.stop()
 
     async def shutdown(self) -> None:
         """Gracefully drain all sessions and clean up."""
         if self._console is not None:
             await self._console.stop()
+
+        if self._telegram is not None:
+            await self._telegram.stop()
 
         log.info("Shutting down runtime")
         await self.session_manager.shutdown()

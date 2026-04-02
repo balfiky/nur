@@ -5,9 +5,9 @@ Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
 Read CHANGELOG.md for version history and what changed when.
 
-## Status: v2 COMPLETE + RUNTIME PHASE 1
+## Status: v2 COMPLETE + RUNTIME PHASE 2
 
-v1 (288) + v2 (188) + regression (28) + Phase 0 (26) + Runtime Phase 1 (21) = 556 tests.
+v1 (288) + v2 (188) + regression (28) + Phase 0 (26) + Runtime Phase 1 (21) + Telegram (26) = 582 tests.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -23,9 +23,9 @@ v1 (288) + v2 (188) + regression (28) + Phase 0 (26) + Runtime Phase 1 (21) = 55
 - interface/ — FastAPI + WebSocket + debug dashboard
 - config/ — YAML configs + 10 prompt templates
 - core/schema.py — Schema version management for all SQLite databases
-- runtime/ — Jarvis Runtime: session manager, console channel, state persistence, LLM backend factory
+- runtime/ — Jarvis Runtime: session manager, console + Telegram channels, state persistence, LLM backend factory
 - main.py — Runtime entry point (`python main.py`)
-- tests/ — 556 tests including calibration, journey, v2, regression, Phase 0, and runtime tests
+- tests/ — 582 tests including calibration, journey, v2, regression, Phase 0, runtime, and Telegram tests
 
 ### What's NOT built (future features)
 - Dynamic value drift (v2.5)
@@ -96,8 +96,18 @@ v1 (288) + v2 (188) + regression (28) + Phase 0 (26) + Runtime Phase 1 (21) = 55
 - Per-user processing serialized (queue); different users can overlap (separate threads)
 - Nūr remains synchronous — runtime wraps via asyncio.to_thread
 
+## Phase 2 (Telegram channel — completed)
+- `runtime/channels/telegram.py` — TelegramClient (httpx), DedupeCache, TelegramChannel
+- Long-polling with allowlist by numeric user ID (empty = allow all)
+- Per-update dedupe with TTL cache — prevents duplicate emotional state updates
+- Typing indicators resent every 4 s, cancelled on response
+- Commands: `/status` (modulators), `/reset` (digest + evict), `/debug` (placeholder)
+- Text messages only; photos/stickers silently ignored
+- `TelegramConfig` dataclass; `RuntimeConfig` gains telegram_token, telegram_allowlist, etc.
+- Telegram channel starts as background task in JarvisApp if token is set
+
 ## Testing
-- `pytest` collects 556 tests
+- `pytest` collects 582 tests
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 

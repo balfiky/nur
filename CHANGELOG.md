@@ -4,6 +4,40 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.6.0 — 2026-04-02 (Phase 2: Telegram channel)
+
+Telegram adapter with allowlist, dedupe, typing indicators, and commands.
+
+### Telegram channel (`runtime/channels/telegram.py`)
+- Long-polling loop via httpx (`TelegramClient`)
+- Allowlist by numeric Telegram user ID (empty = allow all)
+- Per-update dedupe with TTL cache (`DedupeCache`) — prevents duplicate state updates
+- Typing indicators resent every 4 s while Nūr processes, cancelled on response
+- Text messages only — photos/stickers/etc silently ignored
+- Commands: `/status` (show modulators), `/reset` (digest + evict session), `/debug` (placeholder), `/start` (greeting)
+- Bot-name suffix stripped from commands (`/status@MyBot` → `/status`)
+
+### Config updates
+- `RuntimeConfig` gains `telegram_token`, `telegram_allowlist`, `telegram_poll_timeout`, `dedupe_ttl`
+- `TelegramConfig` dataclass for channel-specific settings
+- `runtime_config.yaml` updated with Telegram section
+
+### App wiring (`runtime/app.py`)
+- Telegram channel starts as background task if `telegram_token` is set
+- Graceful shutdown stops Telegram polling + console + all sessions
+
+### Testing
+- 582 tests total (26 new Telegram tests)
+- `TestDedupeCache` (5): TTL expiry, mark/check, independence
+- `TestMessageNormalization` (5): text extraction, non-text ignored, missing fields, user_id as string
+- `TestAllowlist` (3): allowed/rejected users, empty allowlist
+- `TestDedupe` (3): duplicate dropped, different IDs processed, TTL expiry allows reprocessing
+- `TestCommands` (7): /status with/without session, /reset evicts, /debug, unknown, @bot suffix, /start
+- `TestTypingIndicator` (3): sent during processing, stops after response, not sent for commands
+- Zero regressions
+
+---
+
 ## v0.5.0 — 2026-04-02 (Phase 1: Console runtime)
 
 First runtime layer around Nūr. Console-only. Nūr remains synchronous — the runtime wraps it with async lifecycle management.
