@@ -77,6 +77,7 @@ from core.dual_process.inner_dialogue import InnerDialogue
 from core.anticipation import AnticipationEngine
 from core.defense_mechanisms import DEFENSE_INSTRUCTIONS, DefenseMechanism
 from core.dual_process.tool_loop import run_tool_loop
+from core.proactive import evaluate_proactive
 from core.tool_memory import (
     ToolMemoryEffects,
     compute_tool_trust_delta,
@@ -89,7 +90,7 @@ from core.tool_memory import (
     derive_tool_self_observations,
     is_salient_episode,
 )
-from core.types import TaskPlan, TaskTrace
+from core.types import ProactiveTrace, TaskPlan, TaskTrace
 
 
 # ---------------------------------------------------------------------------
@@ -157,6 +158,9 @@ class DebugState:
     action_variables: ActionVariables | None = None
     tool_memory_effects: ToolMemoryEffects | None = None
     task_trace: TaskTrace | None = None
+
+    # Proactive behavior (Phase 8)
+    proactive_trace: ProactiveTrace | None = None
 
     # Timing instrumentation (ms)
     stage_timings_ms: dict[str, float] = field(default_factory=dict)
@@ -253,6 +257,9 @@ class CognitivePipeline:
         self._tool_executor = tool_executor
         # Session-scoped task plan (Phase 7)
         self._active_task_plan: TaskPlan | None = None
+        # Proactive behavior tracking (Phase 8)
+        self._proactive_count: int = 0
+        self._last_proactive_at: float | None = None
 
         # Time tracking for auto-decay between turns
         self._last_turn_time: float | None = None
@@ -673,6 +680,121 @@ class CognitivePipeline:
         return PipelineResponse(response=gen_result.response, debug=debug)
 
     # ------------------------------------------------------------------
+    # Proactive behavior (Phase 8)
+    # ------------------------------------------------------------------
+
+    def process_proactive(
+        self,
+        user_id: str = "default",
+        *,
+        max_proactive: int = 3,
+        idle_threshold: float = 300.0,
+        cooldown: float = 300.0,
+    ) -> PipelineResponse | None:
+        """Evaluate proactive triggers and generate response if warranted.
+
+        Called by the runtime when a session has been idle. Response is
+        generated through Nūr (defense + generator), not a hardcoded path.
+
+        Returns PipelineResponse if proactive action was taken, None otherwise.
+        The debug state always contains the ProactiveTrace for observability.
+        """
+        debug = DebugState(user_message="[proactive]", user_id=user_id)
+        person = self.person_profiles.get_or_create(user_id)
+        self_prof = self.self_profile.get_profile()
+
+        idle_seconds = time.time() - self._last_turn_time if self._last_turn_time else 0.0
+
+        # 1. Evaluate proactive triggers
+        action, trace = evaluate_proactive(
+            state=self.engine.state,
+            unresolved_items=self.engine.active_unresolved(),
+            active_plan=self._active_task_plan,
+            person=person,
+            idle_seconds=idle_seconds,
+            proactive_count=self._proactive_count,
+            last_proactive_at=self._last_proactive_at,
+            max_proactive=max_proactive,
+            idle_threshold=idle_threshold,
+            cooldown=cooldown,
+        )
+        debug.proactive_trace = trace
+
+        if action is None:
+            return None
+
+        # 2. For task continuation, run tool loop
+        tool_context = ""
+        if (
+            action.action_type == "continue_task"
+            and self._tool_executor is not None
+            and self._active_task_plan is not None
+        ):
+            tool_loop_result = run_tool_loop(
+                user_message="continue",
+                state=self.engine.state,
+                person=person,
+                defense_active=False,
+                executor=self._tool_executor,
+                engine=self.engine,
+                active_plan=self._active_task_plan,
+            )
+            tool_context = tool_loop_result.tool_context_summary
+            debug.tool_trace = tool_loop_result.trace
+            debug.action_variables = tool_loop_result.action_variables
+
+            # Update plan state
+            task_trace = tool_loop_result.trace.task_trace
+            if task_trace and task_trace.plan:
+                debug.task_trace = task_trace
+                self._active_task_plan = task_trace.plan
+                if task_trace.plan.is_terminal:
+                    self._active_task_plan = None
+
+        # 3. Defense filter (proactive messages go through defense)
+        filtered, defense = self.defense_mechanism.evaluate(
+            inner_dialogue_output=action.message,
+            modulator_state=self.engine.state,
+            self_profile=self_prof,
+            person_profile=person,
+            topic_profiles=[],
+        )
+        debug.defense_activation = defense
+
+        defense_instruction = ""
+        if defense:
+            defense_instruction = DEFENSE_INSTRUCTIONS.get(defense.defense_type, "")
+
+        # 4. Generate through Nūr
+        ctx = PipelineContext(
+            modulator_snapshot=self.engine.snapshot(),
+            person_profile=person,
+            self_profile=self_prof,
+            candidate_response=filtered,
+            defense_instruction=defense_instruction,
+            tool_context_summary=tool_context,
+        )
+        gen_result = self.generator.generate(
+            ctx, action.message, self._conversation_history,
+        )
+        debug.response = gen_result.response
+        debug.modulator_snapshot = self.engine.snapshot()
+
+        # 5. Update proactive tracking
+        self._proactive_count += 1
+        self._last_proactive_at = time.time()
+        self._conversation_history.append({
+            "role": "assistant", "content": gen_result.response,
+        })
+
+        # 6. Self-observation: proactive behavior recorded
+        self.self_profile.record_behavior(
+            "proactive", 0.6, f"proactive_{action.action_type}",
+        )
+
+        return PipelineResponse(response=gen_result.response, debug=debug)
+
+    # ------------------------------------------------------------------
     # Self-observation recording (v2 — Phase 3)
     # ------------------------------------------------------------------
 
@@ -855,9 +977,11 @@ class CognitivePipeline:
             0.0, self.engine.state.energy - result.energy_drain
         )
 
-        # Clear conversation history and session-scoped task state
+        # Clear conversation history and session-scoped state
         self._conversation_history.clear()
         self._active_task_plan = None
+        self._proactive_count = 0
+        self._last_proactive_at = None
 
         return result
 

@@ -4,6 +4,61 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.17.0 — 2026-04-02 (Agentic Tools Phase 8: proactive and autonomous behavior)
+
+Adds bounded proactive behavior — Jarvis can now initiate actions and follow-up messages based on unresolved tension, pending tasks, commitments, and idle-time patterns. All autonomy is explicitly bounded and inspectable.
+
+### Proactive trigger model (`core/types.py`)
+- `ProactiveTriggerSource` enum: unresolved_item, pending_task, commitment, temporal, emotional_salience
+- `ProactiveTrigger` dataclass: source, description, intensity, optional item reference
+- `ProactiveAction` dataclass: action_type (follow_up, continue_task, suggest, autonomous_step, none), trigger, message, rationale
+- `ProactiveTrace` dataclass: triggers found, action taken, suppressed reasons, limits applied, idle time, count
+
+### Proactive evaluation layer (`core/proactive.py`)
+- `evaluate_proactive()` — deterministic evaluation (zero LLM calls) of whether Jarvis should initiate behavior
+- Trigger collection: gathers candidates from unresolved items (intensity ≥ 0.3), pending task plans, commitments, temporal patterns (idle + resolution), emotional salience
+- Trigger scoring: intensity adjusted by resolution boost, energy penalty, bonding/trust boost, arousal modulation
+- Bound checks: max proactive per session, idle threshold, cooldown between actions, energy floor
+- Action selection: pending task → continue_task, commitment → follow_up, unresolved → follow_up, temporal → suggest
+- All configuration values exposed as parameters with sensible defaults
+
+### Pipeline integration (`pipeline.py`)
+- `process_proactive(user_id)` — evaluates proactive triggers and generates response through Nūr (defense + generator)
+- Session-scoped tracking: `_proactive_count`, `_last_proactive_at` — cleared on `end_session()`
+- Proactive responses go through defense filter and generator, same cognitive path as user-initiated responses
+- Task continuation support: if proactive action is "continue_task", runs tool loop with active plan
+- Self-observation recorded: "proactive" trait after each proactive action
+- `DebugState.proactive_trace` field for observability
+
+### Runtime integration
+- `RuntimeConfig` gains proactive fields: `proactive_enabled`, `proactive_idle_threshold`, `proactive_max_per_session`, `proactive_cooldown`, `proactive_check_interval`
+- `SessionManager.run_proactive_loop()` — periodic async loop that sweeps all sessions for proactive opportunities
+- `_proactive_sweep()` / `_run_proactive()` — per-session evaluation with idle guards and error isolation
+- Proactive callback mechanism: `proactive_callback(session_key, user_id, message)` for channel delivery
+- `JarvisApp` starts proactive loop as background task when `proactive_enabled=True`
+- Proactive loop cleanly cancelled on shutdown
+
+### Debug / observability (`runtime/debug/api.py`)
+- Full proactive trace serialization: triggers (source, description, intensity), action taken, suppressed reasons, limits applied
+- Integrated alongside existing tool_trace, task_trace, tool_summary
+- Both action and suppression visible — easy to understand why proactive behavior did or did not occur
+
+### Constraints
+- No open-ended self-directed loops
+- Max proactive actions per session (default 3)
+- Cooldown between proactive actions (default 5 min)
+- Idle threshold before any proactive check (default 5 min)
+- Energy floor: too tired to be proactive (energy < 0.15)
+- No multi-agent behavior
+- All output generated through Nūr cognitive pipeline
+
+### Tests
+- 52 new tests in `tests/test_agentic_tools_phase8.py`
+- Coverage: types, trigger collection, trigger scoring, action selection, full evaluation, bound enforcement, pipeline integration, proactive count tracking, self-observation recording, debug serialization, runtime config, session manager callback, regression
+- Full suite: 1079 tests passing
+
+---
+
 ## v0.16.0 — 2026-04-02 (Agentic Tools Phase 7: multi-step task planning)
 
 Adds bounded multi-step task planning and task memory — Nūr can now decompose compound requests into ordered steps, execute them sequentially, and couple task outcomes back into emotion, memory, and self-model.

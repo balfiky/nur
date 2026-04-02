@@ -5,9 +5,9 @@ Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
 Read CHANGELOG.md for version history and what changed when.
 
-## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 7
+## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 8
 
-The full test suite currently collects 1027 tests.
+The full test suite currently collects 1079 tests.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -30,9 +30,10 @@ The full test suite currently collects 1027 tests.
 - core/dual_process/tool_loop.py — Cognitive tool bridge: intent detection, arbiter, execute+appraise loop, multi-step plan support
 - core/tool_memory.py — Tool episode memory coupling: short-term records, salient long-term writes, self-observations, unresolved items, trust deltas, task memory
 - core/task_planning.py — Bounded multi-step task planner: heuristic detection, sequential execution, persistence-driven failure handling (0 LLM calls)
+- core/proactive.py — Proactive behavior evaluation: trigger collection, scoring, bound enforcement, action selection (0 LLM calls)
 - tools/ — Agentic tools package: registry, executor, builtin tools (filesystem, shell, web, browser, calendar)
 - tools/mcp/ — MCP bridge: client protocol, adapter, category inference, register_mcp_tools()
-- tests/ — 1027 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, and agentic tools Phase 0+1+2+3+4+5+6+7 coverage
+- tests/ — 1079 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, and agentic tools Phase 0+1+2+3+4+5+6+7+8 coverage
 
 ### What's NOT built (future features)
 - Dynamic value drift (v2.5)
@@ -235,8 +236,27 @@ The full test suite currently collects 1027 tests.
 - `DebugState.task_trace` + debug API serialization of plan/steps/outcome
 - No autonomous background tasks, no cross-session plan persistence yet
 
+## Agentic Tools Phase 8 (Proactive and autonomous behavior — completed)
+- `core/types.py` extended with: ProactiveTriggerSource, ProactiveTrigger, ProactiveAction, ProactiveTrace
+- `core/proactive.py` — proactive behavior evaluation (all deterministic, 0 LLM calls)
+  - `evaluate_proactive()` — evaluate triggers, enforce bounds, select action
+  - Trigger sources: unresolved items, pending tasks, commitments, temporal patterns, emotional salience
+  - Trigger scoring: modulated by resolution, energy, trust/bonding, arousal
+  - Bound enforcement: max per session, idle threshold, cooldown, energy floor
+  - Action types: follow_up, continue_task, suggest, autonomous_step, none
+- Pipeline: `process_proactive(user_id)` generates proactive responses through Nūr (defense + generator)
+  - `_proactive_count` + `_last_proactive_at` session-scoped tracking, cleared on end_session
+  - Task continuation via tool loop when action is continue_task
+  - Self-observation: "proactive" trait recorded after each proactive action
+- Runtime: `RuntimeConfig` gains proactive fields (enabled, idle_threshold, max_per_session, cooldown, check_interval)
+- Runtime: `SessionManager.run_proactive_loop()` periodic sweep of idle sessions
+  - Proactive callback for channel delivery: `proactive_callback(session_key, user_id, message)`
+  - `JarvisApp` starts proactive loop as background task when enabled
+- `DebugState.proactive_trace` + debug API serialization (triggers, action, suppressed reasons, limits)
+- No open-ended loops, no multi-agent behavior, no cross-session plan persistence
+
 ## Testing
-- `pytest` collects 1027 tests
+- `pytest` collects 1079 tests
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 

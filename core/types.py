@@ -487,3 +487,57 @@ class TaskTrace:
     total_latency_ms: float = 0.0
     continued_after_failure: bool = False
     plan_outcome: str = ""  # "completed" | "failed" | "blocked" | "partial" | ""
+
+
+# ---------------------------------------------------------------------------
+# Proactive Behavior — trigger model (Phase 8)
+# ---------------------------------------------------------------------------
+
+class ProactiveTriggerSource(str, Enum):
+    """Source of a proactive trigger."""
+    UNRESOLVED_ITEM = "unresolved_item"
+    PENDING_TASK = "pending_task"
+    COMMITMENT = "commitment"
+    TEMPORAL = "temporal"
+    EMOTIONAL_SALIENCE = "emotional_salience"
+
+
+@dataclass
+class ProactiveTrigger:
+    """A single trigger that may compel proactive behavior."""
+    source: ProactiveTriggerSource
+    description: str
+    intensity: float  # 0.0-1.0
+    item_id: str | None = None  # reference to unresolved item or task plan
+
+    def __post_init__(self) -> None:
+        self.intensity = max(0.0, min(1.0, self.intensity))
+
+
+@dataclass
+class ProactiveAction:
+    """A proactive action Jarvis wants to take.
+
+    action_type:
+      - follow_up: send a follow-up message about something unresolved
+      - continue_task: resume a pending multi-step plan
+      - suggest: suggest an action without executing
+      - autonomous_step: execute a bounded tool step on an existing plan
+      - none: evaluation ran but no action warranted
+    """
+    action_type: Literal["follow_up", "continue_task", "suggest", "autonomous_step", "none"]
+    trigger: ProactiveTrigger
+    message: str  # candidate message for the generator
+    rationale: str
+
+
+@dataclass
+class ProactiveTrace:
+    """Debug trace for a proactive evaluation cycle."""
+    triggers_found: list[ProactiveTrigger] = field(default_factory=list)
+    action_taken: ProactiveAction | None = None
+    suppressed_reasons: list[str] = field(default_factory=list)
+    limits_applied: dict[str, Any] = field(default_factory=dict)
+    idle_seconds: float = 0.0
+    proactive_count: int = 0
+    timestamp: float = field(default_factory=time.time)

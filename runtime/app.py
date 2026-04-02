@@ -57,6 +57,13 @@ class JarvisApp:
         if self.config.telegram_token:
             telegram_task = asyncio.create_task(self._start_telegram())
 
+        # Start proactive behavior loop if enabled
+        proactive_task = None
+        if self.config.proactive_enabled:
+            proactive_task = asyncio.create_task(
+                self.session_manager.run_proactive_loop()
+            )
+
         try:
             if self.config.console_enabled:
                 # Console runs in foreground — blocks until /quit or EOF
@@ -68,6 +75,12 @@ class JarvisApp:
         except asyncio.CancelledError:
             pass
         finally:
+            if proactive_task is not None:
+                proactive_task.cancel()
+                try:
+                    await proactive_task
+                except asyncio.CancelledError:
+                    pass
             if telegram_task is not None:
                 telegram_task.cancel()
                 try:

@@ -6,7 +6,7 @@ import asyncio
 import logging
 import os
 import time
-from typing import Callable
+from typing import Any, Callable
 
 from core.dual_process.generator import LLMBackend
 from pipeline import CognitivePipeline
@@ -40,6 +40,7 @@ class SessionManager:
         self,
         config: RuntimeConfig,
         backend_factory: Callable[[], LLMBackend] | None = None,
+        proactive_callback: Callable[[str, str, str], Any] | None = None,
     ) -> None:
         self.config = config
         self._backend_factory = backend_factory
@@ -48,6 +49,8 @@ class SessionManager:
         self._user_locks: dict[str, asyncio.Lock] = {}
         self._lock = asyncio.Lock()
         self._accepting = True
+        # Phase 8: proactive callback — async (session_key, user_id, message) -> None
+        self._proactive_callback = proactive_callback
 
     # ------------------------------------------------------------------
     # Public API
@@ -266,3 +269,74 @@ class SessionManager:
         log.info("Shutting down %d active session(s)", len(keys))
         for session_key in keys:
             await self.evict_session(session_key)
+
+    # ------------------------------------------------------------------
+    # Proactive behavior loop (Phase 8)
+    # ------------------------------------------------------------------
+
+    async def run_proactive_loop(self) -> None:
+        """Periodically evaluate proactive triggers for all idle sessions.
+
+        Bounded: runs at config.proactive_check_interval, respects per-session
+        limits (max_proactive, cooldown, idle_threshold). Does not bypass the
+        cognitive pipeline — responses are generated through Nūr.
+        """
+        interval = self.config.proactive_check_interval
+        while self._accepting:
+            await asyncio.sleep(interval)
+            if not self._accepting:
+                break
+            await self._proactive_sweep()
+
+    async def _proactive_sweep(self) -> None:
+        """Check all active sessions for proactive opportunities."""
+        async with self._lock:
+            snapshot = list(self._sessions.items())
+
+        for session_key, session in snapshot:
+            if session._processing:
+                continue
+            if not session._queue.empty():
+                continue
+            idle = time.time() - session.last_activity
+            if idle < self.config.proactive_idle_threshold:
+                continue
+            try:
+                await self._run_proactive(session_key, session)
+            except Exception:
+                log.exception("Proactive check failed for %s", session_key)
+
+    async def _run_proactive(
+        self, session_key: str, session: UserSession,
+    ) -> None:
+        """Evaluate and optionally act on proactive triggers for a session."""
+        pipeline = session.pipeline
+
+        # Run proactive evaluation on the pipeline (sync → thread)
+        result = await asyncio.to_thread(
+            pipeline.process_proactive,
+            session.user_id,
+            max_proactive=self.config.proactive_max_per_session,
+            idle_threshold=self.config.proactive_idle_threshold,
+            cooldown=self.config.proactive_cooldown,
+        )
+        if result is None:
+            return
+
+        # Store debug state
+        session.last_debug = result.debug
+        session.last_activity = time.time()
+        self._reset_idle_timer(session_key)
+
+        log.info("Proactive message for %s: %s", session_key, result.response[:80])
+
+        # Deliver via callback
+        if self._proactive_callback is not None:
+            try:
+                cb_result = self._proactive_callback(
+                    session_key, session.user_id, result.response,
+                )
+                if asyncio.iscoroutine(cb_result):
+                    await cb_result
+            except Exception:
+                log.exception("Proactive callback failed for %s", session_key)

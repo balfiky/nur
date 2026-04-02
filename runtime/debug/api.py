@@ -361,6 +361,41 @@ def _debug_to_dict(debug) -> dict:
         if tme else None
     )
 
+    # Proactive behavior (Phase 8)
+    pt = getattr(debug, "proactive_trace", None)
+    if pt:
+        d["proactive_trace"] = {
+            "triggers_found": [
+                {
+                    "source": t.source.value if hasattr(t.source, "value") else str(t.source),
+                    "description": t.description,
+                    "intensity": t.intensity,
+                    "item_id": t.item_id,
+                }
+                for t in pt.triggers_found
+            ],
+            "action_taken": (
+                {
+                    "action_type": pt.action_taken.action_type,
+                    "message": pt.action_taken.message,
+                    "rationale": pt.action_taken.rationale,
+                    "trigger_source": (
+                        pt.action_taken.trigger.source.value
+                        if hasattr(pt.action_taken.trigger.source, "value")
+                        else str(pt.action_taken.trigger.source)
+                    ),
+                }
+                if pt.action_taken else None
+            ),
+            "suppressed_reasons": pt.suppressed_reasons,
+            "limits_applied": pt.limits_applied,
+            "idle_seconds": pt.idle_seconds,
+            "proactive_count": pt.proactive_count,
+            "timestamp": pt.timestamp,
+        }
+    else:
+        d["proactive_trace"] = None
+
     # Timing
     d["stage_timings_ms"] = debug.stage_timings_ms
 

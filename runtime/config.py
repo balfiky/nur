@@ -40,6 +40,13 @@ class RuntimeConfig:
     debug_host: str = "127.0.0.1"
     debug_port: int = 8077
 
+    # Proactive behavior (Phase 8)
+    proactive_enabled: bool = False
+    proactive_idle_threshold: float = 300.0    # seconds idle before proactive check
+    proactive_max_per_session: int = 3         # max proactive actions per session
+    proactive_cooldown: float = 300.0          # seconds between proactive actions
+    proactive_check_interval: float = 60.0     # how often the proactive loop runs
+
     @classmethod
     def from_yaml(cls, path: str) -> RuntimeConfig:
         """Load config from a YAML file.  Missing keys use defaults."""
