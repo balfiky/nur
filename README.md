@@ -6,10 +6,11 @@ Jarvis is an AI assistant with persistent emotional state. It doesn't simulate e
 
 ## Status
 
-**v2 + Jarvis Runtime complete.** All core systems built; the test suite now collects 1092 tests.
+**v2 + Jarvis Runtime complete.** Phase 11 is now underway with deterministic social appraisal and relationship-arc memory. The test suite has grown well past 1100 tests.
 
 v1 gave it a brain that remembers and adapts.
 v2 gives it deliberation, dread, and self-protection.
+Phase 11 starts making it more socially human: better appraisal and better relationship continuity.
 The runtime gives it a body — sessions, channels, persistence, and debug inspection.
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
@@ -134,20 +135,21 @@ These combine to produce emergent emotions: arousal=0.9 + valence=0.1 + certaint
 ```
  1. ANTICIPATION: predict emotional trajectory from context (0 LLM calls)
  2. Contagion: detect user tone -> bounded mirror (0 LLM calls — rule-based)
- 3. Context switch: load person profile baseline_shift
- 4. PSI engine: update 6 modulators from event + drives + energy
- 5. RESOLUTION: check for new/resolved tension items (0 LLM calls)
- 6. Short-term memory: store emotional reaction
- 7. Spike check: intensity > 0.8 -> immediate write to long-term
- 8. Memory retrieval: ACT-R activation biased by current state
- 9. Profile lookup: person + self + topic
-10. Contradiction check: compare behavior against profiles
-11. INNER DIALOGUE: 2-3 round fast/slow deliberation (2-5 LLM calls)
-12. DEFENSE MECHANISMS: filter output if needed (0 LLM calls)
-13. Master LLM: generate final response (1 LLM call)
-14. Self-check (rule-based + optional LLM)
-15. Post-processing: update memory, drain energy
-16. [Session end] Digestion (0-1 LLM call)
+ 3. APPRAISAL: infer target, intent, vulnerability, affiliation (0 LLM calls)
+ 4. Context switch: load person profile baseline_shift
+ 5. Event classification + PSI update
+ 6. RESOLUTION: check for new/resolved tension items (0 LLM calls)
+ 7. Short-term memory: store emotional reaction
+ 8. Spike check: intensity > 0.8 -> immediate write to long-term
+ 9. Memory retrieval: ACT-R activation biased by current state
+10. Profile + relationship lookup: person + self + topic + relationship context
+11. Contradiction check: compare behavior against profiles
+12. INNER DIALOGUE: 2-3 round fast/slow deliberation (2-5 LLM calls)
+13. DEFENSE MECHANISMS: filter output if needed (0 LLM calls)
+14. Master LLM: generate final response (1 LLM call)
+15. Self-check (rule-based + optional LLM)
+16. Post-processing: update memory, drain energy
+17. [Session end] Digestion + relationship-arc consolidation (0-1 LLM call)
 ```
 
 **LLM calls per message:** 1-6 (typical: 1)
@@ -169,6 +171,27 @@ Control dynamics: high arousal (>0.8) or low energy (<0.2) bypass deliberation. 
 ### Anticipation
 
 Forward emotional modeling. Before processing the current message, the system predicts what's coming and pre-adjusts modulators at 30% intensity. Pure heuristics — no LLM calls. Fires on sensitive topic buildup, person behavioral patterns, unresolved item aging, and temporal patterns (Monday stress, late night vulnerability).
+
+### Social Appraisal
+
+Before Nūr classifies an event, it now performs a deterministic social appraisal pass. This distinguishes:
+
+- distress aimed at life vs distress aimed at the assistant
+- apology / repair vs excuse / complaint
+- warmth / gratitude / affiliative bids vs generic positive tone
+- mixed affect and vulnerability vs flat sentiment
+
+That appraisal feeds event classification, trust updates, self-observation, debug output, and later relationship-memory writes.
+
+### Relationship-Arc Memory
+
+Long-term memory is no longer just a flat list of emotionally biased summaries. Nūr now also stores a compact relationship layer:
+
+- `relationship_events`: rupture, repair, commitment, recurring tension
+- `open_loops`: unresolved relationship tension and pending follow-up commitments
+- `relationship_context`: a compact summary retrieved before generation
+
+This makes cross-session continuity feel more human without storing raw transcript dumps.
 
 ### Defense Mechanisms
 
@@ -211,13 +234,15 @@ nur/
 |   |-- types.py                     # ALL shared type contracts (v1 + v2 dataclasses, enums)
 |   |-- emotional_engine.py          # PSI modulator state machine (6 modulators, decay, energy, resolution)
 |   |-- contagion.py                 # Emotional contagion (LLM + rule-based fallback)
+|   |-- appraisal.py                 # Deterministic social appraisal (Phase 11)
 |   |-- llm_client.py                # MiniMax API client (OpenAI-compatible)
 |   |-- anticipation.py              # Forward emotional modeling (v2, pure heuristics)
 |   |-- defense_mechanisms.py        # Defense filter (v2, pure logic + prompt injection)
 |   |-- memory/
 |   |   |-- short_term.py            # In-memory emotional event buffer
 |   |   |-- long_term.py             # SQLite-backed persistent memory (ACT-R retrieval)
-|   |   +-- digestion.py             # Post-session memory consolidation
+|   |   |-- relationship.py          # Relationship-arc memory: rupture/repair/commitment/open loops
+|   |   +-- digestion.py             # Post-session memory + relationship consolidation
 |   |-- profiles/
 |   |   |-- base.py                  # ProfileStore — shared observation/trait mechanism
 |   |   |-- person.py                # Person profiles (trust, baseline_shift, primacy)
@@ -301,12 +326,16 @@ All data structures that flow between modules. Every module imports from here.
 | `EmotionalEvent` | An event with type, intensity (0.0-1.0), source, metadata, timestamp |
 | `ShortTermEntry` | timestamp + event + emotion_snapshot |
 | `LongTermEntry` | Distilled memory: summary, emotional_valence, trust_delta, topic, source_person, confidence, spike flag, ACT-R activation |
+| `RelationshipEvent` | Durable relationship-arc event: rupture, repair, commitment, recurring_tension |
+| `OpenLoop` | Persistent unresolved relationship tension or pending follow-up |
+| `RelationshipContext` | Compact retrieved relationship summary passed to generation/debug |
 | `PersonProfile` | trust, reliability, emotional_volatility, stress_response, baseline_shift, primacy_weight, interaction_count |
 | `SelfProfile` | observed_traits, strengths, flaws, triggers, dissonance, maturity_score, defense_log |
 | `TopicProfile` | topic name, emotional_charge, avoidance flag, conflict_count |
 | `BaselineShift` | Per-person modulator resting state adjustment |
 | `ValueHierarchy` | Ranked weighted values (static in v1) |
 | `DetectedEmotion` | arousal, valence, certainty, intensity (from contagion) |
+| `AppraisalFrame` | Turn-level target, intent, vulnerability, affiliation, and mixed-affect appraisal |
 | `AttachmentStyle` | Enum: secure, anxious, avoidant, disorganized |
 | `PipelineContext` | Full context assembled for LLM |
 | `UnresolvedItem` | Unresolved tension: id, source, description, intensity, decay_rate (v2) |
@@ -419,6 +448,14 @@ ltm.store_spike(entry)                 # Force-write, bypasses confidence thresh
 ltm.retrieve(current_state, source_person="paco", limit=5)  # ACT-R biased retrieval
 ```
 
+**RelationshipMemory** — SQLite-backed relational continuity:
+```python
+rel = RelationshipMemory(db_path="jarvis.db")
+rel.record_event(event)                # rupture / repair / commitment / recurring_tension
+rel.upsert_open_loop(loop)             # unresolved tension or pending follow-up
+rel.build_context("paco", topic="work")
+```
+
 ### core/profiles/ — Unified Profiling
 
 All profiles use the same underlying `ProfileStore` mechanism. The AI profiles itself using the exact same mechanism it uses to profile others (entity ID `__self__`).
@@ -481,7 +518,7 @@ pipe.apply_rest(hours=8.0)
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/sessions` | List active sessions (session_key, rel_key, user_id, idle_seconds, queue_size) |
-| GET | `/sessions/{session_key}/debug` | Live modulators, memory counts, unresolved items, last_turn debug |
+| GET | `/sessions/{session_key}/debug` | Live modulators, memory counts, unresolved items, relationship counts, last_turn debug |
 | POST | `/sessions/{session_key}/reset` | Evict session (digest + persist + close) |
 
 ### Debug Dashboard
@@ -571,21 +608,21 @@ All magic numbers live in YAML files. No hardcoded thresholds in module code. Th
 | test_phase3 | 20 | Inactivity timeout, graceful shutdown, backpressure, WAL mode |
 | test_debug_api | 15 | Session listing, per-session debug, reset, isolation |
 | test_runtime_config | 21 | Config loading, local/backend selection, channel config |
-| **Total** | **1092** | |
+| **Total** | **1150+** | |
 
 ---
 
 ## Future Roadmap
 
-v2 phases 1-7 and runtime phases 0-4 are complete. Future features:
+v2 phases 1-7 and runtime phases 0-4 are complete. Phase 11.1 and 11.2 are now landed. The remaining high-value path is:
 
 | Feature | Description |
 |---------|-------------|
-| v2.5 Dynamic value drift | Values evolve from accumulated experience |
-| v2.6 Attachment variants | Unlock anxious/avoidant/disorganized styles |
+| Phase 11.3 Response strategy selector | Choose validate / repair / ground / challenge gently based on appraisal + relationship context |
 | v2.7 Deep self-reflection | Periodic pattern extraction across sessions |
 | v2.8 Growth tracking | Milestone detection and personality evolution |
-| Runtime Phase 5 | WhatsApp channel, health endpoint, voice/image support, vector retrieval |
+| v2.9 Expression-state regulation | Make felt state vs shown state explicit and inspectable |
+| Deferred research | Attachment variants, dynamic value drift, and richer retrieval only if they clearly improve human-likeness |
 
 ---
 

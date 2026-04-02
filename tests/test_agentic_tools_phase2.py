@@ -464,6 +464,8 @@ class TestDebugStateSerialization:
         d = _debug_to_dict(debug)
         assert d["tool_trace"] is None
         assert d["action_variables"] is None
+        assert "appraisal_frame" in d
+        assert "relationship_context" in d
 
     def test_pipeline_debug_serializable(self, tmp_path):
         """Full pipeline debug state with tools is serializable."""

@@ -110,6 +110,96 @@ class LongTermEntry:
     activation: float = 0.0  # ACT-R activation score (computed at retrieval)
 
 
+@dataclass
+class RelationshipEvent:
+    """A durable relational event in the user-assistant arc."""
+    id: int | None = None
+    event_kind: str = ""  # rupture | repair | commitment | recurring_tension
+    source_person: str = ""
+    topic: str = ""
+    summary: str = ""
+    valence: float = 0.0  # -1.0 to 1.0
+    intensity: float = 0.0
+    confidence: float = 0.0
+    created_at: float = field(default_factory=time.time)
+    related_key: str = ""
+
+    def __post_init__(self) -> None:
+        self.valence = max(-1.0, min(1.0, self.valence))
+        self.intensity = max(0.0, min(1.0, self.intensity))
+        self.confidence = max(0.0, min(1.0, self.confidence))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "event_kind": self.event_kind,
+            "source_person": self.source_person,
+            "topic": self.topic,
+            "summary": self.summary,
+            "valence": self.valence,
+            "intensity": self.intensity,
+            "confidence": self.confidence,
+            "created_at": self.created_at,
+            "related_key": self.related_key,
+        }
+
+
+@dataclass
+class OpenLoop:
+    """A still-unresolved relational thread that should carry across sessions."""
+    id: int | None = None
+    loop_kind: str = ""  # tension | commitment
+    source_person: str = ""
+    topic: str = ""
+    description: str = ""
+    intensity: float = 0.0
+    status: Literal["open", "resolved"] = "open"
+    created_at: float = field(default_factory=time.time)
+    updated_at: float = field(default_factory=time.time)
+    resolved_at: float | None = None
+    related_key: str = ""
+
+    def __post_init__(self) -> None:
+        self.intensity = max(0.0, min(1.0, self.intensity))
+        if self.status not in {"open", "resolved"}:
+            self.status = "open"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "loop_kind": self.loop_kind,
+            "source_person": self.source_person,
+            "topic": self.topic,
+            "description": self.description,
+            "intensity": self.intensity,
+            "status": self.status,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "resolved_at": self.resolved_at,
+            "related_key": self.related_key,
+        }
+
+
+@dataclass
+class RelationshipContext:
+    """Compact relationship-memory summary passed into generation and debug."""
+    summary: str = ""
+    active_loops: list[OpenLoop] = field(default_factory=list)
+    recent_events: list[RelationshipEvent] = field(default_factory=list)
+    open_loop_count: int = 0
+
+    def is_empty(self) -> bool:
+        return not self.summary and not self.active_loops and not self.recent_events
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "summary": self.summary,
+            "active_loops": [loop.to_dict() for loop in self.active_loops],
+            "recent_events": [event.to_dict() for event in self.recent_events],
+            "open_loop_count": self.open_loop_count,
+        }
+
+
 # ---------------------------------------------------------------------------
 # Profiles
 # ---------------------------------------------------------------------------
@@ -210,6 +300,60 @@ class DetectedEmotion:
 
 
 # ---------------------------------------------------------------------------
+# Appraisal
+# ---------------------------------------------------------------------------
+
+@dataclass
+class AppraisalFrame:
+    """Turn-level social appraisal inferred from the user's message.
+
+    This captures how the message lands socially, beyond surface sentiment:
+    who/what it is aimed at, what social move it is making, and how much it
+    appears to seek connection, repair, or support.
+    """
+
+    speaker_role: str = "user"
+    primary_target: str = "unknown"      # assistant | self | external | other_person | shared_problem | unknown
+    social_move: str = "inform"          # attack | complaint | vulnerability | gratitude | apology | request | connection | inform
+    inferred_intent: str = "inform"      # harm | repair | affiliate | seek_support | seek_action | share_state | inform
+    blame: float = 0.0
+    controllability: float = 0.5
+    expectation_violation: float = 0.0
+    vulnerability: float = 0.0
+    affiliation_bid: float = 0.0
+    mixed_affect: bool = False
+    targets_assistant: bool = False
+    reason: str = ""
+
+    def __post_init__(self) -> None:
+        for field_name in (
+            "blame",
+            "controllability",
+            "expectation_violation",
+            "vulnerability",
+            "affiliation_bid",
+        ):
+            value = getattr(self, field_name)
+            setattr(self, field_name, max(0.0, min(1.0, value)))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "speaker_role": self.speaker_role,
+            "primary_target": self.primary_target,
+            "social_move": self.social_move,
+            "inferred_intent": self.inferred_intent,
+            "blame": self.blame,
+            "controllability": self.controllability,
+            "expectation_violation": self.expectation_violation,
+            "vulnerability": self.vulnerability,
+            "affiliation_bid": self.affiliation_bid,
+            "mixed_affect": self.mixed_affect,
+            "targets_assistant": self.targets_assistant,
+            "reason": self.reason,
+        }
+
+
+# ---------------------------------------------------------------------------
 # Attachment (config, locked to secure in v1)
 # ---------------------------------------------------------------------------
 
@@ -230,6 +374,8 @@ class PipelineContext:
     modulator_snapshot: dict[str, float] = field(default_factory=dict)
     person_profile: PersonProfile | None = None
     self_profile: SelfProfile | None = None
+    appraisal_frame: AppraisalFrame | None = None
+    relationship_context: RelationshipContext | None = None
     topic_profiles: list[TopicProfile] = field(default_factory=list)
     values: ValueHierarchy = field(default_factory=ValueHierarchy)
     retrieved_memories: list[LongTermEntry] = field(default_factory=list)

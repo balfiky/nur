@@ -71,6 +71,8 @@ def create_debug_app(session_manager: SessionManager) -> FastAPI:
             "memory": {
                 "short_term": len(pipeline.short_term),
                 "long_term": pipeline.long_term.count(),
+                "relationship_events": pipeline.relationship_memory.count_events(session.user_id),
+                "open_loops": pipeline.relationship_memory.count_open_loops(session.user_id),
             },
             # Resolution
             "unresolved_count": len(unresolved),
@@ -128,6 +130,11 @@ def _debug_to_dict(debug) -> dict:
         if debug.detected_emotion else None
     )
 
+    # Appraisal
+    d["appraisal_frame"] = (
+        debug.appraisal_frame.to_dict() if getattr(debug, "appraisal_frame", None) else None
+    )
+
     # Context switch
     d["baseline_shift_applied"] = debug.baseline_shift_applied
 
@@ -142,6 +149,11 @@ def _debug_to_dict(debug) -> dict:
         {"summary": m.summary, "valence": m.emotional_valence, "spike": m.spike}
         for m in debug.retrieved_memories
     ]
+    d["relationship_context"] = (
+        debug.relationship_context.to_dict()
+        if getattr(debug, "relationship_context", None)
+        else None
+    )
 
     # Profiles
     d["person_profile"] = (

@@ -269,13 +269,22 @@ class TestSchemaVersion:
     def test_older_version_migrates(self):
         conn = sqlite3.connect(":memory:")
         conn.execute("CREATE TABLE schema_version (version INTEGER NOT NULL)")
-        conn.execute("INSERT INTO schema_version (version) VALUES (?)", (0,))
+        conn.execute("INSERT INTO schema_version (version) VALUES (?)", (1,))
         conn.commit()
         version = ensure_schema_version(conn)
-        assert version == 0  # returns old version; table updated to current
+        assert version == SCHEMA_VERSION
         # Verify the table was updated
         row = conn.execute("SELECT version FROM schema_version").fetchone()
         assert row[0] == SCHEMA_VERSION
+        # Verify the migration created relationship-memory tables
+        tables = {
+            row[0]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            ).fetchall()
+        }
+        assert "relationship_events" in tables
+        assert "open_loops" in tables
         conn.close()
 
     def test_profile_store_has_schema_version(self):

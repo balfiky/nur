@@ -3,25 +3,26 @@
 v2 processing flow:
  1. Anticipation: predict emotional trajectory (0 LLM calls)
  2. Contagion: detect user tone → bounded mirror (0 LLM calls — rule-based)
- 3. Context switch: load person profile baseline_shift
- 4. Event classification: categorize input (0 LLM calls — rule-based)
- 5. PSI engine: update 6 modulators from input + drives + energy
- 6. Resolution update: check for new/resolved tension items (0 LLM calls)
- 7. Short-term memory: store emotional reaction
- 8. Spike check: if intensity > 0.8 → heavy write to LT
- 9. Memory retrieval: ACT-R activation biased by current state
-10. Profile lookup: person + self + topic
-11. Contradiction check: compare against profiles (self + others)
-12. Inner dialogue: fast/slow deliberation only for non-spike unresolved tension
+ 3. Appraisal: infer target, intent, vulnerability, affiliation (0 LLM calls)
+ 4. Context switch: load person profile baseline_shift
+ 5. Event classification: categorize input (0 LLM calls — rule-based)
+ 6. PSI engine: update 6 modulators from input + drives + energy
+ 7. Resolution update: check for new/resolved tension items (0 LLM calls)
+ 8. Short-term memory: store emotional reaction
+ 9. Spike check: if intensity > 0.8 → heavy write to LT
+10. Memory retrieval: ACT-R activation biased by current state
+11. Profile lookup: person + self + topic
+12. Contradiction check: compare against profiles (self + others)
+13. Inner dialogue: fast/slow deliberation only for non-spike unresolved tension
     (0-5 LLM calls; spike-only turns skip)
-12b. Tool loop: detect intent → arbiter → execute → appraise (0+ tool calls;
+13b. Tool loop: detect intent → arbiter → execute → appraise (0+ tool calls;
      skipped if no tool_executor configured)
-13. Defense mechanisms: filter output if needed (0 LLM calls)
-14. Master LLM: generate final response (1 LLM call)
-15. Self-check: rule-based default; LLM only for extreme/high-risk turns
+14. Defense mechanisms: filter output if needed (0 LLM calls)
+15. Master LLM: generate final response (1 LLM call)
+16. Self-check: rule-based default; LLM only for extreme/high-risk turns
     (0-1 LLM calls)
-16. Post-processing: update memory, drain energy
-17. [Session end] Digestion (0-1 LLM call)
+17. Post-processing: update memory, drain energy
+18. [Session end] Digestion (0-1 LLM call)
 
 LLM call budget: 1-6 per message (typical: 1). Spike-only hostility should stay
 on the generator path unless a separate high-risk condition warrants LLM
@@ -35,10 +36,12 @@ import json
 import re
 import time
 from dataclasses import dataclass, field
+from typing import Any
 
 from config.loader import get_config
 from core.types import (
     ActionVariables,
+    AppraisalFrame,
     Anticipation,
     DefenseActivation,
     DetectedEmotion,
@@ -49,6 +52,7 @@ from core.types import (
     ModulatorState,
     PipelineContext,
     PersonProfile,
+    RelationshipContext,
     SelfProfile,
     ToolCategory,
     TopicProfile,
@@ -56,10 +60,12 @@ from core.types import (
     UnresolvedItem,
     ValueHierarchy,
 )
+from core.appraisal import appraise_message
 from core.emotional_engine import EmotionalEngine, SPIKE_INTENSITY_THRESHOLD
 from core.memory.short_term import ShortTermMemory
 from core.memory.long_term import LongTermMemory
 from core.memory.digestion import digest_session, DigestedSession
+from core.memory.relationship import RelationshipMemory
 from core.contagion import detect_emotion
 from core.profiles.base import ProfileStore
 from core.profiles.person import PersonProfileManager
@@ -107,10 +113,13 @@ class DebugState:
     # Step 2: Contagion
     detected_emotion: DetectedEmotion | None = None
 
-    # Step 3: Context switch
+    # Step 3: Social appraisal
+    appraisal_frame: AppraisalFrame | None = None
+
+    # Step 4: Context switch
     baseline_shift_applied: dict[str, float] = field(default_factory=dict)
 
-    # Step 4: Modulator update
+    # Step 5: Modulator update
     event_classified: str = ""
     event_intensity: float = 0.0
     is_spike: bool = False
@@ -118,6 +127,7 @@ class DebugState:
 
     # Step 7: Memory retrieval
     retrieved_memories: list[LongTermEntry] = field(default_factory=list)
+    relationship_context: RelationshipContext | None = None
 
     # Step 8: Profiles
     person_profile: PersonProfile | None = None
@@ -217,6 +227,7 @@ class CognitivePipeline:
         # Memory
         self.short_term = ShortTermMemory()
         self.long_term = LongTermMemory(db_path=db_path)
+        self.relationship_memory = RelationshipMemory(db_path=db_path)
 
         # Per-user profile store (person observations + extracted traits)
         self._person_profile_store = ProfileStore(db_path=db_path)
@@ -271,8 +282,8 @@ class CognitivePipeline:
     def process(self, user_message: str, user_id: str = "default") -> PipelineResponse:
         """Process a user message through the full v2 cognitive pipeline.
 
-        Flow: anticipation → contagion → context → event → resolution →
-              memory → profiles → contradiction → inner dialogue →
+        Flow: anticipation → contagion → appraisal → context → event →
+              resolution → memory → profiles → contradiction → inner dialogue →
               defense → master LLM → post-processing.
 
         Returns the response text and full debug state.
@@ -317,21 +328,27 @@ class CognitivePipeline:
         self.engine.apply_contagion(detected.arousal, detected.valence, person.trust)
         timings["contagion"] = (time.perf_counter() - _ts) * 1000
 
-        # ---- Step 3: Context switch (non-additive — sets resting target) ----
+        # ---- Step 3: APPRAISAL (0 LLM calls — deterministic) ----
+        _ts = time.perf_counter()
+        appraisal = appraise_message(user_message, detected)
+        debug.appraisal_frame = appraisal
+        timings["appraisal"] = (time.perf_counter() - _ts) * 1000
+
+        # ---- Step 4: Context switch (non-additive — sets resting target) ----
         shift = self.person_profiles.get_baseline_shift(user_id)
         self.engine.set_context_shift(shift)
         debug.baseline_shift_applied = shift.to_dict()
 
-        # ---- Step 4: Event classification + PSI engine update ----
+        # ---- Step 5: Event classification + PSI engine update ----
         _ts = time.perf_counter()
-        event = self._classify_event(user_message, detected)
+        event = self._classify_event(user_message, detected, appraisal)
         is_spike = self.engine.update(event)
         debug.event_classified = event.event_type.value
         debug.event_intensity = event.intensity
         debug.is_spike = is_spike
         timings["event_classification"] = (time.perf_counter() - _ts) * 1000
 
-        # ---- Step 5: Resolution update (0 LLM calls) ----
+        # ---- Step 6: Resolution update (0 LLM calls) ----
         # Check if this event creates new unresolved items
         self._check_resolution_sources(event, user_message, user_id)
         active_unresolved = self.engine.active_unresolved()
@@ -340,10 +357,10 @@ class CognitivePipeline:
 
         debug.modulator_snapshot = self.engine.snapshot()
 
-        # ---- Step 6: Short-term memory ----
+        # ---- Step 7: Short-term memory ----
         self.short_term.record(event, self.engine.state)
 
-        # ---- Step 7: Spike check ----
+        # ---- Step 8: Spike check ----
         if is_spike:
             spike_entry = LongTermEntry(
                 timestamp=time.time(),
@@ -356,7 +373,7 @@ class CognitivePipeline:
             )
             self.long_term.store_spike(spike_entry)
 
-        # ---- Step 8: Memory retrieval ----
+        # ---- Step 9: Memory retrieval ----
         _ts = time.perf_counter()
         retrieved = self.long_term.retrieve(
             self.engine.state,
@@ -366,15 +383,27 @@ class CognitivePipeline:
         debug.retrieved_memories = retrieved
         timings["memory_retrieval"] = (time.perf_counter() - _ts) * 1000
 
-        # ---- Step 9: Profile lookup ----
+        # ---- Step 10: Profile lookup ----
         person = self.person_profiles.get_or_create(user_id)
         self_prof = self.self_profile.get_profile()
         active_topics = self._detect_topics(user_message)
+        relationship_topic = active_topics[0].topic if active_topics else ""
+        _ts = time.perf_counter()
+        relationship_context = self.relationship_memory.build_context(
+            user_id,
+            topic=relationship_topic,
+            event_limit=3,
+            loop_limit=3,
+        )
+        if relationship_context.is_empty():
+            relationship_context = None
         debug.person_profile = person
         debug.self_profile = self_prof
         debug.topic_profiles = active_topics
+        debug.relationship_context = relationship_context
+        timings["relationship_retrieval"] = (time.perf_counter() - _ts) * 1000
 
-        # ---- Step 10: Contradiction check ----
+        # ---- Step 11: Contradiction check ----
         contradiction_flags: list[str] = []
 
         person_expected = self.person_profiles.get_expected_traits(user_id)
@@ -401,7 +430,7 @@ class CognitivePipeline:
         debug.unresolved_count = len(active_unresolved)
         debug.unresolved_items = list(active_unresolved)
 
-        # ---- Step 11: INNER DIALOGUE (0-5 LLM calls; 0 for calm) ----
+        # ---- Step 12: INNER DIALOGUE (0-5 LLM calls; 0 for calm) ----
         _ts = time.perf_counter()
         contagion_summary = (
             f"arousal={detected.arousal:.2f}, valence={detected.valence:.2f}, "
@@ -432,7 +461,7 @@ class CognitivePipeline:
             debug.unresolved_count = len(active_unresolved)
             debug.unresolved_items = list(active_unresolved)
 
-        # ---- Step 11b: TOOL LOOP (0+ tool executions; skipped if no executor) ----
+        # ---- Step 12b: TOOL LOOP (0+ tool executions; skipped if no executor) ----
         tool_context_summary = ""
         if self._tool_executor is not None:
             _ts_tool = time.perf_counter()
@@ -458,7 +487,7 @@ class CognitivePipeline:
                 if task_trace.plan.is_terminal:
                     self._active_task_plan = None
 
-            # ---- Step 11c: TOOL MEMORY COUPLING ----
+            # ---- Step 12c: TOOL MEMORY COUPLING ----
             trace = tool_loop_result.trace
             if trace.executed_results:
                 effects = ToolMemoryEffects()
@@ -515,7 +544,7 @@ class CognitivePipeline:
 
                 debug.tool_memory_effects = effects
 
-            # ---- Step 11d: TASK MEMORY COUPLING (Phase 7) ----
+            # ---- Step 12d: TASK MEMORY COUPLING (Phase 7) ----
             if task_trace and task_trace.plan and task_trace.plan.is_terminal:
                 plan = task_trace.plan
                 effects = debug.tool_memory_effects or ToolMemoryEffects()
@@ -547,7 +576,7 @@ class CognitivePipeline:
 
             timings["tool_loop"] = (time.perf_counter() - _ts_tool) * 1000
 
-        # ---- Step 12: DEFENSE MECHANISMS (0 LLM calls) ----
+        # ---- Step 13: DEFENSE MECHANISMS (0 LLM calls) ----
         filtered_output, defense = self.defense_mechanism.evaluate(
             inner_dialogue_output=dialogue_trace.final_candidate,
             modulator_state=self.engine.state,
@@ -557,7 +586,7 @@ class CognitivePipeline:
         )
         debug.defense_activation = defense
 
-        # ---- Step 13: MASTER LLM (1 LLM call) ----
+        # ---- Step 14: MASTER LLM (1 LLM call) ----
         _ts = time.perf_counter()
         defense_instruction = ""
         if defense:
@@ -567,6 +596,8 @@ class CognitivePipeline:
             modulator_snapshot=self.engine.snapshot(),
             person_profile=person,
             self_profile=self_prof,
+            appraisal_frame=appraisal,
+            relationship_context=relationship_context,
             topic_profiles=active_topics,
             values=self.values,
             retrieved_memories=retrieved,
@@ -607,6 +638,8 @@ class CognitivePipeline:
                 modulator_snapshot=ctx.modulator_snapshot,
                 person_profile=ctx.person_profile,
                 self_profile=ctx.self_profile,
+                appraisal_frame=ctx.appraisal_frame,
+                relationship_context=ctx.relationship_context,
                 topic_profiles=ctx.topic_profiles,
                 values=ctx.values,
                 retrieved_memories=ctx.retrieved_memories,
@@ -628,7 +661,7 @@ class CognitivePipeline:
         timings["self_check"] = (time.perf_counter() - _ts) * 1000
         debug.response = gen_result.response
 
-        # ---- Step 14: Post-processing ----
+        # ---- Step 15: Post-processing ----
         outcome_event = EmotionalEvent(
             event_type=EventType.USER_MESSAGE,
             intensity=0.1,
@@ -659,7 +692,7 @@ class CognitivePipeline:
 
         # ---- Self-observations (1-3 per turn) ----
         self._record_self_observations(
-            event, detected, defense, self.engine.state, gen_result.response,
+            event, detected, appraisal, defense, self.engine.state, gen_result.response,
         )
 
         # ---- Persist defense event ----
@@ -777,10 +810,14 @@ class CognitivePipeline:
             modulator_snapshot=self.engine.snapshot(),
             person_profile=person,
             self_profile=self_prof,
+            relationship_context=None,
             candidate_response=filtered,
             defense_instruction=defense_instruction,
             tool_context_summary=tool_context,
         )
+        proactive_relationship = self.relationship_memory.build_context(user_id)
+        if not proactive_relationship.is_empty():
+            ctx.relationship_context = proactive_relationship
         gen_result = self.generator.generate(
             ctx, action.message, self._conversation_history,
         )
@@ -809,6 +846,7 @@ class CognitivePipeline:
         self,
         event: EmotionalEvent,
         detected: DetectedEmotion,
+        appraisal: AppraisalFrame,
         defense: DefenseActivation | None,
         state: ModulatorState,
         response: str,
@@ -820,8 +858,8 @@ class CognitivePipeline:
         if state.certainty > 0.7:
             observations.append(("blunt", state.certainty, "high_certainty"))
 
-        # Empathetic: negative user emotion acknowledged
-        if detected.valence < 0.3:
+        # Empathetic: user distress that is not aimed at Jarvis
+        if detected.valence < 0.3 and not appraisal.targets_assistant:
             observations.append(("empathetic", 0.6, "negative_user_emotion"))
 
         # Defensive: defense mechanism fired
@@ -867,8 +905,8 @@ class CognitivePipeline:
         from core.types import UnresolvedItem
         import uuid
 
-        # Spike not processed → unresolved
-        if event.intensity >= SPIKE_INTENSITY_THRESHOLD:
+        # Spike not processed → unresolved (resolution events are healing, not tension)
+        if event.intensity >= SPIKE_INTENSITY_THRESHOLD and event.event_type != EventType.RESOLUTION:
             self.engine.add_unresolved(UnresolvedItem(
                 id=f"spike_{uuid.uuid4().hex[:8]}",
                 source="spike",
@@ -946,6 +984,7 @@ class CognitivePipeline:
         shutdown). Safe to call multiple times.
         """
         self.long_term.close()
+        self.relationship_memory.close()
         self._person_profile_store.close()
         self._self_profile_store.close()
         self.person_profiles.close()
@@ -972,6 +1011,7 @@ class CognitivePipeline:
             self.short_term,
             self.long_term,
             source_person=user_id,
+            relationship_memory=self.relationship_memory,
             llm_client=self._llm_backend,
             conversation_history=self._conversation_history,
         )
@@ -1002,17 +1042,23 @@ class CognitivePipeline:
     # ------------------------------------------------------------------
 
     def _classify_event(
-        self, text: str, detected: DetectedEmotion
+        self,
+        text: str,
+        detected: DetectedEmotion,
+        appraisal: AppraisalFrame,
     ) -> EmotionalEvent:
         """Classify user message into an EmotionalEvent.
 
         Always uses rule-based heuristics (0 LLM calls).
         LLM classification available via _classify_event_via_llm() if needed.
         """
-        return self._classify_event_via_rules(text, detected)
+        return self._classify_event_via_rules(text, detected, appraisal)
 
     def _classify_event_via_llm(
-        self, text: str, detected: DetectedEmotion
+        self,
+        text: str,
+        detected: DetectedEmotion,
+        appraisal: AppraisalFrame,
     ) -> EmotionalEvent | None:
         """LLM-based event classification. Returns None on failure."""
         prompt_template = get_config().classify_event_prompt
@@ -1045,30 +1091,76 @@ class CognitivePipeline:
                 event_type=event_type,
                 intensity=max(0.0, min(1.0, intensity)),
                 source="user",
+                metadata=self._appraisal_metadata(appraisal),
             )
         except (json.JSONDecodeError, KeyError, TypeError, ValueError):
             return None
 
     def _classify_event_via_rules(
-        self, text: str, detected: DetectedEmotion
+        self,
+        text: str,
+        detected: DetectedEmotion,
+        appraisal: AppraisalFrame,
     ) -> EmotionalEvent:
         """Rule-based fallback for event classification."""
         lower = text.lower()
+        metadata = self._appraisal_metadata(appraisal)
 
-        # Betrayal / deception keywords
-        if any(w in lower for w in ["betray", "lied", "deceived", "cheated"]):
+        if appraisal.social_move == "apology":
+            return EmotionalEvent(
+                event_type=EventType.RESOLUTION,
+                intensity=max(0.4, appraisal.affiliation_bid),
+                source="user",
+                metadata=metadata,
+            )
+
+        if appraisal.social_move == "gratitude":
+            return EmotionalEvent(
+                event_type=EventType.POSITIVE_FEEDBACK,
+                intensity=max(0.3, detected.valence, appraisal.affiliation_bid * 0.7),
+                source="user",
+                metadata=metadata,
+            )
+
+        if appraisal.social_move == "connection" and appraisal.targets_assistant:
+            return EmotionalEvent(
+                event_type=EventType.WARMTH,
+                intensity=max(0.3, appraisal.affiliation_bid * 0.6, detected.valence),
+                source="user",
+                metadata=metadata,
+            )
+
+        # Betrayal / deception only counts as relational betrayal when aimed at Jarvis.
+        if appraisal.targets_assistant and any(w in lower for w in ["betray", "lied", "deceived", "cheated"]):
             return EmotionalEvent(
                 event_type=EventType.BETRAYAL,
                 intensity=max(0.7, 1.0 - detected.valence),
                 source="user",
+                metadata=metadata,
             )
 
-        # Conflict / anger keywords
-        if any(w in lower for w in ["angry", "furious", "hate", "fight", "argument"]):
+        # Direct conflict with Jarvis, not general distress elsewhere.
+        if appraisal.targets_assistant and any(
+            w in lower
+            for w in [
+                "angry",
+                "furious",
+                "hate",
+                "fight",
+                "argument",
+                "shut up",
+                "go away",
+                "screw you",
+                "piss off",
+                "get lost",
+                "leave me alone",
+            ]
+        ):
             return EmotionalEvent(
                 event_type=EventType.CONFLICT,
                 intensity=max(0.5, detected.arousal),
                 source="user",
+                metadata=metadata,
             )
 
         # Insults, hostility, profanity
@@ -1082,53 +1174,50 @@ class CognitivePipeline:
         ]
         _profanity = ["fuck", "shit", "bullshit", "damn", "asshole", "bastard", "bitch", "crap", "suck", "sucks"]
 
-        if any(w in lower for w in _insult_words):
+        if appraisal.targets_assistant and any(w in lower for w in _insult_words):
             return EmotionalEvent(
                 event_type=EventType.NEGATIVE_FEEDBACK,
                 intensity=max(0.6, detected.arousal),
                 source="user",
+                metadata=metadata,
             )
-        if any(p in lower for p in _hostile_phrases):
+        if appraisal.targets_assistant and any(p in lower for p in _hostile_phrases):
             return EmotionalEvent(
                 event_type=EventType.CONFLICT,
                 intensity=max(0.7, detected.arousal),
                 source="user",
+                metadata=metadata,
             )
-        if any(w in lower for w in _profanity):
+        if appraisal.targets_assistant and any(w in lower for w in _profanity):
             return EmotionalEvent(
                 event_type=EventType.NEGATIVE_FEEDBACK,
                 intensity=max(0.5, detected.arousal),
                 source="user",
+                metadata=metadata,
             )
 
-        # Resolution / apology keywords
-        if any(w in lower for w in ["sorry", "apologize", "resolved", "forgive", "peace"]):
-            return EmotionalEvent(
-                event_type=EventType.RESOLUTION,
-                intensity=0.6,
-                source="user",
-            )
-
-        # Positive feedback keywords
+        # Positive feedback remains relational only when directed at Jarvis.
         _positive_words = [
             "thank", "grateful", "appreciate", "love", "great job",
             "wonderful", "amazing", "awesome", "fantastic", "excellent",
             "brilliant", "outstanding", "incredible", "superb", "perfect",
             "beautiful", "impressive", "magnificent",
         ]
-        if any(w in lower for w in _positive_words):
+        if appraisal.targets_assistant and any(w in lower for w in _positive_words):
             return EmotionalEvent(
                 event_type=EventType.POSITIVE_FEEDBACK,
                 intensity=max(0.3, detected.valence),
                 source="user",
+                metadata=metadata,
             )
 
-        # General negativity keywords
-        if any(w in lower for w in ["wrong", "bad", "terrible", "awful", "disappointed"]):
+        # General negativity should only damage the relationship when aimed at Jarvis.
+        if appraisal.targets_assistant and any(w in lower for w in ["wrong", "bad", "terrible", "awful", "disappointed"]):
             return EmotionalEvent(
                 event_type=EventType.NEGATIVE_FEEDBACK,
                 intensity=max(0.4, 1.0 - detected.valence),
                 source="user",
+                metadata=metadata,
             )
 
         if any(w in lower for w in ["surprise", "unexpected", "wow", "shock"]):
@@ -1136,37 +1225,76 @@ class CognitivePipeline:
                 event_type=EventType.SURPRISE,
                 intensity=max(0.4, detected.arousal),
                 source="user",
+                metadata=metadata,
             )
 
-        if any(w in lower for w in ["warm", "kind", "sweet", "care", "hug"]):
+        if appraisal.targets_assistant and any(w in lower for w in ["warm", "kind", "sweet", "care", "hug"]):
             return EmotionalEvent(
                 event_type=EventType.WARMTH,
                 intensity=max(0.3, detected.valence),
                 source="user",
+                metadata=metadata,
             )
 
-        # Contagion-driven fallback
-        if detected.valence < 0.25 and detected.arousal > 0.6:
+        # Strong negative emotion can still matter without being relational harm.
+        if appraisal.targets_assistant and detected.valence < 0.25 and detected.arousal > 0.6:
             return EmotionalEvent(
                 event_type=EventType.NEGATIVE_FEEDBACK,
                 intensity=detected.arousal,
                 source="user",
+                metadata=metadata,
             )
 
-        if detected.valence > 0.75:
+        if appraisal.targets_assistant and detected.valence > 0.75:
             return EmotionalEvent(
                 event_type=EventType.POSITIVE_FEEDBACK,
                 intensity=detected.valence,
                 source="user",
+                metadata=metadata,
             )
 
-        # Default: regular user message
-        intensity = max(abs(detected.arousal - 0.5), abs(detected.valence - 0.5))
+        # Non-directed strongly positive emotion — shared joy still lifts mood.
+        # Half weight vs assistant-targeted positive feedback.
+        if not appraisal.targets_assistant and detected.valence > 0.65 and detected.arousal > 0.5:
+            return EmotionalEvent(
+                event_type=EventType.POSITIVE_FEEDBACK,
+                intensity=detected.valence * 0.85,
+                source="user",
+                metadata=metadata,
+            )
+
+        # Default: regular user message. This preserves emotional contagion for
+        # external distress without treating it as relational damage.
+        # Strongly charged messages carry more weight — someone arriving
+        # extremely agitated or excited should still move the needle.
+        intensity = max(
+            abs(detected.arousal - 0.5),
+            abs(detected.valence - 0.5),
+        )
+        if detected.arousal > 0.7 or abs(detected.valence - 0.5) > 0.25:
+            intensity = max(intensity, 0.6)
         return EmotionalEvent(
             event_type=EventType.USER_MESSAGE,
             intensity=max(0.1, min(1.0, intensity)),
             source="user",
+            metadata=metadata,
         )
+
+    @staticmethod
+    def _appraisal_metadata(appraisal: AppraisalFrame) -> dict[str, Any]:
+        """Attach compact appraisal state to events for downstream use."""
+        return {
+            "primary_target": appraisal.primary_target,
+            "social_move": appraisal.social_move,
+            "inferred_intent": appraisal.inferred_intent,
+            "targets_assistant": appraisal.targets_assistant,
+            "blame": appraisal.blame,
+            "controllability": appraisal.controllability,
+            "expectation_violation": appraisal.expectation_violation,
+            "vulnerability": appraisal.vulnerability,
+            "affiliation_bid": appraisal.affiliation_bid,
+            "mixed_affect": appraisal.mixed_affect,
+        }
 
     def _detect_topics(self, text: str) -> list[TopicProfile]:
         """Detect active topics via substring matching (0 LLM calls).
@@ -1213,8 +1341,13 @@ class CognitivePipeline:
         """Map event to signed valence for trust math."""
         positive = {EventType.POSITIVE_FEEDBACK, EventType.RESOLUTION, EventType.WARMTH}
         negative = {EventType.NEGATIVE_FEEDBACK, EventType.CONFLICT, EventType.BETRAYAL}
+        targets_assistant = bool(event.metadata.get("targets_assistant"))
         if event.event_type in positive:
+            if not targets_assistant:
+                return 0.0
             return event.intensity
         elif event.event_type in negative:
+            if not targets_assistant:
+                return 0.0
             return -event.intensity
         return 0.0

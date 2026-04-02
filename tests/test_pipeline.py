@@ -8,9 +8,14 @@ from pipeline import CognitivePipeline, DebugState, PipelineResponse
 
 
 class TestCognitivePipeline:
-    def _make_pipeline(self, response: str = "I understand.") -> CognitivePipeline:
+    def _make_pipeline(
+        self,
+        response: str = "I understand.",
+        *,
+        db_path: str = ":memory:",
+    ) -> CognitivePipeline:
         backend = MockLLMBackend(response=response)
-        return CognitivePipeline(llm_backend=backend)
+        return CognitivePipeline(llm_backend=backend, db_path=db_path)
 
     def test_basic_process(self):
         pipe = self._make_pipeline()
@@ -26,6 +31,7 @@ class TestCognitivePipeline:
         d = result.debug
         assert isinstance(d, DebugState)
         assert d.detected_emotion is not None
+        assert d.appraisal_frame is not None
         assert d.modulator_snapshot != {}
         assert d.event_classified != ""
         assert d.energy_after > 0
@@ -40,7 +46,7 @@ class TestCognitivePipeline:
 
     def test_conflict_event_classification(self):
         pipe = self._make_pipeline()
-        result = pipe.process("I'm so angry about this argument!", user_id="alice")
+        result = pipe.process("I'm angry with you about this argument!", user_id="alice")
         assert result.debug.event_classified == "conflict"
 
     def test_warmth_event_classification(self):
@@ -57,6 +63,25 @@ class TestCognitivePipeline:
         pipe = self._make_pipeline()
         result = pipe.process("You lied and betrayed my trust", user_id="alice")
         assert result.debug.event_classified == "betrayal"
+
+    def test_external_distress_uses_user_message_not_relational_conflict(self):
+        pipe = self._make_pipeline()
+        result = pipe.process("I'm furious about work, not at you.", user_id="alice")
+        assert result.debug.appraisal_frame is not None
+        assert result.debug.appraisal_frame.primary_target == "external"
+        assert result.debug.appraisal_frame.targets_assistant is False
+        assert result.debug.event_classified == "user_message"
+        profile = pipe.person_profiles.get_or_create("alice")
+        assert profile.trust == pytest.approx(0.5)
+
+    def test_direct_attack_still_affects_relationship(self):
+        pipe = self._make_pipeline()
+        result = pipe.process("You are useless and this answer is terrible.", user_id="alice")
+        assert result.debug.appraisal_frame is not None
+        assert result.debug.appraisal_frame.targets_assistant is True
+        assert result.debug.event_classified == "negative_feedback"
+        profile = pipe.person_profiles.get_or_create("alice")
+        assert profile.trust < 0.5
 
     def test_energy_drains_over_messages(self):
         pipe = self._make_pipeline()
@@ -96,6 +121,36 @@ class TestCognitivePipeline:
         pipe.end_session(user_id="alice")
         # Digestion should write at least one memory
         assert pipe.long_term.count() >= initial_lt_count
+
+    def test_relationship_context_surfaces_across_sessions(self, tmp_path):
+        db_path = str(tmp_path / "relationship.db")
+        pipe = self._make_pipeline(db_path=db_path)
+        pipe.process("I'm angry with you about the deadline.", user_id="alice")
+        pipe.end_session(user_id="alice")
+
+        result = pipe.process("hello again", user_id="alice")
+        assert result.debug.relationship_context is not None
+        assert result.debug.relationship_context.open_loop_count >= 1
+        assert "Relationship context" in pipe._llm_backend.last_system_prompt
+        pipe.close()
+
+    def test_relationship_repair_closes_open_loop(self, tmp_path):
+        db_path = str(tmp_path / "relationship_repair.db")
+        pipe = self._make_pipeline(db_path=db_path)
+        pipe.process("I'm angry with you about the deadline.", user_id="alice")
+        pipe.end_session(user_id="alice")
+
+        pipe.process("I'm sorry for snapping at you about the deadline.", user_id="alice")
+        pipe.end_session(user_id="alice")
+
+        result = pipe.process("thanks for sticking with me", user_id="alice")
+        assert result.debug.relationship_context is not None
+        assert result.debug.relationship_context.open_loop_count == 0
+        assert any(
+            event.event_kind == "repair"
+            for event in result.debug.relationship_context.recent_events
+        )
+        pipe.close()
 
     def test_rest_recovers_energy(self):
         pipe = self._make_pipeline()
@@ -223,8 +278,8 @@ class TestPipelineLLMClassification:
     def test_llm_classify_event_invalid_falls_back(self):
         backend = MockLLMBackend(response="I understand.")
         pipe = CognitivePipeline(llm_backend=backend)
-        # "angry" triggers rule-based conflict classification
-        result = pipe.process("I'm so angry about this argument!", user_id="alice")
+        # Assistant-targeted anger triggers rule-based conflict classification
+        result = pipe.process("I'm angry with you about this argument!", user_id="alice")
         assert result.debug.event_classified == "conflict"
 
     def test_rule_based_detect_topics_substring(self):

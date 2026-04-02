@@ -4,6 +4,62 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.20.0 — 2026-04-02 (Phase 11: appraisal and relationship-arc memory)
+
+Starts the lean Phase 11 track aimed at making Nūr feel more human without adding prompt theater or heavy new subsystems. This release improves how Nūr interprets social meaning and how it carries relationship continuity across sessions.
+
+### Deterministic social appraisal (`core/appraisal.py`, `core/types.py`, `pipeline.py`)
+- Added `AppraisalFrame` to represent turn-level social interpretation before emotional update:
+  - `primary_target`, `social_move`, `inferred_intent`, `blame`, `controllability`
+  - `expectation_violation`, `vulnerability`, `affiliation_bid`, `mixed_affect`
+  - explicit `targets_assistant` flag for relational vs non-relational affect
+- Added `core/appraisal.py` — deterministic appraisal pass with no mandatory LLM call
+- Pipeline now runs `contagion -> appraisal -> event classification`
+- External distress such as "I'm furious about work, not at you" no longer damages trust or gets misclassified as conflict
+- Assistant-directed conflict, hostility, gratitude, apology, and warmth now route through appraisal-aware event classification
+
+### Relationship-arc memory (`core/memory/relationship.py`, `core/memory/digestion.py`, `pipeline.py`)
+- Added `RelationshipMemory` with two SQLite-backed stores:
+  - `relationship_events` — durable arc events like `rupture`, `repair`, `commitment`, `recurring_tension`
+  - `open_loops` — unresolved relational threads and pending follow-up commitments
+- Added new shared types:
+  - `RelationshipEvent`
+  - `OpenLoop`
+  - `RelationshipContext`
+- Session digestion now extracts only high-value relational updates:
+  - rupture after assistant-directed conflict / strong negative feedback
+  - repair after apology / resolution
+  - explicit follow-up commitments from assistant replies
+  - recurring tension when the same conflict pattern returns
+- Pipeline retrieves a compact `relationship_context` before generation and exposes it in debug output
+- Generator prompt now includes relationship context alongside regular long-term memory
+
+### Schema migration (`core/schema.py`)
+- Schema version bumped `1 -> 2`
+- Added a real migration path instead of placeholder version bumps
+- Migration creates:
+  - `relationship_events`
+  - `open_loops`
+  - indexes for per-person retrieval
+
+### Debug / observability (`runtime/debug/api.py`)
+- Session debug memory counts now include:
+  - `relationship_events`
+  - `open_loops`
+- `last_turn` debug payload now includes `relationship_context`
+
+### Tests
+- Added `tests/test_appraisal.py`
+- Added `tests/test_relationship_memory.py`
+- Expanded integration coverage in:
+  - `tests/test_pipeline.py`
+  - `tests/test_dual_process.py`
+  - `tests/test_debug_api.py`
+  - `tests/test_phase0.py`
+  - `tests/test_agentic_tools_phase2.py`
+
+---
+
 ## v0.19.0 — 2026-04-02 (Phase 10: Calibration and policy shaping)
 
 Tunes decision heuristics based on eval results, extracts arbiter thresholds as named constants, and adds calibration boundary regression scenarios.

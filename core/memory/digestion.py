@@ -11,6 +11,7 @@ when available, falls back to heuristic summarizer.
 from __future__ import annotations
 
 import json
+import re
 import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Callable
@@ -19,6 +20,8 @@ from config.loader import get_config
 from core.types import EmotionalEvent, EventType, LongTermEntry, ModulatorState
 from core.memory.short_term import ShortTermMemory
 from core.memory.long_term import LongTermMemory, CONFIDENCE_THRESHOLD
+from core.memory.relationship import RelationshipMemory
+from core.types import OpenLoop, RelationshipEvent
 
 if TYPE_CHECKING:
     from core.dual_process.generator import LLMBackend
@@ -171,6 +174,7 @@ def digest_session(
     short_term: ShortTermMemory,
     long_term: LongTermMemory,
     source_person: str = "",
+    relationship_memory: RelationshipMemory | None = None,
     summarizer: LLMSummarizer | None = None,
     llm_client: LLMBackend | None = None,
     conversation_history: list[dict[str, str]] | None = None,
@@ -276,6 +280,15 @@ def digest_session(
     if row_id is not None:
         result.memories_written += 1
 
+    # ---- Relationship arc memory ----
+    if relationship_memory is not None and source_person:
+        _write_relationship_updates(
+            relationship_memory=relationship_memory,
+            events=events,
+            conversation_history=conversation_history or [],
+            source_person=source_person,
+        )
+
     # ---- Energy drain estimate ----
     # Proportional to session length and intensity
     result.energy_drain = len(entries) * 0.01 + avg_intensity * 0.05
@@ -307,3 +320,202 @@ def _event_valence(event: EmotionalEvent) -> float:
     elif event.event_type in negative_types:
         return -event.intensity
     return 0.0
+
+
+def _write_relationship_updates(
+    relationship_memory: RelationshipMemory,
+    events: list[EmotionalEvent],
+    conversation_history: list[dict[str, str]],
+    source_person: str,
+) -> None:
+    """Extract compact relationship events and open loops from a finished session."""
+    user_events = [event for event in events if event.source == "user"]
+    user_messages = [msg["content"] for msg in conversation_history if msg.get("role") == "user"]
+    assistant_messages = [
+        msg["content"] for msg in conversation_history if msg.get("role") == "assistant"
+    ]
+
+    if user_events and user_messages:
+        user_messages = user_messages[-len(user_events):]
+
+    for event, text in zip(user_events, user_messages):
+        if not bool(event.metadata.get("targets_assistant")):
+            continue
+        topic = _extract_topic_hint(text)
+        related_key = _derive_related_key(text, topic)
+
+        if event.event_type in {
+            EventType.CONFLICT,
+            EventType.BETRAYAL,
+        } or (
+            event.event_type == EventType.NEGATIVE_FEEDBACK and event.intensity >= 0.55
+        ):
+            existing_loop = relationship_memory.active_loops(
+                source_person, topic=topic, limit=10,
+            )
+            is_recurring = any(
+                loop.related_key == related_key
+                or (topic and loop.topic == topic)
+                for loop in existing_loop
+            )
+            event_kind = "recurring_tension" if is_recurring else "rupture"
+            summary = _relationship_summary(event_kind, topic)
+            relationship_memory.record_event(
+                RelationshipEvent(
+                    event_kind=event_kind,
+                    source_person=source_person,
+                    topic=topic,
+                    summary=summary,
+                    valence=-event.intensity,
+                    intensity=event.intensity,
+                    confidence=max(CONFIDENCE_THRESHOLD, 0.7),
+                    related_key=related_key,
+                )
+            )
+            relationship_memory.upsert_open_loop(
+                OpenLoop(
+                    loop_kind="tension",
+                    source_person=source_person,
+                    topic=topic,
+                    description=_loop_description("tension", topic),
+                    intensity=max(0.45, event.intensity),
+                    related_key=related_key,
+                )
+            )
+            continue
+
+        if event.event_type == EventType.RESOLUTION:
+            summary = _relationship_summary("repair", topic)
+            relationship_memory.record_event(
+                RelationshipEvent(
+                    event_kind="repair",
+                    source_person=source_person,
+                    topic=topic,
+                    summary=summary,
+                    valence=event.intensity,
+                    intensity=max(0.4, event.intensity),
+                    confidence=max(CONFIDENCE_THRESHOLD, 0.7),
+                    related_key=related_key,
+                )
+            )
+            relationship_memory.resolve_matching_loop(
+                source_person,
+                loop_kind="tension",
+                topic=topic,
+                related_key=related_key,
+                description_hint=topic or "tension",
+            )
+
+    seen_commitments: set[str] = set()
+    for text in assistant_messages:
+        commitment = _extract_commitment(text, source_person)
+        if commitment is None or commitment.related_key in seen_commitments:
+            continue
+        seen_commitments.add(commitment.related_key)
+        relationship_memory.record_event(commitment)
+        relationship_memory.upsert_open_loop(
+            OpenLoop(
+                loop_kind="commitment",
+                source_person=source_person,
+                topic=commitment.topic,
+                description=_loop_description("commitment", commitment.topic),
+                intensity=max(0.45, commitment.intensity),
+                related_key=commitment.related_key,
+            )
+        )
+
+
+def _extract_commitment(text: str, source_person: str) -> RelationshipEvent | None:
+    """Detect narrow future-facing commitments from assistant replies."""
+    lower = text.lower()
+    patterns = (
+        "i will remember",
+        "i'll remember",
+        "i will check in",
+        "i'll check in",
+        "i will follow up",
+        "i'll follow up",
+        "we can come back to this",
+        "let's revisit this",
+        "we can revisit this",
+        "we can pick this up again",
+    )
+    if not any(pattern in lower for pattern in patterns):
+        return None
+
+    topic = _extract_topic_hint(text)
+    related_key = _derive_related_key(text, topic or "commitment")
+    return RelationshipEvent(
+        event_kind="commitment",
+        source_person=source_person,
+        topic=topic,
+        summary=_relationship_summary("commitment", topic),
+        valence=0.35,
+        intensity=0.55,
+        confidence=max(CONFIDENCE_THRESHOLD, 0.7),
+        related_key=related_key,
+    )
+
+
+def _extract_topic_hint(text: str) -> str:
+    """Infer a compact topic phrase without storing raw transcript text."""
+    lower = text.lower()
+    about_match = re.search(
+        r"\b(?:about|regarding|on)\s+([a-z0-9' -]{2,40})",
+        lower,
+    )
+    if about_match:
+        phrase = _clean_phrase(about_match.group(1))
+        if phrase:
+            return phrase
+
+    words = re.findall(r"[a-z0-9']+", lower)
+    stopwords = {
+        "the", "and", "that", "this", "with", "your", "you", "for", "from",
+        "have", "been", "just", "really", "very", "about", "again", "still",
+        "feel", "felt", "angry", "upset", "furious", "sorry", "thanks",
+        "thank", "please", "need", "want", "help", "assistant", "response",
+    }
+    informative = [word for word in words if len(word) > 2 and word not in stopwords]
+    if not informative:
+        return ""
+    return " ".join(informative[:3])
+
+
+def _clean_phrase(text: str) -> str:
+    phrase = re.sub(r"[^a-z0-9' -]", " ", text.lower())
+    phrase = " ".join(phrase.split())
+    return phrase[:40].strip()
+
+
+def _derive_related_key(text: str, fallback: str) -> str:
+    words = re.findall(r"[a-z0-9']+", text.lower())
+    stopwords = {
+        "the", "and", "that", "this", "with", "your", "you", "for", "from",
+        "have", "been", "just", "really", "very", "about", "again", "still",
+        "i", "me", "my", "we", "our", "it", "is", "are", "was", "were",
+    }
+    informative = [word for word in words if len(word) > 2 and word not in stopwords]
+    if informative:
+        return "-".join(informative[:4])
+    return fallback.replace(" ", "-")[:60]
+
+
+def _relationship_summary(event_kind: str, topic: str) -> str:
+    if event_kind == "rupture":
+        return f"Rupture around {topic}" if topic else "Relational rupture"
+    if event_kind == "recurring_tension":
+        return f"Recurring tension around {topic}" if topic else "Recurring relational tension"
+    if event_kind == "repair":
+        return f"Repair around {topic}" if topic else "Relational repair"
+    if event_kind == "commitment":
+        return f"Commitment to revisit {topic}" if topic else "Future follow-up commitment"
+    return event_kind.replace("_", " ")
+
+
+def _loop_description(loop_kind: str, topic: str) -> str:
+    if loop_kind == "tension":
+        return f"unresolved tension about {topic}" if topic else "unresolved relational tension"
+    if loop_kind == "commitment":
+        return f"pending follow-up about {topic}" if topic else "pending follow-up commitment"
+    return topic or loop_kind

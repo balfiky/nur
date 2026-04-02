@@ -186,9 +186,9 @@ class TestV1BehaviorPreserved:
         snap = pipe.engine.snapshot()
         assert snap["arousal"] > 0.5 or snap["valence"] > 0.5
 
-    def test_conflict_classification_preserved(self):
+    def test_assistant_targeted_conflict_classification_preserved(self):
         pipe = self._make_pipeline()
-        result = pipe.process("I'm so angry about this argument!", user_id="alice")
+        result = pipe.process("I'm angry with you about this argument!", user_id="alice")
         assert result.debug.event_classified == "conflict"
 
     def test_energy_drains_preserved(self):

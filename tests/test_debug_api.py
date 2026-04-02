@@ -166,6 +166,8 @@ class TestPerUserDebug:
                     mem = data["memory"]
                     assert "short_term" in mem
                     assert "long_term" in mem
+                    assert "relationship_events" in mem
+                    assert "open_loops" in mem
 
                     # Resolution
                     assert "unresolved_count" in data
@@ -200,7 +202,7 @@ class TestPerUserDebug:
         asyncio.run(run())
 
     def test_debug_preserves_v2_fields(self):
-        """Debug output includes v2 fields: anticipation, dialogue_trace, defense."""
+        """Debug output includes v2 fields: appraisal, anticipation, dialogue, defense."""
         async def run():
             with tempfile.TemporaryDirectory() as tmpdir:
                 manager, client, _ = _setup(tmpdir)
@@ -211,6 +213,8 @@ class TestPerUserDebug:
                     last_turn = resp.json()["last_turn"]
 
                     # v2 fields present (may be null with MockLLMBackend)
+                    assert "appraisal_frame" in last_turn
+                    assert "relationship_context" in last_turn
                     assert "anticipation" in last_turn
                     assert "dialogue_trace" in last_turn
                     assert "defense_activation" in last_turn

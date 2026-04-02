@@ -178,9 +178,19 @@ def _build_values_section(ctx: PipelineContext) -> str:
 
 
 def _build_memory_section(ctx: PipelineContext) -> str:
-    if not ctx.retrieved_memories:
+    if not ctx.retrieved_memories and (
+        ctx.relationship_context is None or ctx.relationship_context.is_empty()
+    ):
         return ""
     lines = ["## Relevant Memories"]
+    if ctx.relationship_context and not ctx.relationship_context.is_empty():
+        if ctx.relationship_context.summary:
+            lines.append(f"- Relationship context: {ctx.relationship_context.summary}")
+        for loop in ctx.relationship_context.active_loops[:2]:
+            lines.append(f"- Open loop: {loop.description} (intensity={loop.intensity:.2f})")
+        for event in ctx.relationship_context.recent_events[:2]:
+            label = event.event_kind.replace("_", " ")
+            lines.append(f"- Recent relationship event: {label} — {event.summary}")
     for mem in ctx.retrieved_memories[:5]:
         spike_tag = " [SPIKE]" if mem.spike else ""
         lines.append(f"- {mem.summary} (valence={mem.emotional_valence:.2f}){spike_tag}")

@@ -4,8 +4,11 @@ import pytest
 
 from core.types import (
     ModulatorState,
+    OpenLoop,
     PersonProfile,
     PipelineContext,
+    RelationshipContext,
+    RelationshipEvent,
     SelfProfile,
     TopicProfile,
     ValueHierarchy,
@@ -87,6 +90,39 @@ class TestBuildSystemPrompt:
         prompt = build_system_prompt(ctx)
         assert "Big argument" in prompt
         assert "[SPIKE]" in prompt
+
+    def test_includes_relationship_context(self):
+        ctx = PipelineContext(
+            modulator_snapshot={},
+            relationship_context=RelationshipContext(
+                summary="Open loops: unresolved tension about deadline.",
+                active_loops=[
+                    OpenLoop(
+                        loop_kind="tension",
+                        source_person="alice",
+                        topic="deadline",
+                        description="unresolved tension about deadline",
+                        intensity=0.7,
+                    )
+                ],
+                recent_events=[
+                    RelationshipEvent(
+                        event_kind="repair",
+                        source_person="alice",
+                        topic="deadline",
+                        summary="Repair around deadline",
+                        valence=0.6,
+                        intensity=0.6,
+                        confidence=0.8,
+                    )
+                ],
+                open_loop_count=1,
+            ),
+        )
+        prompt = build_system_prompt(ctx)
+        assert "Relationship context" in prompt
+        assert "Open loop" in prompt
+        assert "Recent relationship event" in prompt
 
     def test_includes_contradiction_flags(self):
         ctx = PipelineContext(
