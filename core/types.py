@@ -387,6 +387,7 @@ class ToolTrace:
     executed_results: list[ToolResult] = field(default_factory=list)
     observations: list[ToolObservation] = field(default_factory=list)
     loop_count: int = 0
+    task_trace: Any = None  # TaskTrace | None — forward ref avoids circular
 
 
 # ---------------------------------------------------------------------------
@@ -412,3 +413,77 @@ class ActionVariables:
             "persistence_drive", "autonomy_bias",
         ):
             setattr(self, attr, max(0.0, min(1.0, getattr(self, attr))))
+
+
+# ---------------------------------------------------------------------------
+# Task Planning — multi-step task model (Phase 7)
+# ---------------------------------------------------------------------------
+
+class TaskStatus(str, Enum):
+    """Status of a task step or plan."""
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    BLOCKED = "blocked"
+
+
+@dataclass
+class TaskStep:
+    """A single step in a multi-step task plan."""
+    id: str
+    tool_name: str
+    arguments: dict[str, Any]
+    description: str
+    status: TaskStatus = TaskStatus.PENDING
+    result: ToolResult | None = None
+    observation: ToolObservation | None = None
+    started_at: float | None = None
+    completed_at: float | None = None
+
+
+@dataclass
+class TaskPlan:
+    """A bounded multi-step task plan.
+
+    Max 5 steps hard cap.  Plans are session-scoped — they live in
+    pipeline memory and are cleared on end_session().
+    """
+    id: str
+    goal: str
+    steps: list[TaskStep]
+    status: TaskStatus = TaskStatus.PENDING
+    current_step_index: int = 0
+    created_at: float = field(default_factory=time.time)
+    completed_at: float | None = None
+
+    # Cognitive context
+    persistence_drive: float = 0.5  # from action variables when plan was created
+
+    @property
+    def max_steps(self) -> int:
+        return 5
+
+    @property
+    def steps_completed(self) -> int:
+        return sum(1 for s in self.steps if s.status == TaskStatus.COMPLETED)
+
+    @property
+    def steps_failed(self) -> int:
+        return sum(1 for s in self.steps if s.status == TaskStatus.FAILED)
+
+    @property
+    def is_terminal(self) -> bool:
+        return self.status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.BLOCKED)
+
+
+@dataclass
+class TaskTrace:
+    """Debug trace for a multi-step task execution."""
+    plan: TaskPlan | None = None
+    steps_executed: int = 0
+    steps_succeeded: int = 0
+    steps_failed: int = 0
+    total_latency_ms: float = 0.0
+    continued_after_failure: bool = False
+    plan_outcome: str = ""  # "completed" | "failed" | "blocked" | "partial" | ""

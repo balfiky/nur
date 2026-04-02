@@ -22,11 +22,20 @@ from dataclasses import dataclass
 from typing import Any
 
 from core.action_variables import derive_action_variables
+from core.task_planning import (
+    detect_multi_step_intent,
+    execute_plan,
+    is_continue_request,
+    is_status_request,
+    summarize_plan_status,
+)
 from core.tool_appraisal import appraise_tool_result
 from core.types import (
     ActionVariables,
     ModulatorState,
     PersonProfile,
+    TaskPlan,
+    TaskTrace,
     ToolCategory,
     ToolDecision,
     ToolIntent,
@@ -247,19 +256,105 @@ def run_tool_loop(
     engine: Any,  # EmotionalEngine — avoid circular import
     max_executions: int = DEFAULT_MAX_EXECUTIONS,
     hard_cap: int = HARD_CAP_EXECUTIONS,
+    active_plan: TaskPlan | None = None,
 ) -> ToolLoopResult:
     """Run the cognitive tool loop.
 
     Called from the pipeline after inner dialogue, before defense mechanisms.
     Returns trace, action variables, and a generator-ready summary.
+
+    If active_plan is provided and the user says "continue"/"next step",
+    resumes that plan instead of detecting new intent.
     """
     trust = person.trust if person else 0.5
 
     # 1. Derive action variables
     action_vars = derive_action_variables(state, trust=trust, defense_active=defense_active)
 
-    # 2. Detect tool intent
     available = set(executor._registry.names())
+
+    # 1a. Check for plan status request
+    if active_plan and not active_plan.is_terminal and is_status_request(user_message):
+        status_summary = summarize_plan_status(active_plan)
+        return ToolLoopResult(
+            trace=ToolTrace(),
+            action_variables=action_vars,
+            tool_context_summary=status_summary,
+        )
+
+    # 1b. Check for plan continuation
+    if active_plan and not active_plan.is_terminal and is_continue_request(user_message):
+        task_trace = execute_plan(
+            active_plan, executor, action_vars, engine=engine,
+        )
+        # Collect results and observations from plan steps
+        executed_results, observations = _collect_plan_results(active_plan)
+        summary = _summarize_plan_for_generator(active_plan, task_trace)
+        return ToolLoopResult(
+            trace=ToolTrace(
+                executed_results=executed_results,
+                observations=observations,
+                loop_count=task_trace.steps_executed,
+                task_trace=task_trace,
+            ),
+            action_variables=action_vars,
+            tool_context_summary=summary,
+        )
+
+    # 2. Detect multi-step intent first
+    plan = detect_multi_step_intent(user_message, available)
+    if plan is not None:
+        # Arbiter check: use first step's tool for category check
+        first_step = plan.steps[0]
+        cap = executor._registry.get(first_step.tool_name)
+        first_category = cap.category if cap else ToolCategory.READ_ONLY
+        # Build a synthetic intent for arbiter
+        synthetic_intent = ToolIntent(
+            tool_name=first_step.tool_name,
+            arguments=first_step.arguments,
+            reason=f"Multi-step plan: {plan.goal[:80]}",
+            expected_outcome=f"Execute {len(plan.steps)}-step plan",
+            urgency=action_vars.action_urgency,
+            risk_tolerance=action_vars.risk_tolerance,
+            autonomy_bias=action_vars.autonomy_bias,
+            clarification_threshold=action_vars.clarification_threshold,
+            persistence_drive=action_vars.persistence_drive,
+        )
+        decision = make_tool_decision(synthetic_intent, action_vars, first_category, trust)
+
+        if decision.decision != "execute":
+            return ToolLoopResult(
+                trace=ToolTrace(
+                    proposed_intents=[synthetic_intent],
+                    final_decision=decision,
+                    loop_count=0,
+                    task_trace=TaskTrace(plan=plan, plan_outcome=""),
+                ),
+                action_variables=action_vars,
+                tool_context_summary="",
+            )
+
+        # Execute the plan
+        task_trace = execute_plan(
+            plan, executor, action_vars, engine=engine,
+        )
+        executed_results, observations = _collect_plan_results(plan)
+        summary = _summarize_plan_for_generator(plan, task_trace)
+
+        return ToolLoopResult(
+            trace=ToolTrace(
+                proposed_intents=[synthetic_intent],
+                final_decision=decision,
+                executed_results=executed_results,
+                observations=observations,
+                loop_count=task_trace.steps_executed,
+                task_trace=task_trace,
+            ),
+            action_variables=action_vars,
+            tool_context_summary=summary,
+        )
+
+    # 3. Single-step: detect tool intent
     intent = detect_tool_intent(user_message, available)
 
     # No tool needed → empty trace
@@ -277,7 +372,7 @@ def run_tool_loop(
     intent.clarification_threshold = action_vars.clarification_threshold
     intent.persistence_drive = action_vars.persistence_drive
 
-    # 3. Action arbiter
+    # 4. Action arbiter
     capability = executor._registry.get(intent.tool_name)
     category = capability.category if capability else ToolCategory.READ_ONLY
 
@@ -300,7 +395,7 @@ def run_tool_loop(
             tool_context_summary="",
         )
 
-    # 4. Execute + appraise loop (bounded)
+    # 5. Execute + appraise loop (bounded)
     current_intent = intent
     while loop_count < min(max_executions, hard_cap):
         loop_count += 1
@@ -322,7 +417,7 @@ def run_tool_loop(
         if not observation.continue_tool_loop:
             break
 
-    # 5. Build summary for generator
+    # 6. Build summary for generator
     summary = _summarize_for_generator(observations, executed_results)
 
     return ToolLoopResult(
@@ -336,6 +431,42 @@ def run_tool_loop(
         action_variables=action_vars,
         tool_context_summary=summary,
     )
+
+
+def _collect_plan_results(
+    plan: TaskPlan,
+) -> tuple[list[ToolResult], list[ToolObservation]]:
+    """Collect executed results and observations from plan steps."""
+    results: list[ToolResult] = []
+    observations: list[ToolObservation] = []
+    for step in plan.steps:
+        if step.result is not None:
+            results.append(step.result)
+        if step.observation is not None:
+            observations.append(step.observation)
+    return results, observations
+
+
+def _summarize_plan_for_generator(
+    plan: TaskPlan, task_trace: TaskTrace,
+) -> str:
+    """Build a concise summary of multi-step plan execution for the generator."""
+    parts: list[str] = []
+    parts.append(f"[Plan: {plan.goal[:100]}]")
+    parts.append(f"Outcome: {task_trace.plan_outcome} "
+                 f"({task_trace.steps_succeeded}/{task_trace.steps_executed} succeeded)")
+
+    for step in plan.steps:
+        if step.result is not None:
+            if step.result.success:
+                preview = step.result.output[:_MAX_SUMMARY_LEN]
+                if len(step.result.output) > _MAX_SUMMARY_LEN:
+                    preview += "..."
+                parts.append(f"  [{step.tool_name}] OK: {preview}")
+            else:
+                parts.append(f"  [{step.tool_name}] FAIL: {step.result.error}")
+
+    return "\n".join(parts)
 
 
 def _apply_emotional_deltas(engine: Any, observation: ToolObservation) -> None:

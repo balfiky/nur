@@ -297,6 +297,41 @@ def _debug_to_dict(debug) -> dict:
     else:
         d["tool_trace"] = None
 
+    # Task trace (Phase 7)
+    tt_task = getattr(debug, "task_trace", None)
+    if tt_task and tt_task.plan:
+        plan = tt_task.plan
+        d["task_trace"] = {
+            "plan": {
+                "id": plan.id,
+                "goal": plan.goal,
+                "status": plan.status.value if hasattr(plan.status, "value") else str(plan.status),
+                "steps": [
+                    {
+                        "id": s.id,
+                        "tool_name": s.tool_name,
+                        "description": s.description,
+                        "status": s.status.value if hasattr(s.status, "value") else str(s.status),
+                        "success": s.result.success if s.result else None,
+                        "error": s.result.error if s.result and not s.result.success else None,
+                    }
+                    for s in plan.steps
+                ],
+                "steps_completed": plan.steps_completed,
+                "steps_failed": plan.steps_failed,
+                "current_step_index": plan.current_step_index,
+                "persistence_drive": plan.persistence_drive,
+            },
+            "steps_executed": tt_task.steps_executed,
+            "steps_succeeded": tt_task.steps_succeeded,
+            "steps_failed": tt_task.steps_failed,
+            "total_latency_ms": tt_task.total_latency_ms,
+            "continued_after_failure": tt_task.continued_after_failure,
+            "plan_outcome": tt_task.plan_outcome,
+        }
+    else:
+        d["task_trace"] = None
+
     # Agentic tools: compact summary for quick inspection
     d["tool_summary"] = _build_tool_summary(debug)
 

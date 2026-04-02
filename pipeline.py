@@ -81,11 +81,15 @@ from core.tool_memory import (
     ToolMemoryEffects,
     compute_tool_trust_delta,
     create_long_term_entry,
+    create_task_long_term_entry,
+    create_task_unresolved_item,
     create_tool_event,
     create_tool_unresolved_item,
+    derive_task_self_observations,
     derive_tool_self_observations,
     is_salient_episode,
 )
+from core.types import TaskPlan, TaskTrace
 
 
 # ---------------------------------------------------------------------------
@@ -152,6 +156,7 @@ class DebugState:
     tool_trace: ToolTrace | None = None
     action_variables: ActionVariables | None = None
     tool_memory_effects: ToolMemoryEffects | None = None
+    task_trace: TaskTrace | None = None
 
     # Timing instrumentation (ms)
     stage_timings_ms: dict[str, float] = field(default_factory=dict)
@@ -246,6 +251,8 @@ class CognitivePipeline:
 
         # Agentic tools (Phase 2+)
         self._tool_executor = tool_executor
+        # Session-scoped task plan (Phase 7)
+        self._active_task_plan: TaskPlan | None = None
 
         # Time tracking for auto-decay between turns
         self._last_turn_time: float | None = None
@@ -429,10 +436,20 @@ class CognitivePipeline:
                 defense_active=False,  # defense hasn't fired yet
                 executor=self._tool_executor,
                 engine=self.engine,
+                active_plan=self._active_task_plan,
             )
             debug.tool_trace = tool_loop_result.trace
             debug.action_variables = tool_loop_result.action_variables
             tool_context_summary = tool_loop_result.tool_context_summary
+
+            # Track task trace and active plan (Phase 7)
+            task_trace = tool_loop_result.trace.task_trace
+            if task_trace and task_trace.plan:
+                debug.task_trace = task_trace
+                self._active_task_plan = task_trace.plan
+                # Clear terminal plans from session state
+                if task_trace.plan.is_terminal:
+                    self._active_task_plan = None
 
             # ---- Step 11c: TOOL MEMORY COUPLING ----
             trace = tool_loop_result.trace
@@ -488,6 +505,36 @@ class CognitivePipeline:
                         person.trust = max(0.0, min(1.0, person.trust + trust_delta))
                         self.person_profiles.save(person)
                         effects.trust_delta += trust_delta
+
+                debug.tool_memory_effects = effects
+
+            # ---- Step 11d: TASK MEMORY COUPLING (Phase 7) ----
+            if task_trace and task_trace.plan and task_trace.plan.is_terminal:
+                plan = task_trace.plan
+                effects = debug.tool_memory_effects or ToolMemoryEffects()
+
+                # Unresolved items from plan outcome
+                task_unresolved = create_task_unresolved_item(plan, task_trace)
+                if task_unresolved:
+                    self.engine.add_unresolved(task_unresolved)
+                    effects.unresolved_items_created.append(task_unresolved.id)
+
+                # Self-observations from multi-step behavior
+                task_obs = derive_task_self_observations(
+                    plan, task_trace, tool_loop_result.action_variables,
+                )
+                for trait, value, context in task_obs:
+                    self.self_profile.record_behavior(trait, value, context)
+                    effects.self_observations.append(f"{trait}={value:.2f}")
+
+                # Long-term memory for salient plans
+                task_lt = create_task_long_term_entry(
+                    plan, task_trace, user_id=user_id,
+                )
+                if task_lt:
+                    self.long_term.store(task_lt)
+                    effects.long_term_written = True
+                    effects.long_term_summary = task_lt.summary
 
                 debug.tool_memory_effects = effects
 
@@ -808,8 +855,9 @@ class CognitivePipeline:
             0.0, self.engine.state.energy - result.energy_drain
         )
 
-        # Clear conversation history
+        # Clear conversation history and session-scoped task state
         self._conversation_history.clear()
+        self._active_task_plan = None
 
         return result
 

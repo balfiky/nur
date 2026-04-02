@@ -4,6 +4,56 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.16.0 — 2026-04-02 (Agentic Tools Phase 7: multi-step task planning)
+
+Adds bounded multi-step task planning and task memory — Nūr can now decompose compound requests into ordered steps, execute them sequentially, and couple task outcomes back into emotion, memory, and self-model.
+
+### Task data model (`core/types.py`)
+- `TaskStatus` enum: pending, in_progress, completed, failed, blocked
+- `TaskStep` dataclass: single step with tool_name, arguments, result, observation, timing
+- `TaskPlan` dataclass: bounded plan (max 5 steps) with goal, progression, persistence_drive
+- `TaskTrace` dataclass: debug trace for plan execution (steps executed/succeeded/failed, latency, outcome)
+- `ToolTrace.task_trace` field: links task traces to existing tool debug infrastructure
+
+### Bounded planner (`core/task_planning.py`)
+- `detect_multi_step_intent()`: heuristic detection of compound requests ("X and then Y", "first X, then Y")
+- `execute_plan()`: sequential step execution through existing ToolExecutor, bounded by max_steps_per_turn
+- Persistence-driven failure handling: low persistence_drive → plan blocks on first failure; high → continues
+- `is_continue_request()` / `is_status_request()`: detect follow-up queries for active plans
+- `summarize_plan_status()`: human-readable plan progress summary
+- All detection and planning is deterministic — zero LLM calls
+
+### Tool loop integration (`core/dual_process/tool_loop.py`)
+- `run_tool_loop()` now accepts optional `active_plan` for cross-turn plan continuation
+- Multi-step detection runs before single-step: compound messages create plans
+- Arbiter checks first step's category before approving the plan
+- Continue/status requests route to active plan instead of new intent detection
+- Plan results collected into ToolTrace for unified memory coupling
+
+### Task memory coupling (`core/tool_memory.py`)
+- `create_task_unresolved_item()`: blocked/incomplete plans create resolution tension (task_blocked, task_incomplete)
+- `derive_task_self_observations()`: multi-step behavior feeds self-model (methodical, persistent, frustrated, hesitant, reckless)
+- `create_task_long_term_entry()`: salient plans (failures, blocks, destructive steps) persist to long-term memory
+
+### Pipeline integration (`pipeline.py`)
+- `_active_task_plan`: session-scoped task state, passed to tool loop each turn
+- Step 11d: task memory coupling after tool execution — unresolved items, self-observations, long-term writes
+- Terminal plans auto-cleared from session state
+- `end_session()` clears active task plan alongside conversation history
+- `DebugState.task_trace` field for observability
+
+### Debug API (`runtime/debug/api.py`)
+- Task trace serialization: plan (id, goal, status, steps, progress), execution stats, outcome
+- Step-level detail: tool_name, description, status, success/error
+- Integrated alongside existing tool_trace and tool_summary
+
+### Tests
+- 58 new tests in `tests/test_agentic_tools_phase7.py`
+- Coverage: task types, multi-step detection, follow-up detection, plan execution, persistence-driven failure handling, emotional deltas, tool loop integration, task memory coupling, resolution coupling, self-model coupling, long-term memory, pipeline integration, debug serialization, regression
+- Full suite: 1027 tests passing
+
+---
+
 ## v0.15.0 — 2026-04-02 (Agentic Tools Phase 6: richer tools)
 
 Expands the tool layer with browser automation, calendar, and richer web retrieval. Total registered builtins: 18 (was 9).

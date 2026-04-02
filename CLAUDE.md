@@ -5,9 +5,9 @@ Read PROJECT_NUR_BUILD_PLAN.md for the v1/v2 roadmap.
 Read README.md for setup, usage, API reference, and module documentation.
 Read CHANGELOG.md for version history and what changed when.
 
-## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 6
+## Status: v2 COMPLETE + RUNTIME PHASE 4 + PRE-MERGE FIXES + AGENTIC TOOLS PHASE 7
 
-The full test suite currently collects 969 tests.
+The full test suite currently collects 1027 tests.
 
 ### What's built (v1)
 - core/types.py — All shared type contracts (v1 + v2 types)
@@ -27,11 +27,12 @@ The full test suite currently collects 969 tests.
 - main.py — Runtime entry point (`python main.py`)
 - core/action_variables.py — Action-variable derivation from modulators (pure math, 0 LLM calls)
 - core/tool_appraisal.py — Tool outcome appraisal (ToolResult → ToolObservation with emotional deltas)
-- core/dual_process/tool_loop.py — Cognitive tool bridge: intent detection, arbiter, execute+appraise loop
-- core/tool_memory.py — Tool episode memory coupling: short-term records, salient long-term writes, self-observations, unresolved items, trust deltas
+- core/dual_process/tool_loop.py — Cognitive tool bridge: intent detection, arbiter, execute+appraise loop, multi-step plan support
+- core/tool_memory.py — Tool episode memory coupling: short-term records, salient long-term writes, self-observations, unresolved items, trust deltas, task memory
+- core/task_planning.py — Bounded multi-step task planner: heuristic detection, sequential execution, persistence-driven failure handling (0 LLM calls)
 - tools/ — Agentic tools package: registry, executor, builtin tools (filesystem, shell, web, browser, calendar)
 - tools/mcp/ — MCP bridge: client protocol, adapter, category inference, register_mcp_tools()
-- tests/ — 969 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, and agentic tools Phase 0+1+2+3+4+5+6 coverage
+- tests/ — 1027 collected tests including calibration, journey, v2, regression, Phase 0, runtime, Telegram, debug API, runtime-config, and agentic tools Phase 0+1+2+3+4+5+6+7 coverage
 
 ### What's NOT built (future features)
 - Dynamic value drift (v2.5)
@@ -214,8 +215,28 @@ The full test suite currently collects 969 tests.
 - 18 total registered builtins: 6 fs + 1 shell + 3 web + 5 browser + 3 calendar
 - All provider-based, all pluggable, all mockable, all disabled-safe via NullProvider defaults
 
+## Agentic Tools Phase 7 (Multi-step task planning and task memory — completed)
+- `core/types.py` extended with: TaskStatus, TaskStep, TaskPlan, TaskTrace, ToolTrace.task_trace
+- `core/task_planning.py` — bounded multi-step planner (all deterministic, 0 LLM calls)
+  - `detect_multi_step_intent()` — heuristic detection of compound requests ("X and then Y", "first X, then Y")
+  - `execute_plan()` — sequential execution through ToolExecutor, bounded by max_steps_per_turn (default 3)
+  - Persistence-driven failure handling: persistence_drive < 0.5 → block; >= 0.5 → continue
+  - `is_continue_request()` / `is_status_request()` — follow-up detection for active plans
+  - `summarize_plan_status()` — human-readable plan progress
+- `core/dual_process/tool_loop.py` — `run_tool_loop()` gains `active_plan` param
+  - Multi-step detection before single-step; arbiter checks first step category
+  - Continue/status requests route to active plan
+  - Plan results collected into ToolTrace for unified memory coupling
+- `core/tool_memory.py` — task memory coupling functions
+  - `create_task_unresolved_item()` → UnresolvedItem (task_blocked, task_incomplete)
+  - `derive_task_self_observations()` → behavioral traits (methodical, persistent, frustrated, hesitant, reckless)
+  - `create_task_long_term_entry()` → LongTermEntry for salient plans (failures, blocks, destructive)
+- Pipeline: `_active_task_plan` session-scoped state, step 11d task memory coupling, cleared on end_session
+- `DebugState.task_trace` + debug API serialization of plan/steps/outcome
+- No autonomous background tasks, no cross-session plan persistence yet
+
 ## Testing
-- `pytest` collects 969 tests
+- `pytest` collects 1027 tests
 - `python -m tests.run_journey_report` for detailed emotional journey output
 - Tests work without API key (MockLLMBackend + rule-based fallbacks)
 

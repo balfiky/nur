@@ -23,6 +23,9 @@ from core.types import (
     EventType,
     LongTermEntry,
     ModulatorState,
+    TaskPlan,
+    TaskStatus,
+    TaskTrace,
     ToolCategory,
     ToolDecision,
     ToolObservation,
@@ -308,3 +311,124 @@ def _compact_summary(result: ToolResult, observation: ToolObservation) -> str:
             output_preview += "..."
         return f"Tool {result.tool_name}: {output_preview}" if output_preview else f"Tool {result.tool_name}: completed (no output)"
     return f"Tool {result.tool_name} failed: {(result.error or 'unknown')[:_MAX_MEMORY_SUMMARY]}"
+
+
+# ---------------------------------------------------------------------------
+# 6. Task/plan memory coupling
+# ---------------------------------------------------------------------------
+
+def create_task_unresolved_item(
+    plan: TaskPlan,
+    task_trace: TaskTrace,
+) -> UnresolvedItem | None:
+    """Create an unresolved item from an incomplete or blocked plan.
+
+    Sources:
+      - task_incomplete: plan had failures but partially completed
+      - task_blocked: plan blocked due to low persistence
+    """
+    if plan.status == TaskStatus.COMPLETED and task_trace.steps_failed == 0:
+        return None  # fully successful — nothing unresolved
+
+    if plan.status == TaskStatus.BLOCKED:
+        source = "task_blocked"
+        desc = f"Blocked plan: {plan.goal[:100]} ({task_trace.steps_succeeded}/{len(plan.steps)} done)"
+        intensity = 0.4 + min(0.2, task_trace.steps_failed * 0.1)
+        decay = 0.05
+    elif task_trace.steps_failed > 0:
+        source = "task_incomplete"
+        desc = f"Partial plan: {plan.goal[:100]} ({task_trace.steps_failed} failed)"
+        intensity = 0.3 + min(0.2, task_trace.steps_failed * 0.1)
+        decay = 0.08
+    else:
+        return None
+
+    return UnresolvedItem(
+        id=f"{source}_{uuid.uuid4().hex[:8]}",
+        source=source,
+        description=desc,
+        created_at=datetime.now(timezone.utc),
+        intensity=min(1.0, intensity),
+        decay_rate=decay,
+    )
+
+
+def derive_task_self_observations(
+    plan: TaskPlan,
+    task_trace: TaskTrace,
+    action_vars: ActionVariables,
+) -> list[tuple[str, float, str]]:
+    """Derive self-observations from multi-step task behavior.
+
+    Returns list of (trait, value, context) tuples.
+    """
+    obs: list[tuple[str, float, str]] = []
+
+    if plan.status == TaskStatus.COMPLETED and task_trace.steps_failed == 0:
+        # Completed a multi-step plan cleanly
+        obs.append(("methodical", 0.7, f"plan_complete:{plan.id}"))
+        # Decisive if any destructive steps
+        for step in plan.steps:
+            cap_cat = step.observation.emotional_delta if step.observation else {}
+            if step.tool_name.startswith("fs.delete") or step.tool_name.startswith("calendar.delete"):
+                obs.append(("decisive", 0.6, f"destructive_plan_step:{step.tool_name}"))
+                break
+
+    if task_trace.continued_after_failure:
+        obs.append(("persistent", 0.7, f"continued_after_failure:{plan.id}"))
+
+    if plan.status == TaskStatus.FAILED:
+        obs.append(("frustrated", 0.5, f"plan_failed:{plan.id}"))
+
+    if plan.status == TaskStatus.BLOCKED:
+        obs.append(("hesitant", 0.4, f"plan_blocked:{plan.id}"))
+
+    if action_vars.risk_tolerance > 0.7 and any(
+        s.tool_name.startswith(("fs.write", "fs.delete", "shell."))
+        for s in plan.steps
+    ):
+        obs.append(("reckless", action_vars.risk_tolerance, f"risky_plan:{plan.id}"))
+
+    return obs[:3]
+
+
+def create_task_long_term_entry(
+    plan: TaskPlan,
+    task_trace: TaskTrace,
+    user_id: str = "",
+) -> LongTermEntry | None:
+    """Create a long-term memory entry for a salient multi-step plan.
+
+    Salient if: plan had failures, was blocked, or involved destructive steps.
+    """
+    has_destructive = any(
+        s.tool_name.startswith(("fs.delete", "calendar.delete"))
+        for s in plan.steps
+    )
+    has_failures = task_trace.steps_failed > 0
+    is_blocked = plan.status == TaskStatus.BLOCKED
+
+    if not has_destructive and not has_failures and not is_blocked:
+        return None  # routine successful plan — not salient
+
+    goal_preview = plan.goal[:_MAX_MEMORY_SUMMARY]
+    outcome = task_trace.plan_outcome
+    summary = (
+        f"Multi-step plan ({outcome}): {goal_preview} "
+        f"[{task_trace.steps_succeeded}/{task_trace.steps_executed} succeeded]"
+    )
+
+    valence = 0.1 if outcome == "completed" else -0.2
+    if is_blocked:
+        valence = -0.3
+
+    return LongTermEntry(
+        timestamp=time.time(),
+        summary=summary,
+        emotional_valence=valence,
+        trust_delta=0.0,
+        topic=f"task:{plan.id}",
+        source_person=user_id,
+        confidence=0.8,
+        spike=is_blocked or (task_trace.steps_failed >= 2),
+    )
