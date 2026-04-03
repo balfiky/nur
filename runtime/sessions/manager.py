@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import suppress
+from functools import partial
 import logging
 import os
 import time
 from typing import Any, Callable
 
 from core.dual_process.generator import LLMBackend
+from core.types import UnresolvedItem
 from pipeline import CognitivePipeline
 from runtime.config import RuntimeConfig
 from runtime.sessions.persistence import load_engine_state
@@ -40,15 +44,22 @@ class SessionManager:
         self,
         config: RuntimeConfig,
         backend_factory: Callable[[], LLMBackend] | None = None,
+        tool_executor_factory: Callable[[], Any] | None = None,
         proactive_callback: Callable[[str, str, str], Any] | None = None,
     ) -> None:
         self.config = config
         self._backend_factory = backend_factory
+        self._tool_executor_factory = tool_executor_factory
         self._sessions: dict[str, UserSession] = {}
         self._idle_timers: dict[str, asyncio.TimerHandle] = {}
         self._user_locks: dict[str, asyncio.Lock] = {}
         self._lock = asyncio.Lock()
         self._accepting = True
+        self._executor = ThreadPoolExecutor(
+            max_workers=max(4, min(self.config.max_active_sessions + 1, 32)),
+            thread_name_prefix="nur-runtime",
+        )
+        self._executor_shutdown = False
         # Phase 8: proactive callback — async (session_key, user_id, message) -> None
         self._proactive_callback = proactive_callback
 
@@ -79,10 +90,45 @@ class SessionManager:
         # Reset idle timer on acceptance (before processing starts)
         self._reset_idle_timer(session_key)
         try:
-            return await session.send(text)
+            # Running the turn in its own task avoids a rare top-level await
+            # stall around worker-thread execution in some runtime contexts.
+            send_task = asyncio.create_task(
+                session.send(text),
+                name=f"session-send-{session_key}",
+            )
+            try:
+                while not send_task.done():
+                    await asyncio.sleep(0.001)
+            except asyncio.CancelledError:
+                send_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await send_task
+                raise
+            return send_task.result()
         finally:
             # Reset again on completion so the timeout counts from last activity
             self._reset_idle_timer(session_key)
+
+    async def ensure_session(
+        self,
+        platform: str,
+        user_id: str,
+        chat_id: str,
+    ) -> UserSession:
+        """Return an existing session or create a clean one without sending a turn."""
+        rel_key = f"{platform}:{user_id}"
+        session_key = f"{platform}:{user_id}:{chat_id}"
+        session = await self._get_or_create(session_key, rel_key, user_id)
+        self._reset_idle_timer(session_key)
+        return session
+
+    async def _run_blocking(self, fn: Any, *args: Any, **kwargs: Any) -> Any:
+        """Run synchronous runtime work on the manager-owned executor."""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            self._executor,
+            partial(fn, *args, **kwargs),
+        )
 
     @property
     def active_sessions(self) -> dict[str, UserSession]:
@@ -226,12 +272,18 @@ class SessionManager:
 
         # Create LLM backend (one per pipeline for thread safety)
         backend = self._backend_factory() if self._backend_factory else None
+        tool_executor = (
+            self._tool_executor_factory()
+            if self._tool_executor_factory is not None
+            else None
+        )
 
         pipeline = CognitivePipeline(
             llm_backend=backend,
             llm_backend_fast=backend,
             db_path=self.config.user_db_path(rel_key),
             self_db_path=self.config.shared_db_path,
+            tool_executor=tool_executor,
         )
 
         # Restore per-session engine state from disk if present. Fall back to the
@@ -244,6 +296,10 @@ class SessionManager:
             pipeline.restore_state(
                 saved["modulator_snapshot"],
                 saved_at=saved.get("saved_at"),
+                unresolved_items=[
+                    UnresolvedItem.from_dict(item)
+                    for item in saved.get("unresolved_items", [])
+                ],
             )
             log.info("Restored state for %s (saved_at=%.0f)", session_key,
                      saved.get("saved_at", 0))
@@ -254,6 +310,7 @@ class SessionManager:
             pipeline=pipeline,
             state_path=state_path,
             max_queue=self.config.max_queue_per_user,
+            executor=self._executor,
             session_key=session_key,
             user_lock=self._get_or_create_user_lock(rel_key),
         )
@@ -303,6 +360,9 @@ class SessionManager:
         log.info("Shutting down %d active session(s)", len(keys))
         for session_key in keys:
             await self.evict_session(session_key)
+        if not self._executor_shutdown:
+            self._executor.shutdown(wait=True, cancel_futures=False)
+            self._executor_shutdown = True
 
     # ------------------------------------------------------------------
     # Proactive behavior loop (Phase 8)
@@ -357,7 +417,7 @@ class SessionManager:
             # Acquire per-user lock — same as _worker does for normal turns
             if user_lock is not None:
                 async with user_lock:
-                    result = await asyncio.to_thread(
+                    result = await self._run_blocking(
                         pipeline.process_proactive,
                         session.user_id,
                         max_proactive=self.config.proactive_max_per_session,
@@ -365,7 +425,7 @@ class SessionManager:
                         cooldown=self.config.proactive_cooldown,
                     )
             else:
-                result = await asyncio.to_thread(
+                result = await self._run_blocking(
                     pipeline.process_proactive,
                     session.user_id,
                     max_proactive=self.config.proactive_max_per_session,

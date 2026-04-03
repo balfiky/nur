@@ -172,6 +172,8 @@ header .emotion-label { font-size: 14px; color: #8888aa; }
 <script>
 const messagesEl = document.getElementById('messages');
 const inputEl = document.getElementById('messageInput');
+const userId = getOrCreateStorageId('nur_user_id', localStorage);
+const chatId = getOrCreateStorageId('nur_chat_id', sessionStorage);
 
 inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
 
@@ -185,7 +187,7 @@ async function sendMessage() {
     const res = await fetch('/chat', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({message: msg, user_id: 'default'}),
+      body: JSON.stringify({message: msg, user_id: userId, chat_id: chatId}),
     });
     const data = await res.json();
     addMessage(data.response, 'assistant');
@@ -381,7 +383,7 @@ async function endSession() {
     const res = await fetch('/session/end', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({user_id: 'default'}),
+      body: JSON.stringify({user_id: userId, chat_id: chatId}),
     });
     const data = await res.json();
     addMessage('[Session ended: ' + data.summary + ']', 'assistant');
@@ -395,12 +397,15 @@ async function applyRest() {
     const res = await fetch('/rest', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({hours: 1.0}),
+      body: JSON.stringify({hours: 1.0, user_id: userId, chat_id: chatId}),
     });
     const data = await res.json();
     addMessage('[Rested 1hr: energy ' + data.energy_before.toFixed(2) + ' → ' + data.energy_after.toFixed(2) + ']', 'assistant');
     // Refresh debug display
-    const debugRes = await fetch('/debug');
+    const debugRes = await fetch('/debug?' + new URLSearchParams({
+      user_id: userId,
+      chat_id: chatId,
+    }));
     const debugData = await debugRes.json();
     const mods = ['arousal', 'valence', 'certainty', 'bonding', 'energy', 'resolution'];
     for (const m of mods) {
@@ -412,6 +417,17 @@ async function applyRest() {
   } catch (err) {
     addMessage('Error: ' + err.message, 'assistant');
   }
+}
+
+function getOrCreateStorageId(key, storage) {
+  let value = storage.getItem(key);
+  if (!value) {
+    value = (window.crypto && window.crypto.randomUUID)
+      ? window.crypto.randomUUID()
+      : 'id-' + Math.random().toString(36).slice(2);
+    storage.setItem(key, value);
+  }
+  return value;
 }
 </script>
 </body>

@@ -112,6 +112,7 @@ class EmotionalEngine:
         self,
         snapshot: dict[str, float],
         saved_at: float | None = None,
+        unresolved_items: list[UnresolvedItem] | None = None,
     ) -> None:
         """Restore modulator state from a snapshot dict.
 
@@ -126,10 +127,22 @@ class EmotionalEngine:
                 val = max(0.0, min(1.0, snapshot[mod.value]))
                 setattr(self.state, mod.value, val)
 
+        if unresolved_items is not None:
+            self.unresolved_items = list(unresolved_items)
+            self._recalculate_resolution()
+        else:
+            # Snapshot-only restores preserve the explicit resolution value.
+            self.unresolved_items = []
+
         if saved_at is not None:
             elapsed = time.time() - saved_at
             if elapsed > 0:
-                self.decay(elapsed)
+                if unresolved_items is None:
+                    restored_resolution = self.state.resolution
+                    self.decay(elapsed)
+                    self.state.resolution = restored_resolution
+                else:
+                    self.decay(elapsed)
 
         self._last_update_time = time.time()
 
@@ -241,6 +254,13 @@ class EmotionalEngine:
     def snapshot(self) -> dict[str, float]:
         """Current state as a dict for injection into LLM context."""
         return self.state.to_dict()
+
+    def export_state(self) -> dict[str, object]:
+        """Serializable engine state for runtime persistence."""
+        return {
+            "modulator_snapshot": self.snapshot(),
+            "unresolved_items": [item.to_dict() for item in self.unresolved_items],
+        }
 
     def to_emotion_label(self) -> str:
         """Best-fit emotion label from current modulator state. For logging only."""

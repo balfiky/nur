@@ -83,9 +83,12 @@ Without this, “one Jarvis personality across all users” is false.
 
 Do not async-refactor the brain yet.
 
-The runtime must call Nūr using:
-- `await asyncio.to_thread(pipeline.process, ...)`
-- `await asyncio.to_thread(pipeline.end_session, ...)`
+The runtime must call Nūr in worker threads, but not on the event loop.
+
+Current implementation:
+- `SessionManager` owns a dedicated `ThreadPoolExecutor`
+- `UserSession` serializes turns and submits synchronous pipeline work through that executor
+- `end_session`, `rest`, and proactive calls use the same executor path
 
 ## 5. Architecture
 
@@ -101,7 +104,7 @@ SessionManager
         ▼
 UserSession(user_id)
 - pipeline
-- per-user lock or queue
+- serialized turn lock + bounded backlog counters
 - last_activity
 - idle timeout task
         │
@@ -142,7 +145,7 @@ Use either:
 - `asyncio.Lock` per user
 - or a mailbox queue per user
 
-Preferred: queue.
+Current runtime: serialized async lock plus bounded backlog accounting.
 
 ### 6.1.1 Dedupe is mandatory
 
@@ -168,12 +171,15 @@ Channels should remain async because:
 
 ### 6.3 Nūr runs off the event loop
 
-All pipeline calls must run in a worker thread via `asyncio.to_thread(...)`.
+All pipeline calls must run in worker threads, off the event loop.
 
 That keeps:
 - typing indicators alive
 - channel listeners responsive
 - debug server responsive
+
+Current runtime uses a shared `ThreadPoolExecutor` instead of the event loop's
+default executor so shutdown remains deterministic under the conda test stack.
 
 ### 6.4 Backpressure is explicit
 

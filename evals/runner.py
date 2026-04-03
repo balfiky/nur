@@ -295,23 +295,27 @@ def run_scenario(scenario: EvalScenario) -> EvalResult:
     """Execute a single evaluation scenario and return the result."""
     t_start = time.perf_counter()
 
-    pipeline = _make_pipeline(scenario)
-    try:
-        # Apply initial trust if specified
-        if scenario.initial_trust is not None:
-            seen_users: set[str] = set()
-            for turn in scenario.turns:
-                if turn.user_id in seen_users:
-                    continue
-                person = pipeline.person_profiles.get_or_create(turn.user_id)
-                person.trust = scenario.initial_trust
-                pipeline.person_profiles.save(person)
-                seen_users.add(turn.user_id)
+    pipelines: dict[str, CognitivePipeline] = {}
 
+    def get_pipeline(user_id: str) -> CognitivePipeline:
+        pipeline = pipelines.get(user_id)
+        if pipeline is not None:
+            return pipeline
+
+        pipeline = _make_pipeline(scenario)
+        if scenario.initial_trust is not None:
+            person = pipeline.person_profiles.get_or_create(user_id)
+            person.trust = scenario.initial_trust
+            pipeline.person_profiles.save(person)
+        pipelines[user_id] = pipeline
+        return pipeline
+
+    try:
         turn_results: list[TurnResult] = []
         responses: list[PipelineResponse] = []
 
         for i, turn in enumerate(scenario.turns):
+            pipeline = get_pipeline(turn.user_id)
             resp = pipeline.process(turn.user_message, user_id=turn.user_id)
             responses.append(resp)
 
@@ -335,10 +339,12 @@ def run_scenario(scenario: EvalScenario) -> EvalResult:
         proactive_results: list[AssertionResult] = []
         proactive_response: PipelineResponse | None = None
         if scenario.check_proactive and scenario.proactive_assertions:
+            proactive_user_id = scenario.turns[-1].user_id if scenario.turns else "eval_user"
+            pipeline = get_pipeline(proactive_user_id)
             # Simulate idle time
             pipeline._last_turn_time = time.time() - scenario.proactive_idle_seconds
             proactive_response = pipeline.process_proactive(
-                user_id=scenario.turns[-1].user_id if scenario.turns else "eval_user",
+                user_id=proactive_user_id,
                 idle_threshold=1.0,  # low threshold since we control idle_seconds
             )
             for a in scenario.proactive_assertions:
@@ -359,7 +365,8 @@ def run_scenario(scenario: EvalScenario) -> EvalResult:
             elapsed_ms=elapsed,
         )
     finally:
-        pipeline.close()
+        for pipeline in pipelines.values():
+            pipeline.close()
 
 
 def run_scenarios(scenarios: list[EvalScenario]) -> EvalReport:

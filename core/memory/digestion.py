@@ -178,6 +178,8 @@ def digest_session(
     summarizer: LLMSummarizer | None = None,
     llm_client: LLMBackend | None = None,
     conversation_history: list[dict[str, str]] | None = None,
+    *,
+    spikes_already_stored: bool = False,
 ) -> DigestedSession:
     """Digest a session's short-term memory into long-term storage.
 
@@ -212,19 +214,24 @@ def digest_session(
     spike_events = [e for e in events if e.intensity >= SPIKE_INTENSITY_THRESHOLD]
     result.spike_events = spike_events
 
-    for spike_event in spike_events:
-        spike_entry = LongTermEntry(
-            timestamp=spike_event.timestamp,
-            summary=f"Spike: {spike_event.event_type.value} (intensity={spike_event.intensity:.2f})",
-            emotional_valence=_event_valence(spike_event),
-            trust_delta=LongTermMemory.compute_trust_delta(_event_valence(spike_event)),
-            topic=spike_event.metadata.get("topic", ""),
-            source_person=spike_event.source or source_person,
-            confidence=1.0,
-            spike=True,
-        )
-        long_term.store_spike(spike_entry)
-        result.memories_written += 1
+    if not spikes_already_stored:
+        for spike_event in spike_events:
+            spike_valence = _event_valence(spike_event)
+            spike_entry = LongTermEntry(
+                timestamp=spike_event.timestamp,
+                summary=(
+                    f"Spike: {spike_event.event_type.value} "
+                    f"(intensity={spike_event.intensity:.2f})"
+                ),
+                emotional_valence=spike_valence,
+                trust_delta=LongTermMemory.compute_trust_delta(spike_valence),
+                topic=spike_event.metadata.get("topic", ""),
+                source_person=source_person,
+                confidence=1.0,
+                spike=True,
+            )
+            long_term.store_spike(spike_entry)
+            result.memories_written += 1
 
     # ---- Summarization: LLM → injectable → heuristic fallback ----
     if llm_client is not None and summarizer is None:
@@ -315,9 +322,14 @@ def _event_valence(event: EmotionalEvent) -> float:
         EventType.CONFLICT,
         EventType.BETRAYAL,
     }
+    targets_assistant = bool(event.metadata.get("targets_assistant", True))
     if event.event_type in positive_types:
+        if not targets_assistant:
+            return 0.0
         return event.intensity
     elif event.event_type in negative_types:
+        if not targets_assistant:
+            return 0.0
         return -event.intensity
     return 0.0
 

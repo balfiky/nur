@@ -785,7 +785,7 @@ class TestProactiveCallbackWiring:
         # Fake a console channel being active
         app._console = object()  # truthy — delivery checks is not None
 
-        asyncio.get_event_loop().run_until_complete(
+        asyncio.run(
             app._deliver_proactive("console:user:direct", "user", "hello proactive")
         )
         captured = capsys.readouterr()
@@ -800,9 +800,7 @@ class TestProactiveCallbackWiring:
         cfg = RuntimeConfig(llm_backend="mock")
         app = JarvisApp(config=cfg)
         # No exception
-        asyncio.get_event_loop().run_until_complete(
-            app._deliver_proactive("bad_key", "user", "msg")
-        )
+        asyncio.run(app._deliver_proactive("bad_key", "user", "msg"))
 
     def test_deliver_proactive_no_channel(self, caplog):
         """Unknown platform logs warning, does not crash."""
@@ -812,9 +810,7 @@ class TestProactiveCallbackWiring:
 
         cfg = RuntimeConfig(llm_backend="mock")
         app = JarvisApp(config=cfg)
-        asyncio.get_event_loop().run_until_complete(
-            app._deliver_proactive("unknown:user:chat", "user", "msg")
-        )
+        asyncio.run(app._deliver_proactive("unknown:user:chat", "user", "msg"))
 
 
 class TestProactiveSerialization:
@@ -847,9 +843,7 @@ class TestProactiveSerialization:
         lock = asyncio.Lock()
         lock_acquired_during_process = False
 
-        original_to_thread = asyncio.to_thread
-
-        async def patched_to_thread(fn, *args, **kwargs):
+        async def patched_run_blocking(fn, *args, **kwargs):
             nonlocal lock_acquired_during_process
             lock_acquired_during_process = lock.locked()
             return None  # process_proactive returns None → no action
@@ -864,7 +858,7 @@ class TestProactiveSerialization:
         session.user_id = "user1"
         session.last_activity = 0.0  # very idle
 
-        with patch("asyncio.to_thread", patched_to_thread):
+        with patch.object(mgr, "_run_blocking", patched_run_blocking):
             loop.run_until_complete(mgr._run_proactive("console:user1:dm", session))
 
         assert lock_acquired_during_process, "user_lock must be held during process_proactive"
@@ -949,12 +943,12 @@ class TestProactiveSerialization:
         session.last_activity = 0.0
         mgr._sessions["console:user1:dm"] = session
 
-        async def patched_to_thread(fn, *args, **kwargs):
+        async def patched_run_blocking(fn, *args, **kwargs):
             assert session._processing is True
             await mgr._timeout_evict("console:user1:dm")
             return None
 
-        with patch("asyncio.to_thread", patched_to_thread):
+        with patch.object(mgr, "_run_blocking", patched_run_blocking):
             with patch.object(mgr, "evict_session", new=AsyncMock()) as evict_mock:
                 with patch.object(mgr, "_start_idle_timer") as timer_mock:
                     loop.run_until_complete(
@@ -975,7 +969,7 @@ class TestProactiveElapsedDecay:
 
         p = CognitivePipeline()
         # Set up state: process a message to establish _last_turn_time
-        p.process("hello")
+        p.process("hello", user_id="user1")
         old_time = p._last_turn_time
 
         # Record initial arousal
@@ -995,7 +989,7 @@ class TestProactiveElapsedDecay:
         from pipeline import CognitivePipeline
 
         p = CognitivePipeline()
-        p.process("hello")
+        p.process("hello", user_id="user1")
 
         # Spike arousal and set a past _last_turn_time
         p.engine.state = ModulatorState(

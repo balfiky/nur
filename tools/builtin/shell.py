@@ -6,6 +6,7 @@ execution errors into ToolResult values.
 
 from __future__ import annotations
 
+import shlex
 import subprocess
 from typing import Any
 
@@ -20,7 +21,7 @@ CAPABILITIES: list[ToolCapability] = [
     ToolCapability(
         name="shell.run_command",
         description="Run a shell command and capture output",
-        category=ToolCategory.WRITE,
+        category=ToolCategory.DESTRUCTIVE,
         arg_schema={
             "cmd": {"type": "string", "required": True},
             "cwd": {"type": "string", "required": False},
@@ -40,11 +41,29 @@ def _run_command(args: dict[str, Any]) -> ToolResult:
     cmd = args["cmd"]
     cwd = args.get("cwd") or None
     timeout = args.get("timeout_seconds", _DEFAULT_TIMEOUT)
+    try:
+        argv = shlex.split(cmd)
+    except ValueError as exc:
+        return ToolResult(
+            tool_name="shell.run_command",
+            success=False,
+            output="",
+            error=f"Invalid shell command: {exc}",
+            metadata={"cmd": cmd},
+        )
+    if not argv:
+        return ToolResult(
+            tool_name="shell.run_command",
+            success=False,
+            output="",
+            error="Command is empty",
+            metadata={"cmd": cmd},
+        )
 
     try:
         proc = subprocess.run(
-            cmd,
-            shell=True,
+            argv,
+            shell=False,
             cwd=cwd,
             capture_output=True,
             text=True,

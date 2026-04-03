@@ -268,7 +268,8 @@ class TestEmotionalContagion:
 
 class TestContextSwitching:
     def test_different_histories_different_states(self):
-        pipe = _pipe()
+        warm_pipe = _pipe()
+        hostile_pipe = _pipe()
 
         # Warm user: 10 positive interactions
         warm_msgs = [
@@ -277,7 +278,7 @@ class TestContextSwitching:
             "brilliant!", "love this", "fantastic", "superb job",
         ]
         for msg in warm_msgs:
-            pipe.process(msg, user_id="warm_user")
+            warm_pipe.process(msg, user_id="warm_user")
 
         # Hostile user: 5 negative interactions
         hostile_msgs = [
@@ -288,33 +289,37 @@ class TestContextSwitching:
             "worst AI ever",
         ]
         for msg in hostile_msgs:
-            pipe.process(msg, user_id="hostile_user")
+            hostile_pipe.process(msg, user_id="hostile_user")
 
         # Reset engine to neutral baseline before context switch test
-        pipe.engine.state.arousal = 0.5
-        pipe.engine.state.valence = 0.5
-        pipe.engine.state.bonding = 0.5
+        warm_pipe.engine.state.arousal = 0.5
+        warm_pipe.engine.state.valence = 0.5
+        warm_pipe.engine.state.bonding = 0.5
 
         # Process same neutral message for warm user
-        result_warm = pipe.process("hey", user_id="warm_user")
+        result_warm = warm_pipe.process("hey", user_id="warm_user")
         snap_warm = result_warm.debug.modulator_snapshot.copy()
 
         # Reset engine again
-        pipe.engine.state.arousal = 0.5
-        pipe.engine.state.valence = 0.5
-        pipe.engine.state.bonding = 0.5
+        hostile_pipe.engine.state.arousal = 0.5
+        hostile_pipe.engine.state.valence = 0.5
+        hostile_pipe.engine.state.bonding = 0.5
 
         # Process same neutral message for hostile user
-        result_hostile = pipe.process("hey", user_id="hostile_user")
+        result_hostile = hostile_pipe.process("hey", user_id="hostile_user")
         snap_hostile = result_hostile.debug.modulator_snapshot.copy()
 
         # Trust levels should differ
-        warm_profile = pipe.person_profiles.get_or_create("warm_user")
-        hostile_profile = pipe.person_profiles.get_or_create("hostile_user")
+        warm_profile = warm_pipe.person_profiles.get_or_create("warm_user")
+        hostile_profile = hostile_pipe.person_profiles.get_or_create("hostile_user")
 
         assert warm_profile.trust > hostile_profile.trust, (
             f"warm trust {warm_profile.trust:.3f} <= hostile trust "
             f"{hostile_profile.trust:.3f}"
+        )
+        assert snap_warm["valence"] > snap_hostile["valence"], (
+            f"warm valence {snap_warm['valence']:.3f} <= hostile valence "
+            f"{snap_hostile['valence']:.3f}"
         )
 
 

@@ -126,17 +126,18 @@ class TestInactivityTimeout:
         """Each session has its own independent idle timer."""
         async def run():
             with tempfile.TemporaryDirectory() as tmpdir:
-                config = _make_config(tmpdir, session_timeout_seconds=0.3)
+                config = _make_config(tmpdir, session_timeout_seconds=0.6)
                 manager = SessionManager(config, backend_factory=_mock_factory)
                 try:
                     await _send(manager, "hi", user_id="alice")
-                    await asyncio.sleep(0.15)
+                    await asyncio.sleep(0.1)
                     await _send(manager, "hi", user_id="bob")
 
                     assert len(manager.active_sessions) == 2
 
-                    # Wait for alice's timer (fires at 0.3s) but not bob's (fires at 0.45s)
-                    await asyncio.sleep(0.20)
+                    # Wait for alice's timer but leave enough slack so bob's
+                    # later timer should still be active despite request latency.
+                    await asyncio.sleep(0.45)
                     await asyncio.sleep(0.05)
 
                     assert "console:alice:direct" not in manager.active_sessions
@@ -447,14 +448,17 @@ class TestSharedDBSafety:
 # =========================================================================
 
 class TestUnresolvedItemsPersistence:
-    def test_unresolved_items_not_in_saved_state(self):
-        """Engine state JSON does not contain unresolved items."""
+    def test_unresolved_items_are_persisted_in_saved_state(self):
+        """Engine state JSON preserves unresolved items across evictions."""
         async def run():
             with tempfile.TemporaryDirectory() as tmpdir:
                 config = _make_config(tmpdir, session_timeout_seconds=0.1)
                 manager = SessionManager(config, backend_factory=_mock_factory)
                 try:
-                    await _send(manager, "hello")
+                    await _send(
+                        manager,
+                        "You betrayed and deceived me completely!",
+                    )
                     state_path = config.session_state_path("console:user:direct")
 
                     # Wait for timeout eviction
@@ -463,9 +467,9 @@ class TestUnresolvedItemsPersistence:
 
                     state = load_engine_state(state_path)
                     assert state is not None
-                    # Only modulator_snapshot and saved_at — no unresolved_items
-                    assert "unresolved_items" not in state
-                    assert set(state.keys()) == {"modulator_snapshot", "saved_at"}
+                    assert "unresolved_items" in state
+                    assert len(state["unresolved_items"]) > 0
+                    assert {"modulator_snapshot", "saved_at", "unresolved_items"} <= set(state.keys())
                 finally:
                     await manager.shutdown()
 

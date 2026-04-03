@@ -197,7 +197,7 @@ class TestToolAppraisal:
     def test_failure(self):
         result = ToolResult(tool_name="shell.run_command", success=False, output="",
                           error="Exit code 1")
-        obs = appraise_tool_result(result, ToolCategory.WRITE)
+        obs = appraise_tool_result(result, ToolCategory.DESTRUCTIVE)
         assert obs.certainty_delta < 0
         assert obs.resolution_delta > 0
         assert obs.emotional_delta["arousal"] > 0
@@ -219,7 +219,7 @@ class TestToolAppraisal:
     def test_failure_increases_resolution(self):
         result = ToolResult(tool_name="shell.run_command", success=False, output="",
                           error="Command not found")
-        obs = appraise_tool_result(result, ToolCategory.WRITE)
+        obs = appraise_tool_result(result, ToolCategory.DESTRUCTIVE)
         assert obs.resolution_delta == 0.10
 
 
@@ -259,7 +259,8 @@ class TestToolLoop:
         assert result.trace.loop_count == 1
         assert len(result.trace.executed_results) == 1
         assert result.trace.executed_results[0].success is True
-        assert "hello world" in result.tool_context_summary
+        assert "fs.read_file: success" in result.tool_context_summary
+        assert "hello world" not in result.tool_context_summary
 
     def test_failed_tool_execution_changes_state(self):
         _, exe = _make_executor()
@@ -499,9 +500,9 @@ class TestGeneratorToolContext:
         from core.types import PipelineContext
         from core.dual_process.generator import build_system_prompt
         ctx = PipelineContext(
-            tool_context_summary="[fs.read_file] Success: hello world",
+            tool_context_summary="[fs.read_file] fs.read_file: success",
         )
         prompt = build_system_prompt(ctx)
         assert "Tool Execution Results" in prompt
-        assert "hello world" in prompt
+        assert "fs.read_file: success" in prompt
         assert "Do not echo raw output" in prompt

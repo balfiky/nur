@@ -11,6 +11,7 @@ from runtime.channels.console import ConsoleChannel
 from runtime.debug.api import create_debug_app
 from runtime.llm.backend import create_llm_backend
 from runtime.sessions.manager import SessionManager
+from runtime.tools import create_tool_executor
 
 log = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ class JarvisApp:
         self.session_manager = SessionManager(
             config=self.config,
             backend_factory=lambda: create_llm_backend(self.config),
+            tool_executor_factory=create_tool_executor,
             proactive_callback=self._deliver_proactive,
         )
         self._shutdown_event = asyncio.Event()

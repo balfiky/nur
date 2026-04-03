@@ -1,64 +1,34 @@
-"""FastAPI backend for Project Nūr.
-
-POST /chat — send a message, get response + debug state
-GET /debug — get current emotional state
-POST /session/end — end session, trigger digestion
-POST /rest — simulate rest period
-"""
+"""FastAPI backend for Project Nūr."""
 
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
+import os
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-import os
-
 from pipeline import CognitivePipeline
+from runtime.config import RuntimeConfig
+from runtime.debug.api import _debug_to_dict as _serialize_debug
+from runtime.llm.backend import create_llm_backend
+from runtime.sessions.manager import SessionManager
+from runtime.sessions.user_session import UserSession
+from runtime.tools import create_tool_executor
 
-# ---------------------------------------------------------------------------
-# App setup
-# ---------------------------------------------------------------------------
+app = FastAPI(title="Project Nūr", version="0.3.0")
 
-app = FastAPI(title="Project Nūr", version="0.2.0")
+WEB_PLATFORM = "web"
 
-# Global pipeline instance (single user for v1)
-_pipeline: CognitivePipeline | None = None
+_session_manager: SessionManager | None = None
+_pipeline_override: CognitivePipeline | None = None
 
-
-def get_pipeline() -> CognitivePipeline:
-    global _pipeline
-    if _pipeline is None:
-        backend = None
-        backend_fast = None
-        if os.environ.get("MINIMAX_API_KEY"):
-            from core.llm_client import LLMClientFast
-            backend = LLMClientFast()        # thinking off — for all calls
-            backend_fast = backend            # same client for everything
-        _pipeline = CognitivePipeline(
-            llm_backend=backend,
-            llm_backend_fast=backend_fast,
-            db_path=":memory:",
-        )
-    return _pipeline
-
-
-def set_pipeline(p: CognitivePipeline) -> None:
-    global _pipeline
-    _pipeline = p
-
-
-# ---------------------------------------------------------------------------
-# Request/Response models
-# ---------------------------------------------------------------------------
 
 class ChatRequest(BaseModel):
     message: str
     user_id: str = "default"
+    chat_id: str = "default"
 
 
 class ChatResponse(BaseModel):
@@ -68,53 +38,194 @@ class ChatResponse(BaseModel):
 
 class EndSessionRequest(BaseModel):
     user_id: str = "default"
+    chat_id: str = "default"
 
 
 class RestRequest(BaseModel):
     hours: float = 1.0
+    user_id: str = "default"
+    chat_id: str = "default"
 
 
-# ---------------------------------------------------------------------------
-# Routes
-# ---------------------------------------------------------------------------
+def get_session_manager() -> SessionManager:
+    """Create the shared web SessionManager lazily."""
+    global _session_manager
+    if _session_manager is None:
+        config = RuntimeConfig.from_yaml("runtime_config.yaml")
+        _session_manager = SessionManager(
+            config=config,
+            backend_factory=lambda: create_llm_backend(config),
+            tool_executor_factory=create_tool_executor,
+        )
+    return _session_manager
+
+
+def set_session_manager(manager: SessionManager | None) -> None:
+    """Testing hook to replace the default web SessionManager."""
+    global _session_manager, _pipeline_override
+    _session_manager = manager
+    _pipeline_override = None
+
+
+def set_pipeline(pipeline: CognitivePipeline | None) -> None:
+    """Focused testing hook that bypasses the SessionManager."""
+    global _pipeline_override, _session_manager
+    _pipeline_override = pipeline
+    _session_manager = None
+
+
+@app.on_event("shutdown")
+async def _shutdown() -> None:
+    global _session_manager, _pipeline_override
+    if _session_manager is not None:
+        await _session_manager.shutdown()
+        _session_manager = None
+    if _pipeline_override is not None:
+        _pipeline_override.close()
+        _pipeline_override = None
+
 
 @app.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest) -> ChatResponse:
-    pipe = get_pipeline()
-    result = pipe.process(req.message, user_id=req.user_id)
-    debug_dict = _debug_to_dict(result.debug)
-    return ChatResponse(response=result.response, debug=debug_dict)
+async def chat(req: ChatRequest) -> ChatResponse:
+    if _pipeline_override is not None:
+        result = _pipeline_override.process(req.message, user_id=req.user_id)
+        return ChatResponse(response=result.response, debug=_serialize_debug(result.debug))
+
+    manager = get_session_manager()
+    response = await manager.handle_message(
+        WEB_PLATFORM,
+        req.user_id,
+        req.chat_id,
+        req.message,
+    )
+    session = await manager.ensure_session(WEB_PLATFORM, req.user_id, req.chat_id)
+    debug = _serialize_debug(session.last_debug) if session.last_debug else {}
+    return ChatResponse(response=response, debug=debug)
 
 
 @app.get("/debug")
-def debug() -> dict:
-    pipe = get_pipeline()
-    unresolved = pipe.engine.active_unresolved()
-    return {
-        "modulator_snapshot": pipe.engine.snapshot(),
-        "emotion_label": pipe.engine.to_emotion_label(),
-        "energy": pipe.engine.state.energy,
-        "short_term_count": len(pipe.short_term),
-        "long_term_count": pipe.long_term.count(),
-        "unresolved_count": len(unresolved),
-        "unresolved_items": [
-            {
-                "id": item.id,
-                "source": item.source,
-                "description": item.description,
-                "intensity": item.intensity,
-                "decay_rate": item.decay_rate,
-                "created_at": item.created_at.isoformat(),
-            }
-            for item in unresolved
-        ],
-    }
+async def debug(user_id: str = "default", chat_id: str = "default") -> dict:
+    if _pipeline_override is not None:
+        unresolved = _pipeline_override.engine.active_unresolved()
+        return {
+            "modulator_snapshot": _pipeline_override.engine.snapshot(),
+            "emotion_label": _pipeline_override.engine.to_emotion_label(),
+            "energy": _pipeline_override.engine.state.energy,
+            "short_term_count": len(_pipeline_override.short_term),
+            "long_term_count": _pipeline_override.long_term.count(),
+            "unresolved_count": len(unresolved),
+            "unresolved_items": [item.to_dict() for item in unresolved],
+        }
+
+    manager = get_session_manager()
+    session = await manager.ensure_session(WEB_PLATFORM, user_id, chat_id)
+    return _session_debug(_session_key(user_id, chat_id), session)
 
 
 @app.post("/session/end")
-def end_session(req: EndSessionRequest) -> dict:
-    pipe = get_pipeline()
-    result = pipe.end_session(user_id=req.user_id)
+async def end_session(req: EndSessionRequest) -> dict:
+    if _pipeline_override is not None:
+        result = _pipeline_override.end_session(user_id=req.user_id)
+        return _digested_to_dict(result)
+
+    manager = get_session_manager()
+    session = await manager.ensure_session(WEB_PLATFORM, req.user_id, req.chat_id)
+    result = await session.end_session()
+    return _digested_to_dict(result)
+
+
+@app.post("/rest")
+async def rest(req: RestRequest) -> dict:
+    if _pipeline_override is not None:
+        energy_before = _pipeline_override.engine.state.energy
+        _pipeline_override.apply_rest(req.hours)
+        return {
+            "hours": req.hours,
+            "energy_before": energy_before,
+            "energy_after": _pipeline_override.engine.state.energy,
+        }
+
+    manager = get_session_manager()
+    session = await manager.ensure_session(WEB_PLATFORM, req.user_id, req.chat_id)
+    energy_before = session.pipeline.engine.state.energy
+    await session.apply_rest(req.hours)
+    return {
+        "hours": req.hours,
+        "energy_before": energy_before,
+        "energy_after": session.pipeline.engine.state.energy,
+    }
+
+
+@app.websocket("/ws")
+async def websocket_chat(ws: WebSocket) -> None:
+    await ws.accept()
+    try:
+        while True:
+            raw = await ws.receive_text()
+            msg = json.loads(raw)
+            user_id = msg.get("user_id", "default")
+            chat_id = msg.get("chat_id", "default")
+            user_message = msg.get("message", "")
+
+            if _pipeline_override is not None:
+                result = _pipeline_override.process(user_message, user_id=user_id)
+                payload = {
+                    "response": result.response,
+                    "debug": _serialize_debug(result.debug),
+                }
+            else:
+                manager = get_session_manager()
+                response = await manager.handle_message(
+                    WEB_PLATFORM,
+                    user_id,
+                    chat_id,
+                    user_message,
+                )
+                session = await manager.ensure_session(WEB_PLATFORM, user_id, chat_id)
+                payload = {
+                    "response": response,
+                    "debug": (
+                        _serialize_debug(session.last_debug)
+                        if session.last_debug
+                        else {}
+                    ),
+                }
+
+            await ws.send_text(json.dumps(payload))
+    except WebSocketDisconnect:
+        pass
+
+
+@app.get("/")
+def index() -> HTMLResponse:
+    static_dir = os.path.join(os.path.dirname(__file__), "static")
+    index_path = os.path.join(static_dir, "index.html")
+    with open(index_path) as f:
+        return HTMLResponse(content=f.read())
+
+
+def _session_key(user_id: str, chat_id: str) -> str:
+    return f"{WEB_PLATFORM}:{user_id}:{chat_id}"
+
+
+def _session_debug(session_key_value: str, session: UserSession) -> dict:
+    pipeline = session.pipeline
+    unresolved = pipeline.engine.active_unresolved()
+    return {
+        "session_key": session_key_value,
+        "user_id": session.user_id,
+        "modulator_snapshot": pipeline.engine.snapshot(),
+        "emotion_label": pipeline.engine.to_emotion_label(),
+        "energy": pipeline.engine.state.energy,
+        "short_term_count": len(pipeline.short_term),
+        "long_term_count": pipeline.long_term.count(),
+        "unresolved_count": len(unresolved),
+        "unresolved_items": [item.to_dict() for item in unresolved],
+        "last_turn": _serialize_debug(session.last_debug) if session.last_debug else None,
+    }
+
+
+def _digested_to_dict(result) -> dict:
     return {
         "summary": result.summary,
         "emotional_arc_label": result.emotional_arc_label,
@@ -123,170 +234,3 @@ def end_session(req: EndSessionRequest) -> dict:
         "energy_drain": result.energy_drain,
         "unresolved_flags": result.unresolved_flags,
     }
-
-
-@app.post("/rest")
-def rest(req: RestRequest) -> dict:
-    pipe = get_pipeline()
-    energy_before = pipe.engine.state.energy
-    pipe.apply_rest(req.hours)
-    return {
-        "hours": req.hours,
-        "energy_before": energy_before,
-        "energy_after": pipe.engine.state.energy,
-    }
-
-
-# ---------------------------------------------------------------------------
-# WebSocket for streaming chat
-# ---------------------------------------------------------------------------
-
-@app.websocket("/ws")
-async def websocket_chat(ws: WebSocket) -> None:
-    await ws.accept()
-    pipe = get_pipeline()
-    try:
-        while True:
-            data = await ws.receive_text()
-            msg = json.loads(data)
-            user_message = msg.get("message", "")
-            user_id = msg.get("user_id", "default")
-
-            result = pipe.process(user_message, user_id=user_id)
-            debug_dict = _debug_to_dict(result.debug)
-
-            await ws.send_text(json.dumps({
-                "response": result.response,
-                "debug": debug_dict,
-            }))
-    except WebSocketDisconnect:
-        pass
-
-
-# ---------------------------------------------------------------------------
-# Serve the web UI
-# ---------------------------------------------------------------------------
-
-@app.get("/")
-def index() -> HTMLResponse:
-    import os
-    static_dir = os.path.join(os.path.dirname(__file__), "static")
-    index_path = os.path.join(static_dir, "index.html")
-    with open(index_path) as f:
-        return HTMLResponse(content=f.read())
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def _debug_to_dict(debug) -> dict:
-    """Convert DebugState to a JSON-serializable dict."""
-    d = {}
-    d["user_message"] = debug.user_message
-    d["user_id"] = debug.user_id
-    d["detected_emotion"] = (
-        {"arousal": debug.detected_emotion.arousal, "valence": debug.detected_emotion.valence}
-        if debug.detected_emotion else None
-    )
-    d["baseline_shift_applied"] = debug.baseline_shift_applied
-    d["event_classified"] = debug.event_classified
-    d["event_intensity"] = debug.event_intensity
-    d["is_spike"] = debug.is_spike
-    d["modulator_snapshot"] = debug.modulator_snapshot
-    d["retrieved_memories"] = [
-        {"summary": m.summary, "valence": m.emotional_valence, "spike": m.spike}
-        for m in debug.retrieved_memories
-    ]
-    d["person_profile"] = (
-        {"person_id": debug.person_profile.person_id, "trust": debug.person_profile.trust,
-         "interaction_count": debug.person_profile.interaction_count}
-        if debug.person_profile else None
-    )
-    d["self_profile"] = (
-        {"strengths": debug.self_profile.strengths, "flaws": debug.self_profile.flaws,
-         "triggers": debug.self_profile.triggers, "dissonance": debug.self_profile.dissonance}
-        if debug.self_profile else None
-    )
-    d["topic_profiles"] = [
-        {"topic": t.topic, "charge": t.emotional_charge, "avoidance": t.avoidance}
-        for t in debug.topic_profiles
-    ]
-    d["contradiction_flags"] = debug.contradiction_flags
-    d["response"] = debug.response
-    d["self_check_passed"] = debug.self_check_passed
-    d["self_check_issues"] = debug.self_check_issues
-    d["correction_note"] = debug.correction_note
-    d["generation_attempts"] = debug.generation_attempts
-    d["energy_after"] = debug.energy_after
-    d["emotion_label"] = debug.emotion_label
-
-    # v2: Anticipation
-    ant = debug.anticipation
-    d["anticipation"] = (
-        {
-            "predicted_topics": ant.predicted_topics,
-            "predicted_emotional_tone": ant.predicted_emotional_tone,
-            "modulator_pre_shifts": ant.modulator_pre_shifts,
-            "confidence": ant.confidence,
-            "basis": ant.basis,
-        }
-        if ant else None
-    )
-
-    # v2: Inner dialogue trace
-    trace = debug.dialogue_trace
-    if trace:
-        d["dialogue_trace"] = {
-            "rounds": [
-                {
-                    "round_number": r.round_number,
-                    "fast_path_candidate": r.fast_path_candidate,
-                    "slow_path_evaluation": r.slow_path_evaluation,
-                    "slow_path_approved": r.slow_path_approved,
-                    "objection_reason": r.objection_reason,
-                    "revision_notes": r.revision_notes,
-                }
-                for r in trace.rounds
-            ],
-            "final_candidate": trace.final_candidate,
-            "total_llm_calls": trace.total_llm_calls,
-            "reached_deadlock": trace.reached_deadlock,
-            "deadlock_resolution": trace.deadlock_resolution,
-            "dominant_path": trace.dominant_path,
-            "tension_level": trace.tension_level,
-        }
-    else:
-        d["dialogue_trace"] = None
-
-    # v2: Defense activation
-    defense = debug.defense_activation
-    d["defense_activation"] = (
-        {
-            "defense_type": defense.defense_type,
-            "raw_intensity": defense.raw_intensity,
-            "expressed_intensity": defense.expressed_intensity,
-            "suppression_delta": defense.suppression_delta,
-            "reason": defense.reason,
-        }
-        if defense else None
-    )
-
-    # v2: Resolution
-    d["unresolved_count"] = debug.unresolved_count
-    d["unresolved_items"] = [
-        {
-            "id": item.id,
-            "source": item.source,
-            "description": item.description,
-            "intensity": item.intensity,
-            "decay_rate": item.decay_rate,
-            "created_at": item.created_at.isoformat(),
-        }
-        for item in (debug.unresolved_items or [])
-    ]
-
-    # Timing instrumentation
-    d["stage_timings_ms"] = debug.stage_timings_ms
-
-    return d

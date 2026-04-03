@@ -278,6 +278,8 @@ class CognitivePipeline:
 
         # Time tracking for auto-decay between turns
         self._last_turn_time: float | None = None
+        # Pipelines are session-scoped; changing users on one instance leaks state.
+        self._bound_user_id: str | None = None
 
     # ------------------------------------------------------------------
     # Main entry point
@@ -292,6 +294,7 @@ class CognitivePipeline:
 
         Returns the response text and full debug state.
         """
+        self._ensure_bound_user(user_id)
         debug = DebugState(user_message=user_message, user_id=user_id)
         person = self.person_profiles.get_or_create(user_id)
         _t_total = time.perf_counter()
@@ -747,6 +750,7 @@ class CognitivePipeline:
         Returns PipelineResponse if proactive action was taken, None otherwise.
         The debug state always contains the ProactiveTrace for observability.
         """
+        self._ensure_bound_user(user_id)
         debug = DebugState(user_message="[proactive]", user_id=user_id)
         person = self.person_profiles.get_or_create(user_id)
         self_prof = self.self_profile.get_profile()
@@ -1009,12 +1013,17 @@ class CognitivePipeline:
         self,
         snapshot: dict[str, float],
         saved_at: float | None = None,
+        unresolved_items: list[UnresolvedItem] | None = None,
     ) -> None:
         """Restore emotional engine state from a persisted snapshot.
 
         Convenience wrapper around EmotionalEngine.restore() for runtime use.
         """
-        self.engine.restore(snapshot, saved_at=saved_at)
+        self.engine.restore(
+            snapshot,
+            saved_at=saved_at,
+            unresolved_items=unresolved_items,
+        )
 
     # ------------------------------------------------------------------
     # Session management
@@ -1022,6 +1031,7 @@ class CognitivePipeline:
 
     def end_session(self, user_id: str = "default") -> DigestedSession:
         """End a session: run digestion, clear short-term, apply energy drain."""
+        self._ensure_bound_user(user_id)
         result = digest_session(
             self.short_term,
             self.long_term,
@@ -1029,6 +1039,7 @@ class CognitivePipeline:
             relationship_memory=self.relationship_memory,
             llm_client=self._llm_backend,
             conversation_history=self._conversation_history,
+            spikes_already_stored=True,
         )
 
         # Trust is updated per-turn (in process()), not again at session end.
@@ -1051,6 +1062,18 @@ class CognitivePipeline:
         """Simulate time passing between sessions. Recovers energy, decays modulators."""
         seconds = hours * 3600.0
         self.engine.decay(seconds)
+
+    def _ensure_bound_user(self, user_id: str) -> None:
+        """Bind the pipeline to a single relational user for its lifetime."""
+        if self._bound_user_id is None:
+            self._bound_user_id = user_id
+            return
+        if user_id != self._bound_user_id:
+            raise RuntimeError(
+                "CognitivePipeline instances are single-user/session scoped. "
+                f"Bound to '{self._bound_user_id}', got '{user_id}'. "
+                "Create a separate pipeline per user."
+            )
 
     # ------------------------------------------------------------------
     # Event classification (LLM with rule-based fallback)

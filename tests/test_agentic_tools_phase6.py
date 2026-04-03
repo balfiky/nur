@@ -385,6 +385,7 @@ class TestRegistryCoexistence:
         destructive = reg.list_tools(category=ToolCategory.DESTRUCTIVE)
         names = {t.name for t in destructive}
         assert "fs.delete_path" in names
+        assert "shell.run_command" in names
         assert "calendar.delete_event" in names
 
 

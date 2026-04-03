@@ -97,10 +97,11 @@ The full test suite currently collects 1194 tests.
 
 ## Phase 1 (Console runtime — completed)
 - `runtime/sessions/manager.py` — SessionManager: lazy creation, backpressure, eviction, shutdown
-- `runtime/sessions/user_session.py` — UserSession: asyncio.Queue + worker + asyncio.to_thread
+- `runtime/sessions/user_session.py` — UserSession: serialized turns via async lock + bounded backlog
 - `runtime/sessions/persistence.py` — save/load session-state JSON (atomic writes)
 - `runtime/channels/console.py` — ConsoleChannel: async stdin, routes through session manager
 - `runtime/llm/backend.py` — MiniMax + OpenAI-compatible `create_llm_backend(config)` factory
+- `runtime/tools.py` — per-pipeline builtin tool executor factory
 - `runtime/config.py` — RuntimeConfig: data_dir, limits, timeout, channels, LLM backend, debug
 - `runtime/app.py` — JarvisApp: orchestrator with signal-based graceful shutdown
 - `main.py` — Entry point: `python main.py` (loads runtime_config.yaml)
@@ -109,8 +110,8 @@ The full test suite currently collects 1194 tests.
 - Storage keyed by rel_key: `data/{platform}_{user_id}/nur.db`, `data/shared/self_model.db`
 - Hot engine state keyed by session_key: `data/{platform}_{user_id}/sessions/{chat_id}.json`
 - Per-user `asyncio.Lock` serializes pipeline access across chat contexts for the same user
-- Per-user processing serialized; different users can overlap (separate threads)
-- Nūr remains synchronous — runtime wraps via asyncio.to_thread
+- Per-user processing serialized; different users can overlap on the runtime-owned worker pool
+- Nūr remains synchronous — runtime wraps pipeline calls in worker-thread helpers
 - `RuntimeConfig.from_yaml(path)` loads config from YAML; defaults on missing file
 - Runtime backend config supports `mock`, `minimax`, and `openai_compatible`
 - `console_enabled` config flag — headless Telegram-only runtime supported
@@ -133,7 +134,7 @@ The full test suite currently collects 1194 tests.
 - Backpressure: max_queue_per_user rejects with RuntimeError; max_active_sessions rejects new users
 - Shared self-model DB: WAL mode + busy_timeout=5000 via `ProfileStore(wal_mode=True)`
 - Per-user DBs do NOT use WAL (single writer, no contention)
-- Unresolved items are in-memory only — not persisted in engine_state.json (by design)
+- Unresolved items are persisted in session engine snapshots and restored on restart/eviction
 
 ## Phase 4 (Runtime debug API — completed)
 - `runtime/debug/api.py` — session-aware FastAPI debug endpoints

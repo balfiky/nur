@@ -427,6 +427,43 @@ class UnresolvedItem:
         self.intensity = max(0.0, min(1.0, self.intensity))
         self.decay_rate = max(0.0, self.decay_rate)
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "source": self.source,
+            "description": self.description,
+            "created_at": self.created_at.isoformat(),
+            "intensity": self.intensity,
+            "decay_rate": self.decay_rate,
+            "resolved": self.resolved,
+            "resolved_at": self.resolved_at.isoformat() if self.resolved_at else None,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> UnresolvedItem:
+        created_at_raw = data.get("created_at")
+        resolved_at_raw = data.get("resolved_at")
+        created_at = (
+            datetime.fromisoformat(created_at_raw)
+            if created_at_raw
+            else datetime.utcnow()
+        )
+        resolved_at = (
+            datetime.fromisoformat(resolved_at_raw)
+            if resolved_at_raw
+            else None
+        )
+        return cls(
+            id=str(data.get("id", "")),
+            source=str(data.get("source", "")),
+            description=str(data.get("description", "")),
+            created_at=created_at,
+            intensity=float(data.get("intensity", 0.0)),
+            decay_rate=float(data.get("decay_rate", 0.0)),
+            resolved=bool(data.get("resolved", False)),
+            resolved_at=resolved_at,
+        )
+
 
 @dataclass
 class Anticipation:

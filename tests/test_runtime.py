@@ -21,10 +21,12 @@ import time
 import pytest
 
 from core.dual_process.generator import MockLLMBackend
+from core.types import UnresolvedItem
 from runtime.config import RuntimeConfig
 from runtime.sessions.manager import SessionManager
 from runtime.sessions.persistence import load_engine_state, save_engine_state
 from runtime.sessions.user_session import UserSession
+from runtime.tools import create_tool_executor
 from pipeline import CognitivePipeline
 
 
@@ -79,6 +81,37 @@ class TestStatePersistence:
             save_engine_state(path, {"arousal": 0.5})
             assert not os.path.exists(path + ".tmp")
             assert os.path.exists(path)
+
+    def test_save_and_restore_preserves_unresolved_items(self):
+        pipe = CognitivePipeline(llm_backend=MockLLMBackend())
+        pipe.process("You betrayed and deceived me completely!", user_id="alice")
+        unresolved_before = pipe.engine.active_unresolved()
+        assert unresolved_before
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "engine_state.json")
+            state = pipe.engine.export_state()
+            save_engine_state(
+                path,
+                state["modulator_snapshot"],
+                unresolved_items=state["unresolved_items"],
+            )
+            loaded = load_engine_state(path)
+            assert loaded is not None
+
+            restored = CognitivePipeline(llm_backend=MockLLMBackend())
+            restored.restore_state(
+                loaded["modulator_snapshot"],
+                saved_at=loaded["saved_at"],
+                unresolved_items=[
+                    UnresolvedItem.from_dict(item)
+                    for item in loaded["unresolved_items"]
+                ],
+            )
+
+            unresolved_after = restored.engine.active_unresolved()
+            assert len(unresolved_after) == len(unresolved_before)
+            assert restored.engine.state.resolution > 0.0
 
 
 # =========================================================================
@@ -143,6 +176,24 @@ class TestConsoleEndToEnd:
                     assert len(manager.active_sessions) == 2
                     assert "console:alice:direct" in manager.active_sessions
                     assert "console:bob:direct" in manager.active_sessions
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_sessions_wire_tool_executor(self):
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                config = _make_config(tmpdir)
+                manager = SessionManager(
+                    config,
+                    backend_factory=_mock_factory,
+                    tool_executor_factory=create_tool_executor,
+                )
+                try:
+                    await _send(manager, "hello")
+                    session = manager.active_sessions["console:user:direct"]
+                    assert session.pipeline._tool_executor is not None
                 finally:
                     await manager.shutdown()
 

@@ -214,24 +214,25 @@ def main():
     # -----------------------------------------------------------------------
     # 7. Context Switching
     # -----------------------------------------------------------------------
-    p = pipe()
+    warm_pipe = pipe()
+    hostile_pipe = pipe()
     warm_ctx = [
         "thank you!", "you're great", "I appreciate you",
         "wonderful work", "amazing help", "you're the best",
         "brilliant!", "love this", "fantastic", "superb job",
     ]
     for m in warm_ctx:
-        p.process(m, user_id="warm_user")
+        warm_pipe.process(m, user_id="warm_user")
 
     hostile_ctx = [
         "you're stupid", "this is bullshit", "I hate this",
         "you're useless and pathetic", "worst AI ever",
     ]
     for m in hostile_ctx:
-        p.process(m, user_id="hostile_user")
+        hostile_pipe.process(m, user_id="hostile_user")
 
-    wp = p.person_profiles.get_or_create("warm_user")
-    hp = p.person_profiles.get_or_create("hostile_user")
+    wp = warm_pipe.person_profiles.get_or_create("warm_user")
+    hp = hostile_pipe.person_profiles.get_or_create("hostile_user")
     delta = wp.trust - hp.trust
 
     results.append(report("7. Context Switching (warm vs hostile user)", [

@@ -190,13 +190,11 @@ class TestCognitivePipeline:
         result = pipe.process("Let's talk about work", user_id="alice")
         assert len(result.debug.topic_profiles) >= 1
 
-    def test_multiple_users_isolated(self):
+    def test_pipeline_is_single_user_scoped(self):
         pipe = self._make_pipeline()
         pipe.process("Hello from Alice", user_id="alice")
-        pipe.process("Hello from Bob", user_id="bob")
-        alice = pipe.person_profiles.get_or_create("alice")
-        bob = pipe.person_profiles.get_or_create("bob")
-        assert alice.person_id != bob.person_id
+        with pytest.raises(RuntimeError, match="single-user/session scoped"):
+            pipe.process("Hello from Bob", user_id="bob")
 
     def test_spike_event_writes_to_long_term(self):
         pipe = self._make_pipeline()
@@ -205,6 +203,15 @@ class TestCognitivePipeline:
         pipe.process("You betrayed and deceived me completely!", user_id="alice")
         # Spike should have been written directly to LT
         assert pipe.long_term.count() > initial_count
+
+    def test_end_session_does_not_duplicate_spike_memory(self):
+        pipe = self._make_pipeline()
+        pipe.process("You betrayed and deceived me completely!", user_id="alice")
+        after_process = pipe.long_term.count()
+        pipe.end_session(user_id="alice")
+        memories = pipe.long_term.all()
+        assert pipe.long_term.count() == after_process
+        assert [m.source_person for m in memories] == ["alice"]
 
     def test_insult_classified_as_negative_feedback(self):
         pipe = self._make_pipeline()

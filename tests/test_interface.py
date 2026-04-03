@@ -1,118 +1,176 @@
 """Tests for the web interface — Phase 7."""
 
-import pytest
-from fastapi.testclient import TestClient
+import tempfile
 
-from interface.api import app, set_pipeline
+import pytest
+
+from interface.api import (
+    ChatRequest,
+    EndSessionRequest,
+    RestRequest,
+    app,
+    chat,
+    debug,
+    end_session,
+    index,
+    rest,
+    set_pipeline,
+    set_session_manager,
+)
 from pipeline import CognitivePipeline
 from core.dual_process.generator import MockLLMBackend
+from runtime.config import RuntimeConfig
+from runtime.sessions.manager import SessionManager
+
+pytestmark = pytest.mark.anyio
+
+
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
 
 
 @pytest.fixture(autouse=True)
 def reset_pipeline():
     """Reset the global pipeline before each test."""
+    set_session_manager(None)
     backend = MockLLMBackend(response="Test response.")
     pipe = CognitivePipeline(llm_backend=backend)
     set_pipeline(pipe)
     yield
     set_pipeline(None)
+    set_session_manager(None)
 
 
-@pytest.fixture
-def client():
-    with TestClient(app) as c:
-        yield c
+async def _chat(
+    message: str,
+    *,
+    user_id: str = "default",
+    chat_id: str = "default",
+):
+    return await chat(ChatRequest(message=message, user_id=user_id, chat_id=chat_id))
+
+
+async def _debug(*, user_id: str = "default", chat_id: str = "default"):
+    return await debug(user_id=user_id, chat_id=chat_id)
+
+
+async def _end_session(*, user_id: str = "default", chat_id: str = "default"):
+    return await end_session(EndSessionRequest(user_id=user_id, chat_id=chat_id))
+
+
+async def _rest(
+    *,
+    hours: float,
+    user_id: str = "default",
+    chat_id: str = "default",
+):
+    return await rest(RestRequest(hours=hours, user_id=user_id, chat_id=chat_id))
 
 
 class TestChatEndpoint:
-    def test_chat_returns_response(self, client):
-        resp = client.post("/chat", json={"message": "Hello", "user_id": "alice"})
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["response"] == "Test response."
-        assert "debug" in data
+    async def test_chat_returns_response(self):
+        resp = await _chat("Hello", user_id="alice")
+        assert resp.response == "Test response."
+        assert resp.debug
 
-    def test_chat_debug_has_modulators(self, client):
-        resp = client.post("/chat", json={"message": "Hello"})
-        data = resp.json()
-        debug = data["debug"]
+    async def test_chat_debug_has_modulators(self):
+        resp = await _chat("Hello")
+        debug = resp.debug
         assert "modulator_snapshot" in debug
         assert "arousal" in debug["modulator_snapshot"]
         assert "energy_after" in debug
 
-    def test_chat_debug_has_event(self, client):
-        resp = client.post("/chat", json={"message": "I'm so angry!"})
-        data = resp.json()
-        debug = data["debug"]
+    async def test_chat_debug_has_event(self):
+        resp = await _chat("I'm so angry!")
+        debug = resp.debug
         assert debug["event_classified"] != ""
         assert debug["event_intensity"] > 0
 
-    def test_chat_debug_has_profiles(self, client):
-        resp = client.post("/chat", json={"message": "Hello", "user_id": "bob"})
-        debug = resp.json()["debug"]
+    async def test_chat_debug_has_profiles(self):
+        resp = await _chat("Hello", user_id="bob")
+        debug = resp.debug
         assert debug["person_profile"] is not None
         assert debug["person_profile"]["person_id"] == "bob"
         assert debug["self_profile"] is not None
 
-    def test_chat_default_user_id(self, client):
-        resp = client.post("/chat", json={"message": "Hi"})
-        debug = resp.json()["debug"]
+    async def test_chat_default_user_id(self):
+        resp = await _chat("Hi")
+        debug = resp.debug
         assert debug["user_id"] == "default"
+
+    async def test_session_manager_path_isolates_web_sessions(self):
+        set_pipeline(None)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = SessionManager(
+                RuntimeConfig(data_dir=tmpdir),
+                backend_factory=lambda: MockLLMBackend(response="Test response."),
+            )
+            set_session_manager(manager)
+            try:
+                await _chat(
+                    "You betrayed and deceived me completely!",
+                    user_id="alice",
+                    chat_id="alice-tab",
+                )
+                await _chat("Hello", user_id="bob", chat_id="bob-tab")
+
+                alice_debug = await _debug(user_id="alice", chat_id="alice-tab")
+                bob_debug = await _debug(user_id="bob", chat_id="bob-tab")
+
+                assert alice_debug["unresolved_count"] > 0
+                assert bob_debug["unresolved_count"] == 0
+                assert bob_debug["emotion_label"] != "fearful"
+            finally:
+                await manager.shutdown()
 
 
 class TestDebugEndpoint:
-    def test_debug_returns_state(self, client):
-        resp = client.get("/debug")
-        assert resp.status_code == 200
-        data = resp.json()
+    async def test_debug_returns_state(self):
+        data = await _debug()
         assert "modulator_snapshot" in data
         assert "emotion_label" in data
         assert "energy" in data
 
-    def test_debug_reflects_chat(self, client):
-        client.post("/chat", json={"message": "Hello"})
-        resp = client.get("/debug")
-        data = resp.json()
+    async def test_debug_reflects_chat(self):
+        await _chat("Hello")
+        data = await _debug()
         assert data["short_term_count"] > 0
 
 
 class TestSessionEndpoint:
-    def test_end_session(self, client):
-        client.post("/chat", json={"message": "Hello"})
-        client.post("/chat", json={"message": "Thanks!"})
-        resp = client.post("/session/end", json={"user_id": "default"})
-        assert resp.status_code == 200
-        data = resp.json()
+    async def test_end_session(self):
+        await _chat("Hello")
+        await _chat("Thanks!")
+        data = await _end_session()
         assert "summary" in data
         assert "trust_delta" in data
         assert "memories_written" in data
 
-    def test_end_session_clears_short_term(self, client):
-        client.post("/chat", json={"message": "Hello"})
-        client.post("/session/end", json={})
-        debug = client.get("/debug").json()
-        assert debug["short_term_count"] == 0
+    async def test_end_session_clears_short_term(self):
+        await _chat("Hello")
+        await _end_session()
+        debug_state = await _debug()
+        assert debug_state["short_term_count"] == 0
 
 
 class TestRestEndpoint:
-    def test_rest_recovers_energy(self, client):
+    async def test_rest_recovers_energy(self):
         # Drain some energy
         for i in range(10):
-            client.post("/chat", json={"message": f"Message {i}"})
-        debug_before = client.get("/debug").json()
+            await _chat(f"Message {i}")
+        debug_before = await _debug()
         energy_before = debug_before["energy"]
 
-        resp = client.post("/rest", json={"hours": 2.0})
-        assert resp.status_code == 200
-        data = resp.json()
+        data = await _rest(hours=2.0)
         assert data["energy_after"] > energy_before
 
 
 class TestV2DebugFields:
     """Verify v2 debug fields are present in chat and debug endpoints."""
 
-    def test_chat_has_anticipation(self, client):
-        debug = client.post("/chat", json={"message": "Hello"}).json()["debug"]
+    async def test_chat_has_anticipation(self):
+        debug = (await _chat("Hello")).debug
         assert "anticipation" in debug
         ant = debug["anticipation"]
         assert ant is not None
@@ -120,8 +178,8 @@ class TestV2DebugFields:
         assert "confidence" in ant
         assert "basis" in ant
 
-    def test_chat_has_dialogue_trace(self, client):
-        debug = client.post("/chat", json={"message": "Hello"}).json()["debug"]
+    async def test_chat_has_dialogue_trace(self):
+        debug = (await _chat("Hello")).debug
         assert "dialogue_trace" in debug
         trace = debug["dialogue_trace"]
         assert trace is not None
@@ -132,37 +190,36 @@ class TestV2DebugFields:
         assert "dominant_path" in trace
         assert "total_llm_calls" in trace
 
-    def test_chat_has_defense_field(self, client):
-        debug = client.post("/chat", json={"message": "Hello"}).json()["debug"]
+    async def test_chat_has_defense_field(self):
+        debug = (await _chat("Hello")).debug
         assert "defense_activation" in debug
         # Calm message — defense should be None
         assert debug["defense_activation"] is None
 
-    def test_chat_has_unresolved_count(self, client):
-        debug = client.post("/chat", json={"message": "Hello"}).json()["debug"]
+    async def test_chat_has_unresolved_count(self):
+        debug = (await _chat("Hello")).debug
         assert "unresolved_count" in debug
         assert isinstance(debug["unresolved_count"], int)
 
-    def test_chat_has_unresolved_items(self, client):
-        debug = client.post("/chat", json={"message": "Hello"}).json()["debug"]
+    async def test_chat_has_unresolved_items(self):
+        debug = (await _chat("Hello")).debug
         assert "unresolved_items" in debug
         assert isinstance(debug["unresolved_items"], list)
 
-    def test_chat_has_resolution_in_snapshot(self, client):
-        debug = client.post("/chat", json={"message": "Hello"}).json()["debug"]
+    async def test_chat_has_resolution_in_snapshot(self):
+        debug = (await _chat("Hello")).debug
         assert "resolution" in debug["modulator_snapshot"]
 
-    def test_debug_endpoint_has_resolution(self, client):
-        resp = client.get("/debug").json()
+    async def test_debug_endpoint_has_resolution(self):
+        resp = await _debug()
         assert "resolution" in resp["modulator_snapshot"]
         assert "unresolved_count" in resp
         assert "unresolved_items" in resp
 
-    def test_spike_creates_unresolved_in_debug(self, client):
-        debug = client.post(
-            "/chat",
-            json={"message": "You betrayed and deceived me completely!"},
-        ).json()["debug"]
+    async def test_spike_creates_unresolved_in_debug(self):
+        debug = (
+            await _chat("You betrayed and deceived me completely!")
+        ).debug
         if debug["is_spike"]:
             assert debug["unresolved_count"] > 0
             assert len(debug["unresolved_items"]) > 0
@@ -173,14 +230,15 @@ class TestV2DebugFields:
 
 
 class TestIndexPage:
-    def test_serves_html(self, client):
-        resp = client.get("/")
+    async def test_serves_html(self):
+        resp = index()
+        html = resp.body.decode()
         assert resp.status_code == 200
-        assert "Project Nūr" in resp.text
-        assert "<!DOCTYPE html>" in resp.text
+        assert "Project Nūr" in html
+        assert "<!DOCTYPE html>" in html
 
-    def test_has_v2_sections(self, client):
-        html = client.get("/").text
+    async def test_has_v2_sections(self):
+        html = index().body.decode()
         assert "Anticipation" in html
         assert "Inner Dialogue" in html
         assert "Defense" in html

@@ -225,9 +225,6 @@ def make_tool_decision(
 # Summarize tool results for the generator (never raw output)
 # ---------------------------------------------------------------------------
 
-_MAX_SUMMARY_LEN = 500
-
-
 def _summarize_for_generator(observations: list[ToolObservation], results: list[ToolResult]) -> str:
     """Build a concise summary of tool execution for the generator prompt.
 
@@ -239,10 +236,13 @@ def _summarize_for_generator(observations: list[ToolObservation], results: list[
     parts: list[str] = []
     for obs, res in zip(observations, results):
         if res.success:
-            output_preview = res.output[:_MAX_SUMMARY_LEN]
-            if len(res.output) > _MAX_SUMMARY_LEN:
-                output_preview += f"... ({len(res.output)} chars total)"
-            parts.append(f"[{res.tool_name}] Success: {output_preview}")
+            details: list[str] = [obs.summary]
+            if res.side_effect_summary and res.side_effect_summary != "none":
+                details.append(res.side_effect_summary)
+            metadata = _format_result_metadata(res.metadata)
+            if metadata:
+                details.append(metadata)
+            parts.append(f"[{res.tool_name}] " + " | ".join(details))
         else:
             parts.append(f"[{res.tool_name}] Failed: {res.error}")
 
@@ -465,14 +465,41 @@ def _summarize_plan_for_generator(
     for step in plan.steps:
         if step.result is not None:
             if step.result.success:
-                preview = step.result.output[:_MAX_SUMMARY_LEN]
-                if len(step.result.output) > _MAX_SUMMARY_LEN:
-                    preview += "..."
-                parts.append(f"  [{step.tool_name}] OK: {preview}")
+                details = []
+                if step.observation is not None:
+                    details.append(step.observation.summary)
+                if (
+                    step.result.side_effect_summary
+                    and step.result.side_effect_summary != "none"
+                ):
+                    details.append(step.result.side_effect_summary)
+                metadata = _format_result_metadata(step.result.metadata)
+                if metadata:
+                    details.append(metadata)
+                summary = " | ".join(details) if details else "success"
+                parts.append(f"  [{step.tool_name}] OK: {summary}")
             else:
                 parts.append(f"  [{step.tool_name}] FAIL: {step.result.error}")
 
     return "\n".join(parts)
+
+
+def _format_result_metadata(metadata: dict[str, Any]) -> str:
+    """Return only compact, low-risk metadata hints for generation."""
+    if not metadata:
+        return ""
+    hints: list[str] = []
+    for key in (
+        "count",
+        "match_count",
+        "result_count",
+        "bytes_written",
+        "exit_code",
+        "truncated",
+    ):
+        if key in metadata:
+            hints.append(f"{key}={metadata[key]}")
+    return ", ".join(hints)
 
 
 def _apply_emotional_deltas(engine: Any, observation: ToolObservation) -> None:

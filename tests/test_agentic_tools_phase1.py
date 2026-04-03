@@ -271,13 +271,17 @@ class TestShellRunCommand:
         assert result.metadata["exit_code"] == 0
 
     def test_non_zero_exit(self):
-        result = SHELL_HANDLERS["shell.run_command"]({"cmd": "exit 42"})
+        result = SHELL_HANDLERS["shell.run_command"]({
+            "cmd": "python3 -c \"import sys; sys.exit(42)\"",
+        })
         assert result.success is False
         assert result.metadata["exit_code"] == 42
         assert "Exit code 42" in result.error
 
     def test_stderr_captured(self):
-        result = SHELL_HANDLERS["shell.run_command"]({"cmd": "echo err >&2"})
+        result = SHELL_HANDLERS["shell.run_command"]({
+            "cmd": "python3 -c \"import sys; print('err', file=sys.stderr)\"",
+        })
         assert "[stderr]" in result.output
         assert "err" in result.output
 
@@ -394,7 +398,7 @@ class TestBuiltinRegistration:
         assert reg.get("fs.read_file").category == ToolCategory.READ_ONLY
         assert reg.get("fs.write_file").category == ToolCategory.WRITE
         assert reg.get("fs.delete_path").category == ToolCategory.DESTRUCTIVE
-        assert reg.get("shell.run_command").category == ToolCategory.WRITE
+        assert reg.get("shell.run_command").category == ToolCategory.DESTRUCTIVE
         assert reg.get("web.search").category == ToolCategory.READ_ONLY
         assert reg.get("web.search").requires_network is True
 

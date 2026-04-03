@@ -300,9 +300,10 @@ nur/
 |   |   |-- base.py                  # Channel protocol (start/stop)
 |   |   |-- console.py               # Async stdin console channel
 |   |   +-- telegram.py              # Telegram long-polling + commands + typing
+|   |-- tools.py                     # Runtime tool executor factory for builtin tools
 |   |-- sessions/
 |   |   |-- manager.py               # SessionManager: create, evict, shutdown, backpressure
-|   |   |-- user_session.py          # UserSession: queue + worker + asyncio.to_thread
+|   |   |-- user_session.py          # UserSession: serialized turns + bounded backlog + worker-thread execution
 |   |   +-- persistence.py           # Atomic session-state JSON save/load
 |   |-- llm/
 |   |   +-- backend.py               # create_llm_backend() factory

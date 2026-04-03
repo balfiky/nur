@@ -310,6 +310,30 @@ Adds bounded proactive behavior — Jarvis can now initiate actions and follow-u
 
 ---
 
+## Unreleased
+
+### Runtime and web integration hardening
+- Web interface now routes `/chat`, `/debug`, `/session/end`, `/rest`, and `/ws`
+  through `SessionManager` by `user_id` + `chat_id` instead of a shared global pipeline
+- Runtime now wires builtin tool executors on the real app/session path via `runtime/tools.py`
+- `UserSession`/`SessionManager` run synchronous pipeline work on a dedicated thread pool
+  rather than the event loop default executor
+- Session engine snapshots now persist unresolved items and restore them correctly
+- Spike memories are no longer duplicated on `end_session()`
+- `CognitivePipeline` is explicitly single-user/session scoped; evals and tests now use
+  separate pipelines where cross-user isolation is required
+
+### Safety and test harness
+- `shell.run_command` is categorized as destructive and no longer uses `shell=True`
+- Tool summaries no longer leak raw tool output back into generator context
+- FastAPI interface/debug tests no longer depend on `TestClient` under the conda env;
+  they call endpoint functions directly with async fixtures instead
+
+### Validation
+- Full suite passes in `conda activate venv`: `1210 passed`
+
+---
+
 ## v0.16.0 — 2026-04-02 (Agentic Tools Phase 7: multi-step task planning)
 
 Adds bounded multi-step task planning and task memory — Nūr can now decompose compound requests into ordered steps, execute them sequentially, and couple task outcomes back into emotion, memory, and self-model.
