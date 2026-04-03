@@ -4,6 +4,37 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.20.4 — 2026-04-03 (Web settings surface for runtime config)
+
+Moves the practical runtime configuration out of scattered YAML/manual file edits and into the existing web interface.
+
+### Added
+- `GET /config` and `POST /config` in `interface/api.py`
+- browser-based settings drawer in `interface/static/index.html`
+- `RuntimeConfig.to_yaml_dict()`, `write_yaml()`, `to_public_dict()`, and `secret_status()` in `runtime/config.py`
+
+### Behavior
+- Web UI can now edit:
+  - Telegram token / allowlist / polling settings
+  - LLM backend type, base URL, model, and keys
+  - runtime queue/session limits
+  - debug host/port
+  - proactive behavior settings
+- Secret values are never returned to the browser
+- Blank secret fields preserve existing stored values
+- Explicit clear toggles remove stored secret values
+- Saving via the web UI writes back to `runtime_config.yaml`
+- Saving also reloads the standalone web surface's `SessionManager`
+
+### Tests
+- Added focused config-UI coverage in `tests/test_interface.py`
+- `tests/test_interface.py` and `tests/test_runtime_config.py` pass
+
+### Docs
+- `README.md` now documents the Settings button and `/config` endpoints
+
+---
+
 ## v0.20.3 — 2026-04-03 (Post-review housekeeping)
 
 ### Fixed

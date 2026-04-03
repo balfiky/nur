@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from pipeline import CognitivePipeline
 from runtime.config import RuntimeConfig
@@ -35,6 +35,7 @@ async def _lifespan(app: FastAPI):
 app = FastAPI(title="Project Nūr", version="0.3.0", lifespan=_lifespan)
 
 WEB_PLATFORM = "web"
+RUNTIME_CONFIG_PATH = "runtime_config.yaml"
 
 _session_manager: SessionManager | None = None
 _pipeline_override: CognitivePipeline | None = None
@@ -62,11 +63,38 @@ class RestRequest(BaseModel):
     chat_id: str = "default"
 
 
+class ConfigUpdateRequest(BaseModel):
+    data_dir: str = "data"
+    max_queue_per_user: int = 3
+    max_active_sessions: int = 10
+    session_timeout_seconds: float = 1800.0
+    console_enabled: bool = True
+    telegram_allowlist: list[str] = Field(default_factory=list)
+    telegram_poll_timeout: int = 30
+    dedupe_ttl: float = 60.0
+    llm_backend: str = "auto"
+    llm_base_url: str = ""
+    llm_model: str = ""
+    debug_host: str = "127.0.0.1"
+    debug_port: int = 8077
+    proactive_enabled: bool = False
+    proactive_idle_threshold: float = 300.0
+    proactive_max_per_session: int = 3
+    proactive_cooldown: float = 300.0
+    proactive_check_interval: float = 60.0
+    telegram_token: str = ""
+    llm_api_key: str = ""
+    minimax_api_key: str = ""
+    clear_telegram_token: bool = False
+    clear_llm_api_key: bool = False
+    clear_minimax_api_key: bool = False
+
+
 def get_session_manager() -> SessionManager:
     """Create the shared web SessionManager lazily."""
     global _session_manager
     if _session_manager is None:
-        config = RuntimeConfig.from_yaml("runtime_config.yaml")
+        config = _load_runtime_config()
         _session_manager = SessionManager(
             config=config,
             backend_factory=lambda: create_llm_backend(config),
@@ -124,6 +152,76 @@ async def debug(user_id: str = "default", chat_id: str = "default") -> dict:
     manager = get_session_manager()
     session = await manager.ensure_session(WEB_PLATFORM, user_id, chat_id)
     return _session_debug(_session_key(user_id, chat_id), session)
+
+
+@app.get("/config")
+async def get_config() -> dict:
+    config = _load_runtime_config()
+    return _config_payload(config, saved=True)
+
+
+@app.post("/config")
+async def update_config(req: ConfigUpdateRequest) -> dict:
+    global _session_manager
+
+    existing = _load_runtime_config()
+    config = RuntimeConfig(
+        data_dir=req.data_dir.strip() or "data",
+        max_queue_per_user=req.max_queue_per_user,
+        max_active_sessions=req.max_active_sessions,
+        session_timeout_seconds=req.session_timeout_seconds,
+        console_enabled=req.console_enabled,
+        telegram_token=existing.telegram_token,
+        telegram_allowlist={
+            item.strip()
+            for item in req.telegram_allowlist
+            if item.strip()
+        },
+        telegram_poll_timeout=req.telegram_poll_timeout,
+        dedupe_ttl=req.dedupe_ttl,
+        llm_backend=req.llm_backend,
+        llm_base_url=req.llm_base_url.strip(),
+        llm_model=req.llm_model.strip(),
+        llm_api_key=existing.llm_api_key,
+        minimax_api_key=existing.minimax_api_key,
+        debug_host=req.debug_host.strip() or "127.0.0.1",
+        debug_port=req.debug_port,
+        proactive_enabled=req.proactive_enabled,
+        proactive_idle_threshold=req.proactive_idle_threshold,
+        proactive_max_per_session=req.proactive_max_per_session,
+        proactive_cooldown=req.proactive_cooldown,
+        proactive_check_interval=req.proactive_check_interval,
+    )
+
+    if req.clear_telegram_token:
+        config.telegram_token = ""
+    elif req.telegram_token.strip():
+        config.telegram_token = req.telegram_token.strip()
+
+    if req.clear_llm_api_key:
+        config.llm_api_key = ""
+    elif req.llm_api_key.strip():
+        config.llm_api_key = req.llm_api_key.strip()
+
+    if req.clear_minimax_api_key:
+        config.minimax_api_key = ""
+    elif req.minimax_api_key.strip():
+        config.minimax_api_key = req.minimax_api_key.strip()
+
+    config.write_yaml(RUNTIME_CONFIG_PATH)
+
+    reloaded_web_manager = False
+    if _session_manager is not None:
+        await _session_manager.shutdown()
+        _session_manager = None
+        reloaded_web_manager = True
+
+    return _config_payload(
+        config,
+        saved=True,
+        message="Configuration saved to runtime_config.yaml",
+        reloaded_web_manager=reloaded_web_manager,
+    )
 
 
 @app.post("/session/end")
@@ -237,4 +335,32 @@ def _digested_to_dict(result) -> dict:
         "memories_written": result.memories_written,
         "energy_drain": result.energy_drain,
         "unresolved_flags": result.unresolved_flags,
+    }
+
+
+def _load_runtime_config() -> RuntimeConfig:
+    """Load the runtime config file used by both web and runtime surfaces."""
+    return RuntimeConfig.from_yaml(RUNTIME_CONFIG_PATH)
+
+
+def _config_payload(
+    config: RuntimeConfig,
+    *,
+    saved: bool,
+    message: str | None = None,
+    reloaded_web_manager: bool = False,
+) -> dict:
+    """Serialize runtime config for the settings UI."""
+    return {
+        "config": config.to_public_dict(),
+        "secret_status": config.secret_status(),
+        "config_path": os.path.abspath(RUNTIME_CONFIG_PATH),
+        "saved": saved,
+        "message": message,
+        "reloaded_web_manager": reloaded_web_manager,
+        "notes": [
+            "Secret fields are never returned; leave them blank to keep the current value.",
+            "Saving through this UI updates runtime_config.yaml.",
+            "Telegram and console runtime changes apply to python main.py after restart.",
+        ],
     }

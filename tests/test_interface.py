@@ -3,19 +3,23 @@
 import tempfile
 
 import pytest
+import interface.api as interface_api
 
 from interface.api import (
     ChatRequest,
+    ConfigUpdateRequest,
     EndSessionRequest,
     RestRequest,
     app,
     chat,
     debug,
     end_session,
+    get_config,
     index,
     rest,
     set_pipeline,
     set_session_manager,
+    update_config,
 )
 from pipeline import CognitivePipeline
 from core.dual_process.generator import MockLLMBackend
@@ -244,3 +248,85 @@ class TestIndexPage:
         assert "Defense" in html
         assert "Unresolved Items" in html
         assert "Resolution" in html
+        assert "Runtime Settings" in html
+        assert "Save Settings" in html
+
+
+class TestConfigEndpoint:
+    async def test_get_config_hides_secret_values(self, monkeypatch, tmp_path):
+        path = tmp_path / "runtime_config.yaml"
+        RuntimeConfig(
+            telegram_token="secret-token",
+            llm_api_key="generic-key",
+            minimax_api_key="minimax-key",
+            telegram_allowlist={"123", "456"},
+            llm_backend="openai_compatible",
+            llm_model="demo-model",
+        ).write_yaml(str(path))
+        monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(path))
+
+        data = await get_config()
+
+        assert data["config"]["telegram_token"] == ""
+        assert data["config"]["llm_api_key"] == ""
+        assert data["config"]["minimax_api_key"] == ""
+        assert data["secret_status"]["telegram_token"] is True
+        assert data["secret_status"]["llm_api_key"] is True
+        assert data["secret_status"]["minimax_api_key"] is True
+        assert data["config"]["telegram_allowlist"] == ["123", "456"]
+
+    async def test_update_config_preserves_secret_when_blank(self, monkeypatch, tmp_path):
+        path = tmp_path / "runtime_config.yaml"
+        RuntimeConfig(
+            telegram_token="keep-me",
+            llm_backend="mock",
+        ).write_yaml(str(path))
+        monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(path))
+
+        await update_config(ConfigUpdateRequest(
+            data_dir="custom-data",
+            llm_backend="openai_compatible",
+            llm_base_url="http://127.0.0.1:8000/v1",
+            llm_model="demo-model",
+            telegram_token="",
+        ))
+
+        saved = RuntimeConfig.from_yaml(str(path))
+        assert saved.data_dir == "custom-data"
+        assert saved.llm_backend == "openai_compatible"
+        assert saved.telegram_token == "keep-me"
+
+    async def test_update_config_can_clear_secret(self, monkeypatch, tmp_path):
+        path = tmp_path / "runtime_config.yaml"
+        RuntimeConfig(
+            telegram_token="remove-me",
+            llm_backend="mock",
+        ).write_yaml(str(path))
+        monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(path))
+
+        result = await update_config(ConfigUpdateRequest(
+            clear_telegram_token=True,
+        ))
+
+        saved = RuntimeConfig.from_yaml(str(path))
+        assert saved.telegram_token == ""
+        assert result["secret_status"]["telegram_token"] is False
+
+    async def test_update_config_reloads_web_session_manager(self, monkeypatch, tmp_path):
+        path = tmp_path / "runtime_config.yaml"
+        RuntimeConfig(llm_backend="mock").write_yaml(str(path))
+        monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(path))
+
+        set_pipeline(None)
+        manager = SessionManager(
+            RuntimeConfig(data_dir=str(tmp_path / "data")),
+            backend_factory=lambda: MockLLMBackend(response="Test response."),
+        )
+        set_session_manager(manager)
+
+        result = await update_config(ConfigUpdateRequest(
+            llm_backend="mock",
+            max_active_sessions=12,
+        ))
+
+        assert result["reloaded_web_manager"] is True

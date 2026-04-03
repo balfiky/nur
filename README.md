@@ -59,6 +59,8 @@ uvicorn interface.api:app --reload --port 8000
 ```
 
 Open http://localhost:8000 for the chat UI + debug dashboard.
+Use the `Settings` button in the top-right of the web UI to edit `runtime_config.yaml`
+for Telegram, backend selection, runtime limits, and proactive behavior.
 
 ### Run Tests
 
@@ -491,6 +493,8 @@ pipe.apply_rest(hours=8.0)
 |--------|------|-------------|
 | POST | `/chat` | Send message, get response + full debug state (v1 + v2 fields) |
 | GET | `/debug` | Current emotional state snapshot + resolution + unresolved items |
+| GET | `/config` | Load editable runtime configuration for the settings UI |
+| POST | `/config` | Save runtime configuration back to `runtime_config.yaml` |
 | POST | `/session/end` | End session, trigger digestion |
 | POST | `/rest` | Simulate rest period (energy recovery) |
 | WS | `/ws` | WebSocket for streaming chat |

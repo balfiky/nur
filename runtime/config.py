@@ -6,6 +6,13 @@ import os
 from dataclasses import dataclass, field, fields as dc_fields
 
 
+_SECRET_FIELDS = {
+    "telegram_token",
+    "llm_api_key",
+    "minimax_api_key",
+}
+
+
 @dataclass
 class RuntimeConfig:
     """Configuration for the Jarvis Runtime."""
@@ -64,6 +71,45 @@ class RuntimeConfig:
         known = {f.name for f in dc_fields(cls)}
         filtered = {k: v for k, v in data.items() if k in known}
         return cls(**filtered)
+
+    def to_yaml_dict(self) -> dict[str, object]:
+        """Serialize to a YAML-friendly dict in dataclass field order."""
+        data: dict[str, object] = {}
+        for field_def in dc_fields(self):
+            value = getattr(self, field_def.name)
+            if isinstance(value, set):
+                value = sorted(value)
+            data[field_def.name] = value
+        return data
+
+    def write_yaml(self, path: str) -> None:
+        """Persist this config to YAML."""
+        import yaml
+
+        parent = os.path.dirname(path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        with open(path, "w") as f:
+            yaml.safe_dump(
+                self.to_yaml_dict(),
+                f,
+                sort_keys=False,
+                default_flow_style=False,
+            )
+
+    def to_public_dict(self) -> dict[str, object]:
+        """Serialize for UI/API use without exposing secret values."""
+        data = self.to_yaml_dict()
+        for field_name in _SECRET_FIELDS:
+            data[field_name] = ""
+        return data
+
+    def secret_status(self) -> dict[str, bool]:
+        """Return whether each secret-like field is configured."""
+        return {
+            field_name: bool(getattr(self, field_name))
+            for field_name in sorted(_SECRET_FIELDS)
+        }
 
     @property
     def shared_db_path(self) -> str:
