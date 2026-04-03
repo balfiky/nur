@@ -4,6 +4,17 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.20.3 — 2026-04-03 (Post-review housekeeping)
+
+### Fixed
+- `interface/api.py` — replaced deprecated `@app.on_event("shutdown")` with `lifespan` context manager
+
+### Docs
+- `CLAUDE.md` — updated test count from 1194 to 1210
+- `README.md` — updated Phase 11 status from "underway" to "complete"
+
+---
+
 ## v0.20.2 — 2026-04-02 (Phase 11 reporting utility)
 
 Adds a focused developer script for inspecting Phase 11 human-likeness behavior turn by turn.

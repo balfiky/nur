@@ -6,7 +6,7 @@ Jarvis is an AI assistant with persistent emotional state. It doesn't simulate e
 
 ## Status
 
-**v2 + Jarvis Runtime complete.** Phase 11 is now underway with deterministic social appraisal and relationship-arc memory. The test suite has grown well past 1100 tests.
+**v2 + Jarvis Runtime + Phase 11 complete.** All three Phase 11 sub-phases are deployed: deterministic social appraisal, relationship-arc memory, and response strategy selection. The test suite has grown past 1200 tests.
 
 v1 gave it a brain that remembers and adapts.
 v2 gives it deliberation, dread, and self-protection.

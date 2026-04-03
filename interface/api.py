@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
@@ -17,7 +18,21 @@ from runtime.sessions.manager import SessionManager
 from runtime.sessions.user_session import UserSession
 from runtime.tools import create_tool_executor
 
-app = FastAPI(title="Project Nūr", version="0.3.0")
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    yield
+    # Shutdown
+    global _session_manager, _pipeline_override
+    if _session_manager is not None:
+        await _session_manager.shutdown()
+        _session_manager = None
+    if _pipeline_override is not None:
+        _pipeline_override.close()
+        _pipeline_override = None
+
+
+app = FastAPI(title="Project Nūr", version="0.3.0", lifespan=_lifespan)
 
 WEB_PLATFORM = "web"
 
@@ -72,17 +87,6 @@ def set_pipeline(pipeline: CognitivePipeline | None) -> None:
     global _pipeline_override, _session_manager
     _pipeline_override = pipeline
     _session_manager = None
-
-
-@app.on_event("shutdown")
-async def _shutdown() -> None:
-    global _session_manager, _pipeline_override
-    if _session_manager is not None:
-        await _session_manager.shutdown()
-        _session_manager = None
-    if _pipeline_override is not None:
-        _pipeline_override.close()
-        _pipeline_override = None
 
 
 @app.post("/chat", response_model=ChatResponse)
