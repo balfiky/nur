@@ -6,12 +6,15 @@ import asyncio
 import json
 import logging
 import os
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
+from interface.v1 import build_v1_router
 from pipeline import CognitivePipeline
 from runtime.config import RuntimeConfig
 from runtime.debug.api import _debug_to_dict as _serialize_debug
@@ -24,6 +27,7 @@ _log = logging.getLogger(__name__)
 
 _telegram_task: asyncio.Task | None = None
 _telegram_channel = None  # TelegramChannel | None
+_serve_started_at: float = time.time()
 
 
 @asynccontextmanager
@@ -117,13 +121,53 @@ async def _restart_telegram_channel(config: RuntimeConfig) -> None:
         _telegram_task.add_done_callback(_log_telegram_task_exception)
 
 
-app = FastAPI(title="Project Nūr", version="0.3.0", lifespan=_lifespan)
+app = FastAPI(
+    title="Project Nūr",
+    version="1.0.0",
+    lifespan=_lifespan,
+    description=(
+        "Project Nūr cognitive API. Legacy endpoints at the root serve the "
+        "bundled web UI. The stable integration surface lives under /v1 "
+        "(see /docs for the full OpenAPI schema)."
+    ),
+)
 
 WEB_PLATFORM = "web"
 RUNTIME_CONFIG_PATH = "runtime_config.yaml"
 
 _session_manager: SessionManager | None = None
 _pipeline_override: CognitivePipeline | None = None
+
+
+def _current_config_for_middleware() -> RuntimeConfig:
+    """Return whichever RuntimeConfig the v1 router should consult.
+
+    Kept as a function so tests and in-process reconfiguration reflect
+    immediately without re-mounting the router.
+    """
+    return RuntimeConfig.from_yaml(RUNTIME_CONFIG_PATH)
+
+
+# CORS — origins are read from runtime_config.yaml at startup. Empty list
+# means same-origin only (browsers block cross-origin XHR), which is the
+# safe default. Changes to ``cors_origins`` take effect on app restart.
+_cors_cfg = _current_config_for_middleware()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=list(_cors_cfg.cors_origins),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Mount the versioned integration API at /v1.
+app.include_router(
+    build_v1_router(
+        session_manager_getter=lambda: get_session_manager(),
+        config_getter=_current_config_for_middleware,
+        serve_started_at=_serve_started_at,
+    )
+)
 
 
 class ChatRequest(BaseModel):
@@ -170,9 +214,12 @@ class ConfigUpdateRequest(BaseModel):
     telegram_token: str = ""
     llm_api_key: str = ""
     minimax_api_key: str = ""
+    api_key: str = ""
+    cors_origins: list[str] = Field(default_factory=list)
     clear_telegram_token: bool = False
     clear_llm_api_key: bool = False
     clear_minimax_api_key: bool = False
+    clear_api_key: bool = False
 
 
 def get_session_manager() -> SessionManager:
@@ -284,6 +331,8 @@ async def update_config(req: ConfigUpdateRequest) -> dict:
         proactive_max_per_session=req.proactive_max_per_session,
         proactive_cooldown=req.proactive_cooldown,
         proactive_check_interval=req.proactive_check_interval,
+        api_key=existing.api_key,
+        cors_origins=[o.strip() for o in req.cors_origins if o.strip()],
     )
 
     if req.clear_telegram_token:
@@ -300,6 +349,11 @@ async def update_config(req: ConfigUpdateRequest) -> dict:
         config.minimax_api_key = ""
     elif req.minimax_api_key.strip():
         config.minimax_api_key = req.minimax_api_key.strip()
+
+    if req.clear_api_key:
+        config.api_key = ""
+    elif req.api_key.strip():
+        config.api_key = req.api_key.strip()
 
     config.write_yaml(RUNTIME_CONFIG_PATH)
 

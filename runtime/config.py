@@ -10,6 +10,7 @@ _SECRET_FIELDS = {
     "telegram_token",
     "llm_api_key",
     "minimax_api_key",
+    "api_key",
 }
 
 
@@ -54,6 +55,10 @@ class RuntimeConfig:
     proactive_cooldown: float = 300.0          # seconds between proactive actions
     proactive_check_interval: float = 60.0     # how often the proactive loop runs
 
+    # Public integration API (standalone web server)
+    api_key: str = ""                          # bearer token; empty = auth disabled
+    cors_origins: list[str] = field(default_factory=list)  # CORS allowlist; empty = same-origin only
+
     @classmethod
     def from_yaml(cls, path: str) -> RuntimeConfig:
         """Load config from a YAML file.  Missing keys use defaults."""
@@ -67,6 +72,10 @@ class RuntimeConfig:
         al = data.pop("telegram_allowlist", None)
         if al is not None:
             data["telegram_allowlist"] = {str(x) for x in al}
+        # Normalize cors_origins to list[str]
+        co = data.get("cors_origins")
+        if co is not None:
+            data["cors_origins"] = [str(x) for x in co]
         # Drop unknown keys so __init__ doesn't blow up
         known = {f.name for f in dc_fields(cls)}
         filtered = {k: v for k, v in data.items() if k in known}

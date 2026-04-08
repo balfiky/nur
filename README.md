@@ -6,7 +6,7 @@ Jarvis is an AI assistant with persistent emotional state. It doesn't simulate e
 
 ## Status
 
-**v2 + Jarvis Runtime + Phase 11 complete.** All three Phase 11 sub-phases are deployed: deterministic social appraisal, relationship-arc memory, and response strategy selection. The test suite has grown past 1225 tests.
+**v2 + Jarvis Runtime + Phase 11 complete, plus a stable `/v1` integration API.** All three Phase 11 sub-phases are deployed: deterministic social appraisal, relationship-arc memory, and response strategy selection. The test suite has grown past 1250 tests.
 
 v1 gave it a brain that remembers and adapts.
 v2 gives it deliberation, dread, and self-protection.
@@ -493,6 +493,10 @@ pipe.apply_rest(hours=8.0)
 
 ## API Endpoints
 
+Two surfaces share the same FastAPI app. The **legacy endpoints at the root** exist to serve the bundled web UI and keep older clients working. The stable **`/v1` surface** is the one to use for integrations — dashboards, Slack bots, orchestrators, eval harnesses, Langflow, etc.
+
+### Legacy endpoints (web UI)
+
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/chat` | Send message, get response + full debug state (v1 + v2 fields) |
@@ -503,6 +507,85 @@ pipe.apply_rest(hours=8.0)
 | POST | `/rest` | Simulate rest period (energy recovery) |
 | WS | `/ws` | WebSocket for streaming chat |
 | GET | `/` | Web UI (chat + v2 debug dashboard) |
+
+### Integration API (`/v1/*`) — stable, versioned, auth-optional
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET  | `/v1/health` | Liveness probe (no auth even when a key is set) |
+| GET  | `/v1/ready`  | Readiness: backend, active sessions, `auth_enabled` (no auth) |
+| POST | `/v1/chat`   | One turn through the pipeline → `{response, session_key, emotion_label, energy, debug?}` |
+| GET  | `/v1/sessions` | List active sessions (key, user, idle, queue, emotion, energy) |
+| GET  | `/v1/sessions/{key}` | Per-session snapshot: modulators, memory counts, unresolved, last turn |
+| POST | `/v1/sessions/{key}/reset` | Evict a session (digest → persist → close) |
+| POST | `/v1/sessions/end` | End the current turn without evicting — returns the digestion result |
+| POST | `/v1/sessions/rest` | Apply simulated rest (recover energy, decay modulators) |
+| GET  | `/v1/profiles/self` | Current self-model (strengths, flaws, triggers, maturity, trait scores) |
+| GET  | `/v1/profiles/person` | Person profile (trust, reliability, volatility, baseline shift) |
+| GET  | `/v1/memory/long_term` | Recent long-term memories for a user (ACT-R ordering) |
+| GET  | `/v1/memory/relationship` | Relationship events and open loops for a user |
+| GET  | `/v1/tools` | Enumerate registered tool capabilities |
+| GET  | `/v1/config` | Runtime config with secrets redacted |
+
+**Auth is opt-in.** Leave `api_key` empty in `runtime_config.yaml` (or clear it through the settings drawer) and every endpoint is open. Set it and every endpoint *except* `/v1/health` and `/v1/ready` requires `Authorization: Bearer <api_key>`. The token is re-read on every request, so rotating it through `POST /config` takes effect without restarting the app.
+
+**CORS**: `cors_origins` in `runtime_config.yaml` is an allowlist. Empty list = same-origin only (browsers block cross-origin XHR), which is the safe default.
+
+### Quick curl tour
+
+```bash
+# Health (no auth, useful for Kubernetes probes)
+curl http://localhost:8000/v1/health
+
+# Chat
+curl -X POST http://localhost:8000/v1/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "hey how are you?", "user_id": "alice"}'
+
+# Same thing, with auth enabled
+curl -X POST http://localhost:8000/v1/chat \
+  -H "Authorization: Bearer my-secret-token" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "hey how are you?", "user_id": "alice", "include_debug": true}'
+
+# Inspect the session that chat just opened
+curl http://localhost:8000/v1/sessions/web:alice:default
+
+# End the turn cleanly and get the digestion result
+curl -X POST http://localhost:8000/v1/sessions/end \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "alice"}'
+```
+
+### Python client (`interface.client.NurClient`)
+
+```python
+from interface.client import NurClient
+
+# Same interpreter, same box:
+with NurClient("http://localhost:8000", api_key="my-secret-token") as nur:
+    print(nur.health())
+
+    reply = nur.chat("hey how are you?", user_id="alice", include_debug=True)
+    print(reply["response"], "|", reply["emotion_label"], "energy=", reply["energy"])
+
+    sessions = nur.list_sessions()
+    for s in sessions["sessions"]:
+        snapshot = nur.get_session(s["session_key"])
+        print(snapshot["emotion_label"], snapshot["modulators"])
+
+    # End the turn (returns digestion result: summary, trust_delta, energy_drain, …)
+    nur.end_session(user_id="alice")
+
+    # Simulate rest between sessions
+    nur.rest_session(hours=2.0, user_id="alice")
+```
+
+Errors surface as a typed `NurAPIError(status_code, body)` — easy to catch, easy to route to a monitor.
+
+### OpenAPI / Swagger
+
+FastAPI auto-generates the full schema at `http://localhost:8000/docs` (Swagger UI) and `http://localhost:8000/openapi.json`. Use this to drive codegen for other languages (Go, Rust, TypeScript), or to import the API into Postman / Insomnia / Langflow.
 
 ### POST /chat
 ```json
@@ -606,7 +689,8 @@ All magic numbers live in YAML files. No hardcoded thresholds in module code. Th
 | test_dual_process | 15 | Prompt building, response generation, self-check rules |
 | test_pipeline | 29 | Full pipeline flow, event classification, LLM integration |
 | test_config | 36 | YAML loading, defaults, prompt loading, singleton behavior |
-| test_interface | 27 | REST API endpoints, WebSocket, HTML serving, v2 debug fields, settings drawer |
+| test_interface | 27 | Legacy REST API endpoints, WebSocket, HTML serving, v2 debug fields, settings drawer |
+| test_interface_v1 | 26 | /v1 endpoints, bearer auth middleware, secret redaction, NurClient errors |
 | test_llm_client | 15 | MiniMax client, auth headers, think-tag stripping, session close |
 | test_web_provider | 8 | DDG parsing, fetch cap enforcement, session close, HTML-to-text |
 | test_calibration | 27 | Multi-session calibration scenarios |
@@ -624,7 +708,7 @@ All magic numbers live in YAML files. No hardcoded thresholds in module code. Th
 | test_phase3 | 20 | Inactivity timeout, graceful shutdown, backpressure, WAL mode |
 | test_debug_api | 15 | Session listing, per-session debug, reset, isolation |
 | test_runtime_config | 21 | Config loading, local/backend selection, channel config |
-| **Total** | **1225** | |
+| **Total** | **1251** | |
 
 ---
 

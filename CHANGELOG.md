@@ -4,6 +4,35 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.21.0 — 2026-04-08 (Versioned integration API + Python client)
+
+Adds a stable `/v1/*` HTTP surface and a thin Python client so Project Nūr can be embedded into dashboards, chatbots, eval harnesses, and orchestrators without depending on the bundled web UI or scraping the legacy endpoints.
+
+### Added
+- `interface/v1.py` — versioned FastAPI router built by `build_v1_router(session_manager_getter, config_getter, serve_started_at)`. Endpoints:
+  - `GET /v1/health`, `GET /v1/ready` — liveness / readiness (no auth even when a key is set).
+  - `POST /v1/chat` — run one turn through the pipeline; returns `response`, `session_key`, `emotion_label`, `energy`, and optional `debug`.
+  - `GET /v1/sessions`, `GET /v1/sessions/{key:path}`, `POST /v1/sessions/{key:path}/reset`.
+  - `POST /v1/sessions/end`, `POST /v1/sessions/rest`.
+  - `GET /v1/profiles/self`, `GET /v1/profiles/person`.
+  - `GET /v1/memory/long_term`, `GET /v1/memory/relationship`.
+  - `GET /v1/tools` — enumerate registered capabilities.
+  - `GET /v1/config` — runtime config with secrets redacted.
+- `interface/client.py` — `NurClient` synchronous Python wrapper (stdlib + `requests`) with typed `NurAPIError`, context-manager support, and one method per endpoint.
+- `runtime/config.py` — new fields `api_key` (bearer token; empty = auth disabled) and `cors_origins` (list; empty = same-origin only). `api_key` joins the secret-redaction set alongside `telegram_token`, `llm_api_key`, and `minimax_api_key`.
+- `interface/api.py` — mounts the v1 router at app startup, installs CORS middleware driven by `cors_origins`, and extends the `POST /config` schema with `api_key`, `cors_origins`, and `clear_api_key` so the bearer token can be rotated through the settings UI.
+- `tests/test_interface_v1.py` — 26 tests covering every endpoint, the opt-in Bearer middleware, secret redaction, and the `NurClient` error path.
+
+### Design notes
+- **Auth is opt-in.** With `api_key=""` the v1 surface is wide open (useful for local dev and CI). Set it, and every endpoint except `/v1/health` and `/v1/ready` rejects requests without `Authorization: Bearer <key>`. The dependency re-reads the current config on every request, so rotating the key through `POST /config` takes effect immediately — no restart.
+- **Single source of truth.** The v1 router queries the live `SessionManager`, so integrators see the same state as the web UI and the Telegram channel. No duplicate cache layer.
+- **Legacy endpoints unchanged.** The root `/`, `/chat`, `/config`, `/ws`, etc. still serve the bundled web UI for backward compatibility.
+
+### Tests
+- Full suite: **1251 passed** (`python -m pytest`) — 26 new tests, zero regressions.
+
+---
+
 ## v0.20.6 — 2026-04-08 (Second-pass neutral audit — real resource bugs)
 
 Neutral re-review of the codebase surfaced four real bugs the earlier pass missed. Focus: resource hygiene under sustained use.
