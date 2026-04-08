@@ -77,14 +77,21 @@ class ToolLoopResult:
 
 # Patterns: (compiled_regex, tool_name, arg_extractor_name)
 _TOOL_PATTERNS: list[tuple[re.Pattern, str, str]] = [
-    # Filesystem
+    # Filesystem — specific path first
     (re.compile(r"\bread(?:ing)?\s+(?:the\s+)?file\s+(\S+)", re.I), "fs.read_file", "path"),
     (re.compile(r"\b(?:show|cat|display)\s+(?:the\s+)?(?:contents?\s+of\s+)?(\S+\.\w+)", re.I), "fs.read_file", "path"),
     (re.compile(r"\blist\s+(?:the\s+)?(?:files?\s+in\s+|dir(?:ectory)?\s+)(\S+)", re.I), "fs.list_dir", "path"),
     (re.compile(r"\b(?:ls)\s+(\S+)", re.I), "fs.list_dir", "path"),
+    (re.compile(r"\bwhat(?:'s| is)\s+in\s+((?:/|~)\S*)", re.I), "fs.list_dir", "path"),
+    # Filesystem — no explicit path (default to / or .)
+    (re.compile(r"\blist\s+(?:the\s+)?(?:system\s+)?files?\b", re.I), "fs.list_dir", "default_root"),
+    (re.compile(r"\b(?:show|display)\s+(?:me\s+)?(?:the\s+)?(?:system\s+)?files?\b", re.I), "fs.list_dir", "default_root"),
+    (re.compile(r"\bwhat\s+files?\b.*\b(?:here|available|exist)\b", re.I), "fs.list_dir", "default_cwd"),
+    # Search/glob
     (re.compile(r"\bsearch\s+(?:for\s+)?[\"']([^\"']+)[\"']\s+in\s+(\S+)", re.I), "fs.search_text", "pattern_path"),
     (re.compile(r"\bgrep\s+[\"']?(\S+)[\"']?\s+(\S+)", re.I), "fs.search_text", "pattern_path"),
     (re.compile(r"\bfind\s+files?\s+(?:matching\s+)?[\"']?([^\"'\s]+)[\"']?\s+in\s+(\S+)", re.I), "fs.glob_paths", "pattern_path"),
+    # Write/delete
     (re.compile(r"\b(?:write|save)\s+[\"']([^\"']+)[\"']\s+to\s+(?:file\s+)?(\S+)", re.I), "fs.write_file", "content_path"),
     (re.compile(r"\bcreate\s+(?:a\s+)?file\s+(\S+)\s+(?:with|containing)\s+[\"']([^\"']+)[\"']", re.I), "fs.write_file", "path_content"),
     (re.compile(r"\bdelete\s+(?:the\s+)?(?:file|dir(?:ectory)?)\s+(\S+)", re.I), "fs.delete_path", "path"),
@@ -92,12 +99,17 @@ _TOOL_PATTERNS: list[tuple[re.Pattern, str, str]] = [
     # Shell
     (re.compile(r"\brun\s+(?:the\s+)?(?:command\s+)?[`\"']([^`\"']+)[`\"']", re.I), "shell.run_command", "cmd"),
     (re.compile(r"\bexecute\s+[`\"']([^`\"']+)[`\"']", re.I), "shell.run_command", "cmd"),
-    # Web
-    (re.compile(r"\bsearch\s+(?:the\s+)?web\s+for\s+[\"']?([^\"']+?)[\"']?\s*$", re.I), "web.search", "query"),
-    (re.compile(r"\blook\s*up\s+[\"']?([^\"']+?)[\"']?\s+online", re.I), "web.search", "query"),
+    # Web — specific patterns first
     (re.compile(r"\bfetch\s+(?:the\s+)?(?:url\s+|page\s+(?:at\s+)?)?(https?://\S+)", re.I), "web.fetch", "url"),
     (re.compile(r"\bextract\s+(?:the\s+)?text\s+(?:from\s+)?(https?://\S+)", re.I), "web.extract_text", "url"),
     (re.compile(r"\bget\s+(?:the\s+)?(?:readable\s+)?text\s+(?:from\s+|of\s+)?(https?://\S+)", re.I), "web.extract_text", "url"),
+    # Web — search with various phrasings
+    (re.compile(r"\bsearch\s+(?:the\s+)?(?:web|internet|online)\s+(?:for\s+)?[\"']?(.+?)[\"']?\s*$", re.I), "web.search", "query"),
+    (re.compile(r"\bsearch\s+(?:for\s+)?[\"']?(.+?)[\"']?\s+(?:on(?:line|\s+the\s+(?:web|internet)))", re.I), "web.search", "query"),
+    (re.compile(r"\blook\s*up\s+[\"']?(.+?)[\"']?\s*(?:online|on\s+the\s+(?:web|internet))?\s*$", re.I), "web.search", "query"),
+    (re.compile(r"\b(?:google|search\s+for)\s+[\"']?(.+?)[\"']?\s*$", re.I), "web.search", "query"),
+    (re.compile(r"\bbrowse\s+(?:the\s+)?(?:web|internet)\s+(?:for\s+)?[\"']?(.+?)[\"']?\s*$", re.I), "web.search", "query"),
+    (re.compile(r"\bfind\s+(?:me\s+)?(?:info(?:rmation)?|(?:some(?:thing)?)\s+)?\s*(?:about|on)\s+[\"']?(.+?)[\"']?\s+(?:online|on\s+the\s+(?:web|internet))", re.I), "web.search", "query"),
     # Browser
     (re.compile(r"\bopen\s+(?:the\s+)?(?:url\s+|page\s+(?:at\s+)?)?(https?://\S+)\s+in\s+(?:the\s+)?browser", re.I), "browser.open_url", "url"),
     (re.compile(r"\bbrowse\s+(?:to\s+)?(https?://\S+)", re.I), "browser.open_url", "url"),
@@ -141,6 +153,12 @@ def _extract_args(
 ) -> dict[str, Any] | None:
     """Extract structured arguments from a regex match."""
     groups = match.groups()
+
+    if extractor == "default_root":
+        return {"path": "/"}
+    elif extractor == "default_cwd":
+        return {"path": "."}
+
     if not groups:
         return None
 

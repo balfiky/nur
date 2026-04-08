@@ -1000,7 +1000,9 @@ class CognitivePipeline:
         """Close all database connections held by this pipeline.
 
         Call this when the pipeline is no longer needed (session eviction,
-        shutdown). Safe to call multiple times.
+        shutdown). Safe to call multiple times. Also releases HTTP session
+        pools held by the LLM backend and tool executor providers if they
+        expose ``close()``.
         """
         self.long_term.close()
         self.relationship_memory.close()
@@ -1008,6 +1010,31 @@ class CognitivePipeline:
         self._self_profile_store.close()
         self.person_profiles.close()
         self.topic_profiles.close()
+        # Release HTTP connection pools on LLM backends (safe for backends
+        # without a close method, e.g. MockLLMBackend). Avoid double-close
+        # when fast and primary share the same instance.
+        seen: set[int] = set()
+        for backend in (self._llm_backend, self._llm_backend_fast):
+            if backend is None or id(backend) in seen:
+                continue
+            seen.add(id(backend))
+            close = getattr(backend, "close", None)
+            if callable(close):
+                try:
+                    close()
+                except Exception:  # pragma: no cover — defensive
+                    pass
+        # Release HTTP connection pools on tool providers registered via the
+        # ToolExecutor (e.g., RequestsWebProvider). The executor exposes any
+        # owned resources via ``_owned_resources``.
+        if self._tool_executor is not None:
+            for resource in getattr(self._tool_executor, "_owned_resources", []):
+                close = getattr(resource, "close", None)
+                if callable(close):
+                    try:
+                        close()
+                    except Exception:  # pragma: no cover — defensive
+                        pass
 
     def restore_state(
         self,

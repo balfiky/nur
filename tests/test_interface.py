@@ -38,12 +38,16 @@ def anyio_backend():
 def reset_pipeline():
     """Reset the global pipeline before each test."""
     set_session_manager(None)
+    interface_api._telegram_task = None
+    interface_api._telegram_channel = None
     backend = MockLLMBackend(response="Test response.")
     pipe = CognitivePipeline(llm_backend=backend)
     set_pipeline(pipe)
     yield
     set_pipeline(None)
     set_session_manager(None)
+    interface_api._telegram_task = None
+    interface_api._telegram_channel = None
 
 
 async def _chat(
@@ -238,18 +242,22 @@ class TestIndexPage:
         resp = index()
         html = resp.body.decode()
         assert resp.status_code == 200
-        assert "Project Nūr" in html
+        assert "Nūr" in html
         assert "<!DOCTYPE html>" in html
+
+    async def test_markdown_renderer_avoids_invalid_lookbehind_regex(self):
+        html = index().body.decode()
+        assert "(?<!" not in html
 
     async def test_has_v2_sections(self):
         html = index().body.decode()
         assert "Anticipation" in html
         assert "Inner Dialogue" in html
         assert "Defense" in html
-        assert "Unresolved Items" in html
+        assert "Unresolved" in html
         assert "Resolution" in html
-        assert "Runtime Settings" in html
-        assert "Save Settings" in html
+        assert "Settings" in html
+        assert "Save" in html
 
 
 class TestConfigEndpoint:
@@ -330,3 +338,36 @@ class TestConfigEndpoint:
         ))
 
         assert result["reloaded_web_manager"] is True
+
+    async def test_update_config_restarts_telegram_polling(self, monkeypatch, tmp_path):
+        path = tmp_path / "runtime_config.yaml"
+        RuntimeConfig(
+            llm_backend="mock",
+            telegram_token="keep-me",
+            telegram_allowlist={"123"},
+        ).write_yaml(str(path))
+        monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(path))
+
+        captured: list[RuntimeConfig] = []
+
+        async def fake_restart(config: RuntimeConfig) -> None:
+            captured.append(config)
+
+        monkeypatch.setattr(interface_api, "_restart_telegram_channel", fake_restart)
+
+        set_pipeline(None)
+        manager = SessionManager(
+            RuntimeConfig(data_dir=str(tmp_path / "data")),
+            backend_factory=lambda: MockLLMBackend(response="Test response."),
+        )
+        set_session_manager(manager)
+
+        result = await update_config(ConfigUpdateRequest(
+            llm_backend="mock",
+            telegram_allowlist=["456", "789"],
+        ))
+
+        assert result["reloaded_web_manager"] is True
+        assert len(captured) == 1
+        assert captured[0].telegram_token == "keep-me"
+        assert captured[0].telegram_allowlist == {"456", "789"}

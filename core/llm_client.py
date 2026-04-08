@@ -60,6 +60,12 @@ class LLMClient:
             resp = self._session.post(url, json=payload, timeout=60)
         except (requests.ConnectionError, requests.exceptions.ConnectionError):
             resp = self._session.post(url, json=payload, timeout=60)
+        if resp.status_code != 200:
+            # Log the response body for debugging before raising
+            import logging
+            logging.getLogger(__name__).error(
+                "LLM API error %s: %s", resp.status_code, resp.text[:500]
+            )
         resp.raise_for_status()
 
         data = resp.json()
@@ -67,6 +73,11 @@ class LLMClient:
         # Strip reasoning tags if present (safety net)
         content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL)
         return content.strip()
+
+
+    def close(self) -> None:
+        """Release the underlying HTTP connection pool."""
+        self._session.close()
 
 
 class LLMClientFast(LLMClient):

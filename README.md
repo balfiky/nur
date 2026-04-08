@@ -6,7 +6,7 @@ Jarvis is an AI assistant with persistent emotional state. It doesn't simulate e
 
 ## Status
 
-**v2 + Jarvis Runtime + Phase 11 complete.** All three Phase 11 sub-phases are deployed: deterministic social appraisal, relationship-arc memory, and response strategy selection. The test suite has grown past 1200 tests.
+**v2 + Jarvis Runtime + Phase 11 complete.** All three Phase 11 sub-phases are deployed: deterministic social appraisal, relationship-arc memory, and response strategy selection. The test suite has grown past 1225 tests.
 
 v1 gave it a brain that remembers and adapts.
 v2 gives it deliberation, dread, and self-protection.
@@ -15,6 +15,7 @@ The runtime gives it a body — sessions, channels, persistence, and debug inspe
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 See [PROJECT_NUR_ARCHITECTURE.md](PROJECT_NUR_ARCHITECTURE.md) for the full vision.
+See [PROJECT_NUR_EXPERT_BRIEF.md](PROJECT_NUR_EXPERT_BRIEF.md) for an expert-facing design, architecture, and scientific background briefing.
 
 ## Quick Start
 
@@ -50,6 +51,7 @@ python main.py
 ```
 
 Console channel starts by default. Set `telegram_token` in `runtime_config.yaml` to enable Telegram.
+Keep committed `runtime_config.yaml` secrets blank and inject real values locally.
 Debug API at http://127.0.0.1:8077/sessions.
 
 ### Run the standalone web server
@@ -61,6 +63,8 @@ uvicorn interface.api:app --reload --port 8000
 Open http://localhost:8000 for the chat UI + debug dashboard.
 Use the `Settings` button in the top-right of the web UI to edit `runtime_config.yaml`
 for Telegram, backend selection, runtime limits, and proactive behavior.
+Leaving secret fields blank preserves the saved local value. Saving from the standalone web UI
+reloads its web session manager and restarts Telegram polling immediately.
 
 ### Run Tests
 
@@ -494,7 +498,7 @@ pipe.apply_rest(hours=8.0)
 | POST | `/chat` | Send message, get response + full debug state (v1 + v2 fields) |
 | GET | `/debug` | Current emotional state snapshot + resolution + unresolved items |
 | GET | `/config` | Load editable runtime configuration for the settings UI |
-| POST | `/config` | Save runtime configuration back to `runtime_config.yaml` |
+| POST | `/config` | Save runtime configuration back to `runtime_config.yaml` and reload the standalone web runtime |
 | POST | `/session/end` | End session, trigger digestion |
 | POST | `/rest` | Simulate rest period (energy recovery) |
 | WS | `/ws` | WebSocket for streaming chat |
@@ -602,8 +606,9 @@ All magic numbers live in YAML files. No hardcoded thresholds in module code. Th
 | test_dual_process | 15 | Prompt building, response generation, self-check rules |
 | test_pipeline | 29 | Full pipeline flow, event classification, LLM integration |
 | test_config | 36 | YAML loading, defaults, prompt loading, singleton behavior |
-| test_interface | 20 | REST API endpoints, WebSocket, HTML serving, v2 debug fields |
-| test_llm_client | 11 | MiniMax client, auth headers, think-tag stripping |
+| test_interface | 27 | REST API endpoints, WebSocket, HTML serving, v2 debug fields, settings drawer |
+| test_llm_client | 15 | MiniMax client, auth headers, think-tag stripping, session close |
+| test_web_provider | 8 | DDG parsing, fetch cap enforcement, session close, HTML-to-text |
 | test_calibration | 27 | Multi-session calibration scenarios |
 | test_emotional_journey | 12 | End-to-end emotional journey (10 scenarios) |
 | test_resolution | 19 | Resolution modulator, item decay, recalculation (v2) |
@@ -619,7 +624,7 @@ All magic numbers live in YAML files. No hardcoded thresholds in module code. Th
 | test_phase3 | 20 | Inactivity timeout, graceful shutdown, backpressure, WAL mode |
 | test_debug_api | 15 | Session listing, per-session debug, reset, isolation |
 | test_runtime_config | 21 | Config loading, local/backend selection, channel config |
-| **Total** | **1150+** | |
+| **Total** | **1225** | |
 
 ---
 

@@ -92,7 +92,8 @@ def _read_file(args: dict[str, Any]) -> ToolResult:
             tool_name="fs.read_file", success=False, output="",
             error=f"File too large: {size} bytes (max {_MAX_READ_BYTES})",
         )
-    content = open(path, "r", errors="replace").read()
+    with open(path, "r", errors="replace") as f:
+        content = f.read()
     return ToolResult(
         tool_name="fs.read_file", success=True, output=content,
         metadata={"size_bytes": size},

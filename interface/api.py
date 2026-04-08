@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -18,18 +20,101 @@ from runtime.sessions.manager import SessionManager
 from runtime.sessions.user_session import UserSession
 from runtime.tools import create_tool_executor
 
+_log = logging.getLogger(__name__)
+
+_telegram_task: asyncio.Task | None = None
+_telegram_channel = None  # TelegramChannel | None
+
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
+    # Start Telegram channel if configured
+    config = _load_runtime_config()
+    await _restart_telegram_channel(config)
     yield
     # Shutdown
     global _session_manager, _pipeline_override
+    await _stop_telegram_channel()
     if _session_manager is not None:
         await _session_manager.shutdown()
         _session_manager = None
     if _pipeline_override is not None:
         _pipeline_override.close()
         _pipeline_override = None
+
+
+async def _start_telegram(config: RuntimeConfig) -> None:
+    """Start Telegram long-polling as a background task."""
+    global _telegram_channel
+    from runtime.channels.telegram import (
+        TelegramChannel, TelegramClient, TelegramConfig,
+    )
+    tg_config = TelegramConfig(
+        token=config.telegram_token,
+        allowlist=config.telegram_allowlist,
+        poll_timeout=config.telegram_poll_timeout,
+        dedupe_ttl=config.dedupe_ttl,
+    )
+    client = TelegramClient(tg_config.token)
+    manager = get_session_manager()
+    channel = TelegramChannel(client, manager, tg_config)
+    _telegram_channel = channel
+    _log.info("Starting Telegram channel (polling)")
+    try:
+        await channel.start()
+    except asyncio.CancelledError:
+        pass
+    finally:
+        if _telegram_channel is channel:
+            _telegram_channel = None
+        await channel.stop()
+
+
+async def _stop_telegram_channel() -> None:
+    """Stop the standalone web Telegram poller if it is running."""
+    global _telegram_task, _telegram_channel
+
+    task = _telegram_task
+    _telegram_task = None
+    if task is not None:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            _log.exception("Telegram channel task failed")
+
+    if _telegram_channel is not None:
+        channel = _telegram_channel
+        _telegram_channel = None
+        await channel.stop()
+
+
+def _log_telegram_task_exception(task: asyncio.Task) -> None:
+    """Surface Telegram startup/runtime errors instead of swallowing them.
+
+    Without this callback, exceptions raised before explicit shutdown would
+    only appear as an "unretrieved task exception" warning at GC time, and
+    the rest of the app would keep serving requests believing Telegram was
+    polling normally.
+    """
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc is None:
+        return
+    _log.error("Telegram channel task crashed: %s", exc, exc_info=exc)
+
+
+async def _restart_telegram_channel(config: RuntimeConfig) -> None:
+    """Reload Telegram polling to match the latest standalone web config."""
+    global _telegram_task
+
+    await _stop_telegram_channel()
+    if config.telegram_token:
+        _telegram_task = asyncio.create_task(_start_telegram(config))
+        _telegram_task.add_done_callback(_log_telegram_task_exception)
 
 
 app = FastAPI(title="Project Nūr", version="0.3.0", lifespan=_lifespan)
@@ -117,22 +202,30 @@ def set_pipeline(pipeline: CognitivePipeline | None) -> None:
     _session_manager = None
 
 
-@app.post("/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest) -> ChatResponse:
-    if _pipeline_override is not None:
-        result = _pipeline_override.process(req.message, user_id=req.user_id)
-        return ChatResponse(response=result.response, debug=_serialize_debug(result.debug))
+@app.post("/chat")
+async def chat(req: ChatRequest):
+    try:
+        if _pipeline_override is not None:
+            result = _pipeline_override.process(req.message, user_id=req.user_id)
+            return ChatResponse(response=result.response, debug=_serialize_debug(result.debug))
 
-    manager = get_session_manager()
-    response = await manager.handle_message(
-        WEB_PLATFORM,
-        req.user_id,
-        req.chat_id,
-        req.message,
-    )
-    session = await manager.ensure_session(WEB_PLATFORM, req.user_id, req.chat_id)
-    debug = _serialize_debug(session.last_debug) if session.last_debug else {}
-    return ChatResponse(response=response, debug=debug)
+        manager = get_session_manager()
+        response = await manager.handle_message(
+            WEB_PLATFORM,
+            req.user_id,
+            req.chat_id,
+            req.message,
+        )
+        session = await manager.ensure_session(WEB_PLATFORM, req.user_id, req.chat_id)
+        debug = _serialize_debug(session.last_debug) if session.last_debug else {}
+        return ChatResponse(response=response, debug=debug)
+    except Exception as exc:
+        _log.exception("Chat error")
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=500,
+            content={"detail": str(exc)},
+        )
 
 
 @app.get("/debug")
@@ -215,6 +308,8 @@ async def update_config(req: ConfigUpdateRequest) -> dict:
         await _session_manager.shutdown()
         _session_manager = None
         reloaded_web_manager = True
+
+    await _restart_telegram_channel(config)
 
     return _config_payload(
         config,
@@ -361,6 +456,7 @@ def _config_payload(
         "notes": [
             "Secret fields are never returned; leave them blank to keep the current value.",
             "Saving through this UI updates runtime_config.yaml.",
-            "Telegram and console runtime changes apply to python main.py after restart.",
+            "The standalone web server reloads its web manager and Telegram poller after save.",
+            "Changes for python main.py still apply after restarting that runtime.",
         ],
     }

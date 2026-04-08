@@ -4,6 +4,51 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.20.6 — 2026-04-08 (Second-pass neutral audit — real resource bugs)
+
+Neutral re-review of the codebase surfaced four real bugs the earlier pass missed. Focus: resource hygiene under sustained use.
+
+### Fixed
+- `tools/builtin/web_provider.py` — **`fetch()` silently ignored the 2 MB cap**. The previous implementation used `requests.get(stream=True)` followed by `resp.content[:CAP]`, but accessing `.content` buffers the entire body before the slice. A large page would consume memory proportional to its full size, not the cap. Rewritten to stream via `iter_content` and stop once `_MAX_FETCH_BYTES` is reached.
+- `tools/builtin/web_provider.py` — `search()` / `fetch()` now wrap the `Response` in a context manager so the HTTP connection is returned to the pool on every exit path, including errors.
+- `tools/builtin/web_provider.py` — added `RequestsWebProvider.close()` to release the underlying `requests.Session` on shutdown.
+- `tools/builtin/filesystem.py` — `_read_file` used `open(path).read()` without a context manager, leaving the file handle reliant on GC timing. Wrapped in `with`.
+- `core/llm_client.py` — added `LLMClient.close()` so session evictions can release the persistent HTTP connection pool instead of leaking it for every evicted user.
+- `pipeline.py` — `CognitivePipeline.close()` now releases the LLM backend's HTTP session (deduped when fast and primary share the same instance) and any closable resources registered via `ToolExecutor._owned_resources`.
+- `runtime/tools.py` — `create_tool_executor` registers the `RequestsWebProvider` on `executor._owned_resources` so pipeline shutdown can drain its connection pool.
+- `interface/api.py` — `_start_telegram` failures were silently swallowed by the lifespan task. Added a `done_callback` that logs exceptions immediately, plus a broadened `except` in `_stop_telegram_channel` so a task that already failed cannot break the shutdown path.
+
+### Added
+- `tests/test_web_provider.py` — regression coverage for the `_MAX_FETCH_BYTES` cap, `Response` context-manager usage, `close()`, DDG parsing, and HTML-to-text stripping.
+- `tests/test_llm_client.py::TestLLMClient::test_close_releases_session` — guards the new `close()` contract.
+
+### Audit Notes (false positives discarded)
+- "Race on `_pending_message_count`" — rejected. asyncio is single-threaded; no `await` exists between the backpressure check and the increment.
+- "Path traversal in `fs.*`" — rejected. Per CLAUDE.md the agent is a local personal assistant; filesystem access is by-design.
+
+### Tests
+- Full suite: **1225 passed** (`python -m pytest`) — 9 new tests added, zero regressions.
+
+---
+
+## v0.20.5 — 2026-04-08 (Deep review, tool wiring, test alignment)
+
+Full-codebase audit against the stated cognitive-architecture purpose, followed by a bug sweep of modified files.
+
+### Added
+- `tools/builtin/web_provider.py` — `RequestsWebProvider` using DuckDuckGo HTML lite for search, `requests.Session` for fetch, and a lightweight HTML-to-text extractor. No new dependencies.
+
+### Fixed
+- `runtime/tools.py` — the production `create_tool_executor` now wires `RequestsWebProvider` so `web.search` / `web.fetch` / `web.extract_text` work in the runtime surface (previously no provider → tools were unavailable).
+- `core/llm_client.py` — log HTTP body on non-200 LLM responses before raising, so upstream errors surface instead of being opaque.
+- `core/dual_process/tool_loop.py` — default-path trigger patterns for `fs.list_dir` ("what's in /tmp", "list the files", "show me files"), and broadened the web-search pattern to cover "internet", "online", "google", "browse".
+- `tests/test_interface.py` — `test_serves_html` and `test_has_v2_sections` assertions aligned with the redesigned UI strings ("Nūr", "Unresolved", "Settings", "Save").
+
+### Tests
+- Full suite: **1216 passed** (`python -m pytest`).
+
+---
+
 ## v0.20.4 — 2026-04-03 (Web settings surface for runtime config)
 
 Moves the practical runtime configuration out of scattered YAML/manual file edits and into the existing web interface.

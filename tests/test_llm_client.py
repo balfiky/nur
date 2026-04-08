@@ -146,3 +146,11 @@ class TestLLMClientFast:
 
         payload = mock_post.call_args.kwargs.get("json") or mock_post.call_args[1].get("json")
         assert "thinking" not in payload
+
+    def test_close_releases_session(self):
+        """LLMClient.close() must release the underlying requests.Session
+        so session evictions do not leak HTTP connection pools."""
+        client = LLMClient(api_key="k")
+        with patch.object(client._session, "close") as mock_close:
+            client.close()
+            mock_close.assert_called_once()

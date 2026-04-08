@@ -3,361 +3,324 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Project Nūr</title>
+<title>Nūr</title>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Courier New', monospace; background: #0a0a0f; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; }
-header { background: #12121a; padding: 12px 20px; border-bottom: 1px solid #2a2a3a; display: flex; justify-content: space-between; align-items: center; }
-header h1 { font-size: 18px; color: #b8a9c9; }
-header .emotion-label { font-size: 14px; color: #8888aa; }
-.header-actions { display: flex; align-items: center; gap: 12px; }
-.header-button { background: #1c2438; color: #d8e0ff; border: 1px solid #314162; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px; }
-.header-button:hover { background: #26324d; }
-.container { display: flex; flex: 1; overflow: hidden; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0c0c12; --surface: #13131d; --surface-2: #1b1b28; --surface-3: #242436;
+  --border: #26263a; --text: #e4e4ec; --text-dim: #9090a8; --text-faint: #5a5a72;
+  --primary: #7c6aef; --primary-dim: #6254c4; --accent: #b8a0ff;
+  --mood-hue: 260; --mood-sat: 55%; --mood-light: 62%; --mood-pulse: 3s;
+  --radius: 14px; --radius-sm: 8px;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, Helvetica, sans-serif;
+  --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+}
+body { font-family: var(--font); background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; -webkit-font-smoothing: antialiased; }
 
-/* Chat panel */
-.chat-panel { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #2a2a3a; }
-.messages { flex: 1; overflow-y: auto; padding: 16px; }
-.msg { margin-bottom: 12px; padding: 8px 12px; border-radius: 6px; max-width: 85%; }
-.msg.user { background: #1a1a2e; margin-left: auto; }
-.msg.assistant { background: #16213e; }
-.msg .meta { font-size: 11px; color: #666; margin-top: 4px; }
-.input-area { padding: 12px; border-top: 1px solid #2a2a3a; display: flex; gap: 8px; }
-.input-area input { flex: 1; background: #16161e; border: 1px solid #2a2a3a; color: #e0e0e0; padding: 10px; border-radius: 4px; font-family: inherit; font-size: 14px; }
-.input-area button { background: #2a2a4a; color: #b8a9c9; border: 1px solid #3a3a5a; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-family: inherit; }
-.input-area button:hover { background: #3a3a5a; }
+/* Header */
+.header { display: flex; align-items: center; justify-content: space-between; padding: 0 20px; height: 56px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; z-index: 5; }
+.header-left { display: flex; align-items: center; gap: 16px; }
+.logo { font-size: 20px; font-weight: 700; color: var(--accent); letter-spacing: -0.5px; }
+.mood-indicator { display: flex; align-items: center; gap: 10px; }
+.mood-orb { width: 30px; height: 30px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, hsl(var(--mood-hue), var(--mood-sat), calc(var(--mood-light) + 18%)), hsl(var(--mood-hue), var(--mood-sat), var(--mood-light)), hsl(var(--mood-hue), calc(var(--mood-sat) - 20%), calc(var(--mood-light) - 25%))); animation: pulse var(--mood-pulse) ease-in-out infinite; box-shadow: 0 0 18px hsla(var(--mood-hue), var(--mood-sat), var(--mood-light), 0.25); transition: all 1.2s ease; }
+@keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.88; } 50% { transform: scale(1.1); opacity: 1; } }
+.mood-label { font-size: 13px; color: var(--text-dim); }
+.header-actions { display: flex; align-items: center; gap: 4px; }
+.icon-btn { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--text-dim); cursor: pointer; transition: all 0.15s; }
+.icon-btn:hover { background: var(--surface-2); color: var(--text); }
+.icon-btn.active { background: var(--surface-2); color: var(--primary); border-color: var(--border); }
+.icon-btn svg { width: 20px; height: 20px; }
+
+/* Main layout */
+.main { display: flex; flex: 1; overflow: hidden; }
+
+/* Chat area */
+.chat-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.messages { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
+.messages::-webkit-scrollbar { width: 6px; }
+.messages::-webkit-scrollbar-track { background: transparent; }
+.messages::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 3px; }
+
+/* Empty state */
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 20px; padding: 40px; }
+.empty-orb { width: 72px; height: 72px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, hsl(260, 55%, 78%), hsl(260, 50%, 58%), hsl(260, 40%, 35%)); animation: pulse 4s ease-in-out infinite; box-shadow: 0 0 50px hsla(260, 55%, 55%, 0.2); }
+.empty-title { font-size: 24px; font-weight: 600; color: var(--text); }
+.empty-sub { font-size: 14px; color: var(--text-faint); max-width: 380px; text-align: center; line-height: 1.6; }
+
+/* Messages */
+.message-row { padding: 20px 0; }
+.message-row:first-child { padding-top: 24px; }
+.message-row.assistant { background: var(--surface); }
+.message-inner { max-width: 740px; margin: 0 auto; padding: 0 28px; display: flex; gap: 14px; }
+.msg-avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; flex-shrink: 0; margin-top: 2px; }
+.msg-avatar.user-av { background: var(--primary-dim); color: #fff; }
+.msg-avatar.nur-av { background: radial-gradient(circle, hsl(var(--mood-hue), var(--mood-sat), var(--mood-light)), hsl(var(--mood-hue), calc(var(--mood-sat) - 10%), calc(var(--mood-light) - 18%))); color: #fff; transition: background 1.2s ease; }
+.msg-content { flex: 1; min-width: 0; }
+.msg-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.msg-name { font-size: 13px; font-weight: 600; }
+.msg-mood-tag { font-size: 10px; color: var(--text-faint); background: var(--surface-2); padding: 1px 8px; border-radius: 10px; }
+.msg-body { font-size: 15px; line-height: 1.75; color: var(--text); word-wrap: break-word; }
+.msg-body p { margin-bottom: 10px; }
+.msg-body p:last-child { margin-bottom: 0; }
+.msg-body code { background: var(--surface-3); padding: 2px 6px; border-radius: 4px; font-family: var(--mono); font-size: 13px; }
+.msg-body pre { background: var(--surface-2); padding: 14px 16px; border-radius: var(--radius-sm); overflow-x: auto; margin: 10px 0; border: 1px solid var(--border); }
+.msg-body pre code { background: none; padding: 0; font-size: 13px; }
+.msg-body strong { font-weight: 600; }
+.msg-body em { font-style: italic; color: var(--text-dim); }
+.msg-body ul, .msg-body ol { padding-left: 22px; margin: 8px 0; }
+.msg-body li { margin-bottom: 4px; }
+.msg-body blockquote { border-left: 3px solid var(--primary-dim); padding-left: 14px; margin: 10px 0; color: var(--text-dim); }
+
+/* Typing */
+.typing-row { padding: 20px 0; background: var(--surface); display: none; }
+.typing-row.visible { display: block; }
+.typing-inner { max-width: 740px; margin: 0 auto; padding: 0 28px; display: flex; gap: 14px; }
+.typing-dots { display: flex; gap: 5px; align-items: center; padding-top: 6px; }
+.typing-dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); animation: bounce 1.4s infinite; }
+.typing-dots span:nth-child(2) { animation-delay: 0.16s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.32s; }
+@keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.35; } 30% { transform: translateY(-8px); opacity: 1; } }
+
+/* Input */
+.input-container { padding: 16px 28px 20px; max-width: 740px; margin: 0 auto; width: 100%; }
+.input-box { display: flex; align-items: flex-end; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; transition: border-color 0.2s, box-shadow 0.2s; }
+.input-box:focus-within { border-color: var(--primary-dim); box-shadow: 0 0 0 3px hsla(260, 60%, 60%, 0.08); }
+.input-box textarea { flex: 1; background: none; border: none; color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.5; resize: none; max-height: 180px; outline: none; min-height: 24px; }
+.input-box textarea::placeholder { color: var(--text-faint); }
+.send-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s, transform 0.1s, opacity 0.2s; }
+.send-btn:hover { background: var(--primary-dim); }
+.send-btn:active { transform: scale(0.93); }
+.send-btn:disabled { opacity: 0.3; cursor: default; transform: none; }
+.send-btn svg { width: 18px; height: 18px; }
+.session-actions { display: flex; gap: 12px; margin-top: 8px; justify-content: center; }
+.session-btn { font-size: 12px; color: var(--text-faint); background: none; border: none; cursor: pointer; padding: 4px 10px; border-radius: 6px; font-family: var(--font); transition: all 0.15s; }
+.session-btn:hover { color: var(--text-dim); background: var(--surface); }
 
 /* Debug panel */
-.debug-panel { width: 360px; overflow-y: auto; padding: 16px; background: #0e0e16; }
-.debug-panel h2 { font-size: 13px; color: #8888aa; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
-.debug-section { margin-bottom: 20px; }
+.debug-panel { width: 380px; background: var(--surface); border-left: 1px solid var(--border); overflow-y: auto; padding: 20px; display: none; flex-shrink: 0; }
+.debug-panel.open { display: block; }
+.debug-panel::-webkit-scrollbar { width: 5px; }
+.debug-panel::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 3px; }
+.debug-section { margin-bottom: 22px; }
+.debug-section h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-faint); margin-bottom: 10px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.v2-badge { font-size: 9px; background: rgba(255,146,43,0.12); color: #ff922b; padding: 1px 7px; border-radius: 8px; font-weight: 500; letter-spacing: 0; text-transform: none; }
 
 /* Gauges */
-.gauge { margin-bottom: 8px; }
-.gauge-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 2px; }
-.gauge-bar { height: 8px; background: #1a1a2a; border-radius: 4px; overflow: hidden; }
-.gauge-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
-.gauge-fill.arousal { background: #ff6b6b; }
-.gauge-fill.valence { background: #51cf66; }
-.gauge-fill.certainty { background: #339af0; }
-.gauge-fill.bonding { background: #cc5de8; }
-.gauge-fill.energy { background: #ffd43b; }
-.gauge-fill.resolution { background: #ff922b; }
+.gauge { margin-bottom: 10px; }
+.gauge-header { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+.gauge-name { color: var(--text-dim); font-weight: 500; }
+.gauge-val { color: var(--text-faint); font-family: var(--mono); font-size: 11px; }
+.gauge-track { height: 5px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+.gauge-fill { height: 100%; border-radius: 3px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+.gauge-fill.arousal { background: linear-gradient(90deg, #ff6b6b55, #ff6b6b); }
+.gauge-fill.valence { background: linear-gradient(90deg, #51cf6655, #51cf66); }
+.gauge-fill.certainty { background: linear-gradient(90deg, #339af055, #339af0); }
+.gauge-fill.bonding { background: linear-gradient(90deg, #cc5de855, #cc5de8); }
+.gauge-fill.energy { background: linear-gradient(90deg, #ffd43b55, #ffd43b); }
+.gauge-fill.resolution { background: linear-gradient(90deg, #ff922b55, #ff922b); }
 
-/* v2 sections */
-.v2-tag { font-size: 9px; color: #ff922b; margin-left: 6px; vertical-align: middle; }
-.dialogue-round { font-size: 11px; background: #12121e; border-left: 2px solid #339af0; padding: 6px 8px; margin-bottom: 6px; border-radius: 0 4px 4px 0; }
-.dialogue-round .round-header { color: #339af0; font-weight: bold; margin-bottom: 3px; }
-.dialogue-round .fast { color: #ff6b6b; }
-.dialogue-round .slow { color: #51cf66; }
-.dialogue-round .approved { color: #51cf66; }
-.dialogue-round .objection { color: #ff6b6b; }
-.dialogue-round .candidate-text { color: #bbb; font-size: 10px; margin: 2px 0; white-space: pre-wrap; max-height: 60px; overflow-y: auto; }
-.defense-box { font-size: 11px; background: #1f1212; border-left: 2px solid #ff6b6b; padding: 6px 8px; border-radius: 0 4px 4px 0; }
-.defense-box .defense-type { color: #ff6b6b; font-weight: bold; text-transform: uppercase; }
-.defense-box .intensity-bar { display: flex; gap: 4px; align-items: center; margin: 4px 0; }
-.defense-box .bar-track { flex: 1; height: 6px; background: #1a1a2a; border-radius: 3px; position: relative; overflow: hidden; }
-.defense-box .bar-raw { position: absolute; height: 100%; background: #ff6b6b88; border-radius: 3px; }
-.defense-box .bar-expressed { position: absolute; height: 100%; background: #ff6b6b; border-radius: 3px; }
-.anticipation-box { font-size: 11px; background: #121a1f; border-left: 2px solid #ff922b; padding: 6px 8px; border-radius: 0 4px 4px 0; }
-.anticipation-box .topic-tag { background: #2a1f12; color: #ff922b; font-size: 10px; padding: 1px 5px; border-radius: 3px; margin-right: 3px; display: inline-block; }
-.unresolved-item { font-size: 11px; background: #1a1212; border-left: 2px solid #ff922b; padding: 5px 8px; margin-bottom: 4px; border-radius: 0 4px 4px 0; }
-.unresolved-item .source-tag { font-size: 9px; background: #2a1a12; color: #ff922b; padding: 1px 4px; border-radius: 2px; }
-.tension-meter { display: flex; align-items: center; gap: 6px; font-size: 11px; margin-top: 4px; }
-.tension-track { flex: 1; height: 4px; background: #1a1a2a; border-radius: 2px; overflow: hidden; }
-.tension-fill { height: 100%; background: linear-gradient(90deg, #51cf66, #ffd43b, #ff6b6b); border-radius: 2px; transition: width 0.5s ease; }
+.debug-item { font-size: 12px; color: var(--text-dim); margin-bottom: 5px; }
+.debug-item .dl { color: var(--text-faint); font-size: 11px; }
+.debug-flag { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px; background: rgba(255,107,107,0.12); color: #ff6b6b; margin: 2px; }
+.debug-mem { font-size: 11px; color: var(--text-dim); padding: 5px 0; border-bottom: 1px solid var(--border); }
+.debug-none { font-size: 12px; color: var(--text-faint); }
 
-/* Profile info */
-.profile-item { font-size: 12px; color: #aaa; margin-bottom: 4px; }
-.profile-item .label { color: #888; }
-.flag { background: #3b1f1f; color: #ff6b6b; font-size: 11px; padding: 2px 6px; border-radius: 3px; margin-bottom: 4px; display: inline-block; }
-.memory-item { font-size: 11px; color: #999; padding: 4px 0; border-bottom: 1px solid #1a1a2a; }
+/* v2 inner dialogue */
+.dialogue-round { font-size: 11px; background: var(--bg); border-left: 2px solid var(--primary); padding: 8px 10px; margin-bottom: 8px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.dialogue-round .rh { color: var(--primary); font-weight: 600; margin-bottom: 4px; }
+.dialogue-round .fast { color: #ff6b6b; } .dialogue-round .slow { color: #51cf66; }
+.dialogue-round .approved { color: #51cf66; } .dialogue-round .objection { color: #ff6b6b; }
+.dialogue-round .ct { color: var(--text-dim); font-size: 10px; margin: 3px 0; white-space: pre-wrap; max-height: 60px; overflow-y: auto; }
 
-/* Session controls */
-.session-controls { padding: 8px 16px; background: #12121a; border-top: 1px solid #2a2a3a; display: flex; gap: 8px; }
-.session-controls button { background: #2a1a1a; color: #cc8888; border: 1px solid #3a2a2a; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px; }
-.session-controls button:hover { background: #3a2a2a; }
-.session-controls button.rest { background: #1a2a1a; color: #88cc88; border-color: #2a3a2a; }
-.session-controls button.rest:hover { background: #2a3a2a; }
+.defense-box { font-size: 11px; background: rgba(255,107,107,0.04); border-left: 2px solid #ff6b6b; padding: 8px 10px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.defense-box .dt { color: #ff6b6b; font-weight: 600; text-transform: uppercase; }
+.defense-box .ib { display: flex; gap: 6px; align-items: center; margin: 4px 0; font-size: 11px; color: var(--text-dim); }
+.defense-box .bt { flex: 1; height: 4px; background: var(--bg); border-radius: 2px; position: relative; overflow: hidden; }
+.defense-box .br { position: absolute; height: 100%; background: #ff6b6b44; border-radius: 2px; }
+.defense-box .be { position: absolute; height: 100%; background: #ff6b6b; border-radius: 2px; }
+
+.anticipation-box { font-size: 11px; background: rgba(255,146,43,0.04); border-left: 2px solid #ff922b; padding: 8px 10px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.topic-tag { display: inline-block; background: rgba(255,146,43,0.1); color: #ff922b; font-size: 10px; padding: 1px 7px; border-radius: 8px; margin: 1px 2px; }
+
+.unresolved-item { font-size: 11px; background: var(--bg); border-left: 2px solid #ff922b; padding: 6px 10px; margin-bottom: 6px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.source-tag { font-size: 9px; background: rgba(255,146,43,0.1); color: #ff922b; padding: 1px 6px; border-radius: 8px; }
+
+.tension-meter { display: flex; align-items: center; gap: 8px; font-size: 11px; margin-top: 6px; color: var(--text-faint); }
+.tension-track { flex: 1; height: 3px; background: var(--bg); border-radius: 2px; overflow: hidden; }
+.tension-fill { height: 100%; background: linear-gradient(90deg, #51cf66, #ffd43b, #ff6b6b); border-radius: 2px; transition: width 0.8s ease; }
 
 /* Settings drawer */
-.settings-overlay { position: fixed; inset: 0; background: rgba(6, 8, 14, 0.72); display: none; z-index: 20; }
+.settings-overlay { position: fixed; inset: 0; background: rgba(6,8,14,0.7); display: none; z-index: 20; backdrop-filter: blur(4px); }
 .settings-overlay.open { display: block; }
-.settings-drawer { position: absolute; top: 0; right: 0; width: min(480px, 100vw); height: 100%; background: #101722; border-left: 1px solid #2c3950; display: flex; flex-direction: column; box-shadow: -12px 0 40px rgba(0, 0, 0, 0.45); }
-.settings-header { padding: 16px 18px; border-bottom: 1px solid #223048; display: flex; justify-content: space-between; align-items: center; }
-.settings-header h2 { font-size: 15px; color: #d7e4ff; }
-.settings-close { background: transparent; border: 1px solid #30415e; color: #aab8d6; width: 32px; height: 32px; border-radius: 4px; cursor: pointer; font-family: inherit; }
-.settings-close:hover { background: #1a2436; }
-.settings-body { flex: 1; overflow-y: auto; padding: 16px 18px 24px; }
-.settings-status { font-size: 12px; line-height: 1.5; padding: 10px 12px; border-radius: 6px; background: #182132; color: #bcc8df; margin-bottom: 14px; border: 1px solid #273551; }
-.settings-status.error { background: #2d1518; color: #ffb1b8; border-color: #563037; }
-.settings-note { font-size: 11px; color: #8ea1c7; margin-top: 6px; }
-.settings-section { border: 1px solid #223048; border-radius: 8px; padding: 14px; margin-bottom: 14px; background: #0d141f; }
-.settings-section h3 { font-size: 12px; color: #d0ddff; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+.settings-drawer { position: absolute; top: 0; right: 0; width: min(480px, 100vw); height: 100%; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; box-shadow: -12px 0 40px rgba(0,0,0,0.4); }
+.settings-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.settings-header h2 { font-size: 15px; font-weight: 600; }
+.settings-close { background: transparent; border: 1px solid var(--border); color: var(--text-dim); width: 32px; height: 32px; border-radius: var(--radius-sm); cursor: pointer; font-size: 18px; }
+.settings-close:hover { background: var(--surface-2); }
+.settings-body { flex: 1; overflow-y: auto; padding: 16px 20px 24px; }
+.settings-status { font-size: 12px; line-height: 1.5; padding: 10px 14px; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-dim); margin-bottom: 14px; border: 1px solid var(--border); }
+.settings-status.error { background: rgba(255,107,107,0.08); color: #ff8888; border-color: rgba(255,107,107,0.2); }
+.settings-note { font-size: 11px; color: var(--text-faint); margin-top: 6px; }
+.settings-section { border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; background: var(--bg); }
+.settings-section h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin-bottom: 14px; font-weight: 600; }
 .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.settings-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.settings-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }
 .settings-field.full { grid-column: 1 / -1; }
-.settings-field label { font-size: 11px; color: #93a6cc; text-transform: uppercase; letter-spacing: 0.05em; }
-.settings-field input,
-.settings-field select,
-.settings-field textarea { background: #141d2c; color: #ebf0fa; border: 1px solid #2a3953; border-radius: 5px; padding: 9px 10px; font-family: inherit; font-size: 13px; }
-.settings-field textarea { min-height: 80px; resize: vertical; }
-.settings-inline { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #9db0d6; }
-.settings-inline input[type="checkbox"] { width: 16px; height: 16px; }
-.secret-hint { font-size: 11px; color: #8395b8; }
-.settings-actions { display: flex; gap: 10px; padding-top: 4px; }
-.settings-actions button { background: #22324c; color: #e2ebff; border: 1px solid #31486d; padding: 10px 14px; border-radius: 5px; cursor: pointer; font-family: inherit; }
-.settings-actions button.secondary { background: transparent; color: #9eb0d6; }
-.settings-actions button:hover { background: #2b3d5d; }
-.settings-actions button.secondary:hover { background: #182235; }
+.settings-field label { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.04em; }
+.settings-field input, .settings-field select, .settings-field textarea { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 11px; font-family: var(--font); font-size: 13px; outline: none; transition: border-color 0.15s; }
+.settings-field input:focus, .settings-field select:focus, .settings-field textarea:focus { border-color: var(--primary-dim); }
+.settings-field textarea { min-height: 72px; resize: vertical; }
+.settings-inline { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-faint); }
+.settings-inline input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); }
+.secret-hint { font-size: 11px; color: var(--text-faint); }
+.settings-actions { display: flex; gap: 10px; padding-top: 6px; }
+.settings-actions button { background: var(--primary-dim); color: #fff; border: none; padding: 10px 16px; border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 500; transition: background 0.15s; }
+.settings-actions button:hover { background: var(--primary); }
+.settings-actions button.secondary { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+.settings-actions button.secondary:hover { background: var(--surface-2); }
 
-@media (max-width: 980px) {
-  .container { flex-direction: column; }
-  .debug-panel { width: 100%; border-top: 1px solid #2a2a3a; }
-}
-
-@media (max-width: 720px) {
+@media (max-width: 860px) {
+  .debug-panel { position: fixed; top: 56px; right: 0; bottom: 0; z-index: 10; width: min(380px, 100vw); box-shadow: -8px 0 30px rgba(0,0,0,0.4); }
+  .message-inner, .typing-inner { padding: 0 16px; }
+  .input-container { padding: 12px 16px 16px; }
   .settings-grid { grid-template-columns: 1fr; }
-  .header-actions { gap: 8px; }
-  .header-button { padding: 8px 10px; }
 }
 </style>
 </head>
 <body>
-<header>
-  <h1>Project Nūr</h1>
-  <div class="header-actions">
-    <span class="emotion-label" id="emotionLabel">neutral</span>
-    <button class="header-button" onclick="openSettings()">Settings</button>
-  </div>
-</header>
 
+<div class="header">
+  <div class="header-left">
+    <span class="logo">Nūr</span>
+    <div class="mood-indicator">
+      <div class="mood-orb" id="moodOrb"></div>
+      <span class="mood-label" id="moodLabel">neutral</span>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="icon-btn" id="debugToggle" onclick="toggleDebug()" title="Debug panel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>
+    </button>
+    <button class="icon-btn" onclick="openSettings()" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- Settings drawer -->
 <div class="settings-overlay" id="settingsOverlay" onclick="closeSettingsIfBackdrop(event)">
   <aside class="settings-drawer">
     <div class="settings-header">
-      <h2>Runtime Settings</h2>
-      <button class="settings-close" onclick="closeSettings()">×</button>
+      <h2>Settings</h2>
+      <button class="settings-close" onclick="closeSettings()">&times;</button>
     </div>
     <div class="settings-body">
-      <div class="settings-status" id="settingsStatus">
-        Load and save `runtime_config.yaml` from here instead of editing scattered files.
-      </div>
-
-      <div class="settings-section">
-        <h3>Runtime</h3>
-        <div class="settings-grid">
-          <div class="settings-field full">
-            <label for="cfg-data_dir">Data Directory</label>
-            <input id="cfg-data_dir" type="text">
-          </div>
-          <div class="settings-field">
-            <label for="cfg-max_queue_per_user">Max Queue Per User</label>
-            <input id="cfg-max_queue_per_user" type="number" min="1">
-          </div>
-          <div class="settings-field">
-            <label for="cfg-max_active_sessions">Max Active Sessions</label>
-            <input id="cfg-max_active_sessions" type="number" min="1">
-          </div>
-          <div class="settings-field">
-            <label for="cfg-session_timeout_seconds">Session Timeout Seconds</label>
-            <input id="cfg-session_timeout_seconds" type="number" min="1" step="1">
-          </div>
-          <div class="settings-field">
-            <label for="cfg-console_enabled">Console Runtime Enabled</label>
-            <select id="cfg-console_enabled">
-              <option value="true">Yes</option>
-              <option value="false">No</option>
-            </select>
-          </div>
-          <div class="settings-field">
-            <label for="cfg-debug_host">Debug Host</label>
-            <input id="cfg-debug_host" type="text">
-          </div>
-          <div class="settings-field">
-            <label for="cfg-debug_port">Debug Port</label>
-            <input id="cfg-debug_port" type="number" min="1" step="1">
-          </div>
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <h3>LLM Backend</h3>
-        <div class="settings-grid">
-          <div class="settings-field">
-            <label for="cfg-llm_backend">Backend</label>
-            <select id="cfg-llm_backend">
-              <option value="auto">auto</option>
-              <option value="mock">mock</option>
-              <option value="minimax">minimax</option>
-              <option value="openai_compatible">openai_compatible</option>
-            </select>
-          </div>
-          <div class="settings-field full">
-            <label for="cfg-llm_base_url">Base URL</label>
-            <input id="cfg-llm_base_url" type="text" placeholder="http://127.0.0.1:8000/v1">
-          </div>
-          <div class="settings-field full">
-            <label for="cfg-llm_model">Model</label>
-            <input id="cfg-llm_model" type="text" placeholder="Qwen/Qwen3-30B-A3B">
-          </div>
-          <div class="settings-field full">
-            <label for="cfg-llm_api_key">Generic API Key</label>
-            <input id="cfg-llm_api_key" type="password" placeholder="Leave blank to keep current value">
-            <div class="secret-hint" id="cfg-status-llm_api_key">Not configured</div>
-            <label class="settings-inline"><input id="cfg-clear_llm_api_key" type="checkbox"> Clear saved generic API key</label>
-          </div>
-          <div class="settings-field full">
-            <label for="cfg-minimax_api_key">MiniMax API Key</label>
-            <input id="cfg-minimax_api_key" type="password" placeholder="Leave blank to keep current value">
-            <div class="secret-hint" id="cfg-status-minimax_api_key">Not configured</div>
-            <label class="settings-inline"><input id="cfg-clear_minimax_api_key" type="checkbox"> Clear saved MiniMax API key</label>
-          </div>
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <h3>Telegram</h3>
-        <div class="settings-grid">
-          <div class="settings-field full">
-            <label for="cfg-telegram_token">Bot Token</label>
-            <input id="cfg-telegram_token" type="password" placeholder="Leave blank to keep current value">
-            <div class="secret-hint" id="cfg-status-telegram_token">Not configured</div>
-            <label class="settings-inline"><input id="cfg-clear_telegram_token" type="checkbox"> Clear saved Telegram token</label>
-          </div>
-          <div class="settings-field">
-            <label for="cfg-telegram_poll_timeout">Poll Timeout Seconds</label>
-            <input id="cfg-telegram_poll_timeout" type="number" min="1" step="1">
-          </div>
-          <div class="settings-field">
-            <label for="cfg-dedupe_ttl">Dedupe TTL Seconds</label>
-            <input id="cfg-dedupe_ttl" type="number" min="1" step="1">
-          </div>
-          <div class="settings-field full">
-            <label for="cfg-telegram_allowlist">Allowlist User IDs</label>
-            <textarea id="cfg-telegram_allowlist" placeholder="One numeric Telegram user ID per line"></textarea>
-            <div class="settings-note">Leave empty to allow all Telegram users.</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <h3>Proactive Behavior</h3>
-        <div class="settings-grid">
-          <div class="settings-field">
-            <label for="cfg-proactive_enabled">Enabled</label>
-            <select id="cfg-proactive_enabled">
-              <option value="false">No</option>
-              <option value="true">Yes</option>
-            </select>
-          </div>
-          <div class="settings-field">
-            <label for="cfg-proactive_idle_threshold">Idle Threshold Seconds</label>
-            <input id="cfg-proactive_idle_threshold" type="number" min="0" step="1">
-          </div>
-          <div class="settings-field">
-            <label for="cfg-proactive_max_per_session">Max Per Session</label>
-            <input id="cfg-proactive_max_per_session" type="number" min="0" step="1">
-          </div>
-          <div class="settings-field">
-            <label for="cfg-proactive_cooldown">Cooldown Seconds</label>
-            <input id="cfg-proactive_cooldown" type="number" min="0" step="1">
-          </div>
-          <div class="settings-field">
-            <label for="cfg-proactive_check_interval">Check Interval Seconds</label>
-            <input id="cfg-proactive_check_interval" type="number" min="1" step="1">
-          </div>
-        </div>
-      </div>
-
+      <div class="settings-status" id="settingsStatus">Runtime configuration for Nūr.</div>
+      <div class="settings-section"><h3>Runtime</h3><div class="settings-grid">
+        <div class="settings-field full"><label for="cfg-data_dir">Data Directory</label><input id="cfg-data_dir" type="text"></div>
+        <div class="settings-field"><label for="cfg-max_queue_per_user">Max Queue/User</label><input id="cfg-max_queue_per_user" type="number" min="1"></div>
+        <div class="settings-field"><label for="cfg-max_active_sessions">Max Sessions</label><input id="cfg-max_active_sessions" type="number" min="1"></div>
+        <div class="settings-field"><label for="cfg-session_timeout_seconds">Session Timeout (s)</label><input id="cfg-session_timeout_seconds" type="number" min="1" step="1"></div>
+        <div class="settings-field"><label for="cfg-console_enabled">Console</label><select id="cfg-console_enabled"><option value="true">Enabled</option><option value="false">Disabled</option></select></div>
+        <div class="settings-field"><label for="cfg-debug_host">Debug Host</label><input id="cfg-debug_host" type="text"></div>
+        <div class="settings-field"><label for="cfg-debug_port">Debug Port</label><input id="cfg-debug_port" type="number" min="1"></div>
+      </div></div>
+      <div class="settings-section"><h3>LLM Backend</h3><div class="settings-grid">
+        <div class="settings-field"><label for="cfg-llm_backend">Backend</label><select id="cfg-llm_backend"><option value="auto">auto</option><option value="mock">mock</option><option value="minimax">minimax</option><option value="openai_compatible">openai_compatible</option></select></div>
+        <div class="settings-field full"><label for="cfg-llm_base_url">Base URL</label><input id="cfg-llm_base_url" type="text" placeholder="https://api.minimax.io/v1"></div>
+        <div class="settings-field full"><label for="cfg-llm_model">Model</label><input id="cfg-llm_model" type="text"></div>
+        <div class="settings-field full"><label for="cfg-llm_api_key">API Key</label><input id="cfg-llm_api_key" type="password" placeholder="Leave blank to keep current"><div class="secret-hint" id="cfg-status-llm_api_key">Not configured</div><label class="settings-inline"><input id="cfg-clear_llm_api_key" type="checkbox"> Clear saved key</label></div>
+        <div class="settings-field full"><label for="cfg-minimax_api_key">MiniMax API Key</label><input id="cfg-minimax_api_key" type="password" placeholder="Leave blank to keep current"><div class="secret-hint" id="cfg-status-minimax_api_key">Not configured</div><label class="settings-inline"><input id="cfg-clear_minimax_api_key" type="checkbox"> Clear saved key</label></div>
+      </div></div>
+      <div class="settings-section"><h3>Telegram</h3><div class="settings-grid">
+        <div class="settings-field full"><label for="cfg-telegram_token">Bot Token</label><input id="cfg-telegram_token" type="password" placeholder="Leave blank to keep current"><div class="secret-hint" id="cfg-status-telegram_token">Not configured</div><label class="settings-inline"><input id="cfg-clear_telegram_token" type="checkbox"> Clear saved token</label></div>
+        <div class="settings-field"><label for="cfg-telegram_poll_timeout">Poll Timeout (s)</label><input id="cfg-telegram_poll_timeout" type="number" min="1"></div>
+        <div class="settings-field"><label for="cfg-dedupe_ttl">Dedupe TTL (s)</label><input id="cfg-dedupe_ttl" type="number" min="1"></div>
+        <div class="settings-field full"><label for="cfg-telegram_allowlist">Allowlist (one ID/line)</label><textarea id="cfg-telegram_allowlist" placeholder="Numeric Telegram user IDs"></textarea></div>
+      </div></div>
+      <div class="settings-section"><h3>Proactive</h3><div class="settings-grid">
+        <div class="settings-field"><label for="cfg-proactive_enabled">Enabled</label><select id="cfg-proactive_enabled"><option value="false">No</option><option value="true">Yes</option></select></div>
+        <div class="settings-field"><label for="cfg-proactive_idle_threshold">Idle Threshold (s)</label><input id="cfg-proactive_idle_threshold" type="number" min="0"></div>
+        <div class="settings-field"><label for="cfg-proactive_max_per_session">Max/Session</label><input id="cfg-proactive_max_per_session" type="number" min="0"></div>
+        <div class="settings-field"><label for="cfg-proactive_cooldown">Cooldown (s)</label><input id="cfg-proactive_cooldown" type="number" min="0"></div>
+        <div class="settings-field"><label for="cfg-proactive_check_interval">Check Interval (s)</label><input id="cfg-proactive_check_interval" type="number" min="1"></div>
+      </div></div>
       <div class="settings-actions">
-        <button onclick="saveSettings()">Save Settings</button>
-        <button class="secondary" onclick="loadSettings()">Reload From Disk</button>
+        <button onclick="saveSettings()">Save</button>
+        <button class="secondary" onclick="loadSettings()">Reload</button>
         <button class="secondary" onclick="closeSettings()">Close</button>
       </div>
     </div>
   </aside>
 </div>
 
-<div class="container">
-  <div class="chat-panel">
-    <div class="messages" id="messages"></div>
-    <div class="input-area">
-      <input type="text" id="messageInput" placeholder="Type a message..." autofocus>
-      <button onclick="sendMessage()">Send</button>
+<div class="main">
+  <div class="chat-area">
+    <div class="messages" id="messages">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-orb"></div>
+        <div class="empty-title">Nūr</div>
+        <div class="empty-sub">An AI that feels. Send a message to begin a conversation.</div>
+      </div>
     </div>
-    <div class="session-controls">
-      <button onclick="endSession()">End Session</button>
-      <button class="rest" onclick="applyRest()">Rest (1hr)</button>
+    <div class="typing-row" id="typingRow">
+      <div class="typing-inner">
+        <div class="msg-avatar nur-av">N</div>
+        <div class="typing-dots"><span></span><span></span><span></span></div>
+      </div>
+    </div>
+    <div class="input-container">
+      <div class="input-box">
+        <textarea id="msgInput" placeholder="Message Nūr..." rows="1"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+      <div class="session-actions">
+        <button class="session-btn" onclick="endSession()">End Session</button>
+        <button class="session-btn" onclick="applyRest()">Rest (1hr)</button>
+      </div>
     </div>
   </div>
 
-  <div class="debug-panel">
+  <!-- Debug panel -->
+  <div class="debug-panel" id="debugPanel">
     <div class="debug-section">
-      <h2>Modulators</h2>
+      <h3>Modulators</h3>
       <div id="gauges">
-        <div class="gauge"><div class="gauge-label"><span>Arousal</span><span id="val-arousal">0.50</span></div><div class="gauge-bar"><div class="gauge-fill arousal" id="bar-arousal" style="width:50%"></div></div></div>
-        <div class="gauge"><div class="gauge-label"><span>Valence</span><span id="val-valence">0.50</span></div><div class="gauge-bar"><div class="gauge-fill valence" id="bar-valence" style="width:50%"></div></div></div>
-        <div class="gauge"><div class="gauge-label"><span>Certainty</span><span id="val-certainty">0.50</span></div><div class="gauge-bar"><div class="gauge-fill certainty" id="bar-certainty" style="width:50%"></div></div></div>
-        <div class="gauge"><div class="gauge-label"><span>Bonding</span><span id="val-bonding">0.50</span></div><div class="gauge-bar"><div class="gauge-fill bonding" id="bar-bonding" style="width:50%"></div></div></div>
-        <div class="gauge"><div class="gauge-label"><span>Energy</span><span id="val-energy">1.00</span></div><div class="gauge-bar"><div class="gauge-fill energy" id="bar-energy" style="width:100%"></div></div></div>
-        <div class="gauge"><div class="gauge-label"><span>Resolution</span><span id="val-resolution">0.00</span></div><div class="gauge-bar"><div class="gauge-fill resolution" id="bar-resolution" style="width:0%"></div></div></div>
+        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Arousal</span><span class="gauge-val" id="val-arousal">0.50</span></div><div class="gauge-track"><div class="gauge-fill arousal" id="bar-arousal" style="width:50%"></div></div></div>
+        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Valence</span><span class="gauge-val" id="val-valence">0.50</span></div><div class="gauge-track"><div class="gauge-fill valence" id="bar-valence" style="width:50%"></div></div></div>
+        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Certainty</span><span class="gauge-val" id="val-certainty">0.50</span></div><div class="gauge-track"><div class="gauge-fill certainty" id="bar-certainty" style="width:50%"></div></div></div>
+        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Bonding</span><span class="gauge-val" id="val-bonding">0.50</span></div><div class="gauge-track"><div class="gauge-fill bonding" id="bar-bonding" style="width:50%"></div></div></div>
+        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Energy</span><span class="gauge-val" id="val-energy">1.00</span></div><div class="gauge-track"><div class="gauge-fill energy" id="bar-energy" style="width:100%"></div></div></div>
+        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Resolution</span><span class="gauge-val" id="val-resolution">0.00</span></div><div class="gauge-track"><div class="gauge-fill resolution" id="bar-resolution" style="width:0%"></div></div></div>
       </div>
     </div>
-
-    <div class="debug-section">
-      <h2>Event</h2>
-      <div class="profile-item"><span class="label">Type:</span> <span id="eventType">—</span></div>
-      <div class="profile-item"><span class="label">Intensity:</span> <span id="eventIntensity">—</span></div>
-      <div class="profile-item"><span class="label">Spike:</span> <span id="eventSpike">—</span></div>
+    <div class="debug-section"><h3>Event</h3>
+      <div class="debug-item"><span class="dl">Type</span> <span id="eventType">&mdash;</span></div>
+      <div class="debug-item"><span class="dl">Intensity</span> <span id="eventIntensity">&mdash;</span></div>
+      <div class="debug-item"><span class="dl">Spike</span> <span id="eventSpike">&mdash;</span></div>
     </div>
-
-    <div class="debug-section">
-      <h2>Person Profile</h2>
-      <div class="profile-item"><span class="label">Trust:</span> <span id="personTrust">—</span></div>
-      <div class="profile-item"><span class="label">Interactions:</span> <span id="personInteractions">—</span></div>
+    <div class="debug-section"><h3>Person</h3>
+      <div class="debug-item"><span class="dl">Trust</span> <span id="personTrust">&mdash;</span></div>
+      <div class="debug-item"><span class="dl">Interactions</span> <span id="personInteractions">&mdash;</span></div>
     </div>
-
-    <div class="debug-section">
-      <h2>Self Profile</h2>
-      <div class="profile-item"><span class="label">Strengths:</span> <span id="selfStrengths">—</span></div>
-      <div class="profile-item"><span class="label">Flaws:</span> <span id="selfFlaws">—</span></div>
-      <div class="profile-item"><span class="label">Dissonance:</span> <span id="selfDissonance">—</span></div>
+    <div class="debug-section"><h3>Self</h3>
+      <div class="debug-item"><span class="dl">Strengths</span> <span id="selfStrengths">&mdash;</span></div>
+      <div class="debug-item"><span class="dl">Flaws</span> <span id="selfFlaws">&mdash;</span></div>
+      <div class="debug-item"><span class="dl">Dissonance</span> <span id="selfDissonance">&mdash;</span></div>
     </div>
-
-    <div class="debug-section">
-      <h2>Contradictions</h2>
-      <div id="contradictions"><span class="profile-item">None</span></div>
+    <div class="debug-section"><h3>Contradictions</h3><div id="contradictions"><span class="debug-none">None</span></div></div>
+    <div class="debug-section"><h3>Memories</h3><div id="memories"><span class="debug-none">None</span></div></div>
+    <div class="debug-section"><h3>Self-Check</h3>
+      <div class="debug-item"><span class="dl">Passed</span> <span id="selfCheckPassed">&mdash;</span></div>
+      <div class="debug-item"><span class="dl">Issues</span> <span id="selfCheckIssues">&mdash;</span></div>
     </div>
-
-    <div class="debug-section">
-      <h2>Memories Retrieved</h2>
-      <div id="memories"><span class="profile-item">None</span></div>
-    </div>
-
-    <div class="debug-section">
-      <h2>Self-Check</h2>
-      <div class="profile-item"><span class="label">Passed:</span> <span id="selfCheckPassed">—</span></div>
-      <div class="profile-item"><span class="label">Issues:</span> <span id="selfCheckIssues">—</span></div>
-    </div>
-
-    <div class="debug-section">
-      <h2>Anticipation<span class="v2-tag">v2</span></h2>
-      <div id="anticipation"><span class="profile-item">—</span></div>
-    </div>
-
-    <div class="debug-section">
-      <h2>Inner Dialogue<span class="v2-tag">v2</span></h2>
-      <div id="dialogueTrace"><span class="profile-item">—</span></div>
-    </div>
-
-    <div class="debug-section">
-      <h2>Defense<span class="v2-tag">v2</span></h2>
-      <div id="defense"><span class="profile-item">None</span></div>
-    </div>
-
-    <div class="debug-section">
-      <h2>Unresolved Items<span class="v2-tag">v2</span></h2>
-      <div class="profile-item"><span class="label">Count:</span> <span id="unresolvedCount">0</span></div>
+    <div class="debug-section"><h3>Anticipation <span class="v2-badge">v2</span></h3><div id="anticipation"><span class="debug-none">&mdash;</span></div></div>
+    <div class="debug-section"><h3>Inner Dialogue <span class="v2-badge">v2</span></h3><div id="dialogueTrace"><span class="debug-none">&mdash;</span></div></div>
+    <div class="debug-section"><h3>Defense <span class="v2-badge">v2</span></h3><div id="defense"><span class="debug-none">None</span></div></div>
+    <div class="debug-section"><h3>Unresolved <span class="v2-badge">v2</span></h3>
+      <div class="debug-item"><span class="dl">Count</span> <span id="unresolvedCount">0</span></div>
       <div id="unresolvedItems"></div>
     </div>
   </div>
@@ -365,423 +328,336 @@ header .emotion-label { font-size: 14px; color: #8888aa; }
 
 <script>
 const messagesEl = document.getElementById('messages');
-const inputEl = document.getElementById('messageInput');
-const settingsOverlayEl = document.getElementById('settingsOverlay');
-const userId = getOrCreateStorageId('nur_user_id', localStorage);
-const chatId = getOrCreateStorageId('nur_chat_id', sessionStorage);
+const inputEl = document.getElementById('msgInput');
+const sendBtn = document.getElementById('sendBtn');
+const typingRow = document.getElementById('typingRow');
+const emptyState = document.getElementById('emptyState');
+const debugPanel = document.getElementById('debugPanel');
+const debugToggle = document.getElementById('debugToggle');
+const settingsOverlay = document.getElementById('settingsOverlay');
 
-inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+const userId = getOrCreateId('nur_user_id', localStorage);
+const chatId = getOrCreateId('nur_chat_id', sessionStorage);
+let sending = false;
+let lastEmotion = 'neutral';
+
+// Auto-resize textarea
+inputEl.addEventListener('input', () => {
+  inputEl.style.height = 'auto';
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 180) + 'px';
+});
+inputEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
-loadSettings().catch(err => setSettingsStatus('Failed to load settings: ' + err.message, true));
+loadSettings().catch(() => {});
 
 async function sendMessage() {
-  const msg = inputEl.value.trim();
-  if (!msg) return;
+  const text = inputEl.value.trim();
+  if (!text || sending) return;
   inputEl.value = '';
-  addMessage(msg, 'user');
+  inputEl.style.height = 'auto';
+  sending = true;
+  sendBtn.disabled = true;
+
+  if (emptyState) emptyState.remove();
+  addMessage(text, 'user');
+  typingRow.classList.add('visible');
+  document.documentElement.style.setProperty('--mood-pulse', '1.2s');
+  scrollToBottom();
 
   try {
     const res = await fetch('/chat', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({message: msg, user_id: userId, chat_id: chatId}),
+      body: JSON.stringify({ message: text, user_id: userId, chat_id: chatId }),
     });
     const data = await res.json();
-    addMessage(data.response, 'assistant');
-    updateDebug(data.debug);
+    if (!res.ok) throw new Error(data.detail || 'Server error');
+    typingRow.classList.remove('visible');
+    lastEmotion = (data.debug && data.debug.emotion_label) || 'neutral';
+    addMessage(data.response, 'assistant', lastEmotion);
+    if (data.debug) updateDebug(data.debug);
   } catch (err) {
+    typingRow.classList.remove('visible');
     addMessage('Error: ' + err.message, 'assistant');
+  } finally {
+    sending = false;
+    sendBtn.disabled = false;
+    document.documentElement.style.setProperty('--mood-pulse', '3s');
+    inputEl.focus();
   }
 }
 
-function addMessage(text, role) {
-  const div = document.createElement('div');
-  div.className = 'msg ' + role;
-  div.textContent = text;
-  messagesEl.appendChild(div);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
+function addMessage(text, role, emotion) {
+  const row = document.createElement('div');
+  row.className = 'message-row ' + role;
+  const isUser = role === 'user';
+  let headerExtra = '';
+  if (!isUser && emotion) {
+    headerExtra = '<span class="msg-mood-tag">' + esc(emotion) + '</span>';
+  }
+  row.innerHTML =
+    '<div class="message-inner">' +
+      '<div class="msg-avatar ' + (isUser ? 'user-av' : 'nur-av') + '">' + (isUser ? 'Y' : 'N') + '</div>' +
+      '<div class="msg-content">' +
+        '<div class="msg-header"><span class="msg-name">' + (isUser ? 'You' : 'Nūr') + '</span>' + headerExtra + '</div>' +
+        '<div class="msg-body">' + (isUser ? esc(text) : renderMarkdown(text)) + '</div>' +
+      '</div>' +
+    '</div>';
+  messagesEl.appendChild(row);
+  scrollToBottom();
+}
+
+function scrollToBottom() {
+  requestAnimationFrame(() => { messagesEl.scrollTop = messagesEl.scrollHeight; });
+}
+
+// Basic markdown rendering
+function renderMarkdown(text) {
+  if (!text) return '';
+  let html = esc(text);
+  // Code blocks
+  html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) =>
+    '<pre><code>' + code.trim() + '</code></pre>');
+  // Inline code
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // Bold
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // Italic
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  // Blockquote
+  html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+  // Paragraphs
+  html = html.replace(/\n\n+/g, '</p><p>');
+  html = '<p>' + html + '</p>';
+  // Single newlines to <br> outside code blocks.
+  html = html
+    .split(/(<pre><code>[\s\S]*?<\/code><\/pre>)/g)
+    .map(part => part.startsWith('<pre><code>') ? part : part.replace(/\n/g, '<br>'))
+    .join('');
+  return html;
+}
+
+// Mood color mapping
+function updateMood(d) {
+  const label = d.emotion_label || 'neutral';
+  const valence = d.modulator_snapshot?.valence ?? 0.5;
+  const arousal = d.modulator_snapshot?.arousal ?? 0.5;
+  const energy = d.modulator_snapshot?.energy ?? 1.0;
+
+  // Map to hue: low valence=blue(220), neutral=purple(260), high valence=gold(45)
+  let hue;
+  if (valence < 0.4) hue = 200 + (0.4 - valence) * 100; // 200-240 blue range
+  else if (valence > 0.6) hue = 260 - (valence - 0.6) * 500; // 260 down to ~60 warm
+  else hue = 260; // neutral purple
+  hue = ((hue % 360) + 360) % 360;
+
+  const sat = 40 + arousal * 30 + energy * 10;
+  const light = 45 + energy * 20;
+  const pulse = 4 - arousal * 2.5; // higher arousal = faster pulse
+
+  const r = document.documentElement;
+  r.style.setProperty('--mood-hue', hue.toFixed(0));
+  r.style.setProperty('--mood-sat', sat.toFixed(0) + '%');
+  r.style.setProperty('--mood-light', light.toFixed(0) + '%');
+  if (!sending) r.style.setProperty('--mood-pulse', pulse.toFixed(1) + 's');
+
+  document.getElementById('moodLabel').textContent = label;
 }
 
 function updateDebug(d) {
-  // Emotion label
-  document.getElementById('emotionLabel').textContent = d.emotion_label || 'neutral';
+  updateMood(d);
 
-  // Modulators (6 including resolution)
   const mods = ['arousal', 'valence', 'certainty', 'bonding', 'energy', 'resolution'];
   for (const m of mods) {
-    const val = d.modulator_snapshot[m] || 0;
-    document.getElementById('val-' + m).textContent = val.toFixed(2);
-    document.getElementById('bar-' + m).style.width = (val * 100) + '%';
+    const v = (d.modulator_snapshot && d.modulator_snapshot[m]) || 0;
+    document.getElementById('val-' + m).textContent = v.toFixed(2);
+    document.getElementById('bar-' + m).style.width = (v * 100) + '%';
   }
 
-  // Event
-  document.getElementById('eventType').textContent = d.event_classified || '—';
-  document.getElementById('eventIntensity').textContent = d.event_intensity ? d.event_intensity.toFixed(2) : '—';
+  document.getElementById('eventType').textContent = d.event_classified || '\u2014';
+  document.getElementById('eventIntensity').textContent = d.event_intensity ? d.event_intensity.toFixed(2) : '\u2014';
   document.getElementById('eventSpike').textContent = d.is_spike ? 'YES' : 'no';
 
-  // Person profile
   if (d.person_profile) {
     document.getElementById('personTrust').textContent = d.person_profile.trust.toFixed(2);
     document.getElementById('personInteractions').textContent = d.person_profile.interaction_count;
   }
-
-  // Self profile
   if (d.self_profile) {
-    document.getElementById('selfStrengths').textContent = d.self_profile.strengths.join(', ') || '—';
-    document.getElementById('selfFlaws').textContent = d.self_profile.flaws.join(', ') || '—';
+    document.getElementById('selfStrengths').textContent = d.self_profile.strengths.join(', ') || '\u2014';
+    document.getElementById('selfFlaws').textContent = d.self_profile.flaws.join(', ') || '\u2014';
     document.getElementById('selfDissonance').textContent = d.self_profile.dissonance.toFixed(2);
   }
 
-  // Contradictions
-  const contradEl = document.getElementById('contradictions');
-  if (d.contradiction_flags && d.contradiction_flags.length > 0) {
-    contradEl.innerHTML = d.contradiction_flags.map(f => '<span class="flag">' + f + '</span>').join(' ');
-  } else {
-    contradEl.innerHTML = '<span class="profile-item">None</span>';
-  }
+  const cEl = document.getElementById('contradictions');
+  cEl.innerHTML = (d.contradiction_flags && d.contradiction_flags.length > 0)
+    ? d.contradiction_flags.map(f => '<span class="debug-flag">' + esc(f) + '</span>').join('')
+    : '<span class="debug-none">None</span>';
 
-  // Memories
-  const memEl = document.getElementById('memories');
-  if (d.retrieved_memories && d.retrieved_memories.length > 0) {
-    memEl.innerHTML = d.retrieved_memories.map(m =>
-      '<div class="memory-item">' + m.summary + ' (v=' + m.valence.toFixed(2) + ')' + (m.spike ? ' ⚡' : '') + '</div>'
-    ).join('');
-  } else {
-    memEl.innerHTML = '<span class="profile-item">None</span>';
-  }
+  const mEl = document.getElementById('memories');
+  mEl.innerHTML = (d.retrieved_memories && d.retrieved_memories.length > 0)
+    ? d.retrieved_memories.map(m => '<div class="debug-mem">' + esc(m.summary) + ' <span class="dl">(v=' + m.valence.toFixed(2) + ')</span>' + (m.spike ? ' \u26a1' : '') + '</div>').join('')
+    : '<span class="debug-none">None</span>';
 
-  // Self-check
   document.getElementById('selfCheckPassed').textContent = d.self_check_passed ? 'yes' : 'NO';
-  document.getElementById('selfCheckIssues').textContent = d.self_check_issues.join('; ') || '—';
+  document.getElementById('selfCheckIssues').textContent = (d.self_check_issues && d.self_check_issues.length) ? d.self_check_issues.join('; ') : '\u2014';
 
-  // v2: Anticipation
   updateAnticipation(d.anticipation);
-
-  // v2: Inner dialogue
   updateDialogueTrace(d.dialogue_trace);
-
-  // v2: Defense
   updateDefense(d.defense_activation);
-
-  // v2: Unresolved
   document.getElementById('unresolvedCount').textContent = d.unresolved_count || 0;
   updateUnresolvedItems(d.unresolved_items);
 }
 
 function updateAnticipation(ant) {
   const el = document.getElementById('anticipation');
-  if (!ant || ant.confidence === 0) {
-    el.innerHTML = '<span class="profile-item">No prediction</span>';
-    return;
-  }
+  if (!ant || ant.confidence === 0) { el.innerHTML = '<span class="debug-none">No prediction</span>'; return; }
   const topics = ant.predicted_topics.length > 0
     ? ant.predicted_topics.map(t => '<span class="topic-tag">' + esc(t) + '</span>').join('')
-    : '<span style="color:#666">none</span>';
-  const shifts = Object.entries(ant.modulator_pre_shifts || {})
-    .map(([k, v]) => k + ': ' + (v > 0 ? '+' : '') + v.toFixed(2))
-    .join(', ') || 'none';
-  el.innerHTML =
-    '<div class="anticipation-box">' +
-    '<div><span class="label">Topics:</span> ' + topics + '</div>' +
-    '<div><span class="label">Tone:</span> ' + esc(ant.predicted_emotional_tone) + '</div>' +
-    '<div><span class="label">Confidence:</span> ' + ant.confidence.toFixed(2) + '</div>' +
-    '<div><span class="label">Pre-shifts:</span> ' + shifts + '</div>' +
-    '<div style="color:#666;font-size:10px;margin-top:2px">' + esc(ant.basis) + '</div>' +
-    '</div>';
+    : '<span class="dl">none</span>';
+  const shifts = Object.entries(ant.modulator_pre_shifts || {}).map(([k,v]) => k + ': ' + (v>0?'+':'') + v.toFixed(2)).join(', ') || 'none';
+  el.innerHTML = '<div class="anticipation-box">' +
+    '<div><span class="dl">Topics</span> ' + topics + '</div>' +
+    '<div><span class="dl">Tone</span> ' + esc(ant.predicted_emotional_tone) + '</div>' +
+    '<div><span class="dl">Confidence</span> ' + ant.confidence.toFixed(2) + '</div>' +
+    '<div><span class="dl">Pre-shifts</span> ' + shifts + '</div>' +
+    '<div style="color:var(--text-faint);font-size:10px;margin-top:3px">' + esc(ant.basis) + '</div></div>';
 }
 
 function updateDialogueTrace(trace) {
   const el = document.getElementById('dialogueTrace');
-  if (!trace) {
-    el.innerHTML = '<span class="profile-item">—</span>';
-    return;
-  }
-  let html = '';
+  if (!trace) { el.innerHTML = '<span class="debug-none">\u2014</span>'; return; }
+  let h = '';
   for (const r of trace.rounds) {
-    const status = r.slow_path_approved
-      ? '<span class="approved">APPROVED</span>'
-      : '<span class="objection">OBJECTION</span>';
-    html += '<div class="dialogue-round">' +
-      '<div class="round-header">Round ' + r.round_number + ' ' + status + '</div>' +
-      '<div><span class="fast">Fast:</span></div>' +
-      '<div class="candidate-text">' + esc(truncate(r.fast_path_candidate, 200)) + '</div>' +
-      '<div><span class="slow">Slow:</span></div>' +
-      '<div class="candidate-text">' + esc(truncate(r.slow_path_evaluation, 200)) + '</div>';
-    if (r.objection_reason) {
-      html += '<div style="color:#ff6b6b;font-size:10px">Objection: ' + esc(r.objection_reason) + '</div>';
-    }
-    html += '</div>';
+    const st = r.slow_path_approved ? '<span class="approved">APPROVED</span>' : '<span class="objection">OBJECTION</span>';
+    h += '<div class="dialogue-round"><div class="rh">Round ' + r.round_number + ' ' + st + '</div>' +
+      '<div><span class="fast">Fast:</span></div><div class="ct">' + esc(trunc(r.fast_path_candidate, 200)) + '</div>' +
+      '<div><span class="slow">Slow:</span></div><div class="ct">' + esc(trunc(r.slow_path_evaluation, 200)) + '</div>';
+    if (r.objection_reason) h += '<div style="color:#ff6b6b;font-size:10px">Objection: ' + esc(r.objection_reason) + '</div>';
+    h += '</div>';
   }
-  // Summary bar
-  const deadlock = trace.reached_deadlock
-    ? '<span class="flag">DEADLOCK' + (trace.deadlock_resolution ? ' → ' + trace.deadlock_resolution : '') + '</span> '
-    : '';
-  html += '<div class="tension-meter">' +
-    '<span>Tension</span>' +
-    '<div class="tension-track"><div class="tension-fill" style="width:' + (trace.tension_level * 100) + '%"></div></div>' +
-    '<span>' + trace.tension_level.toFixed(2) + '</span>' +
-    '</div>';
-  html += '<div style="font-size:10px;color:#888;margin-top:4px">' +
-    deadlock +
-    'Path: ' + trace.dominant_path +
-    ' &middot; LLM calls: ' + trace.total_llm_calls +
-    '</div>';
-  el.innerHTML = html;
+  const dl = trace.reached_deadlock ? '<span class="debug-flag">DEADLOCK' + (trace.deadlock_resolution ? ' \u2192 ' + trace.deadlock_resolution : '') + '</span> ' : '';
+  h += '<div class="tension-meter"><span>Tension</span><div class="tension-track"><div class="tension-fill" style="width:' + (trace.tension_level * 100) + '%"></div></div><span>' + trace.tension_level.toFixed(2) + '</span></div>';
+  h += '<div style="font-size:10px;color:var(--text-faint);margin-top:4px">' + dl + 'Path: ' + trace.dominant_path + ' &middot; LLM: ' + trace.total_llm_calls + '</div>';
+  el.innerHTML = h;
 }
 
 function updateDefense(defense) {
   const el = document.getElementById('defense');
-  if (!defense) {
-    el.innerHTML = '<span class="profile-item">None</span>';
-    return;
-  }
-  const rawPct = (defense.raw_intensity * 100).toFixed(0);
-  const exprPct = (defense.expressed_intensity * 100).toFixed(0);
-  el.innerHTML =
-    '<div class="defense-box">' +
-    '<div class="defense-type">' + defense.defense_type + '</div>' +
-    '<div class="intensity-bar">' +
-    '<span style="width:55px">Raw</span>' +
-    '<div class="bar-track"><div class="bar-raw" style="width:' + rawPct + '%"></div></div>' +
-    '<span style="width:35px;text-align:right">' + defense.raw_intensity.toFixed(2) + '</span>' +
-    '</div>' +
-    '<div class="intensity-bar">' +
-    '<span style="width:55px">Expressed</span>' +
-    '<div class="bar-track"><div class="bar-expressed" style="width:' + exprPct + '%"></div></div>' +
-    '<span style="width:35px;text-align:right">' + defense.expressed_intensity.toFixed(2) + '</span>' +
-    '</div>' +
+  if (!defense) { el.innerHTML = '<span class="debug-none">None</span>'; return; }
+  const rp = (defense.raw_intensity * 100).toFixed(0), ep = (defense.expressed_intensity * 100).toFixed(0);
+  el.innerHTML = '<div class="defense-box">' +
+    '<div class="dt">' + defense.defense_type + '</div>' +
+    '<div class="ib"><span style="width:55px">Raw</span><div class="bt"><div class="br" style="width:' + rp + '%"></div></div><span style="width:32px;text-align:right">' + defense.raw_intensity.toFixed(2) + '</span></div>' +
+    '<div class="ib"><span style="width:55px">Expr</span><div class="bt"><div class="be" style="width:' + ep + '%"></div></div><span style="width:32px;text-align:right">' + defense.expressed_intensity.toFixed(2) + '</span></div>' +
     '<div style="color:#ff922b;font-size:10px">Suppressed: ' + defense.suppression_delta.toFixed(2) + '</div>' +
-    '<div style="color:#666;font-size:10px;margin-top:2px">' + esc(defense.reason) + '</div>' +
-    '</div>';
+    '<div style="color:var(--text-faint);font-size:10px;margin-top:2px">' + esc(defense.reason) + '</div></div>';
 }
 
 function updateUnresolvedItems(items) {
   const el = document.getElementById('unresolvedItems');
-  if (!items || items.length === 0) {
-    el.innerHTML = '';
-    return;
-  }
-  el.innerHTML = items.map(item => {
-    const decayLabel = item.decay_rate === 0 ? 'no decay' : item.decay_rate.toFixed(2) + '/hr';
-    return '<div class="unresolved-item">' +
-      '<span class="source-tag">' + item.source + '</span> ' +
-      '<span style="color:#ccc">' + esc(truncate(item.description, 100)) + '</span>' +
-      '<div style="color:#888;font-size:10px">intensity: ' + item.intensity.toFixed(2) +
-      ' &middot; decay: ' + decayLabel + '</div>' +
-      '</div>';
+  if (!items || !items.length) { el.innerHTML = ''; return; }
+  el.innerHTML = items.map(i => {
+    const dr = i.decay_rate === 0 ? 'no decay' : i.decay_rate.toFixed(2) + '/hr';
+    return '<div class="unresolved-item"><span class="source-tag">' + esc(i.source) + '</span> ' +
+      '<span style="color:var(--text-dim)">' + esc(trunc(i.description, 100)) + '</span>' +
+      '<div style="color:var(--text-faint);font-size:10px">intensity: ' + i.intensity.toFixed(2) + ' &middot; ' + dr + '</div></div>';
   }).join('');
 }
 
-function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
-function truncate(s, n) { return s && s.length > n ? s.substring(0, n) + '...' : (s || ''); }
-
-function openSettings() {
-  settingsOverlayEl.classList.add('open');
-  loadSettings().catch(err => setSettingsStatus('Failed to load settings: ' + err.message, true));
+function toggleDebug() {
+  debugPanel.classList.toggle('open');
+  debugToggle.classList.toggle('active');
 }
 
-function closeSettings() {
-  settingsOverlayEl.classList.remove('open');
-}
-
-function closeSettingsIfBackdrop(event) {
-  if (event.target === settingsOverlayEl) {
-    closeSettings();
-  }
-}
-
-async function loadSettings() {
-  const res = await fetch('/config');
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  const data = await res.json();
-  applySettingsPayload(data);
-}
-
-async function saveSettings() {
-  const payload = {
-    data_dir: getFieldValue('cfg-data_dir'),
-    max_queue_per_user: getIntValue('cfg-max_queue_per_user'),
-    max_active_sessions: getIntValue('cfg-max_active_sessions'),
-    session_timeout_seconds: getFloatValue('cfg-session_timeout_seconds'),
-    console_enabled: getBoolSelectValue('cfg-console_enabled'),
-    telegram_allowlist: getTextareaLines('cfg-telegram_allowlist'),
-    telegram_poll_timeout: getIntValue('cfg-telegram_poll_timeout'),
-    dedupe_ttl: getFloatValue('cfg-dedupe_ttl'),
-    llm_backend: getFieldValue('cfg-llm_backend'),
-    llm_base_url: getFieldValue('cfg-llm_base_url'),
-    llm_model: getFieldValue('cfg-llm_model'),
-    debug_host: getFieldValue('cfg-debug_host'),
-    debug_port: getIntValue('cfg-debug_port'),
-    proactive_enabled: getBoolSelectValue('cfg-proactive_enabled'),
-    proactive_idle_threshold: getFloatValue('cfg-proactive_idle_threshold'),
-    proactive_max_per_session: getIntValue('cfg-proactive_max_per_session'),
-    proactive_cooldown: getFloatValue('cfg-proactive_cooldown'),
-    proactive_check_interval: getFloatValue('cfg-proactive_check_interval'),
-    telegram_token: getFieldValue('cfg-telegram_token'),
-    llm_api_key: getFieldValue('cfg-llm_api_key'),
-    minimax_api_key: getFieldValue('cfg-minimax_api_key'),
-    clear_telegram_token: document.getElementById('cfg-clear_telegram_token').checked,
-    clear_llm_api_key: document.getElementById('cfg-clear_llm_api_key').checked,
-    clear_minimax_api_key: document.getElementById('cfg-clear_minimax_api_key').checked,
-  };
-
-  try {
-    setSettingsStatus('Saving settings...');
-    const res = await fetch('/config', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.detail || ('HTTP ' + res.status));
-    }
-    applySettingsPayload(data);
-    setSettingsStatus(
-      (data.message || 'Configuration saved.') +
-      (data.reloaded_web_manager ? ' Web session manager reloaded.' : ''),
-      false,
-    );
-  } catch (err) {
-    setSettingsStatus('Failed to save settings: ' + err.message, true);
-  }
-}
-
-function applySettingsPayload(payload) {
-  const cfg = payload.config || {};
-  setFieldValue('cfg-data_dir', cfg.data_dir || 'data');
-  setFieldValue('cfg-max_queue_per_user', cfg.max_queue_per_user ?? 3);
-  setFieldValue('cfg-max_active_sessions', cfg.max_active_sessions ?? 10);
-  setFieldValue('cfg-session_timeout_seconds', cfg.session_timeout_seconds ?? 1800);
-  setFieldValue('cfg-console_enabled', String(cfg.console_enabled));
-  setFieldValue('cfg-telegram_poll_timeout', cfg.telegram_poll_timeout ?? 30);
-  setFieldValue('cfg-dedupe_ttl', cfg.dedupe_ttl ?? 60);
-  setFieldValue('cfg-llm_backend', cfg.llm_backend || 'auto');
-  setFieldValue('cfg-llm_base_url', cfg.llm_base_url || '');
-  setFieldValue('cfg-llm_model', cfg.llm_model || '');
-  setFieldValue('cfg-debug_host', cfg.debug_host || '127.0.0.1');
-  setFieldValue('cfg-debug_port', cfg.debug_port ?? 8077);
-  setFieldValue('cfg-proactive_enabled', String(cfg.proactive_enabled));
-  setFieldValue('cfg-proactive_idle_threshold', cfg.proactive_idle_threshold ?? 300);
-  setFieldValue('cfg-proactive_max_per_session', cfg.proactive_max_per_session ?? 3);
-  setFieldValue('cfg-proactive_cooldown', cfg.proactive_cooldown ?? 300);
-  setFieldValue('cfg-proactive_check_interval', cfg.proactive_check_interval ?? 60);
-  setFieldValue('cfg-telegram_allowlist', (cfg.telegram_allowlist || []).join('\n'));
-
-  clearSecretInputs();
-  document.getElementById('cfg-clear_telegram_token').checked = false;
-  document.getElementById('cfg-clear_llm_api_key').checked = false;
-  document.getElementById('cfg-clear_minimax_api_key').checked = false;
-
-  applySecretStatus('telegram_token', payload.secret_status);
-  applySecretStatus('llm_api_key', payload.secret_status);
-  applySecretStatus('minimax_api_key', payload.secret_status);
-
-  const notes = (payload.notes || []).map(note => '<div class="settings-note">' + esc(note) + '</div>').join('');
-  setSettingsStatus(
-    'Config file: ' + esc(payload.config_path || 'runtime_config.yaml') + notes,
-    false,
-  );
-}
-
-function applySecretStatus(name, statusMap) {
-  const configured = Boolean(statusMap && statusMap[name]);
-  const statusEl = document.getElementById('cfg-status-' + name);
-  statusEl.textContent = configured
-    ? 'Configured. Leave blank to keep the current value.'
-    : 'Not configured.';
-}
-
-function clearSecretInputs() {
-  setFieldValue('cfg-telegram_token', '');
-  setFieldValue('cfg-llm_api_key', '');
-  setFieldValue('cfg-minimax_api_key', '');
-}
-
-function setSettingsStatus(message, isError) {
-  const el = document.getElementById('settingsStatus');
-  el.classList.toggle('error', Boolean(isError));
-  el.innerHTML = message;
-}
-
-function getFieldValue(id) {
-  return document.getElementById(id).value;
-}
-
-function setFieldValue(id, value) {
-  document.getElementById(id).value = value;
-}
-
-function getIntValue(id) {
-  return parseInt(getFieldValue(id), 10);
-}
-
-function getFloatValue(id) {
-  return parseFloat(getFieldValue(id));
-}
-
-function getBoolSelectValue(id) {
-  return getFieldValue(id) === 'true';
-}
-
-function getTextareaLines(id) {
-  return getFieldValue(id)
-    .split('\n')
-    .map(line => line.trim())
-    .filter(Boolean);
-}
-
+// Session actions
 async function endSession() {
   try {
-    const res = await fetch('/session/end', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({user_id: userId, chat_id: chatId}),
-    });
+    const res = await fetch('/session/end', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({user_id: userId, chat_id: chatId}) });
     const data = await res.json();
-    addMessage('[Session ended: ' + data.summary + ']', 'assistant');
-  } catch (err) {
-    addMessage('Error ending session: ' + err.message, 'assistant');
-  }
+    addMessage('[Session ended: ' + (data.summary || 'digested') + ']', 'assistant');
+  } catch (err) { addMessage('Error: ' + err.message, 'assistant'); }
 }
 
 async function applyRest() {
   try {
-    const res = await fetch('/rest', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({hours: 1.0, user_id: userId, chat_id: chatId}),
-    });
+    const res = await fetch('/rest', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({hours: 1.0, user_id: userId, chat_id: chatId}) });
     const data = await res.json();
-    addMessage('[Rested 1hr: energy ' + data.energy_before.toFixed(2) + ' → ' + data.energy_after.toFixed(2) + ']', 'assistant');
-    // Refresh debug display
-    const debugRes = await fetch('/debug?' + new URLSearchParams({
-      user_id: userId,
-      chat_id: chatId,
-    }));
-    const debugData = await debugRes.json();
-    const mods = ['arousal', 'valence', 'certainty', 'bonding', 'energy', 'resolution'];
-    for (const m of mods) {
-      const val = debugData.modulator_snapshot[m] || 0;
-      document.getElementById('val-' + m).textContent = val.toFixed(2);
-      document.getElementById('bar-' + m).style.width = (val * 100) + '%';
-    }
-    document.getElementById('emotionLabel').textContent = debugData.emotion_label || 'neutral';
-  } catch (err) {
-    addMessage('Error: ' + err.message, 'assistant');
-  }
+    addMessage('[Rested 1hr: energy ' + data.energy_before.toFixed(2) + ' \u2192 ' + data.energy_after.toFixed(2) + ']', 'assistant');
+    const dr = await fetch('/debug?' + new URLSearchParams({user_id: userId, chat_id: chatId}));
+    const dd = await dr.json();
+    if (dd.modulator_snapshot) updateDebug(dd);
+  } catch (err) { addMessage('Error: ' + err.message, 'assistant'); }
 }
 
-function getOrCreateStorageId(key, storage) {
-  let value = storage.getItem(key);
-  if (!value) {
-    value = (window.crypto && window.crypto.randomUUID)
-      ? window.crypto.randomUUID()
-      : 'id-' + Math.random().toString(36).slice(2);
-    storage.setItem(key, value);
-  }
-  return value;
+// Settings
+function openSettings() { settingsOverlay.classList.add('open'); loadSettings().catch(e => setStatus('Failed: ' + e.message, true)); }
+function closeSettings() { settingsOverlay.classList.remove('open'); }
+function closeSettingsIfBackdrop(e) { if (e.target === settingsOverlay) closeSettings(); }
+
+async function loadSettings() {
+  const res = await fetch('/config'); if (!res.ok) throw new Error('HTTP ' + res.status);
+  applySettings(await res.json());
 }
+
+async function saveSettings() {
+  const p = {
+    data_dir: gv('cfg-data_dir'), max_queue_per_user: gi('cfg-max_queue_per_user'), max_active_sessions: gi('cfg-max_active_sessions'),
+    session_timeout_seconds: gf('cfg-session_timeout_seconds'), console_enabled: gb('cfg-console_enabled'),
+    telegram_allowlist: gv('cfg-telegram_allowlist').split('\n').map(s=>s.trim()).filter(Boolean),
+    telegram_poll_timeout: gi('cfg-telegram_poll_timeout'), dedupe_ttl: gf('cfg-dedupe_ttl'),
+    llm_backend: gv('cfg-llm_backend'), llm_base_url: gv('cfg-llm_base_url'), llm_model: gv('cfg-llm_model'),
+    debug_host: gv('cfg-debug_host'), debug_port: gi('cfg-debug_port'),
+    proactive_enabled: gb('cfg-proactive_enabled'), proactive_idle_threshold: gf('cfg-proactive_idle_threshold'),
+    proactive_max_per_session: gi('cfg-proactive_max_per_session'), proactive_cooldown: gf('cfg-proactive_cooldown'),
+    proactive_check_interval: gf('cfg-proactive_check_interval'),
+    telegram_token: gv('cfg-telegram_token'), llm_api_key: gv('cfg-llm_api_key'), minimax_api_key: gv('cfg-minimax_api_key'),
+    clear_telegram_token: document.getElementById('cfg-clear_telegram_token').checked,
+    clear_llm_api_key: document.getElementById('cfg-clear_llm_api_key').checked,
+    clear_minimax_api_key: document.getElementById('cfg-clear_minimax_api_key').checked,
+  };
+  try {
+    setStatus('Saving...');
+    const res = await fetch('/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(p) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
+    applySettings(data);
+    setStatus((data.message || 'Saved.') + (data.reloaded_web_manager ? ' Session manager reloaded.' : ''));
+  } catch (err) { setStatus('Error: ' + err.message, true); }
+}
+
+function applySettings(payload) {
+  const c = payload.config || {};
+  sv('cfg-data_dir', c.data_dir||'data'); sv('cfg-max_queue_per_user', c.max_queue_per_user??3);
+  sv('cfg-max_active_sessions', c.max_active_sessions??10); sv('cfg-session_timeout_seconds', c.session_timeout_seconds??1800);
+  sv('cfg-console_enabled', String(c.console_enabled)); sv('cfg-telegram_poll_timeout', c.telegram_poll_timeout??30);
+  sv('cfg-dedupe_ttl', c.dedupe_ttl??60); sv('cfg-llm_backend', c.llm_backend||'auto');
+  sv('cfg-llm_base_url', c.llm_base_url||''); sv('cfg-llm_model', c.llm_model||'');
+  sv('cfg-debug_host', c.debug_host||'127.0.0.1'); sv('cfg-debug_port', c.debug_port??8077);
+  sv('cfg-proactive_enabled', String(c.proactive_enabled)); sv('cfg-proactive_idle_threshold', c.proactive_idle_threshold??300);
+  sv('cfg-proactive_max_per_session', c.proactive_max_per_session??3); sv('cfg-proactive_cooldown', c.proactive_cooldown??300);
+  sv('cfg-proactive_check_interval', c.proactive_check_interval??60);
+  sv('cfg-telegram_allowlist', (c.telegram_allowlist||[]).join('\n'));
+  sv('cfg-telegram_token',''); sv('cfg-llm_api_key',''); sv('cfg-minimax_api_key','');
+  ['cfg-clear_telegram_token','cfg-clear_llm_api_key','cfg-clear_minimax_api_key'].forEach(id => document.getElementById(id).checked = false);
+  const ss = payload.secret_status || {};
+  ['telegram_token','llm_api_key','minimax_api_key'].forEach(k => {
+    document.getElementById('cfg-status-' + k).textContent = ss[k] ? 'Configured. Leave blank to keep.' : 'Not configured.';
+  });
+  const notes = (payload.notes||[]).map(n => '<div class="settings-note">' + esc(n) + '</div>').join('');
+  setStatus('Config: ' + esc(payload.config_path || 'runtime_config.yaml') + notes);
+}
+
+function setStatus(msg, err) { const el = document.getElementById('settingsStatus'); el.classList.toggle('error', !!err); el.innerHTML = msg; }
+function gv(id) { return document.getElementById(id).value; }
+function sv(id, v) { document.getElementById(id).value = v; }
+function gi(id) { return parseInt(gv(id), 10); }
+function gf(id) { return parseFloat(gv(id)); }
+function gb(id) { return gv(id) === 'true'; }
+function esc(s) { const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML; }
+function trunc(s, n) { return s && s.length > n ? s.substring(0, n) + '...' : (s || ''); }
+function getOrCreateId(key, store) { let v = store.getItem(key); if (!v) { v = crypto.randomUUID ? crypto.randomUUID() : 'id-' + Math.random().toString(36).slice(2); store.setItem(key, v); } return v; }
 </script>
 </body>
 </html>
