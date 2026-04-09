@@ -1,24 +1,21 @@
 data_dir: data
 max_queue_per_user: 3
 max_active_sessions: 10
-session_timeout_seconds: 1800
-
-# Channels
+session_timeout_seconds: 1800.0
 console_enabled: true
-
-# Telegram (leave token empty to disable)
-telegram_token: ""
-telegram_allowlist: []   # numeric user IDs; empty = allow all
+telegram_token: ''
+telegram_allowlist: []
 telegram_poll_timeout: 30
-dedupe_ttl: 60
-
-# LLM backend ("auto", "minimax", "openai_compatible", "mock")
-llm_backend: auto
-llm_base_url: ""      # e.g. http://127.0.0.1:8000/v1 for local vLLM
-llm_model: ""         # e.g. Qwen/Qwen3-30B-A3B
-llm_api_key: ""       # generic key for OpenAI-compatible backends (optional for local)
-minimax_api_key: ""   # backward-compatible MiniMax key; leave empty to use env
-
-# Debug API
-debug_host: "127.0.0.1"
+dedupe_ttl: 60.0
+llm_backend: minimax
+llm_base_url: https://api.minimax.io/v1
+llm_model: MiniMax-M2.7-highspeed
+llm_api_key: ''
+minimax_api_key: ''
+debug_host: 127.0.0.1
 debug_port: 8077
+proactive_enabled: false
+proactive_idle_threshold: 300.0
+proactive_max_per_session: 3
+proactive_cooldown: 300.0
+proactive_check_interval: 60.0
