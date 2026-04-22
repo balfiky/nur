@@ -17,11 +17,11 @@ produce the same response, and accumulated history does not
 detectably shape behavior. We describe Project Nūr, a cognitive
 architecture that treats emotion as persistent internal state rather
 than a prompt-level style layer. Nūr combines six continuous
-modulators, dual short- and long-term memory, unified self/other
-profiling, deterministic social appraisal, bounded dual-process
-deliberation, and defense mechanisms — taken as engineering
-inspiration from PSI, ACT-R, and CLARION rather than as faithful
-implementations. A provenance-stamped evaluation harness ablates one
+modulators, dual short- and long-term memory, a separate
+relationship-memory layer, unified self/other profiling, deterministic
+social appraisal, bounded dual-process deliberation, defense
+mechanisms, and semantic memory — taken as engineering inspiration
+from PSI, ACT-R, and CLARION rather than as faithful implementations. A provenance-stamped evaluation harness ablates one
 architectural component at a time against a behavioral scenario
 suite on a real large-language-model backend. We report one
 load-bearing result: relationship memory is demonstrably necessary
@@ -44,9 +44,10 @@ message has landed against a particular history and a particular
 relationship. Stateful RAG systems preserve the factual record of
 past interactions but not the emotional residue: whether a previous
 conversation felt warm or sharp, whether trust accumulated or broke,
-whether something was left unresolved. Without that substrate, the
+whether something was left unresolved. Without that substrate the
 same words from different people, said at different moments in a
-relationship, cannot produce different responses.
+relationship, cannot *land* differently — the retrieved text may
+vary, but the assistant's stance toward the speaker does not.
 
 The standard engineering response is to layer a persona on top: tell
 the language model to sound warm, or to maintain a specific voice.
@@ -251,10 +252,13 @@ modulator has its own temporal behavior — arousal decays with a
 roughly two-minute half-life, valence over tens of minutes, bonding
 over days; energy drains with use and recovers with simulated rest;
 resolution is derived from a set of active unresolved items, each with
-its own decay rate. The state updates from four sources per turn:
+its own decay rate. The state updates from several sources per turn:
 bounded emotional contagion from the user's detected tone, a
 person-specific baseline shift, event-driven impulses from a
-classified emotional event, and time-based decay toward baseline.
+classified emotional event, and time-based decay toward baseline. A
+forward-modeling heuristic additionally pre-shifts modulators at low
+intensity based on anticipated next moves; this is a small effect by
+design and is not individually ablated in the present evaluation.
 
 This layer is inspired by PSI Theory's framing of emotion as a
 configuration of continuous internal variables rather than as discrete
@@ -428,13 +432,17 @@ deterministic math is, and LLM inference is used only where flexible
 language generation or reflective evaluation is genuinely required.
 Modulator updates, exponential decay, profile arithmetic, contradiction
 detection, response strategy selection, and memory activation scoring
-are all deterministic pure-Python code with unit tests. The LLM is
-called for three things: generating the final response, optionally
-running inner-dialogue deliberation when heuristics suggest a non-
-trivial turn, and optionally running a higher-cost self-check on
-extreme-intensity turns. Social appraisal is rule-based rather than
-LLM-based: this loses linguistic coverage on unusual phrasings but
-keeps appraisal outcomes inspectable and unit-testable.
+are all deterministic pure-Python code with unit tests. For a standard
+conversational turn the LLM is called at three primary sites:
+generating the final response, optionally running inner-dialogue
+deliberation when heuristics suggest a non-trivial turn, and
+optionally running a higher-cost self-check on extreme-intensity
+turns. A separate agentic tool-arbitration loop uses additional LLM
+calls when tools are engaged; Phase 11 scenarios in §6 do not engage
+tools, so that path is out of scope for this paper. Social appraisal
+is rule-based rather than LLM-based: this loses linguistic coverage on
+unusual phrasings but keeps appraisal outcomes inspectable and
+unit-testable.
 
 The design choice is pragmatic, not theoretical. Deterministic steps
 can be diff'd, profiled, and calibrated; LLM steps cannot be
@@ -541,7 +549,12 @@ the generator prompt, and unmeasured provenance fields must serialize
 as JSON null. The license is MIT, the repository carries configuration
 and release hygiene documents (contributing, security, privacy), and
 the tracked evaluation artifact `reports/ablation/summary.json` is the
-canonical paper-citable source of the numbers reported in §6.
+canonical paper-citable source of the numbers reported in §6. The
+currently-tracked summary predates the compact provenance block
+described in §5.4; regenerating the summary at any commit from
+`a978477` onward produces the provenance-enriched format, and §6.6
+documents the cross-reference paths readers should use in the
+meantime.
 
 ---
 
@@ -1006,6 +1019,15 @@ each report. A single compact summary artifact,
 the canonical source of the numbers cited in §6. Per-variant raw
 reports are intentionally gitignored to prevent accumulation of stale
 JSON in history.
+
+The currently-tracked summary was produced before the compact
+provenance block was added to the summary format. The numbers it
+contains — pass/fail outcomes, LLM call counts, and latency — remain
+accurate for the run they document; what it does not itself carry is
+the git SHA and backend identity of that run. Regenerating the
+summary at any commit from `a978477` onward produces the
+provenance-enriched format, and §6.6 describes the cross-reference
+readers should use until the tracked summary is re-run.
 
 Test coverage for the paper's infrastructure claims is 1,319 passing
 tests, run with `python -m pytest`. Specific invariants — accurate
