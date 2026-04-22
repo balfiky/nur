@@ -72,12 +72,17 @@ rate-controlled token budgets.
 
 Ablations are defined by a `PipelineFeatures` object with four boolean
 toggles: relationship memory, inner dialogue, defense, semantic memory.
-When a feature is disabled, the corresponding component is replaced with
-a null implementation under a strict contract — no state written, no
-retrieval returns non-empty, no prompt injection — so the ablation
-cleanly isolates that component's contribution rather than merely
-suppressing its output. A separate, auditable module records the
-hypotheses for each ablation in advance of running it:
+When a feature is disabled, its component is bypassed under a
+three-part contract: writes are no-ops, reads return empty, and the
+component contributes no content to the generator's prompt. Tests
+lock each half of the contract for every toggle. One subtlety worth
+naming: some prompt slots are shared across components — for example,
+both inner dialogue and defense can populate the generator's candidate
+slot — so verifying a single toggle's no-injection property may
+require disabling adjacent toggles to isolate the component under
+test. We do this in the corresponding tests. A separate, auditable
+module records the hypotheses for each ablation in advance of running
+it:
 
 | Ablation | Hypothesis |
 |---|---|
@@ -186,12 +191,19 @@ The command that reproduces the table in §6.4 is:
         --report-dir reports/ablation
 
 Readers reproducing at the same git SHA with the same configuration
-fingerprints, using the same backend and model, should obtain pass/fail
-outcomes and LLM call counts identical to those in §6.4. Latency will
-vary with network conditions. Scenarios may exhibit non-deterministic
-response text even when structural assertions are deterministic; the
-scoring logic is therefore written against internal debug state rather
-than response strings.
+fingerprints should obtain identical LLM call counts: the counter is
+deterministic and does not depend on the provider. Pass/fail outcomes
+should hold under the same provider and model, but live-backend
+results can drift over time because cloud providers periodically
+change what a named model alias resolves to without renaming it. We
+therefore recommend readers re-run the ablation against the same
+provider close in time to when they intend to cite the result, or
+cross-reference the ``requested_model`` vs ``resolved_model`` fields in
+the run's provenance block to confirm alignment with our reported
+numbers. Latency varies with network conditions. Scenarios may exhibit
+non-deterministic response text even when structural assertions are
+deterministic; the scoring logic is therefore written against
+internal debug state rather than response strings.
 
 The repository carries the summary artifact as a tracked file; raw
 per-variant reports are intentionally gitignored so that future runs do

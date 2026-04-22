@@ -83,6 +83,30 @@ class TestRelationshipMemoryToggle:
         assert pipe.relationship_memory.count_open_loops("alice") == 0
         pipe.close()
 
+    def test_disabled_means_no_prompt_section(self):
+        """Locks the 'no prompt injection' half of the toggle contract.
+
+        When disabled, the relationship-memory section markers that the
+        generator would have injected (see
+        ``core.dual_process.generator._build_memory_section``) must never
+        appear in the system prompt — even across turns that would
+        normally create ruptures, repairs, and open loops.
+        """
+        pipe = self._pipeline(enabled=False)
+        pipe.process("I am really upset about this", user_id="alice")
+        pipe.process("I am sorry for getting upset", user_id="alice")
+        system_prompt = pipe._llm_backend.last_system_prompt
+        for marker in (
+            "Relationship context:",
+            "Open loop:",
+            "Recent relationship event:",
+        ):
+            assert marker not in system_prompt, (
+                f"relationship-memory marker '{marker}' leaked into prompt "
+                f"despite feature being disabled"
+            )
+        pipe.close()
+
 
 class TestSemanticMemoryToggle:
     def _pipeline(self, *, enabled: bool) -> CognitivePipeline:
@@ -149,6 +173,31 @@ class TestInnerDialogueToggle:
         assert after >= before
         pipe.close()
 
+    def test_disabled_means_no_inner_dialogue_content_in_prompt(self):
+        """Locks the 'no prompt injection' half of the toggle contract.
+
+        Scope note: the ``## Draft Response to Refine`` section (built by
+        ``_build_candidate_section``) consumes whatever sits in
+        ``ctx.candidate_response``. With inner_dialogue disabled but
+        defense still enabled, the defense mechanism can *independently*
+        fill that same slot with its suppression instruction — that is
+        defense doing its job, not an inner-dialogue leak. To cleanly
+        isolate the inner-dialogue contract we disable defense too in
+        this test, so any remaining content in the candidate slot would
+        have to come from inner dialogue.
+        """
+        pipe = CognitivePipeline(
+            llm_backend=MockLLMBackend(response="I understand."),
+            features=PipelineFeatures(inner_dialogue=False, defense=False),
+        )
+        pipe.process("I love and hate you at the same time", user_id="alice")
+        system_prompt = pipe._llm_backend.last_system_prompt
+        assert "## Draft Response to Refine" not in system_prompt, (
+            "inner-dialogue marker leaked into prompt despite both "
+            "inner_dialogue and defense being disabled"
+        )
+        pipe.close()
+
 
 class TestDefenseToggle:
     def _pipeline(self, *, enabled: bool) -> CognitivePipeline:
@@ -171,6 +220,24 @@ class TestDefenseToggle:
         after_count = len(pipe.self_profile.get_profile().defense_log)
         assert after_count == before_count, (
             "defense events must not accumulate when defense is disabled"
+        )
+        pipe.close()
+
+    def test_disabled_means_no_defense_section_in_prompt(self):
+        """Locks the 'no prompt injection' half of the toggle contract.
+
+        When disabled, the ``## Defense Filter`` section that the
+        generator injects when a defense is active (see
+        ``_build_defense_instruction_section``) must never appear in
+        the system prompt, even on a high-intensity message that would
+        normally trigger defense activation.
+        """
+        pipe = self._pipeline(enabled=False)
+        pipe.process("I am furious and I hate you right now!", user_id="alice")
+        system_prompt = pipe._llm_backend.last_system_prompt
+        assert "## Defense Filter" not in system_prompt, (
+            "defense instruction section leaked into prompt despite "
+            "feature being disabled"
         )
         pipe.close()
 
