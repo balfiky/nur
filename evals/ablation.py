@@ -165,13 +165,20 @@ def _build_summary(
     baseline: EvalReport,
     variants: list[tuple[Ablation, EvalReport]],
 ) -> dict[str, Any]:
-    """Top-level summary used for the paper's ablation table."""
+    """Top-level summary used for the paper's ablation table.
+
+    Embeds a compact provenance block at the top so the tracked summary
+    artifact is self-describing: a reader can tell from summary.json
+    alone which code state and which backend produced the numbers,
+    without having to cross-reference the (gitignored) raw reports.
+    """
 
     def by_id(rep: EvalReport) -> dict[str, EvalResult]:
         return {r.scenario_id: r for r in rep.results}
 
     b_by = by_id(baseline)
     summary: dict[str, Any] = {
+        "provenance": _summary_provenance(baseline),
         "baseline": {
             "passed": baseline.passed_scenarios,
             "total": baseline.total_scenarios,
@@ -210,6 +217,39 @@ def _build_summary(
             "counts": _count_outcomes(outcomes),
         })
     return summary
+
+
+def _summary_provenance(baseline: EvalReport) -> dict[str, Any]:
+    """Compact, paper-citable provenance lifted from the baseline run.
+
+    Intentionally narrower than the full ``RunProvenance`` block in the
+    raw per-variant reports — the summary is for citation, not replay.
+    Includes only the fields a reader needs to trust the numbers:
+    code state, backend identity, scenario set, and when it ran. Each
+    variant report still carries the full provenance block if deeper
+    inspection is needed.
+    """
+    if baseline.provenance is None:
+        return {}
+    p = baseline.provenance
+    return {
+        "git_sha": p.git_sha,
+        "git_branch": p.git_branch,
+        "dirty_worktree": p.dirty_worktree,
+        "backend_type": p.backend_type,
+        "requested_model": p.requested_model,
+        "resolved_model": p.resolved_model,
+        "base_url": p.base_url,
+        "host": p.host,
+        "started_at": p.started_at,
+        "finished_at": p.finished_at,
+        "scenario_set": p.scenario_set,
+        "scenario_count": p.scenario_count,
+        # Full config fingerprints live in the per-variant baseline.json;
+        # here we record only the fingerprint count so the reader knows
+        # config-drift tracking is in effect.
+        "config_fingerprint_count": len(p.config_fingerprints),
+    }
 
 
 def _count_outcomes(outcomes: dict[str, dict[str, Any]]) -> dict[str, int]:
