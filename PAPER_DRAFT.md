@@ -754,7 +754,102 @@ of the summary at the current or later commit will include it.
 
 ---
 
+## 7. Discussion
+
+### 7.1 What the results do and do not show
+
+The single positive claim the evaluation produces is narrow and
+specific: on the Phase 11 scenario suite, evaluated against MiniMax
+M2.7-highspeed at a known git SHA and configuration fingerprint,
+disabling relationship memory causes exactly the two scenarios that
+depend on persisted cross-turn open-loop state to fail, and no
+others. Three other component ablations show zero structural
+failures. We interpret this as a demonstration that at least one
+architectural component is measurably load-bearing on an inspectable
+structural suite — and that the other three ablations are not
+falsifiable by these scenarios rather than shown inert. The
+evaluation does not show that the architecture produces
+better-feeling responses, that cumulative relationship history
+improves user experience, or that any component contributes to
+response quality. Those claims require different evidence.
+
+### 7.2 Why a prompt-only baseline is a different experiment
+
+The natural follow-up question — "would a simpler prompt-only
+configuration of the same base model achieve the same scenario
+results?" — is not answerable from these scenarios. Phase 11
+assertions check pipeline internals: whether a specific strategy
+was selected, whether a modulator moved in the expected direction,
+whether a memory record was written. A prompt-only system has no
+pipeline internals to assert on; comparing it to Nūr on these
+scenarios would measure which design has more testable surface, not
+which produces better responses. A fair comparison would require a
+different scenario design — open-ended dialogues graded by blinded
+human raters on quality, coherence, or continuity — together with
+matched model, token budget, and memory affordance. That is worth
+doing. It is a separate experimental program, not a missing control
+in this one.
+
+### 7.3 Where expert critique can bite
+
+Three communities will evaluate this architecture on different
+criteria.
+
+*Affective-science reviewers* can legitimately push on whether six
+modulators are a sufficient basis for the space of relational
+affect (e.g., whether attachment dimensions, moral emotion, or
+social-cognitive stance need explicit representation), on whether
+the defense layer is a coherent psychological model or a stylized
+intervention, and on whether the 7.5× trust asymmetry is empirically
+justified or a tuning artifact.
+
+*Cognitive-architecture reviewers* can push on whether the hybrid
+deterministic/LLM split is drawn at the right seams, on whether
+unified self/other profiling degrades under scale or long
+interaction, and on whether the bounded dual-process loop adds
+behavioral value that this evaluation could not detect.
+
+*HCI and product reviewers* can push on whether persistent relational
+state improves or degrades user experience in real deployment, on
+whether the debug surface is an affordance for users or only for
+developers, and on the anthropomorphism risk of a system that tracks
+ruptures, repairs, and open loops.
+
+These questions are outside the scope of this paper's evaluation.
+They are what a next paper and a next round of expert review should
+test.
+
+### 7.4 Threats to validity
+
+Threats specific to the evaluation in §6:
+
+- **Small scenario count.** Six Phase 11 scenarios with 25 total
+  assertions is limited statistical resolution, especially for
+  ablations that show "no effect." A larger suite would strengthen
+  the "not falsifiable" reading of those zero-effect results.
+- **Authorship bias across scenarios, hypotheses, and architecture.**
+  The same team wrote the cognitive layer, the scenario suite, and
+  the hypothesis table. Each step was independently reviewable, but
+  none was externally blinded. An external scenario suite and an
+  external hypothesis table would substantially strengthen the
+  interpretation of the ablation outcomes.
+- **Single backend tested at the live-inference layer.** Structural
+  results held on MiniMax M2.7-highspeed. We do not have evidence
+  that the same pattern holds under a local open model, a different
+  commercial backend, or a different model size class.
+- **Structural-state assertions do not distinguish architecture-
+  quality from backend-quality.** The suite cannot separate "the
+  cognitive layer works" from "the cognitive layer plus this
+  particular backend works well enough to satisfy the assertions."
+  A multi-backend ablation would disentangle these.
+
+Broader limitations of the system itself — human-likeness,
+client-level telemetry, theory-framing fidelity — are addressed in
+§8 rather than here, so that the threats above stay tied directly to
+§6's evaluation protocol.
+
+---
+
 ## Remaining sections
 
-§1–5, §7–11 to be drafted after §6 stabilizes. See `PAPER_OUTLINE.md`
-for the skeleton.
+§8–11 to be drafted next. See `PAPER_OUTLINE.md` for the skeleton.
