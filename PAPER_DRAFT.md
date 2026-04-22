@@ -850,6 +850,176 @@ client-level telemetry, theory-framing fidelity — are addressed in
 
 ---
 
-## Remaining sections
+## 8. Limitations
 
-§8–11 to be drafted next. See `PAPER_OUTLINE.md` for the skeleton.
+§7.4 listed threats specific to the evaluation protocol. This section
+lists broader limitations of the system and the scope of the paper.
+
+*No human-subject validation.* We do not claim, and the evaluation
+does not support, that Nūr produces more human-like or more
+emotionally coherent responses. A blinded user study with matched
+baselines is the obvious next experimental step.
+
+*Theory framing is inspirational, not faithful.* PSI's motivational
+core, ACT-R's formal activation equation, and CLARION's learned
+implicit/explicit coordination are not implemented. Readers expecting
+faithful reproduction of any of those frameworks will find this a
+limitation; we consider the engineering synthesis worth making
+explicit rather than disguising it as theoretical fidelity.
+
+*Provider-level telemetry is not captured.* Per-call prompt and
+completion tokens, provider-internal retries, and estimated cost are
+recorded as JSON `null` in every report because the current LLM
+clients do not extract those fields from responses. Capturing them
+requires a modest but deliberate change to the client layer.
+
+*Single-user scoping is architectural.* A `CognitivePipeline`
+instance models one ongoing relationship. Multi-party conversations
+(group chats, shared rooms) would require cross-user reasoning that
+is explicitly outside this architecture.
+
+*Structural-assertion evaluation cannot speak to response wording or
+quality.* The scenario suite verifies that the expected pipeline path
+fires and the expected state changes; it does not verify that the
+resulting response is coherent, appropriate, or human-feeling.
+
+*Unbounded memory growth.* Long-term, relationship, and semantic
+memory all accumulate indefinitely. Retention policies are outside
+this paper's scope but would be a production-deployment requirement.
+
+*Authorship bias across the whole design.* The architecture's
+inspirations, differentiators, hypothesis choices, and component
+boundaries are all argued internally. Expert review from the three
+communities named in §7.3 would meaningfully strengthen or challenge
+those choices; that review has not yet happened.
+
+---
+
+## 9. Ethics and Responsible Deployment
+
+A system that tracks trust, bonding, ruptures, and unresolved loops
+is not neutral. Several concerns warrant explicit treatment.
+
+*Anthropomorphism.* Persistent relational state can invite attachment
+beyond what is appropriate for an assistant — over-reliance,
+disclosure of material a user would not share with a stateless tool,
+and parasocial dynamics. We recommend deployments make the system's
+nature explicit at onboarding and repeat that framing when
+relationship-memory state materially shapes a response.
+
+*Consent.* Because the system persists relational and semantic memory
+about its users, deployers must obtain informed consent from those
+users. The project's `PRIVACY.md` documents what is stored, where, and
+how to inspect or remove it. Deployments to users who have not
+consented — for example, a third-party chatbot repurposed as a
+journaling assistant without notice — would be inappropriate.
+
+*Retention and deletion.* The system carries no automatic expiration.
+A dedicated `DELETE /v1/users/{platform}/{user_id}` endpoint wipes all
+persisted data for a given user on a given platform, evicts live
+sessions for that identity, and by design does not touch the shared
+self-model. Best-effort row counts are returned so the caller can
+verify what was wiped.
+
+*Dual-use risk.* A persistent-state relational assistant can be
+configured to simulate relationship dynamics (bonding, repair,
+apparent emotional memory) with users who have not consented to such
+a simulation. We recommend consent-first deployment and explicit
+operator review of prompt and soul-seed configurations before
+production use.
+
+*Failure modes.* The architecture admits states the operator may need
+to handle — a system drifting toward low valence and low energy for
+extended periods, or accumulating bonding with a single user well
+beyond the deployment intent. The inspectable `/v1` surfaces expose
+those states; what operator response is appropriate is a deployment-
+level question beyond this paper.
+
+*Security.* The project's `SECURITY.md` describes the private-
+disclosure flow for vulnerabilities and enumerates the
+sensitive surfaces (session JSON, per-user SQLite, API keys).
+
+---
+
+## 10. Future Work
+
+Several follow-ons are enabled by the current codebase and evaluation
+harness.
+
+*Client-level telemetry instrumentation.* Modifying `LLMClient` and
+`OpenAICompatibleLLMBackend` to extract and record per-call token
+usage, observed retries, and enough information to compute cost
+estimates. About two hours of focused work. Cost: small; payoff:
+makes the `null` fields in `RunProvenance` honest measurements.
+
+*Prompt-only baseline with a fair scenario design.* Not attempted in
+this paper because the Phase 11 suite tests structural state.
+Designing open-ended dialogues with matched model, token budget, and
+memory affordance, then grading the results with blinded human
+raters, is a separate experimental program.
+
+*Blinded user study.* Fifteen to twenty-five participants across
+three or more sessions each, A/B comparing Nūr against the same
+base model without the cognitive layer, measuring perceived
+continuity, coherence, and creepiness. Weeks of lead time for
+recruitment, IRB review if applicable, and analysis.
+
+*Quality-graded scenario suites.* Rather than structural assertions,
+rubric-based ratings of responses produced by the system across
+controlled conversation arcs (trust-building, repair after conflict,
+topic avoidance, etc.). Complementary to Phase 11, not a replacement.
+
+*Local-model reproducibility.* Running the full ablation protocol
+against an open-weight local model (for example via Ollama or
+llama.cpp) to verify that structural results are not backend-
+specific.
+
+*Pipeline decomposition.* `pipeline.py` currently orchestrates the
+full turn cycle in roughly 1,500 lines. A natural decomposition into
+phase-sized modules would improve maintainability without changing
+behavior.
+
+*Multi-party extension.* The current single-user architecture has no
+concept of group conversation. Extending relationship memory and
+profiling to cross-user reasoning is a substantive architectural
+project, not a drop-in.
+
+---
+
+## 11. Reproducibility Statement
+
+The full system is available as a git repository under the MIT
+license. Every evaluation result in this paper can be reproduced at
+the exact commit recorded in the run's provenance block by invoking:
+
+    python -m evals.ablation \
+        --backend minimax \
+        --api-key-env MINIMAX_API_KEY \
+        --tag phase11 \
+        --report-dir reports/ablation
+
+The harness records git SHA, configuration fingerprints (SHA-256 of
+sixteen prompt and configuration files), backend identity, requested
+vs resolved model name, scenario set, and execution counters into
+each report. A single compact summary artifact,
+`reports/ablation/summary.json`, is tracked in version control and is
+the canonical source of the numbers cited in §6. Per-variant raw
+reports are intentionally gitignored to prevent accumulation of stale
+JSON in history.
+
+Test coverage for the paper's infrastructure claims is 1,319 passing
+tests, run with `python -m pytest`. Specific invariants — accurate
+LLM-call counting across self-check regeneration, strict feature-
+toggle no-injection contracts, and null-serialization of unmeasured
+provenance fields — are regression-locked.
+
+Project policies relevant to the paper's ethics and release posture
+are tracked in `PRIVACY.md`, `SECURITY.md`, `CONTRIBUTING.md`, and
+`CITATION.cff`.
+
+Pass/fail outcomes should hold under the same provider and model;
+live-backend results can drift over time as cloud providers change
+what a model alias resolves to. Readers reproducing these numbers are
+encouraged to cross-reference the `requested_model` and
+`resolved_model` fields in their run's provenance against those
+reported here before citation.
