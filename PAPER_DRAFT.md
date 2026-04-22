@@ -419,6 +419,132 @@ than claim performance we have not measured.
 
 ---
 
+## 5. Implementation
+
+### 5.1 Deterministic versus LLM-mediated steps
+
+The cognitive layer is a hybrid: every step that can be expressed as
+deterministic math is, and LLM inference is used only where flexible
+language generation or reflective evaluation is genuinely required.
+Modulator updates, exponential decay, profile arithmetic, contradiction
+detection, response strategy selection, and memory activation scoring
+are all deterministic pure-Python code with unit tests. The LLM is
+called for three things: generating the final response, optionally
+running inner-dialogue deliberation when heuristics suggest a non-
+trivial turn, and optionally running a higher-cost self-check on
+extreme-intensity turns. Social appraisal is rule-based rather than
+LLM-based: this loses linguistic coverage on unusual phrasings but
+keeps appraisal outcomes inspectable and unit-testable.
+
+The design choice is pragmatic, not theoretical. Deterministic steps
+can be diff'd, profiled, and calibrated; LLM steps cannot be
+calibrated without re-prompting a model whose behavior may shift
+between provider updates. The split is also why the ablation protocol
+in §6 can isolate architectural contributions cleanly: changing the
+LLM backend does not change what the deterministic layers compute.
+
+### 5.2 Runtime and cognitive layer separation
+
+The cognitive layer (`CognitivePipeline`) is synchronous, stateful,
+and single-user-scoped: one pipeline instance models one ongoing
+relationship. The runtime layer (`SessionManager`) wraps this in an
+async application with per-user locks, bounded concurrent session
+counts, idle-eviction timers, and atomic state persistence. Different
+users run concurrently; turns within a single user are serialized so
+cognitive state cannot race.
+
+Identity is keyed explicitly. A *relationship* is identified by
+`platform:user_id` and owns the durable per-user state — long-term
+memory, profiles, relationship events, open loops, semantic memory.
+A *session* is identified by `platform:user_id:chat_id` and owns the
+transient per-chat state — the modulator snapshot and active
+unresolved items. This distinction matters: one user can have several
+concurrent conversations (for example, web and Telegram) that share
+one accumulated relationship while maintaining independent in-turn
+state.
+
+Persistence is split along the same boundary. Per-user state lives in
+a SQLite database at `data/<platform>_<user_id>/nur.db`. Per-session
+engine state is a small JSON file under `sessions/` inside that
+directory. The assistant's self-model lives in a separate shared
+SQLite database at `data/shared/self_model.db`, keyed by the literal
+entity id `__self__`, deliberately separated from any user's data so
+"delete this user" has a clean definition.
+
+### 5.3 Host surfaces
+
+Three channels plug into the same pipeline: a web UI with a debug
+dashboard, a console chat loop, and a Telegram bot with an allowlist.
+A versioned `/v1` HTTP API exposes every introspection surface used
+by the runtime and by the evaluation harness: modulator snapshots,
+person and self profiles, long-term, relationship, and semantic
+memory, registered tools, runtime configuration, and active sessions.
+Authentication is opt-in bearer-token; when no key is configured the
+endpoints are open, matching the local-development default.
+
+A dedicated `DELETE /v1/users/{platform}/{user_id}` endpoint fulfills
+the deletion commitment in the project's privacy policy: it evicts
+every live session for the specified user, removes the per-user SQLite
+database and every session JSON file under that user's directory, and
+by design does not touch the shared self-model database. Best-effort
+row counts are reported in the response so the caller can verify what
+was wiped.
+
+### 5.4 Provenance-first evaluation harness
+
+The evaluation harness is designed so that every run produces a self-
+describing artifact. A run is kicked off from a single CLI
+(`python -m evals` or `python -m evals.ablation`); selecting a backend
+is required and there is no silent fallback to a mock model. The
+harness builds a fresh `CognitivePipeline` per scenario with a
+deliberate reset of memory state, so no cross-scenario contamination
+is possible, and wraps the backend in an instrumented proxy that
+aggregates every `generate()` call into a shared per-scenario counter.
+Call counts reported in the results are therefore exact, including
+self-check regenerations that a naive per-turn heuristic misses.
+
+Each run produces a JSON report containing a provenance block. The
+provenance records code state (git SHA, branch, dirty-worktree flag),
+backend identity (backend type, requested model, resolved model, base
+URL), configuration fingerprints (SHA-256 hashes of sixteen prompt
+and configuration files), scenario set (tag filter, scenario count,
+scenario IDs), host identity, timestamps, and execution counters
+(turns, LLM calls, failures, latency). Fields whose honest values
+require client-level instrumentation that the current clients do not
+yet support — per-call token usage, provider-internal retries,
+estimated cost, and explicitly-applied temperature or max-tokens
+settings — serialize as JSON `null`, not placeholder zero. This
+distinction is preserved by the provenance dataclass and locked by a
+regression test.
+
+A separate, auditable module records the hypotheses for each ablation
+in advance of execution, mapping each variant to the scenarios it is
+predicted to break. Each scenario outcome under each variant is then
+labeled against that prior. The harness reports variant-level pass
+counts, assertion deltas, and per-scenario outcome labels, but does
+not itself produce the interpretation of those outcomes; interpretation
+is §6.
+
+### 5.5 Code scale and test surface
+
+The cognitive-layer source is roughly ten thousand lines of Python
+across thirty modules, plus a smaller runtime and interface layer. The
+test suite contains 1,319 passing tests organized into focused suites
+covering the modulator engine, the dual memory, profiles, contagion,
+appraisal, dual-process deliberation, defense mechanisms, the pipeline
+integration, the runtime and session manager, channels, the `/v1` API,
+the evaluation harness, the telemetry counter, and the feature-toggle
+contract. Specific invariants are locked by regression tests — for
+example, the self-check regeneration must be counted in `llm_calls`,
+feature-toggle null implementations must not write state or appear in
+the generator prompt, and unmeasured provenance fields must serialize
+as JSON null. The license is MIT, the repository carries configuration
+and release hygiene documents (contributing, security, privacy), and
+the tracked evaluation artifact `reports/ablation/summary.json` is the
+canonical paper-citable source of the numbers reported in §6.
+
+---
+
 ## 6. Evaluation
 
 ### 6.1 Scope and limitations, stated up front
