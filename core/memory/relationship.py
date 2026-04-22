@@ -13,6 +13,48 @@ from core.schema import ensure_schema_version
 from core.types import OpenLoop, RelationshipContext, RelationshipEvent
 
 
+class NullRelationshipMemory:
+    """Disabled relationship-memory backend.
+
+    Every write is a no-op; every read returns empty. Used in ablation
+    runs where ``PipelineFeatures(relationship_memory=False)`` is set.
+    Callers must not distinguish this from the real implementation —
+    the contract is that the system behaves as if no relationship
+    memory existed at all.
+    """
+
+    def record_event(self, event: RelationshipEvent) -> int:
+        return 0
+
+    def upsert_open_loop(self, loop: OpenLoop) -> int:
+        return 0
+
+    def resolve_matching_loop(
+        self,
+        *_args,
+        **_kwargs,
+    ) -> OpenLoop | None:
+        return None
+
+    def active_loops(self, *_args, **_kwargs) -> list[OpenLoop]:
+        return []
+
+    def recent_events(self, *_args, **_kwargs) -> list[RelationshipEvent]:
+        return []
+
+    def build_context(self, *_args, **_kwargs) -> RelationshipContext:
+        return RelationshipContext()
+
+    def count_events(self, source_person: str = "") -> int:
+        return 0
+
+    def count_open_loops(self, source_person: str = "") -> int:
+        return 0
+
+    def close(self) -> None:
+        return None
+
+
 class RelationshipMemory:
     """Persistent relationship memory for a single user-assistant arc."""
 

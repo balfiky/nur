@@ -67,8 +67,13 @@ from core.emotional_engine import EmotionalEngine, SPIKE_INTENSITY_THRESHOLD
 from core.memory.short_term import ShortTermMemory
 from core.memory.long_term import LongTermMemory
 from core.memory.digestion import digest_session, DigestedSession
-from core.memory.relationship import RelationshipMemory
-from core.memory.semantic import create_semantic_memory, derive_semantic_entries
+from core.memory.relationship import NullRelationshipMemory, RelationshipMemory
+from core.memory.semantic import (
+    NullSemanticMemory,
+    create_semantic_memory,
+    derive_semantic_entries,
+)
+from core.pipeline_features import PipelineFeatures
 from core.contagion import detect_emotion
 from core.profiles.base import ProfileStore
 from core.profiles.person import PersonProfileManager
@@ -208,6 +213,7 @@ class CognitivePipeline:
         db_path: str = ":memory:",
         self_db_path: str | None = None,
         tool_executor: Any | None = None,
+        features: PipelineFeatures | None = None,
     ) -> None:
         """Create a cognitive pipeline.
 
@@ -221,7 +227,10 @@ class CognitivePipeline:
                           (single-DB mode, backward compatible).
             tool_executor: Optional ToolExecutor for agentic tool use.
                            When None, the tool loop is skipped entirely.
+            features: Feature toggles for ablation runs. Default (None)
+                      enables every component. See ``PipelineFeatures``.
         """
+        self._features = features or PipelineFeatures()
         # Primary backend (used if no fast backend provided)
         self._llm_backend = llm_backend or MockLLMBackend()
         # Fast backend (thinking mode off) — used for ALL calls
@@ -237,11 +246,20 @@ class CognitivePipeline:
         # Memory
         self.short_term = ShortTermMemory()
         self.long_term = LongTermMemory(db_path=db_path)
-        self.relationship_memory = RelationshipMemory(db_path=db_path)
-        self.semantic_memory = create_semantic_memory(
-            db_path=db_path,
-            config=self._semantic_cfg,
-        )
+        # Relationship and semantic memory honor the feature toggles.
+        # Disabled components return a null object whose writes are no-ops
+        # and whose reads are empty — see core/pipeline_features.py.
+        if self._features.relationship_memory:
+            self.relationship_memory = RelationshipMemory(db_path=db_path)
+        else:
+            self.relationship_memory = NullRelationshipMemory()
+        if self._features.semantic_memory:
+            self.semantic_memory = create_semantic_memory(
+                db_path=db_path,
+                config=self._semantic_cfg,
+            )
+        else:
+            self.semantic_memory = NullSemanticMemory()
 
         # Per-user profile store (person observations + extracted traits)
         self._person_profile_store = ProfileStore(db_path=db_path)
@@ -465,23 +483,39 @@ class CognitivePipeline:
         )
         short_term_summary = f"{len(self.short_term)} entries in short-term memory"
 
-        dialogue_trace = self.inner_dialogue.deliberate(
-            user_message=user_message,
-            state=self.engine.state,
-            person=person,
-            self_profile=self_prof,
-            values=self.values,
-            memories=retrieved,
-            unresolved=self.engine.active_unresolved(),
-            contagion_summary=contagion_summary,
-            short_term_summary=short_term_summary,
-            current_event_intensity=event.intensity,
-        )
+        if self._features.inner_dialogue:
+            dialogue_trace = self.inner_dialogue.deliberate(
+                user_message=user_message,
+                state=self.engine.state,
+                person=person,
+                self_profile=self_prof,
+                values=self.values,
+                memories=retrieved,
+                unresolved=self.engine.active_unresolved(),
+                contagion_summary=contagion_summary,
+                short_term_summary=short_term_summary,
+                current_event_intensity=event.intensity,
+            )
+        else:
+            # Disabled: produce an empty trace so downstream shape is stable.
+            dialogue_trace = InnerDialogueTrace(
+                rounds=[],
+                final_candidate="",
+                total_llm_calls=0,
+                reached_deadlock=False,
+                dominant_path="fast",
+                tension_level=0.0,
+            )
         debug.dialogue_trace = dialogue_trace
         timings["inner_dialogue"] = (time.perf_counter() - _ts) * 1000
 
-        # If deadlock, feed it to resolution modulator
-        deadlock_item = self.inner_dialogue.create_deadlock_item(dialogue_trace)
+        # If deadlock, feed it to resolution modulator.
+        # (No-op when inner dialogue is disabled — trace.reached_deadlock=False.)
+        deadlock_item = (
+            self.inner_dialogue.create_deadlock_item(dialogue_trace)
+            if self._features.inner_dialogue
+            else None
+        )
         if deadlock_item:
             self.engine.add_unresolved(deadlock_item)
             active_unresolved = self.engine.active_unresolved()
@@ -604,13 +638,18 @@ class CognitivePipeline:
             timings["tool_loop"] = (time.perf_counter() - _ts_tool) * 1000
 
         # ---- Step 13: DEFENSE MECHANISMS (0 LLM calls) ----
-        filtered_output, defense = self.defense_mechanism.evaluate(
-            inner_dialogue_output=dialogue_trace.final_candidate,
-            modulator_state=self.engine.state,
-            self_profile=self_prof,
-            person_profile=person,
-            topic_profiles=active_topics,
-        )
+        if self._features.defense:
+            filtered_output, defense = self.defense_mechanism.evaluate(
+                inner_dialogue_output=dialogue_trace.final_candidate,
+                modulator_state=self.engine.state,
+                self_profile=self_prof,
+                person_profile=person,
+                topic_profiles=active_topics,
+            )
+        else:
+            # Disabled: candidate flows to generator unmodified, no activation recorded.
+            filtered_output = dialogue_trace.final_candidate
+            defense = None
         debug.defense_activation = defense
 
         # ---- Step 13b: RESPONSE STRATEGY (0 LLM calls) ----
@@ -843,14 +882,18 @@ class CognitivePipeline:
                 if task_trace.plan.is_terminal:
                     self._active_task_plan = None
 
-        # 3. Defense filter (proactive messages go through defense)
-        filtered, defense = self.defense_mechanism.evaluate(
-            inner_dialogue_output=action.message,
-            modulator_state=self.engine.state,
-            self_profile=self_prof,
-            person_profile=person,
-            topic_profiles=[],
-        )
+        # 3. Defense filter (proactive messages go through defense unless disabled)
+        if self._features.defense:
+            filtered, defense = self.defense_mechanism.evaluate(
+                inner_dialogue_output=action.message,
+                modulator_state=self.engine.state,
+                self_profile=self_prof,
+                person_profile=person,
+                topic_profiles=[],
+            )
+        else:
+            filtered = action.message
+            defense = None
         debug.defense_activation = defense
 
         defense_instruction = ""
