@@ -2,8 +2,195 @@
 
 This file accumulates prose drafts as outline sections become stable.
 `PAPER_OUTLINE.md` remains the navigable skeleton; this file is the
-running text. Sections are drafted out of order — §6 first to lock the
-scope language before the rest of the paper leans on it.
+running text. Sections were drafted §6 first (to lock scope language
+before other sections lean on it), then §4.
+
+---
+
+## 4. Architecture
+
+Each turn through the cognitive layer runs a consistent sequence: the
+emotional state updates from the user's message, memory and profile
+information is retrieved into context, a deterministic appraisal selects
+a response strategy, a bounded deliberation round may refine a
+candidate, and the generator produces the final response. The
+subsections below describe each component of that loop in order.
+Each follows the same pattern: what the component stores or computes,
+how it influences downstream behavior, and what this paper does and
+does not claim about it.
+
+### 4.1 Six continuous modulators
+
+The cognitive state is a six-dimensional vector of floats in [0, 1]:
+arousal, valence, certainty, bonding, energy, and resolution. Each
+modulator has its own temporal behavior — arousal decays with a
+roughly two-minute half-life, valence over tens of minutes, bonding
+over days; energy drains with use and recovers with simulated rest;
+resolution is derived from a set of active unresolved items, each with
+its own decay rate. The state updates from four sources per turn:
+bounded emotional contagion from the user's detected tone, a
+person-specific baseline shift, event-driven impulses from a
+classified emotional event, and time-based decay toward baseline.
+
+This layer is inspired by PSI Theory's framing of emotion as a
+configuration of continuous internal variables rather than as discrete
+labels. It does not implement PSI: there is no drive system, no need
+hierarchy, and no formal motivational architecture. What we adopt is
+the engineering stance — continuous state, well-defined decay,
+emergent combinations — not the theoretical content.
+
+### 4.2 Dual memory
+
+Memory is split into two timescales. Short-term memory is an
+in-process buffer that captures each turn together with the modulator
+snapshot taken at that moment; it is cleared at session end. Long-term
+memory is a SQLite-backed store of distilled emotional summaries with
+per-row activation scoring that biases retrieval by recency,
+frequency, and current context — an engineering adaptation of the
+ACT-R retrieval idea rather than a faithful reproduction of its
+activation equation. Writes are asymmetric: trust increments from
+positive events are small, while trust decrements from negative events
+are an order of magnitude larger. Events exceeding an intensity
+threshold bypass the confidence filter and write directly to long-term
+storage; this captures the informal observation that one serious
+betrayal can override a long history of small positives.
+
+### 4.3 Unified self/other profiling
+
+The system builds behavioral profiles for every salient entity it
+encounters: each user it talks to, each topic that carries emotional
+charge, and — distinctively — itself. All three use the same
+underlying `ProfileStore` mechanism, keyed by a string `entity_id`.
+For users, the id is the user's identifier; for topics, the topic
+name; for the assistant itself, the literal string `__self__`.
+
+What the self-profile stores looks very much like what a user profile
+stores: observed traits (derived from accumulated behavioral
+observations, not declared in configuration), strengths, flaws,
+triggers, a maturity score that grows with observation count and
+self-reflection events, and a log of every defense activation the
+system has produced. How it influences downstream behavior matters
+most for the defense layer (§4.7): maturity scales how aggressively
+defenses suppress, so a system with more self-observation exhibits
+less distortion between felt and expressed state.
+
+The novelty we claim here is conceptual rather than algorithmic. Most
+assistants either have no self-model or have a declared, static one
+handed to them in configuration. Nūr's self-model is *earned*: the
+same observation machinery that profiles others also watches the
+system's own outputs and accumulates evidence about its tendencies.
+That design choice lets self-knowledge grow from behavior rather than
+be asserted by the designer, and it collapses two mechanisms — "how
+does the system understand the user?" and "how does the system
+understand itself?" — into one. We do not claim this produces an
+accurate self-model, only that the mechanism exists symmetrically.
+
+### 4.4 Relationship memory
+
+Relationship memory is a layer distinct from factual and emotional
+memory: it stores the structure of a social arc rather than the
+content of past interactions. Four event kinds are recorded — rupture,
+repair, commitment, and recurring tension — each with a source person,
+intensity, and a short summary. Alongside events, the layer tracks
+*open loops*: unresolved threads that persist across sessions until
+they are closed by a matching event. An open loop carries a status
+(open, closed, expired), an intensity, and timestamps, and is
+discoverable by the user_id it belongs to and the topic it concerns.
+
+On each turn, the layer injects a compact relationship context — a
+summary string, the two or three most active open loops, and the two
+most recent events — into the generator's prompt. After a session
+ends, digestion examines the turn's appraisal and the emerging
+emotional arc and writes new events or closes matching loops.
+
+This is the component whose ablation matters most in §6: disabling it
+breaks exactly the two Phase 11 scenarios that depend on cross-turn
+open-loop state, and no others. The claim this paper does make is
+therefore specific: on structural assertions that rely on cross-turn
+social continuity, relationship memory is load-bearing under
+reproducible conditions. The claim this paper does not make is that
+relationship memory produces *better-feeling* responses — that is a
+quality question that a different scenario design would have to test.
+
+### 4.5 Social appraisal and strategy selection
+
+Before event classification, each user message passes through a
+deterministic appraisal pass. Regex- and lexicon-based heuristics
+infer whether distress is directed at the assistant or at the user's
+own life, whether an utterance is an apology or a complaint, whether
+there is mixed affect, and how vulnerable the user appears. This
+frame is then consumed by a strategy selector that chooses from eight
+named response stances: validate, reassure, repair, ground, give
+space, practical help, challenge gently, and set boundary. The
+generator receives a strategy-specific instruction block that shapes
+how it composes the response.
+
+We do not claim the appraisal layer is linguistically complete — it
+is regex-based and brittle to phrasing it was not authored against.
+We do claim it makes the system's relational reading of a message
+*explicit* rather than hidden in a large language model prompt.
+
+### 4.6 Bounded dual-process deliberation
+
+A bounded fast/slow deliberation loop runs on turns where heuristics
+suggest it is worth the extra LLM calls (non-spike events with active
+unresolved items, contradictions, or elevated tension). Up to three
+rounds of fast-path proposal and slow-path critique negotiate a
+candidate response. High arousal or low energy bypasses the loop and
+takes the fast path immediately.
+
+On the current Phase 11 suite, disabling this loop leaves every
+structural assertion unchanged (§6). We interpret this not as a claim
+that deliberation is useless, but as a claim that the present
+evaluation does not grade the behaviors the loop was designed to
+shape — hesitation, self-correction, internally-voiced disagreement.
+Those are quality-sensitive properties better tested by human raters.
+
+### 4.7 Defense mechanisms
+
+A defense filter sits between the candidate response and the
+generator's final synthesis. Four defense types can activate —
+rationalization, deflection, minimization, and projection — gated by
+a comfort threshold that rises with trust and self-maturity. When
+active, a defense contributes a suppression instruction that reshapes
+the generator's output toward the defended stance. Maturity weakens
+suppression: as the self-profile's observation count and milestone
+count grow, the gap between raw and expressed emotional intensity
+narrows. Defenses never fully disappear, but they distort less over
+time.
+
+As with §4.6, this is a wording-level behavior and is not falsifiable
+by structural assertions on Phase 11. Its evaluation belongs in a
+later paper with quality-sensitive scenarios.
+
+### 4.8 Semantic memory
+
+A separate SQLite-backed semantic memory stores explicit preferences,
+decisions, episodes, and facts keyed per user. Writes occur when the
+user's message expresses a preference or a commitment; retrievals are
+scored by token overlap, per-user bias, optional topic bias, recency,
+and a small weighting from the entry's own salience. Retrieved
+entries are injected as a dedicated section in the generator's prompt.
+
+On the Phase 11 suite, this component is a negative control: no
+scenario exercises semantic retrieval, so disabling it should produce
+zero effect. It does (§6). That null result is the expected result;
+any structural failure there would have signaled a hidden coupling
+worth investigating.
+
+### 4.9 Summary
+
+The cognitive layer is assembled from components that sit at
+different levels of behavioral expression. State, memory, and
+relationship continuity (§4.1–§4.4) operate at a level where a
+structural assertion suite can falsify their presence. Deliberation,
+defense, and semantic retrieval (§4.6–§4.8) operate at a wording and
+quality level that structural assertions cannot directly reach. The
+evaluation in §6 is calibrated to the first level; demonstrating the
+second requires a different scenario design. This asymmetry is
+intentional — the components we can test now, we test; the components
+we cannot yet test, we describe and leave honestly untested rather
+than claim performance we have not measured.
 
 ---
 
