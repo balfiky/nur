@@ -50,7 +50,8 @@ frequency, and current context — an engineering adaptation of the
 ACT-R retrieval idea rather than a faithful reproduction of its
 activation equation. Writes are asymmetric: trust increments from
 positive events are small, while trust decrements from negative events
-are an order of magnitude larger. Events exceeding an intensity
+are substantially larger — 7.5× at the current configuration
+(+0.02 vs −0.15). Events exceeding an intensity
 threshold bypass the confidence filter and write directly to long-term
 storage; this captures the informal observation that one serious
 betrayal can override a long history of small positives.
@@ -98,10 +99,10 @@ they are closed by a matching event. An open loop carries a status
 discoverable by the user_id it belongs to and the topic it concerns.
 
 On each turn, the layer injects a compact relationship context — a
-summary string, the two or three most active open loops, and the two
-most recent events — into the generator's prompt. After a session
-ends, digestion examines the turn's appraisal and the emerging
-emotional arc and writes new events or closes matching loops.
+summary string, up to two active open loops, and up to two recent
+events — into the generator's prompt. After a session ends, digestion
+examines the turn's appraisal and the emerging emotional arc and
+writes new events or closes matching loops.
 
 This is the component whose ablation matters most in §6: disabling it
 breaks exactly the two Phase 11 scenarios that depend on cross-turn
