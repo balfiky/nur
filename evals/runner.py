@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import Any, Callable
 
+from core.dual_process.generator import LLMBackend, MockLLMBackend
 from core.types import ModulatorState
 from evals.types import (
     AssertionKind,
@@ -19,11 +20,27 @@ from evals.types import (
 from pipeline import CognitivePipeline, DebugState, PipelineResponse
 
 
+BackendFactory = Callable[[], LLMBackend]
+
+
+def _default_backend_factory() -> LLMBackend:
+    """Fallback used only when callers don't supply a factory.
+
+    Programmatic callers (e.g. pytest) can rely on this; the CLI path
+    always passes an explicit factory, so a silent mock at the CLI is
+    not possible.
+    """
+    return MockLLMBackend()
+
+
 # ---------------------------------------------------------------------------
 # Pipeline factory
 # ---------------------------------------------------------------------------
 
-def _make_pipeline(scenario: EvalScenario) -> CognitivePipeline:
+def _make_pipeline(
+    scenario: EvalScenario,
+    backend_factory: BackendFactory,
+) -> CognitivePipeline:
     """Create a fresh pipeline configured for a scenario."""
     executor = None
     if scenario.with_tools:
@@ -35,7 +52,10 @@ def _make_pipeline(scenario: EvalScenario) -> CognitivePipeline:
         executor = ToolExecutor(registry)
         register_builtins(registry, executor)
 
-    pipeline = CognitivePipeline(tool_executor=executor)
+    pipeline = CognitivePipeline(
+        llm_backend=backend_factory(),
+        tool_executor=executor,
+    )
 
     # Apply initial state overrides
     if scenario.initial_modulators:
@@ -291,8 +311,12 @@ def _collect_metrics(
 # Runner
 # ---------------------------------------------------------------------------
 
-def run_scenario(scenario: EvalScenario) -> EvalResult:
+def run_scenario(
+    scenario: EvalScenario,
+    backend_factory: BackendFactory | None = None,
+) -> EvalResult:
     """Execute a single evaluation scenario and return the result."""
+    factory = backend_factory or _default_backend_factory
     t_start = time.perf_counter()
 
     pipelines: dict[str, CognitivePipeline] = {}
@@ -302,7 +326,7 @@ def run_scenario(scenario: EvalScenario) -> EvalResult:
         if pipeline is not None:
             return pipeline
 
-        pipeline = _make_pipeline(scenario)
+        pipeline = _make_pipeline(scenario, factory)
         if scenario.initial_trust is not None:
             person = pipeline.person_profiles.get_or_create(user_id)
             person.trust = scenario.initial_trust
@@ -310,10 +334,13 @@ def run_scenario(scenario: EvalScenario) -> EvalResult:
         pipelines[user_id] = pipeline
         return pipeline
 
-    try:
-        turn_results: list[TurnResult] = []
-        responses: list[PipelineResponse] = []
+    turn_results: list[TurnResult] = []
+    responses: list[PipelineResponse] = []
+    proactive_results: list[AssertionResult] = []
+    proactive_response: PipelineResponse | None = None
+    failure_reason = ""
 
+    try:
         for i, turn in enumerate(scenario.turns):
             pipeline = get_pipeline(turn.user_id)
             resp = pipeline.process(turn.user_message, user_id=turn.user_id)
@@ -336,8 +363,6 @@ def run_scenario(scenario: EvalScenario) -> EvalResult:
                 pipeline.end_session(user_id=turn.user_id)
 
         # Proactive check
-        proactive_results: list[AssertionResult] = []
-        proactive_response: PipelineResponse | None = None
         if scenario.check_proactive and scenario.proactive_assertions:
             proactive_user_id = scenario.turns[-1].user_id if scenario.turns else "eval_user"
             pipeline = get_pipeline(proactive_user_id)
@@ -351,33 +376,50 @@ def run_scenario(scenario: EvalScenario) -> EvalResult:
                 proactive_results.append(
                     _check_proactive_assertion(a, proactive_response, pipeline)
                 )
-
-        elapsed = (time.perf_counter() - t_start) * 1000
-        metrics = _collect_metrics(responses, proactive_response)
-
-        return EvalResult(
-            scenario_id=scenario.id,
-            scenario_name=scenario.name,
-            tags=list(scenario.tags),
-            turn_results=turn_results,
-            proactive_results=proactive_results,
-            metrics=metrics,
-            elapsed_ms=elapsed,
-        )
+    except Exception as exc:
+        # Don't let one scenario's provider error kill the whole run.
+        # Record the failure on the result so the report surfaces it.
+        failure_reason = f"{type(exc).__name__}: {exc}"
     finally:
         for pipeline in pipelines.values():
             pipeline.close()
 
+    elapsed = (time.perf_counter() - t_start) * 1000
+    metrics = _collect_metrics(responses, proactive_response)
 
-def run_scenarios(scenarios: list[EvalScenario]) -> EvalReport:
-    """Run multiple scenarios and produce an aggregated report."""
+    return EvalResult(
+        scenario_id=scenario.id,
+        scenario_name=scenario.name,
+        tags=list(scenario.tags),
+        turn_results=turn_results,
+        proactive_results=proactive_results,
+        metrics=metrics,
+        elapsed_ms=elapsed,
+        failure_reason=failure_reason,
+    )
+
+
+def run_scenarios(
+    scenarios: list[EvalScenario],
+    backend_factory: BackendFactory | None = None,
+) -> EvalReport:
+    """Run multiple scenarios and produce an aggregated report.
+
+    If ``backend_factory`` is omitted, the mock backend is used. CLI
+    callers should always pass an explicit factory to avoid silent
+    mock fallback (see ``evals.backends.build_backend_factory``).
+    """
     report = EvalReport()
     for scenario in scenarios:
-        report.results.append(run_scenario(scenario))
+        report.results.append(run_scenario(scenario, backend_factory))
     return report
 
 
-def run_by_tag(scenarios: list[EvalScenario], tag: str) -> EvalReport:
+def run_by_tag(
+    scenarios: list[EvalScenario],
+    tag: str,
+    backend_factory: BackendFactory | None = None,
+) -> EvalReport:
     """Run only scenarios matching a given tag."""
     filtered = [s for s in scenarios if tag in s.tags]
-    return run_scenarios(filtered)
+    return run_scenarios(filtered, backend_factory)

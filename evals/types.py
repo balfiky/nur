@@ -153,9 +153,18 @@ class EvalResult:
     proactive_results: list[AssertionResult] = field(default_factory=list)
     metrics: EvalMetrics = field(default_factory=EvalMetrics)
     elapsed_ms: float = 0.0
+    # Populated when the scenario raised an exception during execution
+    # (e.g., backend 500, network drop). Distinct from assertion failures.
+    failure_reason: str = ""
+
+    @property
+    def errored(self) -> bool:
+        return bool(self.failure_reason)
 
     @property
     def passed(self) -> bool:
+        if self.errored:
+            return False
         turns_ok = all(t.passed for t in self.turn_results)
         proactive_ok = all(r.passed for r in self.proactive_results)
         return turns_ok and proactive_ok
@@ -177,10 +186,58 @@ class EvalResult:
 
 
 @dataclass
+class RunProvenance:
+    """Full provenance of an evaluation run.
+
+    Captures *everything* needed to reproduce or interpret a set of
+    eval numbers: code state, backend identity, config fingerprints,
+    and execution counters. If any field is missing the run becomes
+    hard to trust months later.
+    """
+    # --- When/where ---
+    started_at: str = ""                       # ISO-8601 UTC
+    finished_at: str = ""                      # ISO-8601 UTC
+    host: str = ""                             # hostname
+
+    # --- Code state ---
+    git_sha: str = ""
+    git_branch: str = ""
+    dirty_worktree: bool = False               # uncommitted changes present
+
+    # --- Backend identity ---
+    backend_type: str = ""                     # mock | minimax | openai_compat
+    requested_model: str = ""                  # what the user/CLI asked for
+    resolved_model: str = ""                   # what the backend actually used (may equal requested)
+    base_url: str = ""                         # empty for mock
+    temperature: float | None = None
+    max_tokens: int | None = None
+
+    # --- Config/prompt fingerprints (sha256 hex) ---
+    # Behavioral changes can come from config, not just code.
+    config_fingerprints: dict[str, str] = field(default_factory=dict)
+
+    # --- Scenario set ---
+    scenario_set: str = ""                     # tag filter or "all"
+    scenario_count: int = 0
+    scenario_ids: list[str] = field(default_factory=list)
+
+    # --- Execution counters ---
+    total_turns: int = 0
+    llm_calls: int = 0
+    retries: int = 0
+    failures: int = 0                          # scenarios that raised (not assertion failures)
+    total_latency_s: float = 0.0
+    prompt_tokens: int = 0                     # if the backend reports it
+    completion_tokens: int = 0
+    estimated_cost_usd: float | None = None
+
+
+@dataclass
 class EvalReport:
     """Aggregated report across multiple scenarios."""
     results: list[EvalResult] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
+    provenance: RunProvenance | None = None
 
     @property
     def total_scenarios(self) -> int:

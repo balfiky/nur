@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from typing import Any
 
-from evals.types import AssertionResult, EvalReport, EvalResult
+from evals.types import AssertionResult, EvalReport, EvalResult, RunProvenance
 
 
 # ---------------------------------------------------------------------------
@@ -92,6 +93,8 @@ def _result_to_dict(result: EvalResult) -> dict[str, Any]:
         "scenario_name": result.scenario_name,
         "tags": result.tags,
         "passed": result.passed,
+        "errored": result.errored,
+        "failure_reason": result.failure_reason,
         "elapsed_ms": round(result.elapsed_ms, 1),
         "total_assertions": result.total_assertions,
         "failed_assertions": result.failed_assertions,
@@ -123,15 +126,30 @@ def _result_to_dict(result: EvalResult) -> dict[str, Any]:
     }
 
 
+def _provenance_to_dict(prov: RunProvenance) -> dict[str, Any]:
+    """RunProvenance → plain dict, sorted stably for diffable reports."""
+    raw = dataclasses.asdict(prov)
+    # Keep fingerprints deterministic across runs
+    raw["config_fingerprints"] = dict(sorted(raw["config_fingerprints"].items()))
+    raw["scenario_ids"] = sorted(raw.get("scenario_ids") or [])
+    return raw
+
+
 def json_report(report: EvalReport) -> str:
-    """Produce a JSON report from an eval report."""
-    data = {
-        "timestamp": report.timestamp,
-        "total_scenarios": report.total_scenarios,
-        "passed_scenarios": report.passed_scenarios,
-        "failed_scenarios": report.failed_scenarios,
-        "total_assertions": report.total_assertions,
-        "failed_assertions": report.failed_assertions,
-        "results": [_result_to_dict(r) for r in report.results],
-    }
+    """Produce a JSON report from an eval report.
+
+    Provenance appears first so a quick head/grep on the file surfaces
+    backend, git sha, and scenario set before any per-scenario detail.
+    """
+    data: dict[str, Any] = {}
+    if report.provenance is not None:
+        data["provenance"] = _provenance_to_dict(report.provenance)
+    data["timestamp"] = report.timestamp
+    data["total_scenarios"] = report.total_scenarios
+    data["passed_scenarios"] = report.passed_scenarios
+    data["failed_scenarios"] = report.failed_scenarios
+    data["total_assertions"] = report.total_assertions
+    data["failed_assertions"] = report.failed_assertions
+    data["errored_scenarios"] = sum(1 for r in report.results if r.errored)
+    data["results"] = [_result_to_dict(r) for r in report.results]
     return json.dumps(data, indent=2)

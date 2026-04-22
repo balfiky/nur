@@ -18,7 +18,12 @@ import sys
 from typing import Any
 
 from evals.reporting import json_report, text_report
-from evals.runner import _check_assertion, _make_pipeline, run_scenarios
+from evals.runner import (
+    _check_assertion,
+    _default_backend_factory,
+    _make_pipeline,
+    run_scenarios,
+)
 from evals.scenarios import phase11_human_scenarios
 from evals.types import EvalScenario
 
@@ -37,7 +42,7 @@ def load_phase11_scenarios(scenario_id: str | None = None) -> list[EvalScenario]
 
 def collect_phase11_trace(scenario: EvalScenario) -> dict[str, Any]:
     """Run one Phase 11 scenario and capture a compact debug trace."""
-    pipeline = _make_pipeline(scenario)
+    pipeline = _make_pipeline(scenario, _default_backend_factory)
     try:
         if scenario.initial_trust is not None:
             seen_users: set[str] = set()
