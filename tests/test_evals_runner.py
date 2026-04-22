@@ -148,10 +148,14 @@ class TestProvenance:
         assert prov.config_fingerprints  # at least one file hashed
         # Execution counters default to zero — filled in after the run
         assert prov.llm_calls == 0
-        # Unmeasured fields stay None (honest "not measured", not fake zero)
+        # Unmeasured fields stay None (honest "not measured", not fake zero).
+        # retries / prompt_tokens / completion_tokens need client-level
+        # instrumentation to produce real values; until then they must
+        # serialize as null, not 0.
         assert prov.temperature is None
         assert prov.max_tokens is None
-        assert prov.prompt_tokens == 0
-        assert prov.completion_tokens == 0
+        assert prov.retries is None
+        assert prov.prompt_tokens is None
+        assert prov.completion_tokens is None
         assert prov.estimated_cost_usd is None
         assert prov.failures == 0

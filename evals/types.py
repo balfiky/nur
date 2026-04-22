@@ -222,13 +222,20 @@ class RunProvenance:
     scenario_ids: list[str] = field(default_factory=list)
 
     # --- Execution counters ---
+    # Populated by the runner/CLI after scenarios complete.
     total_turns: int = 0
     llm_calls: int = 0
-    retries: int = 0
     failures: int = 0                          # scenarios that raised (not assertion failures)
     total_latency_s: float = 0.0
-    prompt_tokens: int = 0                     # if the backend reports it
-    completion_tokens: int = 0
+    # Unmeasured fields: None = "not measured" (serializes to JSON null).
+    # Using None instead of 0 avoids the false signal that zero tokens
+    # or zero retries were observed. Populating these requires client
+    # instrumentation in core/llm_client.py and runtime/llm/backend.py
+    # (MiniMax retries internally and the clients discard the usage
+    # block from responses).
+    retries: int | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
     estimated_cost_usd: float | None = None
 
 
