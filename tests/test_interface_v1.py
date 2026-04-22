@@ -290,6 +290,165 @@ class TestAuthMiddleware:
         assert resp.status_code == 200
 
 
+class TestDeleteUser:
+    """DELETE /v1/users/{platform}/{user_id} — PRIVACY.md deletion contract."""
+
+    def _data_dir(self, tmp_path):
+        return tmp_path / "data"
+
+    def _user_dir(self, tmp_path, platform="web", user_id="alice"):
+        return self._data_dir(tmp_path) / f"{platform}_{user_id}"
+
+    def _chat_once(self, client, user_id="alice", chat_id="default", platform="web"):
+        resp = client.post(
+            "/v1/chat",
+            json={
+                "message": "hello",
+                "user_id": user_id,
+                "chat_id": chat_id,
+                "platform": platform,
+            },
+        )
+        assert resp.status_code == 200, resp.text
+
+    def test_auth_required_when_key_configured(self, authed_client):
+        # No token
+        resp = authed_client.delete("/v1/users/web/alice")
+        assert resp.status_code == 401
+        # Wrong token
+        resp = authed_client.delete(
+            "/v1/users/web/alice",
+            headers={"Authorization": "Bearer wrong"},
+        )
+        assert resp.status_code == 401
+
+    def test_nonexistent_user_returns_404(self, client):
+        resp = client.delete("/v1/users/web/ghost")
+        assert resp.status_code == 404
+        assert "No data found" in resp.json()["detail"]
+
+    def test_delete_wipes_db_and_session_files(self, client, tmp_path):
+        self._chat_once(client, user_id="alice")
+        user_dir = self._user_dir(tmp_path)
+        assert user_dir.is_dir()
+        assert (user_dir / "nur.db").exists()
+
+        resp = client.delete("/v1/users/web/alice")
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["deleted"] is True
+        assert body["rel_key"] == "web:alice"
+        assert body["shared_self_model_db_preserved"] is True
+        assert not user_dir.exists()
+
+    def test_delete_evicts_multiple_live_sessions_for_same_user(self, client, tmp_path):
+        self._chat_once(client, user_id="bob", chat_id="work")
+        self._chat_once(client, user_id="bob", chat_id="personal")
+
+        # Confirm two live sessions for bob exist.
+        sessions = client.get("/v1/sessions").json()["sessions"]
+        bob_keys = [s["session_key"] for s in sessions if s["user_id"] == "bob"]
+        assert set(bob_keys) == {"web:bob:work", "web:bob:personal"}
+
+        resp = client.delete("/v1/users/web/bob")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert set(body["sessions_evicted"]) == {"web:bob:work", "web:bob:personal"}
+
+        # Session registry should now be empty for bob.
+        sessions_after = client.get("/v1/sessions").json()["sessions"]
+        assert not [s for s in sessions_after if s["user_id"] == "bob"]
+
+    def test_delete_does_not_touch_other_users_data(self, client, tmp_path):
+        self._chat_once(client, user_id="alice")
+        self._chat_once(client, user_id="carol")
+        carol_dir = self._user_dir(tmp_path, user_id="carol")
+        assert carol_dir.is_dir()
+
+        resp = client.delete("/v1/users/web/alice")
+        assert resp.status_code == 200
+        assert not self._user_dir(tmp_path, user_id="alice").exists()
+        assert carol_dir.exists(), "carol's data must not be touched"
+        assert (carol_dir / "nur.db").exists()
+
+    def test_delete_preserves_shared_self_model_db(self, client, tmp_path):
+        self._chat_once(client, user_id="alice")
+        shared_db = self._data_dir(tmp_path) / "shared" / "self_model.db"
+        assert shared_db.exists(), "chat should create the shared self-model DB"
+
+        resp = client.delete("/v1/users/web/alice")
+        assert resp.status_code == 200
+        assert shared_db.exists(), (
+            "shared self_model.db must survive a per-user delete"
+        )
+
+    def test_delete_reports_row_counts(self, client):
+        self._chat_once(client, user_id="dana")
+        resp = client.delete("/v1/users/web/dana")
+        body = resp.json()
+        assert "rows_deleted" in body
+        # Shape check — individual counts may be 0 depending on what the mock
+        # backend produced, but the keys must all be present.
+        for table in (
+            "memories",
+            "relationship_events",
+            "open_loops",
+            "observations",
+            "semantic_memories",
+        ):
+            assert table in body["rows_deleted"]
+
+    def test_new_session_after_delete_starts_clean(self, client, tmp_path):
+        self._chat_once(client, user_id="erin")
+        client.delete("/v1/users/web/erin")
+        assert not self._user_dir(tmp_path, user_id="erin").exists()
+
+        # New chat should recreate the directory and start with no memories.
+        self._chat_once(client, user_id="erin")
+        mem = client.get(
+            "/v1/memory/long_term",
+            params={"user_id": "erin"},
+        ).json()
+        # A single turn won't reliably write long-term memory, but the store
+        # must exist, count must be queryable, and no prior rows must exist.
+        assert mem["count"] == 0 or all(
+            e.get("source_person") == "erin" for e in mem.get("entries", [])
+        )
+
+    def test_delete_works_when_only_session_json_exists(self, client, tmp_path):
+        """If the DB was deleted externally but session JSON remains, DELETE
+        should still clean up and succeed."""
+        self._chat_once(client, user_id="frank")
+        # Simulate external DB deletion; leave the session JSON in place.
+        db = self._user_dir(tmp_path, user_id="frank") / "nur.db"
+        # Evict the live session so the DB is closed, then remove it.
+        client.post("/v1/sessions/web:frank:default/reset")
+        if db.exists():
+            db.unlink()
+        assert self._user_dir(tmp_path, user_id="frank").is_dir()
+
+        resp = client.delete("/v1/users/web/frank")
+        assert resp.status_code == 200
+        assert not self._user_dir(tmp_path, user_id="frank").exists()
+
+    def test_path_traversal_rejected(self, client):
+        for user_id in ("../escape", "a/b", "a\\b", ".."):
+            resp = client.delete(f"/v1/users/web/{user_id}")
+            # Either the router won't match (404) or our validator rejects (400).
+            assert resp.status_code in (400, 404)
+        for platform in ("..", "a/b"):
+            resp = client.delete(f"/v1/users/{platform}/alice")
+            assert resp.status_code in (400, 404)
+
+    def test_nur_client_delete_user_helper(self, client):
+        self._chat_once(client, user_id="gary")
+        nur = NurClient(base_url="http://testserver")
+        nur._session = client  # reuse TestClient for in-process request
+        body = nur.delete_user("gary")
+        assert body["deleted"] is True
+        assert body["rel_key"] == "web:gary"
+
+
 class TestNurClient:
     def test_client_health(self, client):
         nur = NurClient(base_url=str(client.base_url).rstrip("/"))

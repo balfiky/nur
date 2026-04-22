@@ -123,6 +123,20 @@ class NurClient:
     def reset_session(self, session_key: str) -> dict[str, Any]:
         return self._request("POST", f"/v1/sessions/{session_key}/reset")
 
+    def delete_user(
+        self,
+        user_id: str,
+        *,
+        platform: str | None = None,
+    ) -> dict[str, Any]:
+        """Delete all persisted data for ``platform:user_id``.
+
+        Evicts live sessions, wipes the per-user DB and session JSONs,
+        and leaves the shared self-model DB untouched.
+        """
+        plat = platform or self._default_platform
+        return self._request("DELETE", f"/v1/users/{plat}/{user_id}")
+
     def end_session(
         self,
         *,

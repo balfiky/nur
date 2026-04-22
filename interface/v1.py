@@ -20,6 +20,9 @@ Mounted under ``/v1`` via :func:`build_v1_router`.
 
 from __future__ import annotations
 
+import os
+import shutil
+import sqlite3
 import time
 from typing import Any
 
@@ -31,6 +34,27 @@ from runtime.config import RuntimeConfig
 from runtime.debug.api import _debug_to_dict
 from runtime.sessions.manager import SessionManager
 from runtime.sessions.user_session import UserSession
+
+
+# ---------------------------------------------------------------------------
+# Path-traversal guards for destructive operations
+# ---------------------------------------------------------------------------
+
+_DISALLOWED_PATH_MARKERS = ("/", "\\", "..", "\x00")
+
+
+def _validate_path_token(name: str, value: str) -> None:
+    """Reject values that could escape the per-user data directory."""
+    if not value:
+        raise HTTPException(status_code=400, detail=f"{name} must not be empty")
+    if ":" in value:
+        raise HTTPException(status_code=400, detail=f"{name} must not contain ':'")
+    for marker in _DISALLOWED_PATH_MARKERS:
+        if marker in value:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{name} contains disallowed character",
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -213,6 +237,94 @@ def build_v1_router(
             raise HTTPException(status_code=404, detail="Session not found")
         await mgr.evict_session(session_key)
         return {"status": "evicted", "session_key": session_key}
+
+    # ------------------------------------------------------------------
+    # User-data deletion (fulfills the PRIVACY.md deletion promise)
+    # ------------------------------------------------------------------
+
+    @router.delete(
+        "/users/{platform}/{user_id}",
+        summary="Wipe all persisted data for a user on a given platform",
+        dependencies=[Depends(require_auth)],
+    )
+    async def delete_user(platform: str, user_id: str) -> dict[str, Any]:
+        """Evict live sessions for this user and delete their on-disk data.
+
+        Scope:
+          * All per-user SQLite rows under ``data/<platform>_<user_id>/nur.db``
+          * All session JSONs under ``data/<platform>_<user_id>/sessions/``
+          * The per-user directory itself
+
+        Explicitly preserved:
+          * ``data/shared/self_model.db`` — contains only rows for entity
+            ``__self__`` and a defense log with no per-user column. Wiping
+            it on every user delete would throw away the assistant's
+            accumulated self-model, which is not what "delete user X" means.
+
+        Idempotency: returns 404 if neither on-disk data nor DB rows exist.
+        """
+        _validate_path_token("platform", platform)
+        _validate_path_token("user_id", user_id)
+
+        mgr = get_manager()
+        cfg = config_getter()
+        rel_key = f"{platform}:{user_id}"
+        user_dir = cfg.user_data_dir(rel_key)
+
+        # Defense in depth: ensure the resolved path is actually inside data_dir
+        # even if the validation above is bypassed by a future refactor.
+        data_root = os.path.realpath(cfg.data_dir)
+        resolved = os.path.realpath(user_dir)
+        if not (resolved == data_root or resolved.startswith(data_root + os.sep)):
+            raise HTTPException(
+                status_code=400,
+                detail="Resolved user path is not inside data_dir",
+            )
+
+        # Best-effort pre-delete counts. None = counting failed; partial
+        # counts are OK — we must not fail the wipe just because a query
+        # couldn't run.
+        rows_deleted = _count_user_rows(cfg.user_db_path(rel_key), user_id)
+
+        # Evict all live sessions for this rel_key before touching the
+        # filesystem. Eviction closes the DB connection and flushes
+        # session state so rmtree can succeed cleanly.
+        prefix = f"{rel_key}:"
+        evict_keys = [k for k in list(mgr.active_sessions.keys()) if k.startswith(prefix)]
+        for key in evict_keys:
+            await mgr.evict_session(key)
+
+        # Count session-state files before the wipe.
+        session_files_removed = 0
+        sessions_dir = os.path.join(user_dir, "sessions")
+        if os.path.isdir(sessions_dir):
+            session_files_removed = sum(
+                1 for name in os.listdir(sessions_dir) if name.endswith(".json")
+            )
+
+        existed = os.path.isdir(user_dir)
+        had_rows = any(isinstance(v, int) and v > 0 for v in rows_deleted.values())
+
+        if not existed and not had_rows and not evict_keys:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No data found for {rel_key}",
+            )
+
+        if existed:
+            shutil.rmtree(user_dir, ignore_errors=False)
+
+        return {
+            "deleted": True,
+            "rel_key": rel_key,
+            "platform": platform,
+            "user_id": user_id,
+            "rows_deleted": rows_deleted,
+            "session_files_removed": session_files_removed,
+            "sessions_evicted": evict_keys,
+            "path_removed": user_dir if existed else None,
+            "shared_self_model_db_preserved": True,
+        }
 
     @router.post(
         "/sessions/end",
@@ -482,6 +594,56 @@ def build_v1_router(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _count_user_rows(db_path: str, user_id: str) -> dict[str, int | None]:
+    """Best-effort pre-delete row counts for a user's per-user DB.
+
+    Returns one entry per table we know holds user-scoped rows. Values
+    can be:
+      * ``0`` — table exists, no rows for this user
+      * ``n > 0`` — that many rows will be wiped
+      * ``None`` — counting failed (e.g., table missing, DB locked)
+
+    Never raises. The endpoint must still succeed on the filesystem
+    wipe even if every count here comes back as ``None``.
+    """
+    counts: dict[str, int | None] = {
+        "memories": None,
+        "relationship_events": None,
+        "open_loops": None,
+        "observations": None,
+        "semantic_memories": None,
+    }
+    if not os.path.exists(db_path):
+        return {k: 0 for k in counts}
+    try:
+        conn = sqlite3.connect(db_path)
+    except sqlite3.Error:
+        return counts
+    try:
+        # (table, user-filter column) — kept in sync with schema declarations in
+        # core/memory/long_term.py, core/schema.py, core/memory/semantic.py,
+        # core/profiles/base.py.
+        queries = (
+            ("memories", "source_person"),
+            ("relationship_events", "source_person"),
+            ("open_loops", "source_person"),
+            ("observations", "entity_id"),
+            ("semantic_memories", "source_person"),
+        )
+        for table, filter_col in queries:
+            try:
+                cur = conn.execute(
+                    f"SELECT COUNT(*) FROM {table} WHERE {filter_col} = ?",
+                    (user_id,),
+                )
+                counts[table] = cur.fetchone()[0]
+            except sqlite3.Error:
+                counts[table] = None
+    finally:
+        conn.close()
+    return counts
 
 
 def _serialize_session(session_key: str, session: UserSession) -> dict[str, Any]:

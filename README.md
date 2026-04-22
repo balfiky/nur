@@ -558,6 +558,7 @@ Two surfaces share the same FastAPI app. The **legacy endpoints at the root** ex
 | GET  | `/v1/memory/semantic` | Semantic memories for a user (preferences, decisions, episodes, facts) |
 | GET  | `/v1/tools` | Enumerate registered tool capabilities |
 | GET  | `/v1/config` | Runtime config with secrets redacted |
+| DELETE | `/v1/users/{platform}/{user_id}` | Wipe all persisted data for a user on that platform (evicts sessions, removes DB + session JSON; shared self-model preserved — see [PRIVACY.md](PRIVACY.md)) |
 
 **Auth is opt-in.** Leave `api_key` empty in `runtime_config.yaml` (or clear it through the settings drawer) and every endpoint is open. Set it and every endpoint *except* `/v1/health` and `/v1/ready` requires `Authorization: Bearer <api_key>`. The token is re-read on every request, so rotating it through `POST /config` takes effect without restarting the app.
 

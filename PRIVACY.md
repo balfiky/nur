@@ -77,23 +77,62 @@ The `/v1` API surfaces what Nūr knows about a user:
 
 ## Deletion
 
-There is currently **no one-button user-data wipe**. To remove a user
-identified as `<platform>:<user_id>` (e.g., `web:alice`, `telegram:42`):
+### API (recommended)
 
-1. Stop the runtime.
-2. Delete the per-user directory:
-   ```
-   rm -rf data/<platform>_<user_id>
-   ```
-   This removes `nur.db` and all session JSON in one step.
-3. The shared self-model (`data/shared/self_model.db`) stores only rows
-   for entity `__self__` and a defense log with no user column. In normal
-   operation it holds no user-identifiable data, so no per-user wipe is
-   needed there. If you want a full reset of the assistant's self-model
-   (e.g., before handing the system to a different operator), delete that
-   file.
+`DELETE /v1/users/{platform}/{user_id}` wipes all persisted data for a
+user on a given platform in one call:
 
-A first-class `DELETE /v1/user/<id>` endpoint is on the roadmap.
+- Evicts every live session for that `platform:user_id` (drain,
+  digest, close) before touching disk.
+- Deletes the per-user SQLite DB (`nur.db`) and every session JSON.
+- Removes the per-user directory itself.
+- **Does not touch** `data/shared/self_model.db` — the shared self-model
+  holds only rows for entity `__self__` and a defense log with no
+  per-user column, so it is preserved by design.
+
+```bash
+# With auth disabled (api_key empty):
+curl -X DELETE http://localhost:8000/v1/users/web/alice
+
+# With auth enabled:
+curl -X DELETE http://localhost:8000/v1/users/web/alice \
+  -H "Authorization: Bearer my-secret-token"
+```
+
+Python client:
+
+```python
+from interface.client import NurClient
+
+with NurClient("http://localhost:8000", api_key="my-secret-token") as nur:
+    result = nur.delete_user("alice", platform="web")
+    print(result)
+    # {
+    #   "deleted": true,
+    #   "rel_key": "web:alice",
+    #   "rows_deleted": {"memories": 3, "relationship_events": 1, ...},
+    #   "session_files_removed": 2,
+    #   "sessions_evicted": ["web:alice:default"],
+    #   "path_removed": "data/web_alice",
+    #   "shared_self_model_db_preserved": true
+    # }
+```
+
+Returns `404` if no data exists for that `platform:user_id`. Row counts
+are best-effort: if a count query fails, that table reports `null` but
+the wipe still proceeds.
+
+### Manual (if the service is stopped)
+
+```
+rm -rf data/<platform>_<user_id>
+```
+
+This removes `nur.db` and all session JSON in one step.
+
+If you want a full reset of the assistant's self-model (e.g., before
+handing the system to a different operator), also delete
+`data/shared/self_model.db`.
 
 ## Retention
 
