@@ -34,7 +34,7 @@ Open-sourced under MIT, fully reproducible ablation protocol, test
 suite at 1,319. Framed as a research prototype, not a product.
 
 Repo: https://github.com/balfiky/nur
-Technical note: [TECHNICAL_NOTE.md]
+Technical note: https://github.com/balfiky/nur/blob/main/TECHNICAL_NOTE.md
 
 ---
 
@@ -104,6 +104,6 @@ MIT licensed. 1,319 tests. Privacy policy and deletion endpoint ship
 with the repo.
 
 → Repo: https://github.com/balfiky/nur
-→ Technical note: TECHNICAL_NOTE.md
+→ Technical note: https://github.com/balfiky/nur/blob/main/TECHNICAL_NOTE.md
 → Open to feedback from the affective-computing, HCI, and cognitive
   architecture communities.

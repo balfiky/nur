@@ -2,7 +2,7 @@
 
 A hybrid cognitive architecture for AI assistants, inspired by PSI Theory, ACT-R, and CLARION. Treats emotion as persistent internal state rather than a prompt-level style layer.
 
-Nūr (internal name Jarvis) maintains a continuous emotional state, a dual memory system, a self-model earned through behavioral observation, and a relationship memory that tracks ruptures, repairs, and open loops across sessions. After 20 conversations it responds differently than on day one, because its internal state has genuinely changed.
+Nūr (internal name Jarvis) maintains a continuous emotional state, a dual memory system, a self-model earned through behavioral observation, and a relationship memory that tracks ruptures, repairs, and open loops across sessions. The state persists and decays between turns and across sessions, so the system's stance toward a given user is shaped by accumulated history rather than re-derived from each prompt.
 
 **Public write-ups (start here):**
 - 📄 **[TECHNICAL_NOTE.md](TECHNICAL_NOTE.md)** — ~2,000 word public technical note: problem, architecture, one reproducible ablation result, limitations, privacy posture. Best first read.

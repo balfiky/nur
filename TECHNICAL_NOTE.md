@@ -281,9 +281,12 @@ Full test suite: `python3 -m pytest` (1,319 tests).
   the summary at a current commit will additionally include git SHA and
   backend identity inside the artifact itself.
 - Live-backend pass/fail can drift over time as cloud providers change
-  what a model alias resolves to. Cross-reference the `requested_model`
-  and `resolved_model` fields in the per-variant report provenance
-  before citing any specific number.
+  what a model alias resolves to. Anyone reproducing the ablation
+  locally will see their own run's `requested_model` and
+  `resolved_model` recorded in each per-variant report under
+  `reports/ablation/` (gitignored — local to each run); comparing those
+  against the tracked summary's narrative description of the model
+  lets you verify the alias hasn't silently changed underneath.
 
 ## License
 
