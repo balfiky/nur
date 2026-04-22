@@ -36,13 +36,18 @@ class MissingBackendConfigError(RuntimeError):
 
 @dataclass(frozen=True)
 class BackendSpec:
-    """What the CLI asked for; flows into provenance."""
+    """What the CLI asked for; flows into provenance.
+
+    NOTE: temperature and max_tokens were previously fields here but were
+    never actually passed through to the clients (neither LLMClient nor
+    OpenAICompatibleLLMBackend accept them). They were removed rather
+    than silently recorded as fake settings. If/when clients are
+    instrumented to accept and transmit them, add back here.
+    """
     type: str                               # "mock" | "minimax" | "openai_compat"
     requested_model: str = ""
     base_url: str = ""
     api_key: str = ""                       # resolved from --api-key or env
-    temperature: float | None = None
-    max_tokens: int | None = None
 
     @property
     def resolved_model(self) -> str:
@@ -113,8 +118,6 @@ def spec_from_args(
     base_url: str,
     api_key: str,
     api_key_env: str,
-    temperature: float | None,
-    max_tokens: int | None,
 ) -> BackendSpec:
     """Build a BackendSpec from CLI args, resolving the API key from env."""
     resolved_key = api_key or (os.environ.get(api_key_env, "") if api_key_env else "")
@@ -129,6 +132,4 @@ def spec_from_args(
         requested_model=model,
         base_url=base_url,
         api_key=resolved_key,
-        temperature=temperature,
-        max_tokens=max_tokens,
     )

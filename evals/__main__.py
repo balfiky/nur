@@ -55,8 +55,10 @@ def _parse_args() -> argparse.Namespace:
         default="",
         help="Name of env var to read the API key from (e.g. MINIMAX_API_KEY)",
     )
-    parser.add_argument("--temperature", type=float, default=None)
-    parser.add_argument("--max-tokens", type=int, default=None)
+    # --temperature and --max-tokens were previously accepted but never
+    # propagated to the backend request payloads. Removed to stop recording
+    # inference settings that did not actually apply. If/when the clients are
+    # instrumented to accept and send these, re-add here and in BackendSpec.
     parser.add_argument("--tag", default="", help="Run only scenarios with this tag")
     parser.add_argument("--list", action="store_true", help="List scenarios and exit")
     parser.add_argument("--json", action="store_true", help="Emit JSON report to stdout")
@@ -123,8 +125,6 @@ def main() -> None:
             base_url=args.base_url,
             api_key=args.api_key,
             api_key_env=args.api_key_env,
-            temperature=args.temperature,
-            max_tokens=args.max_tokens,
         )
         factory = build_backend_factory(spec)
     except MissingBackendConfigError as exc:
@@ -137,8 +137,6 @@ def main() -> None:
         requested_model=spec.requested_model,
         resolved_model=spec.resolved_model,
         base_url=spec.resolved_base_url,
-        temperature=spec.temperature,
-        max_tokens=spec.max_tokens,
         scenario_set=_scenario_set_label(args.tag),
         scenario_ids=[s.id for s in scenarios],
     )

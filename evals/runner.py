@@ -7,6 +7,7 @@ from typing import Any, Callable
 
 from core.dual_process.generator import LLMBackend, MockLLMBackend
 from core.types import ModulatorState
+from evals.instrumented_backend import BackendCounter, InstrumentedBackend
 from evals.types import (
     AssertionKind,
     AssertionResult,
@@ -265,8 +266,15 @@ def _check_proactive_assertion(
 def _collect_metrics(
     responses: list[PipelineResponse],
     proactive_response: PipelineResponse | None,
+    backend_counter: BackendCounter,
 ) -> EvalMetrics:
-    """Extract performance counters from pipeline responses."""
+    """Extract performance counters from pipeline responses.
+
+    ``llm_call_count`` is read directly from ``backend_counter`` rather than
+    derived from per-response heuristics. The previous implementation added
+    ``dialogue_trace.total_llm_calls + 1`` per response, which silently
+    undercounted whenever the self-check triggered a regeneration.
+    """
     metrics = EvalMetrics()
     all_timings: dict[str, float] = {}
 
@@ -292,14 +300,13 @@ def _collect_metrics(
         if debug.defense_activation:
             metrics.defense_activations += 1
 
-        # LLM calls: dialogue trace gives us exact count
-        if debug.dialogue_trace:
-            metrics.llm_call_count += debug.dialogue_trace.total_llm_calls
-        # +1 for the generator call (always happens)
-        metrics.llm_call_count += 1
-
     if proactive_response:
         metrics.proactive_count += 1
+
+    # Authoritative call count: every backend.generate() in this scenario.
+    # Captures inner-dialogue rounds, generator, self-check retries, and
+    # anything else that hits the LLM — without per-call-site bookkeeping.
+    metrics.llm_call_count = backend_counter.generate_calls
 
     metrics.stage_timings_ms = all_timings
     metrics.total_latency_ms = all_timings.get("total", 0.0)
@@ -319,6 +326,14 @@ def run_scenario(
     factory = backend_factory or _default_backend_factory
     t_start = time.perf_counter()
 
+    # Per-scenario backend-call counter. Every backend the scenario builds
+    # (one per unique user_id) writes into this shared counter, so the
+    # final llm_call_count reflects every real generate() invocation.
+    counter = BackendCounter()
+
+    def counting_factory() -> LLMBackend:
+        return InstrumentedBackend(factory(), counter)
+
     pipelines: dict[str, CognitivePipeline] = {}
 
     def get_pipeline(user_id: str) -> CognitivePipeline:
@@ -326,7 +341,7 @@ def run_scenario(
         if pipeline is not None:
             return pipeline
 
-        pipeline = _make_pipeline(scenario, factory)
+        pipeline = _make_pipeline(scenario, counting_factory)
         if scenario.initial_trust is not None:
             person = pipeline.person_profiles.get_or_create(user_id)
             person.trust = scenario.initial_trust
@@ -385,7 +400,7 @@ def run_scenario(
             pipeline.close()
 
     elapsed = (time.perf_counter() - t_start) * 1000
-    metrics = _collect_metrics(responses, proactive_response)
+    metrics = _collect_metrics(responses, proactive_response, counter)
 
     return EvalResult(
         scenario_id=scenario.id,

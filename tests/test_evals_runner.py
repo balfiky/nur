@@ -80,8 +80,6 @@ class TestSpecFromArgs:
             base_url="",
             api_key="",
             api_key_env="MY_CUSTOM_KEY",
-            temperature=None,
-            max_tokens=None,
         )
         assert spec.api_key == "sk-xyz"
 
@@ -93,8 +91,6 @@ class TestSpecFromArgs:
             base_url="",
             api_key="from-arg",
             api_key_env="MY_CUSTOM_KEY",
-            temperature=None,
-            max_tokens=None,
         )
         assert spec.api_key == "from-arg"
 
@@ -107,8 +103,6 @@ class TestSpecFromArgs:
             base_url="",
             api_key="",
             api_key_env="",
-            temperature=None,
-            max_tokens=None,
         )
         assert spec.api_key == "mm-key"
 
@@ -141,8 +135,6 @@ class TestProvenance:
             requested_model="",
             resolved_model="",
             base_url="",
-            temperature=None,
-            max_tokens=None,
             scenario_set="phase11",
             scenario_ids=["a", "b", "c"],
         )
@@ -156,4 +148,10 @@ class TestProvenance:
         assert prov.config_fingerprints  # at least one file hashed
         # Execution counters default to zero — filled in after the run
         assert prov.llm_calls == 0
+        # Unmeasured fields stay None (honest "not measured", not fake zero)
+        assert prov.temperature is None
+        assert prov.max_tokens is None
+        assert prov.prompt_tokens == 0
+        assert prov.completion_tokens == 0
+        assert prov.estimated_cost_usd is None
         assert prov.failures == 0

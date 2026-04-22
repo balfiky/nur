@@ -130,8 +130,6 @@ def _attach_provenance(
         requested_model=spec.requested_model,
         resolved_model=spec.resolved_model,
         base_url=spec.resolved_base_url,
-        temperature=spec.temperature,
-        max_tokens=spec.max_tokens,
         scenario_set=scenario_set,
         scenario_ids=scenario_ids,
     )
@@ -276,8 +274,7 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--base-url", default="")
     p.add_argument("--api-key", default="")
     p.add_argument("--api-key-env", default="")
-    p.add_argument("--temperature", type=float, default=None)
-    p.add_argument("--max-tokens", type=int, default=None)
+    # --temperature / --max-tokens were not propagated to clients; removed.
     p.add_argument(
         "--tag",
         default="phase11",
@@ -318,8 +315,6 @@ def main() -> None:
             base_url=args.base_url,
             api_key=args.api_key,
             api_key_env=args.api_key_env,
-            temperature=args.temperature,
-            max_tokens=args.max_tokens,
         )
         factory = build_backend_factory(spec)
     except MissingBackendConfigError as exc:

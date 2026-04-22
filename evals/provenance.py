@@ -110,8 +110,6 @@ def build_provenance(
     requested_model: str,
     resolved_model: str,
     base_url: str,
-    temperature: float | None,
-    max_tokens: int | None,
     scenario_set: str,
     scenario_ids: list[str],
 ) -> RunProvenance:
@@ -120,6 +118,12 @@ def build_provenance(
     Execution counters (llm_calls, failures, etc.) are filled in by the
     runner after scenarios complete. This function only sets the fields
     that can be known *before* the run starts.
+
+    ``RunProvenance`` exposes fields like ``temperature``, ``max_tokens``,
+    ``prompt_tokens``, ``completion_tokens``, ``retries``, and
+    ``estimated_cost_usd`` that remain ``None`` until the clients are
+    instrumented to produce real values. ``None`` serializes to JSON
+    ``null`` — an honest "not measured" rather than a fake zero.
     """
     sha, branch, dirty = collect_git_info()
     started = _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
@@ -133,8 +137,6 @@ def build_provenance(
         requested_model=requested_model,
         resolved_model=resolved_model,
         base_url=base_url,
-        temperature=temperature,
-        max_tokens=max_tokens,
         config_fingerprints=fingerprint_files(FINGERPRINT_FILES),
         scenario_set=scenario_set,
         scenario_count=len(scenario_ids),
