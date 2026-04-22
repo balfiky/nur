@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use Project Nūr in academic work, please cite it as below."
+title: "Project Nūr: A Hybrid Cognitive Architecture for Relational Continuity in AI Assistants"
+abstract: >-
+  Project Nūr is an experimental cognitive architecture for AI assistants
+  that treats emotion as persistent internal state rather than a stylistic
+  prompt layer. It combines six continuous modulators (arousal, valence,
+  certainty, bonding, energy, resolution), a dual memory system (short-term
+  and long-term), unified self/other profiling, deterministic social
+  appraisal, response strategy selection, bounded dual-process deliberation,
+  and defense-mechanism-based expression shaping. The implementation is
+  inspired by PSI Theory, ACT-R, and CLARION, but is presented as
+  engineering-oriented synthesis rather than a faithful implementation of
+  any one framework.
+authors:
+  - family-names: Alfiky
+    given-names: Bassem
+    email: balfiky@yahoo.com
+repository-code: "https://github.com/balfiky/nur"
+license: MIT
+type: software
+keywords:
+  - cognitive-architecture
+  - affective-computing
+  - large-language-models
+  - agent-memory
+  - relational-continuity
+  - human-ai-interaction
