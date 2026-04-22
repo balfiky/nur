@@ -3,7 +3,130 @@
 This file accumulates prose drafts as outline sections become stable.
 `PAPER_OUTLINE.md` remains the navigable skeleton; this file is the
 running text. Sections were drafted §6 first (to lock scope language
-before other sections lean on it), then §4.
+before other sections lean on it), then §4, then §1 + §2 together
+while §4 and §6 were fresh.
+
+---
+
+## 1. Abstract
+
+Conversational AI assistants process each interaction in isolation.
+Retrieval-augmented memory lets them remember *what* was said, but not
+*how it landed*: the same words from a trusted friend and a stranger
+produce the same response, and accumulated history does not
+detectably shape behavior. We describe Project Nūr, a cognitive
+architecture that treats emotion as persistent internal state rather
+than a prompt-level style layer. Nūr combines six continuous
+modulators, dual short- and long-term memory, unified self/other
+profiling, deterministic social appraisal, bounded dual-process
+deliberation, and defense mechanisms — taken as engineering
+inspiration from PSI, ACT-R, and CLARION rather than as faithful
+implementations. A provenance-stamped evaluation harness ablates one
+architectural component at a time against a behavioral scenario
+suite on a real large-language-model backend. We report one
+load-bearing result: relationship memory is demonstrably necessary
+for cross-turn social continuity on this suite; three other
+architectural components show no structural effect and are not
+falsifiable by the present scenarios. This paper does not claim
+validated human-likeness; it claims an inspectable architecture, a
+reproducible ablation protocol, and one positive structural finding.
+
+---
+
+## 2. Introduction
+
+### 2.1 The problem: assistants without texture
+
+A competent conversational assistant today can produce fluent,
+topically relevant replies. What it cannot produce is *texture* — the
+sense, evident in replies from people who know each other, that a
+message has landed against a particular history and a particular
+relationship. Stateful RAG systems preserve the factual record of
+past interactions but not the emotional residue: whether a previous
+conversation felt warm or sharp, whether trust accumulated or broke,
+whether something was left unresolved. Without that substrate, the
+same words from different people, said at different moments in a
+relationship, cannot produce different responses.
+
+The standard engineering response is to layer a persona on top: tell
+the language model to sound warm, or to maintain a specific voice.
+This treats the symptom. Persona-in-prompt is a rendering of state
+the model does not carry. Between turns the state evaporates; between
+sessions it never existed. Nothing accumulates, nothing decays,
+nothing resolves or fails to resolve.
+
+### 2.2 Thesis
+
+The core claim of this work is that **emotion in an AI assistant
+should be treated as persistent internal state rather than a
+prompt-level style layer**. Concretely: the system should maintain a
+continuous emotional state vector whose updates and decays are
+deterministic and inspectable; memory should be keyed not only by
+content but by how that content felt; the assistant should profile
+itself the same way it profiles others; and the pipeline's decision
+points — appraisal, strategy selection, deliberation, defense —
+should be explicit enough to test individually.
+
+None of these ideas are individually novel. PSI Theory (Dörner;
+Bach) frames emotion as a configuration of continuous internal
+variables. ACT-R (Anderson) models memory as activation-weighted
+retrieval. CLARION (Sun) posits dual implicit/explicit reasoning
+paths. What this paper proposes is their *synthesis* as an
+inspectable engineering architecture, not a faithful reproduction of
+any one theory.
+
+### 2.3 Contributions
+
+1. **An integrated cognitive-layer architecture** (§4) for AI
+   assistants: six continuous modulators, dual memory, unified
+   self/other profiling, deterministic appraisal and strategy
+   selection, bounded dual-process deliberation, defense mechanisms,
+   and semantic memory — wired so that each decision point is
+   inspectable and individually ablatable.
+2. **Unified self/other profiling** (§4.3): the assistant observes
+   itself through the same mechanism it uses to profile users and
+   topics. Self-knowledge is earned from behavioral observation
+   rather than declared in configuration. The mechanism's contribution
+   is conceptual, not yet quality-validated.
+3. **A provenance-first evaluation harness** (§5.4) that records git
+   SHA, backend identity, model alias resolution, and SHA-256
+   fingerprints of sixteen prompt and configuration files alongside
+   every run. Unmeasured fields serialize as JSON null rather than
+   placeholder zero.
+4. **An ablation protocol with prior hypotheses** (§6.3). Each
+   scenario outcome under each ablation is labeled
+   *expected_failure*, *unexpected_failure*, *no_effect*, or
+   *newly_passing* against a hypothesis table written before the run.
+5. **One load-bearing empirical result** (§6): disabling relationship
+   memory breaks exactly the two scenarios that depend on cross-turn
+   open-loop state, and no others. Three other ablations produce no
+   structural failures and are framed as not-falsifiable by the
+   present suite rather than as null results.
+
+### 2.4 Non-goals
+
+This paper does not claim, and the evaluation does not support:
+- validated human-likeness of responses;
+- a prompt-only baseline comparison (the present scenarios test
+  structural state, not wording, and would be apples-to-oranges);
+- a blinded user study;
+- a faithful implementation of PSI, ACT-R, or CLARION.
+
+These are deliberately separated from what the paper does claim so
+that reviewers can evaluate each claim at the scope it actually has.
+
+### 2.5 Paper structure
+
+Section 3 situates the architecture against its cognitive-science
+inspirations and adjacent affective-agent work. Section 4 describes
+the cognitive layer component by component. Section 5 describes the
+implementation including the runtime/cognitive separation and the
+evaluation harness. Section 6 reports the ablation protocol and
+results. Section 7 discusses what the evaluation does and does not
+show, and what a human-likeness study would require. Section 8 lists
+limitations explicitly rather than in passing. Section 9 addresses
+ethics and responsible deployment. Section 10 names the follow-on
+work. A reproducibility statement closes the paper.
 
 ---
 
