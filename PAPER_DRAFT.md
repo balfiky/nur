@@ -130,6 +130,107 @@ work. A reproducibility statement closes the paper.
 
 ---
 
+## 3. Background and Related Work
+
+### 3.1 Cognitive-architecture inspirations
+
+Nūr's design borrows from three cognitive architectures, each for a
+specific engineering reason. For each we state one adopted idea and
+one explicitly non-adopted element so the scope of the borrowing is
+clear.
+
+From **PSI Theory** [CITE — Dörner & Güss (2013) or Bach (2009),
+verify canonical] we adopt the framing of emotion as a configuration
+of continuous internal variables with independent decay dynamics —
+the substrate described in §4.1. We do not adopt PSI's motivational
+core: there is no drive system, no need hierarchy, and no goal-
+selection architecture. The modulator layer is an engineering
+substrate, not a model of motivation.
+
+From **ACT-R** [CITE — Anderson et al., foundational reference to be
+verified] we adopt the idea that memory retrieval should be weighted
+by an activation score combining recency, frequency, and current
+context. We do not adopt the formal ACT-R activation equation; Nūr's
+long-term store uses a simpler heuristic score (§4.2) and there is no
+symbolic rule learning.
+
+From **CLARION** [CITE — Sun (2016), *Anatomy of the Mind*; verify]
+we adopt the engineering shape of bounded fast-path/slow-path
+deliberation with iterative critique (§4.6). We do not adopt
+CLARION's learned coordination between implicit and explicit paths;
+path balancing in Nūr is threshold-gated by modulator state rather
+than emerging from a skill-learning mechanism.
+
+### 3.2 Adjacent affective-agent systems
+
+Several recent systems share parts of this design space. We
+acknowledge what each contributes and name where our choices differ.
+
+**Chain-of-Emotion** (PMC, 2024) [CITE — verify authors and venue]
+proposes an appraisal-driven pipeline for LLM-based game agents that
+derives an emotional state per turn through an LLM-authored appraisal
+step. We take the idea that explicit appraisal improves over raw
+sentiment, but implement appraisal as a deterministic regex- and
+lexicon-based pass rather than an LLM call per turn (§4.5). This
+sacrifices linguistic coverage for inspectability and latency.
+
+**ACT-R-inspired LLM agent memory** (HAI, 2024) [CITE — verify]
+applies activation-weighted retrieval, including human-like
+remembering-and-forgetting curves, to conversational LLM agents. Nūr
+shares that retrieval stance for emotional memory but adds a separate
+*relationship* layer (§4.4) that stores structured social events and
+open loops rather than folding relational meaning into a single
+memory type.
+
+**Desire-driven emotional cognitive modeling** (arXiv, 2025)
+[CITE — verify] proposes objective-optimizing agents for social
+simulation. Our system is state-driven rather than desire-driven:
+there is no drive system, and motivation is not modeled.
+
+**Livia** (2025) [CITE — verify] is an emotion-aware AR companion
+built on modular AI agents with progressive memory compression. Livia
+emphasizes compression for sustained interaction; we emphasize
+component-level inspectability and the ability to ablate individual
+pieces of the cognitive architecture under a reproducible protocol.
+
+Broader landscape context is available in the 2025 agent-memory
+survey *Memory in the Age of AI Agents* (arXiv:2512.13564)
+[CITE — verify].
+
+### 3.3 What we claim is distinct
+
+To our knowledge the following combination has not been proposed
+elsewhere:
+
+1. **Unified self/other profiling.** The assistant profiles itself
+   through the same `ProfileStore` mechanism it uses to profile users
+   and topics, keyed by entity id `__self__`. Self-knowledge is
+   earned through behavioral observation rather than declared in
+   configuration. Related work either gives the agent a static
+   self-description or omits a self-model entirely; we are not aware
+   of a prior system that collapses self- and other-modeling into one
+   observational mechanism.
+
+2. **Relationship memory as a separate first-class layer.** Ruptures,
+   repairs, commitments, and open loops live in a dedicated schema
+   distinct from both emotional and semantic memory. Prior work
+   typically folds relational meaning into one of the memory types
+   rather than tracking it as its own layer.
+
+3. **Inspectable, ablation-first evaluation from the start.** The
+   pipeline was designed so that each cognitive component can be
+   disabled individually under a strict contract (§4), and every
+   evaluation run records full provenance (§5.4). We do not claim
+   this methodological stance is novel, only that it is unusual to
+   apply from the first commit of an affective-agent project.
+
+These three together — a symmetric self-model, a relationship layer
+distinct from memory, and ablation-first inspectability — define the
+design space this paper is contributing a specific point in. Each
+individually has precedent in parts; the synthesis is what we offer.
+
+---
+
 ## 4. Architecture
 
 Each turn through the cognitive layer runs a consistent sequence: the
