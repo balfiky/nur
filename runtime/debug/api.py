@@ -149,6 +149,16 @@ def _debug_to_dict(debug) -> dict:
         {"summary": m.summary, "valence": m.emotional_valence, "spike": m.spike}
         for m in debug.retrieved_memories
     ]
+    d["semantic_memories"] = [
+        {
+            "kind": m.kind,
+            "summary": m.summary,
+            "topic": m.topic,
+            "source": m.source,
+            "score": m.score,
+        }
+        for m in getattr(debug, "semantic_memories", [])
+    ]
     d["relationship_context"] = (
         debug.relationship_context.to_dict()
         if getattr(debug, "relationship_context", None)

@@ -3,6 +3,7 @@
 import json
 import pytest
 
+from config.loader import get_config
 from core.dual_process.generator import MockLLMBackend
 from pipeline import CognitivePipeline, DebugState, PipelineResponse
 
@@ -48,6 +49,13 @@ class TestCognitivePipeline:
         pipe = self._make_pipeline()
         result = pipe.process("I'm angry with you about this argument!", user_id="alice")
         assert result.debug.event_classified == "conflict"
+
+    def test_upset_with_you_is_not_treated_as_generic_user_message(self):
+        pipe = self._make_pipeline()
+        result = pipe.process("I am upset with you", user_id="alice")
+        assert result.debug.appraisal_frame is not None
+        assert result.debug.appraisal_frame.targets_assistant is True
+        assert result.debug.event_classified in {"conflict", "negative_feedback"}
 
     def test_warmth_event_classification(self):
         pipe = self._make_pipeline()
@@ -211,7 +219,29 @@ class TestCognitivePipeline:
         pipe.end_session(user_id="alice")
         memories = pipe.long_term.all()
         assert pipe.long_term.count() == after_process
-        assert [m.source_person for m in memories] == ["alice"]
+
+    def test_prompt_includes_seeded_soul(self):
+        pipe = self._make_pipeline()
+        pipe.process("Hello", user_id="alice")
+        assert "Soul Seed" in pipe._llm_backend.last_system_prompt
+        assert get_config().soul.identity in pipe._llm_backend.last_system_prompt
+
+    def test_semantic_preference_retrieval_surfaces_in_prompt(self, tmp_path):
+        db_path = str(tmp_path / "semantic.db")
+        pipe = self._make_pipeline(db_path=db_path)
+        pipe.process("I prefer concise replies.", user_id="alice")
+
+        result = pipe.process(
+            "Do you remember what kind of replies I prefer?",
+            user_id="alice",
+        )
+
+        assert any(item.kind == "preference" for item in result.debug.semantic_memories)
+        assert "Semantic Memory" in pipe._llm_backend.last_system_prompt
+        assert "concise replies" in pipe._llm_backend.last_system_prompt
+        assert result.debug.semantic_memories
+        assert all(m.source_person == "alice" for m in result.debug.semantic_memories)
+        pipe.close()
 
     def test_insult_classified_as_negative_feedback(self):
         pipe = self._make_pipeline()

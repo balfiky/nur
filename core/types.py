@@ -12,6 +12,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Literal, Optional
 
+from config.loader import SoulConfig
+
 
 # ---------------------------------------------------------------------------
 # Modulators
@@ -108,6 +110,40 @@ class LongTermEntry:
     confidence: float = 0.0  # 0.0 - 1.0
     spike: bool = False  # did this bypass gradual accumulation?
     activation: float = 0.0  # ACT-R activation score (computed at retrieval)
+
+
+@dataclass
+class SemanticMemoryEntry:
+    """Explicit semantic memory for facts, preferences, decisions, and episodes."""
+
+    id: int | None = None
+    timestamp: float = field(default_factory=time.time)
+    kind: str = "episode"  # episode | preference | decision | fact
+    source_person: str = ""
+    topic: str = ""
+    summary: str = ""
+    content: str = ""
+    source: str = "conversation"
+    confidence: float = 0.0
+    salience: float = 0.0
+    tags: list[str] = field(default_factory=list)
+    score: float = 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "timestamp": self.timestamp,
+            "kind": self.kind,
+            "source_person": self.source_person,
+            "topic": self.topic,
+            "summary": self.summary,
+            "content": self.content,
+            "source": self.source,
+            "confidence": self.confidence,
+            "salience": self.salience,
+            "tags": list(self.tags),
+            "score": self.score,
+        }
 
 
 @dataclass
@@ -388,6 +424,7 @@ class AttachmentStyle(str, Enum):
 class PipelineContext:
     """Full context assembled for the response generation LLM call."""
     modulator_snapshot: dict[str, float] = field(default_factory=dict)
+    soul_profile: SoulConfig | None = None
     person_profile: PersonProfile | None = None
     self_profile: SelfProfile | None = None
     appraisal_frame: AppraisalFrame | None = None
@@ -395,6 +432,7 @@ class PipelineContext:
     topic_profiles: list[TopicProfile] = field(default_factory=list)
     values: ValueHierarchy = field(default_factory=ValueHierarchy)
     retrieved_memories: list[LongTermEntry] = field(default_factory=list)
+    semantic_memories: list[SemanticMemoryEntry] = field(default_factory=list)
     short_term_history: list[ShortTermEntry] = field(default_factory=list)
     contradiction_flags: list[str] = field(default_factory=list)
     contagion: DetectedEmotion | None = None

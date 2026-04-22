@@ -1,0 +1,10 @@
+semantic_memory:
+  enabled: true
+  # "sqlite" is the canonical local store.
+  # Switch to "mempalace" after installing MemPalace to merge in external retrieval.
+  backend: sqlite
+  retrieval_limit: 5
+  write_raw_turns: true
+  write_preferences: true
+  write_decisions: true
+  mempalace_path: ~/.mempalace/palace

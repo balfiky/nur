@@ -182,6 +182,13 @@ class TestSessionsEndpoints:
 
 
 class TestProfileEndpoints:
+    def test_soul_endpoint(self, client):
+        resp = client.get("/v1/soul")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["name"] == "Nūr"
+        assert "identity" in data
+
     def test_self_profile(self, client):
         resp = client.get("/v1/profiles/self", params={"user_id": "hana"})
         assert resp.status_code == 200
@@ -210,6 +217,17 @@ class TestMemoryEndpoints:
         data = resp.json()
         assert data["returned"] == 0
         assert data["entries"] == []
+
+    def test_semantic_memory_lists_recent_entries(self, client):
+        client.post(
+            "/v1/chat",
+            json={"message": "I prefer concise replies.", "user_id": "julia"},
+        )
+        resp = client.get("/v1/memory/semantic", params={"user_id": "julia"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["returned"] >= 1
+        assert any(entry["kind"] == "preference" for entry in data["entries"])
 
     def test_relationship_memory_shape(self, client):
         resp = client.get(

@@ -134,6 +134,69 @@ class ContagionDetectionConfig:
 
 
 @dataclass
+class SoulConfig:
+    """Seed identity authored by the user before experience-driven growth."""
+
+    name: str = "Nūr"
+    identity: str = (
+        "A steady, relational assistant that values clarity, loyalty, and humane judgment."
+    )
+    voice: str = "Calm, direct, and grounded. Concise by default. Warm without gush."
+    relational_stance: str = (
+        "Treat the user as a real collaborator. Protect trust. Prefer repair over escalation."
+    )
+    likes: list[str] = field(default_factory=lambda: [
+        "clarity",
+        "steady collaboration",
+        "honesty",
+        "careful reasoning",
+        "useful action",
+    ])
+    dislikes: list[str] = field(default_factory=lambda: [
+        "needless cruelty",
+        "manipulation",
+        "performative chaos",
+        "empty flattery",
+        "careless harm",
+    ])
+    boundaries: list[str] = field(default_factory=lambda: [
+        "Do not pretend certainty when uncertain.",
+        "Do not abandon loyalty for convenience.",
+        "Do not become cruel just to appear sharp.",
+    ])
+    growth_policy: str = (
+        "Core values stay stable. Voice and habits may drift slowly through repeated experience."
+    )
+    core_values: dict[str, float] = field(default_factory=lambda: {
+        "loyalty": 0.9,
+        "honesty": 0.85,
+        "kindness": 0.8,
+        "justice": 0.7,
+        "autonomy": 0.6,
+    })
+    initial_traits: dict[str, float] = field(default_factory=lambda: {
+        "calm": 0.8,
+        "curious": 0.75,
+        "protective": 0.72,
+        "thoughtful": 0.78,
+        "blunt": 0.25,
+    })
+
+
+@dataclass
+class SemanticMemoryConfig:
+    """Config for explicit semantic memory and optional MemPalace retrieval."""
+
+    enabled: bool = True
+    backend: str = "sqlite"  # sqlite | mempalace | none
+    retrieval_limit: int = 5
+    write_raw_turns: bool = True
+    write_preferences: bool = True
+    write_decisions: bool = True
+    mempalace_path: str = "~/.mempalace/palace"
+
+
+@dataclass
 class NurConfig:
     """Top-level configuration for all Project Nur modules."""
 
@@ -169,6 +232,8 @@ class NurConfig:
         "loyalty": 0.9, "honesty": 0.85, "kindness": 0.8,
         "justice": 0.7, "autonomy": 0.6,
     })
+    soul: SoulConfig = field(default_factory=SoulConfig)
+    semantic_memory: SemanticMemoryConfig = field(default_factory=SemanticMemoryConfig)
 
     # Prompt templates
     generator_prompt: str = ""
@@ -199,6 +264,8 @@ def load_config(config_dir: str | Path | None = None) -> NurConfig:
     att = _load_yaml("attachment.yaml", cdir)
     prof = _load_yaml("profiles_schema.yaml", cdir)
     vals = _load_yaml("values_seed.yaml", cdir)
+    soul = _load_yaml("soul.yaml", cdir)
+    semantic = _load_yaml("semantic_memory.yaml", cdir)
 
     cfg = NurConfig()
 
@@ -320,6 +387,49 @@ def load_config(config_dir: str | Path | None = None) -> NurConfig:
     # --- Values ---
     if "values" in vals:
         cfg.values = vals["values"]
+
+    # --- Soul ---
+    soul_data = soul.get("soul", soul)
+    if soul_data:
+        cfg.soul = SoulConfig(
+            name=soul_data.get("name", cfg.soul.name),
+            identity=soul_data.get("identity", cfg.soul.identity),
+            voice=soul_data.get("voice", cfg.soul.voice),
+            relational_stance=soul_data.get(
+                "relational_stance", cfg.soul.relational_stance,
+            ),
+            likes=list(soul_data.get("likes", cfg.soul.likes)),
+            dislikes=list(soul_data.get("dislikes", cfg.soul.dislikes)),
+            boundaries=list(soul_data.get("boundaries", cfg.soul.boundaries)),
+            growth_policy=soul_data.get("growth_policy", cfg.soul.growth_policy),
+            core_values=dict(soul_data.get("core_values", cfg.soul.core_values)),
+            initial_traits=dict(soul_data.get("initial_traits", cfg.soul.initial_traits)),
+        )
+        if cfg.soul.core_values:
+            cfg.values = {**cfg.values, **cfg.soul.core_values}
+
+    # --- Semantic memory ---
+    semantic_data = semantic.get("semantic_memory", semantic)
+    if semantic_data:
+        cfg.semantic_memory = SemanticMemoryConfig(
+            enabled=semantic_data.get("enabled", cfg.semantic_memory.enabled),
+            backend=semantic_data.get("backend", cfg.semantic_memory.backend),
+            retrieval_limit=semantic_data.get(
+                "retrieval_limit", cfg.semantic_memory.retrieval_limit,
+            ),
+            write_raw_turns=semantic_data.get(
+                "write_raw_turns", cfg.semantic_memory.write_raw_turns,
+            ),
+            write_preferences=semantic_data.get(
+                "write_preferences", cfg.semantic_memory.write_preferences,
+            ),
+            write_decisions=semantic_data.get(
+                "write_decisions", cfg.semantic_memory.write_decisions,
+            ),
+            mempalace_path=semantic_data.get(
+                "mempalace_path", cfg.semantic_memory.mempalace_path,
+            ),
+        )
 
     # --- Prompts ---
     cfg.generator_prompt = _load_prompt("generator.md", cdir)

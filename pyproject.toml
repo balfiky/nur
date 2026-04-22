@@ -2,9 +2,10 @@
 name = "project-nur"
 version = "0.1.0"
 description = "A hybrid cognitive architecture for human-like AI emotion"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.110",
+    "httpx>=0.27",
     "uvicorn>=0.29",
     "pyyaml>=6.0",
     "requests>=2.31",
@@ -17,9 +18,13 @@ dev = [
     "ruff>=0.4",
 ]
 
+[project.scripts]
+nur = "main:main"
+nur-web = "interface.api:main"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py310"
 line-length = 100

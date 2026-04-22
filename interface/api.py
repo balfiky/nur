@@ -511,6 +511,17 @@ def _config_payload(
             "Secret fields are never returned; leave them blank to keep the current value.",
             "Saving through this UI updates runtime_config.yaml.",
             "The standalone web server reloads its web manager and Telegram poller after save.",
-            "Changes for python main.py still apply after restarting that runtime.",
+            "Changes for nur / python3 main.py still apply after restarting that runtime.",
         ],
     }
+
+
+def main() -> None:
+    """Launch the standalone web UI on localhost."""
+    import uvicorn
+
+    uvicorn.run("interface.api:app", host="127.0.0.1", port=8000)
+
+
+if __name__ == "__main__":
+    main()

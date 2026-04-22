@@ -371,3 +371,23 @@ class TestConfigEndpoint:
         assert len(captured) == 1
         assert captured[0].telegram_token == "keep-me"
         assert captured[0].telegram_allowlist == {"456", "789"}
+
+
+class TestEntryPoints:
+    def test_main_runs_uvicorn_on_localhost(self, monkeypatch):
+        captured: dict[str, object] = {}
+
+        def fake_run(app_path: str, *, host: str, port: int) -> None:
+            captured["app_path"] = app_path
+            captured["host"] = host
+            captured["port"] = port
+
+        monkeypatch.setattr("uvicorn.run", fake_run)
+
+        interface_api.main()
+
+        assert captured == {
+            "app_path": "interface.api:app",
+            "host": "127.0.0.1",
+            "port": 8000,
+        }

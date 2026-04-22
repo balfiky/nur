@@ -12,6 +12,8 @@ from config.loader import (
     load_config,
     get_config,
     reset_config,
+    SoulConfig,
+    SemanticMemoryConfig,
     EnergyConfig,
     MemoryConfig,
     ProfilingConfig,
@@ -96,6 +98,19 @@ class TestNurConfigDefaults:
         assert cfg.values["loyalty"] == 0.9
         assert cfg.values["honesty"] == 0.85
 
+    def test_default_soul(self):
+        cfg = NurConfig()
+        assert isinstance(cfg.soul, SoulConfig)
+        assert cfg.soul.name == "Nūr"
+        assert "clarity" in cfg.soul.likes
+        assert cfg.soul.initial_traits["calm"] == 0.8
+
+    def test_default_semantic_memory(self):
+        cfg = NurConfig()
+        assert isinstance(cfg.semantic_memory, SemanticMemoryConfig)
+        assert cfg.semantic_memory.enabled is True
+        assert cfg.semantic_memory.backend == "sqlite"
+
 
 class TestLoadConfig:
     """Test loading config from YAML files."""
@@ -125,6 +140,18 @@ class TestLoadConfig:
     def test_loads_values(self):
         cfg = load_config()
         assert cfg.values["loyalty"] == 0.9
+
+    def test_loads_soul(self):
+        cfg = load_config()
+        assert cfg.soul.name == "Nūr"
+        assert "steady collaboration" in cfg.soul.likes
+        assert cfg.soul.initial_traits["thoughtful"] == 0.78
+
+    def test_loads_semantic_memory(self):
+        cfg = load_config()
+        assert cfg.semantic_memory.enabled is True
+        assert cfg.semantic_memory.backend == "sqlite"
+        assert cfg.semantic_memory.retrieval_limit == 5
 
     def test_loads_prompts(self):
         cfg = load_config()
@@ -275,6 +302,16 @@ class TestYAMLFiles:
         assert len(cfg.values) == 5
         assert "loyalty" in cfg.values
         assert "autonomy" in cfg.values
+
+    def test_soul_yaml_completeness(self):
+        cfg = load_config()
+        assert len(cfg.soul.boundaries) == 3
+        assert "manipulation" in cfg.soul.dislikes
+
+    def test_semantic_memory_yaml_completeness(self):
+        cfg = load_config()
+        assert cfg.semantic_memory.write_raw_turns is True
+        assert cfg.semantic_memory.write_preferences is True
 
 
 class TestPromptTemplates:

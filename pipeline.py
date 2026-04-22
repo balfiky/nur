@@ -53,6 +53,7 @@ from core.types import (
     PipelineContext,
     PersonProfile,
     RelationshipContext,
+    SemanticMemoryEntry,
     SelfProfile,
     ToolCategory,
     TopicProfile,
@@ -67,6 +68,7 @@ from core.memory.short_term import ShortTermMemory
 from core.memory.long_term import LongTermMemory
 from core.memory.digestion import digest_session, DigestedSession
 from core.memory.relationship import RelationshipMemory
+from core.memory.semantic import create_semantic_memory, derive_semantic_entries
 from core.contagion import detect_emotion
 from core.profiles.base import ProfileStore
 from core.profiles.person import PersonProfileManager
@@ -128,6 +130,7 @@ class DebugState:
 
     # Step 7: Memory retrieval
     retrieved_memories: list[LongTermEntry] = field(default_factory=list)
+    semantic_memories: list[SemanticMemoryEntry] = field(default_factory=list)
     relationship_context: RelationshipContext | None = None
 
     # Step 8: Profiles
@@ -224,6 +227,9 @@ class CognitivePipeline:
         # Fast backend (thinking mode off) — used for ALL calls
         # Generator prompt already has full context; thinking overhead not needed
         self._llm_backend_fast = llm_backend_fast or self._llm_backend
+        self._config = get_config()
+        self.soul = self._config.soul
+        self._semantic_cfg = self._config.semantic_memory
 
         # Core engine
         self.engine = EmotionalEngine()
@@ -232,6 +238,10 @@ class CognitivePipeline:
         self.short_term = ShortTermMemory()
         self.long_term = LongTermMemory(db_path=db_path)
         self.relationship_memory = RelationshipMemory(db_path=db_path)
+        self.semantic_memory = create_semantic_memory(
+            db_path=db_path,
+            config=self._semantic_cfg,
+        )
 
         # Per-user profile store (person observations + extracted traits)
         self._person_profile_store = ProfileStore(db_path=db_path)
@@ -262,8 +272,8 @@ class CognitivePipeline:
         self.anticipation_engine = AnticipationEngine()
         self.defense_mechanism = DefenseMechanism()
 
-        # Values (static in v1)
-        self.values = ValueHierarchy()
+        # Values are seeded from the authored soul and remain stable unless updated deliberately.
+        self.values = ValueHierarchy(values=dict(self._config.values))
 
         # Conversation history for context
         self._conversation_history: list[dict[str, str]] = []
@@ -410,6 +420,16 @@ class CognitivePipeline:
         debug.relationship_context = relationship_context
         timings["relationship_retrieval"] = (time.perf_counter() - _ts) * 1000
 
+        _ts = time.perf_counter()
+        semantic_memories = self.semantic_memory.retrieve(
+            user_message,
+            source_person=user_id,
+            topic=relationship_topic,
+            limit=self._semantic_cfg.retrieval_limit,
+        )
+        debug.semantic_memories = semantic_memories
+        timings["semantic_memory_retrieval"] = (time.perf_counter() - _ts) * 1000
+
         # ---- Step 11: Contradiction check ----
         contradiction_flags: list[str] = []
 
@@ -419,7 +439,7 @@ class CognitivePipeline:
             for c in person_result.contradictions:
                 contradiction_flags.append(c.description)
 
-        self_expected = self.self_profile.get_expected_traits()
+        self_expected = self._effective_self_expected_traits()
         if self_expected:
             self_result = self._self_contradiction.detect(SELF_ENTITY_ID, self_expected)
             for c in self_result.contradictions:
@@ -610,6 +630,7 @@ class CognitivePipeline:
 
         ctx = PipelineContext(
             modulator_snapshot=self.engine.snapshot(),
+            soul_profile=self.soul,
             person_profile=person,
             self_profile=self_prof,
             appraisal_frame=appraisal,
@@ -617,6 +638,7 @@ class CognitivePipeline:
             topic_profiles=active_topics,
             values=self.values,
             retrieved_memories=retrieved,
+            semantic_memories=semantic_memories,
             short_term_history=self.short_term.recent(5),
             contradiction_flags=contradiction_flags,
             contagion=detected,
@@ -653,6 +675,7 @@ class CognitivePipeline:
             ) if ctx.candidate_response else check_result.correction_note
             correction_ctx = PipelineContext(
                 modulator_snapshot=ctx.modulator_snapshot,
+                soul_profile=ctx.soul_profile,
                 person_profile=ctx.person_profile,
                 self_profile=ctx.self_profile,
                 appraisal_frame=ctx.appraisal_frame,
@@ -660,6 +683,7 @@ class CognitivePipeline:
                 topic_profiles=ctx.topic_profiles,
                 values=ctx.values,
                 retrieved_memories=ctx.retrieved_memories,
+                semantic_memories=ctx.semantic_memories,
                 short_term_history=ctx.short_term_history,
                 contradiction_flags=ctx.contradiction_flags,
                 contagion=ctx.contagion,
@@ -711,6 +735,15 @@ class CognitivePipeline:
         # ---- Self-observations (1-3 per turn) ----
         self._record_self_observations(
             event, detected, appraisal, defense, self.engine.state, gen_result.response,
+        )
+
+        # ---- Semantic memory writes ----
+        self._record_semantic_memory(
+            user_message=user_message,
+            assistant_response=gen_result.response,
+            user_id=user_id,
+            topic=relationship_topic,
+            event=event,
         )
 
         # ---- Persist defense event ----
@@ -825,11 +858,19 @@ class CognitivePipeline:
             defense_instruction = DEFENSE_INSTRUCTIONS.get(defense.defense_type, "")
 
         # 4. Generate through Nūr
+        proactive_semantic = self.semantic_memory.retrieve(
+            action.message,
+            source_person=user_id,
+            limit=self._semantic_cfg.retrieval_limit,
+        )
+        debug.semantic_memories = proactive_semantic
         ctx = PipelineContext(
             modulator_snapshot=self.engine.snapshot(),
+            soul_profile=self.soul,
             person_profile=person,
             self_profile=self_prof,
             relationship_context=None,
+            semantic_memories=proactive_semantic,
             candidate_response=filtered,
             defense_instruction=defense_instruction,
             tool_context_summary=tool_context,
@@ -856,6 +897,32 @@ class CognitivePipeline:
         )
 
         return PipelineResponse(response=gen_result.response, debug=debug)
+
+    def _effective_self_expected_traits(self) -> dict[str, float]:
+        """Seed identity provides the starting expectation; learned traits can override it."""
+        expected = dict(self.soul.initial_traits)
+        expected.update(self.self_profile.get_expected_traits())
+        return expected
+
+    def _record_semantic_memory(
+        self,
+        *,
+        user_message: str,
+        assistant_response: str,
+        user_id: str,
+        topic: str,
+        event: EmotionalEvent,
+    ) -> None:
+        """Persist semantic memories derived from the completed turn."""
+        for entry in derive_semantic_entries(
+            config=self._semantic_cfg,
+            user_id=user_id,
+            user_message=user_message,
+            assistant_response=assistant_response,
+            topic=topic,
+            event_intensity=event.intensity,
+        ):
+            self.semantic_memory.store(entry)
 
     # ------------------------------------------------------------------
     # Self-observation recording (v2 — Phase 3)
@@ -1006,6 +1073,7 @@ class CognitivePipeline:
         """
         self.long_term.close()
         self.relationship_memory.close()
+        self.semantic_memory.close()
         self._person_profile_store.close()
         self._self_profile_store.close()
         self.person_profiles.close()
@@ -1213,6 +1281,8 @@ class CognitivePipeline:
                 "hate",
                 "fight",
                 "argument",
+                "upset with you",
+                "upset at you",
                 "shut up",
                 "go away",
                 "screw you",
@@ -1224,6 +1294,16 @@ class CognitivePipeline:
             return EmotionalEvent(
                 event_type=EventType.CONFLICT,
                 intensity=max(0.5, detected.arousal),
+                source="user",
+                metadata=metadata,
+            )
+
+        # Appraisal may identify a direct attack even when the contagion lexicon
+        # misses the exact phrasing (for example, "I'm upset with you").
+        if appraisal.targets_assistant and appraisal.social_move == "attack":
+            return EmotionalEvent(
+                event_type=EventType.NEGATIVE_FEEDBACK,
+                intensity=max(0.45, detected.arousal, 1.0 - detected.valence),
                 source="user",
                 metadata=metadata,
             )

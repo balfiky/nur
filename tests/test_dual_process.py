@@ -9,11 +9,13 @@ from core.types import (
     PipelineContext,
     RelationshipContext,
     RelationshipEvent,
+    SemanticMemoryEntry,
     SelfProfile,
     TopicProfile,
     ValueHierarchy,
     LongTermEntry,
 )
+from config.loader import get_config
 from core.dual_process.generator import (
     GenerationResult,
     MockLLMBackend,
@@ -79,6 +81,29 @@ class TestBuildSystemPrompt:
         prompt = build_system_prompt(ctx)
         assert "loyalty" in prompt
         assert "honesty" in prompt
+
+    def test_includes_soul_profile(self):
+        ctx = PipelineContext(
+            modulator_snapshot={},
+            soul_profile=get_config().soul,
+        )
+        prompt = build_system_prompt(ctx)
+        assert "Soul Seed" in prompt
+        assert get_config().soul.identity in prompt
+
+    def test_includes_semantic_memories(self):
+        ctx = PipelineContext(
+            modulator_snapshot={},
+            semantic_memories=[
+                SemanticMemoryEntry(
+                    kind="preference",
+                    summary="User preference: concise replies",
+                ),
+            ],
+        )
+        prompt = build_system_prompt(ctx)
+        assert "Semantic Memory" in prompt
+        assert "concise replies" in prompt
 
     def test_includes_memories(self):
         ctx = PipelineContext(

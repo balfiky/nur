@@ -4,6 +4,78 @@ A hybrid cognitive architecture for human-like AI emotion, based on PSI Theory, 
 
 Jarvis is an AI assistant with persistent emotional state. It doesn't simulate emotions — emotions *emerge* from the interaction between continuous modulators, memory, drives, and context. After 20 conversations, it responds differently than it did on day one, because its internal state has genuinely changed.
 
+## 5-Minute Start
+
+### Requirements
+
+- Python 3.10+ (3.11+ recommended)
+- A browser
+
+### Install
+
+```bash
+git clone https://github.com/balfiky/nur.git
+cd nur
+python3 -m pip install -e ".[dev]"
+```
+
+### Start Here: web UI, no API key needed
+
+```bash
+nur-web
+```
+
+Then open http://localhost:8000
+
+The tracked [runtime_config.yaml](runtime_config.yaml) starts in `mock` mode, so the first run works without a MiniMax key or a local model server. Use the `Settings` button in the web UI when you want to switch to MiniMax, a local OpenAI-compatible backend, or Telegram.
+
+If your shell does not expose installed console scripts yet, the fallback is:
+
+```bash
+python3 -m interface.api
+```
+
+### Prefer the terminal instead?
+
+```bash
+nur
+```
+
+Fallback:
+
+```bash
+python3 main.py
+```
+
+That starts the console chat loop and the debug API at http://127.0.0.1:8077/sessions.
+
+### When You Want a Real Model
+
+Use the web UI `Settings` drawer or edit [runtime_config.yaml](runtime_config.yaml):
+
+- MiniMax: set `llm_backend: minimax` and add `minimax_api_key`, or export `MINIMAX_API_KEY`
+- Local model server: set `llm_backend: openai_compatible`, then fill `llm_base_url` and `llm_model`
+- Mock mode: keep `llm_backend: mock` for offline/local testing
+
+Restart `nur` or `nur-web` after changing the backend.
+
+### Reset Local Config
+
+If you want to get back to the safe starter settings:
+
+```bash
+cp runtime_config.example.yaml runtime_config.yaml
+```
+
+Keep committed `runtime_config.yaml` secrets blank and inject real values locally.
+
+### Seed Identity And Memory
+
+- Edit [config/soul.yaml](config/soul.yaml) to set Nūr's starting identity, voice, values, likes, dislikes, and boundaries.
+- Semantic memory is stored explicitly beside the existing emotional and relationship memory layers.
+- [config/semantic_memory.yaml](config/semantic_memory.yaml) controls the semantic-memory backend. The default is local SQLite; `backend: mempalace` is an optional retrieval hook.
+- Use `/v1/soul` to inspect the current seed identity and `/v1/memory/semantic` to inspect semantic memories for a user.
+
 ## Status
 
 **v2 + Jarvis Runtime + Phase 11 complete, plus a stable `/v1` integration API.** All three Phase 11 sub-phases are deployed: deterministic social appraisal, relationship-arc memory, and response strategy selection. The test suite has grown past 1250 tests.
@@ -17,72 +89,29 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 See [PROJECT_NUR_ARCHITECTURE.md](PROJECT_NUR_ARCHITECTURE.md) for the full vision.
 See [PROJECT_NUR_EXPERT_BRIEF.md](PROJECT_NUR_EXPERT_BRIEF.md) for an expert-facing design, architecture, and scientific background briefing.
 
-## Quick Start
-
-### Requirements
-
-- Python 3.10+ (3.11+ recommended)
-- MiniMax API key, a local OpenAI-compatible endpoint (for example vLLM), or mock backend for testing
-
-### Install
+### Common Commands
 
 ```bash
-git clone https://github.com/balfiky/nur.git
-cd nur
-pip install -e ".[dev]"
-```
+# Standalone web UI
+nur-web
 
-### Run via Jarvis Runtime (recommended)
+# Console runtime
+nur
 
-```bash
-# With real LLM (MiniMax M2.7-highspeed)
-export MINIMAX_API_KEY="your-key-here"
-python main.py
-
-# With local vLLM / OpenAI-compatible backend
-# runtime_config.yaml:
-#   llm_backend: openai_compatible
-#   llm_base_url: http://127.0.0.1:8000/v1
-#   llm_model: Qwen/Qwen3-30B-A3B
-python main.py
-
-# Without LLM (mock backend — useful for development)
-python main.py
-```
-
-Console channel starts by default. Set `telegram_token` in `runtime_config.yaml` to enable Telegram.
-Keep committed `runtime_config.yaml` secrets blank and inject real values locally.
-Debug API at http://127.0.0.1:8077/sessions.
-
-### Run the standalone web server
-
-```bash
-uvicorn interface.api:app --reload --port 8000
-```
-
-Open http://localhost:8000 for the chat UI + debug dashboard.
-Use the `Settings` button in the top-right of the web UI to edit `runtime_config.yaml`
-for Telegram, backend selection, runtime limits, and proactive behavior.
-Leaving secret fields blank preserves the saved local value. Saving from the standalone web UI
-reloads its web session manager and restarts Telegram polling immediately.
-
-### Run Tests
-
-```bash
 # All tests
-pytest
+python3 -m pytest
 
 # Phase 11 human-likeness regression pack
-python -m evals --tag phase11
+python3 -m evals --tag phase11
 
 # Detailed Phase 11 trace report
-python -m tests.run_phase11_report
+python3 -m tests.run_phase11_report
 
 # Specific test suite
-pytest tests/test_emotional_journey.py -v
+python3 -m pytest tests/test_emotional_journey.py -v
 
 # Detailed emotional journey report
-python -m tests.run_journey_report
+python3 -m tests.run_journey_report
 ```
 
 ### Use Programmatically
@@ -316,8 +345,9 @@ nur/
 |   +-- debug/
 |       +-- api.py                   # Session-aware debug endpoints (FastAPI)
 |
-|-- main.py                          # Runtime entry point (python main.py)
-|-- runtime_config.yaml              # Runtime configuration (data_dir, limits, Telegram, debug)
+|-- main.py                          # Runtime entry point (fallback for `nur`)
+|-- runtime_config.yaml              # Local runtime configuration used by the app
+|-- runtime_config.example.yaml      # Safe starter copy for resetting local config
 |-- CLAUDE.md                        # AI assistant instructions + v2 design spec
 |-- pyproject.toml                   # Python project config
 +-- README.md                        # This file
@@ -520,10 +550,12 @@ Two surfaces share the same FastAPI app. The **legacy endpoints at the root** ex
 | POST | `/v1/sessions/{key}/reset` | Evict a session (digest → persist → close) |
 | POST | `/v1/sessions/end` | End the current turn without evicting — returns the digestion result |
 | POST | `/v1/sessions/rest` | Apply simulated rest (recover energy, decay modulators) |
+| GET  | `/v1/soul` | Seeded soul / authored starting identity |
 | GET  | `/v1/profiles/self` | Current self-model (strengths, flaws, triggers, maturity, trait scores) |
 | GET  | `/v1/profiles/person` | Person profile (trust, reliability, volatility, baseline shift) |
 | GET  | `/v1/memory/long_term` | Recent long-term memories for a user (ACT-R ordering) |
 | GET  | `/v1/memory/relationship` | Relationship events and open loops for a user |
+| GET  | `/v1/memory/semantic` | Semantic memories for a user (preferences, decisions, episodes, facts) |
 | GET  | `/v1/tools` | Enumerate registered tool capabilities |
 | GET  | `/v1/config` | Runtime config with secrets redacted |
 

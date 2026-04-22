@@ -57,11 +57,13 @@ def build_system_prompt(ctx: PipelineContext) -> str:
 
     # Build each section
     modulator_section = _build_modulator_section(ctx)
+    soul_section = _build_soul_section(ctx)
     self_section = _build_self_section(ctx)
     person_section = _build_person_section(ctx)
     topic_section = _build_topic_section(ctx)
     values_section = _build_values_section(ctx)
     memory_section = _build_memory_section(ctx)
+    semantic_memory_section = _build_semantic_memory_section(ctx)
     contradiction_section = _build_contradiction_section(ctx)
     guidance_section = _build_guidance_section(ctx)
     candidate_section = _build_candidate_section(ctx)
@@ -73,12 +75,14 @@ def build_system_prompt(ctx: PipelineContext) -> str:
     if template:
         prompt = template
         prompt = prompt.replace("{modulator_state}", modulator_section)
+        prompt = prompt.replace("{soul_profile}", soul_section)
         prompt = prompt.replace("{self_profile}", self_section)
         prompt = prompt.replace("{person_name}", _get_person_name(ctx))
         prompt = prompt.replace("{person_profile}", person_section)
         prompt = prompt.replace("{topic_profiles}", topic_section)
         prompt = prompt.replace("{values}", values_section)
         prompt = prompt.replace("{retrieved_memories}", memory_section)
+        prompt = prompt.replace("{semantic_memories}", semantic_memory_section)
         prompt = prompt.replace("{contradiction_flags}", contradiction_section)
         prompt = prompt.replace("{behavioral_guidance}", guidance_section)
         prompt = prompt.replace("{candidate_response}", candidate_section)
@@ -92,15 +96,17 @@ def build_system_prompt(ctx: PipelineContext) -> str:
 
     # Fallback: build in code (for backwards compatibility)
     parts: list[str] = []
-    parts.append("You are Jarvis, an AI assistant with persistent emotional state.")
-    parts.append("Your responses should be naturally colored by your current internal state.")
+    parts.append("You are Jarvis / Nūr, an assistant with a seeded soul and persistent emotional state.")
+    parts.append("Let soul, current feelings, and remembered context shape the response naturally.")
     parts.append("")
     parts.append(modulator_section)
+    parts.append(soul_section)
     parts.append(self_section)
     parts.append(person_section)
     parts.append(topic_section)
     parts.append(values_section)
     parts.append(memory_section)
+    parts.append(semantic_memory_section)
     parts.append(contradiction_section)
     parts.append(guidance_section)
 
@@ -123,6 +129,25 @@ def _build_modulator_section(ctx: PipelineContext) -> str:
     lines = ["## Current Emotional State"]
     for mod, val in ctx.modulator_snapshot.items():
         lines.append(f"- {mod}: {val:.2f}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _build_soul_section(ctx: PipelineContext) -> str:
+    if not ctx.soul_profile:
+        return ""
+    soul = ctx.soul_profile
+    lines = [f"## Soul Seed: {soul.name}"]
+    lines.append(f"- Identity: {soul.identity}")
+    lines.append(f"- Voice: {soul.voice}")
+    lines.append(f"- Relational stance: {soul.relational_stance}")
+    if soul.likes:
+        lines.append(f"- Likes: {', '.join(soul.likes)}")
+    if soul.dislikes:
+        lines.append(f"- Dislikes: {', '.join(soul.dislikes)}")
+    if soul.boundaries:
+        lines.append(f"- Boundaries: {' | '.join(soul.boundaries)}")
+    lines.append(f"- Growth policy: {soul.growth_policy}")
     lines.append("")
     return "\n".join(lines)
 
@@ -201,6 +226,17 @@ def _build_memory_section(ctx: PipelineContext) -> str:
     for mem in ctx.retrieved_memories[:5]:
         spike_tag = " [SPIKE]" if mem.spike else ""
         lines.append(f"- {mem.summary} (valence={mem.emotional_valence:.2f}){spike_tag}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _build_semantic_memory_section(ctx: PipelineContext) -> str:
+    if not ctx.semantic_memories:
+        return ""
+    lines = ["## Semantic Memory"]
+    for mem in ctx.semantic_memories[:5]:
+        prefix = mem.kind.replace("_", " ")
+        lines.append(f"- {prefix}: {mem.summary}")
     lines.append("")
     return "\n".join(lines)
 

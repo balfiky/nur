@@ -26,6 +26,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
+from config.loader import get_config
 from runtime.config import RuntimeConfig
 from runtime.debug.api import _debug_to_dict
 from runtime.sessions.manager import SessionManager
@@ -253,6 +254,26 @@ def build_v1_router(
     # ------------------------------------------------------------------
 
     @router.get(
+        "/soul",
+        summary="Seeded soul / authored identity for Nūr",
+        dependencies=[Depends(require_auth)],
+    )
+    async def get_soul() -> dict[str, Any]:
+        soul = get_config().soul
+        return {
+            "name": soul.name,
+            "identity": soul.identity,
+            "voice": soul.voice,
+            "relational_stance": soul.relational_stance,
+            "likes": soul.likes,
+            "dislikes": soul.dislikes,
+            "boundaries": soul.boundaries,
+            "growth_policy": soul.growth_policy,
+            "core_values": soul.core_values,
+            "initial_traits": soul.initial_traits,
+        }
+
+    @router.get(
         "/profiles/self",
         summary="Current self-model (strengths, flaws, triggers, maturity)",
         dependencies=[Depends(require_auth)],
@@ -366,6 +387,40 @@ def build_v1_router(
             "open_loop_count": mem.count_open_loops(user_id),
             "events": [event.to_dict() for event in events],
             "open_loops": [loop.to_dict() for loop in loops],
+        }
+
+    @router.get(
+        "/memory/semantic",
+        summary="Semantic memory records for a user",
+        dependencies=[Depends(require_auth)],
+    )
+    async def get_semantic_memory(
+        user_id: str = Query(..., description="User whose semantic memory to load"),
+        chat_id: str = Query("default"),
+        platform: str = Query("web"),
+        query: str = Query("", description="Optional search query"),
+        topic: str = Query("", description="Optional topic filter"),
+        limit: int = Query(20, ge=1, le=200),
+    ) -> dict[str, Any]:
+        mgr = get_manager()
+        session = await mgr.ensure_session(platform, user_id, chat_id)
+        if query:
+            entries = session.pipeline.semantic_memory.retrieve(
+                query,
+                source_person=user_id,
+                topic=topic,
+                limit=limit,
+            )
+        else:
+            entries = session.pipeline.semantic_memory.recent(
+                source_person=user_id,
+                topic=topic,
+                limit=limit,
+            )
+        return {
+            "count": session.pipeline.semantic_memory.count(),
+            "returned": len(entries),
+            "entries": [entry.to_dict() for entry in entries],
         }
 
     # ------------------------------------------------------------------
