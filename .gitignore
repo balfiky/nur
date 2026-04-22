@@ -17,3 +17,12 @@ build/
 data/
 *.session.json
 runtime_config.local.yaml
+
+# Eval reports — raw per-run/per-scenario artifacts stay local.
+# Only the aggregated summary is tracked for the paper.
+# (Rule: you can only un-ignore a path whose parent directory isn't
+# itself ignored — so we ignore contents, not the directory.)
+reports/*
+!reports/ablation/
+reports/ablation/*
+!reports/ablation/summary.json

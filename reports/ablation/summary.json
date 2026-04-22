@@ -1,0 +1,223 @@
+{
+  "baseline": {
+    "passed": 6,
+    "total": 6,
+    "assertions_passed": 25,
+    "assertions_total": 25,
+    "llm_calls": 14,
+    "latency_s": 118.708
+  },
+  "ablations": [
+    {
+      "label": "no_relationship_memory",
+      "features_disabled": [
+        "relationship_memory"
+      ],
+      "hypothesis": "Phase 11 scenarios that exercise cross-turn open-loop tracking should fail when the relationship-memory component is disabled. Other scenarios (single-turn strategy selection) should still pass.",
+      "expected_failures": [
+        "p11_open_loop_challenge",
+        "p11_repair_closes_loop"
+      ],
+      "passed": 4,
+      "total": 6,
+      "assertions_passed": 19,
+      "assertions_total": 25,
+      "llm_calls": 14,
+      "latency_s": 115.609,
+      "per_scenario": {
+        "p11_action_request_practical": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p11_external_distress_validate": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p11_low_trust_hostility_boundary": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p11_open_loop_challenge": {
+          "baseline_passed": true,
+          "variant_passed": false,
+          "outcome": "expected_failure"
+        },
+        "p11_overwhelm_ground": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p11_repair_closes_loop": {
+          "baseline_passed": true,
+          "variant_passed": false,
+          "outcome": "expected_failure"
+        }
+      },
+      "counts": {
+        "expected_failure": 2,
+        "unexpected_failure": 0,
+        "no_effect": 4,
+        "newly_passing": 0
+      }
+    },
+    {
+      "label": "no_inner_dialogue",
+      "features_disabled": [
+        "inner_dialogue"
+      ],
+      "hypothesis": "Phase 11 assertions check strategy selection and modulator state, both upstream of inner dialogue. No scenario failures are predicted; this ablation primarily produces a metrics delta (LLM calls, latency) that tells us what inner dialogue costs for no structural change.",
+      "expected_failures": [],
+      "passed": 6,
+      "total": 6,
+      "assertions_passed": 25,
+      "assertions_total": 25,
+      "llm_calls": 14,
+      "latency_s": 119.642,
+      "per_scenario": {
+        "p11_action_request_practical": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p11_external_distress_validate": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p11_low_trust_hostility_boundary": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p11_open_loop_challenge": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p11_overwhelm_ground": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p11_repair_closes_loop": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        }
+      },
+      "counts": {
+        "expected_failure": 0,
+        "unexpected_failure": 0,
+        "no_effect": 6,
+        "newly_passing": 0
+      }
+    },
+    {
+      "label": "no_defense",
+      "features_disabled": [
+        "defense"
+      ],
+      "hypothesis": "Defense shapes response wording; Phase 11 assertions check structural outcomes (strategy, modulators, memory writes) that are upstream of defense. No scenario failures are predicted.",
+      "expected_failures": [],
+      "passed": 6,
+      "total": 6,
+      "assertions_passed": 25,
+      "assertions_total": 25,
+      "llm_calls": 14,
+      "latency_s": 106.119,
+      "per_scenario": {
+        "p11_action_request_practical": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p11_external_distress_validate": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p11_low_trust_hostility_boundary": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p11_open_loop_challenge": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p11_overwhelm_ground": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p11_repair_closes_loop": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        }
+      },
+      "counts": {
+        "expected_failure": 0,
+        "unexpected_failure": 0,
+        "no_effect": 6,
+        "newly_passing": 0
+      }
+    },
+    {
+      "label": "no_semantic_memory",
+      "features_disabled": [
+        "semantic_memory"
+      ],
+      "hypothesis": "Negative control. Phase 11 scenarios don't exercise semantic retrieval. Zero effect is predicted. Any scenario failure here indicates a hidden coupling between semantic memory and other components that needs to be investigated before ablation results can be trusted.",
+      "expected_failures": [],
+      "passed": 6,
+      "total": 6,
+      "assertions_passed": 25,
+      "assertions_total": 25,
+      "llm_calls": 14,
+      "latency_s": 116.186,
+      "per_scenario": {
+        "p11_action_request_practical": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p11_external_distress_validate": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p11_low_trust_hostility_boundary": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p11_open_loop_challenge": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p11_overwhelm_ground": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p11_repair_closes_loop": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        }
+      },
+      "counts": {
+        "expected_failure": 0,
+        "unexpected_failure": 0,
+        "no_effect": 6,
+        "newly_passing": 0
+      }
+    }
+  ]
+}
