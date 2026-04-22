@@ -1,8 +1,15 @@
 # Project Nur
 
-A hybrid cognitive architecture for human-like AI emotion, based on PSI Theory, ACT-R, and CLARION.
+A hybrid cognitive architecture for AI assistants, inspired by PSI Theory, ACT-R, and CLARION. Treats emotion as persistent internal state rather than a prompt-level style layer.
 
-Jarvis is an AI assistant with persistent emotional state. It doesn't simulate emotions — emotions *emerge* from the interaction between continuous modulators, memory, drives, and context. After 20 conversations, it responds differently than it did on day one, because its internal state has genuinely changed.
+Nūr (internal name Jarvis) maintains a continuous emotional state, a dual memory system, a self-model earned through behavioral observation, and a relationship memory that tracks ruptures, repairs, and open loops across sessions. After 20 conversations it responds differently than on day one, because its internal state has genuinely changed.
+
+**Public write-ups (start here):**
+- 📄 **[TECHNICAL_NOTE.md](TECHNICAL_NOTE.md)** — ~2,000 word public technical note: problem, architecture, one reproducible ablation result, limitations, privacy posture. Best first read.
+- 📝 **[LINKEDIN_POST.md](LINKEDIN_POST.md)** — short and long drafts for public posting.
+- 📖 **[PAPER_DRAFT.md](PAPER_DRAFT.md)** — long-form 7,600-word version of the technical note with fuller related-work positioning. Framed as a design paper, not an academic submission.
+
+**Honest scope note:** this is a research prototype. The evaluation demonstrates *one* architecturally load-bearing component (relationship memory) under a reproducible ablation protocol. It does *not* validate human-likeness — that is deferred future work and requires a blinded user study.
 
 ## 5-Minute Start
 
