@@ -95,6 +95,15 @@ class TestHealthAndReady:
         assert "active_sessions" in data
         assert "auth_enabled" in data
 
+    def test_ready_reports_env_backed_llm_key(self, client, monkeypatch):
+        monkeypatch.setenv("MINIMAX_API_KEY", "env-key")
+
+        resp = client.get("/v1/ready")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["has_llm_key"] is True
+
 
 class TestChatEndpoint:
     def test_chat_returns_response_and_emotion(self, client):
