@@ -234,6 +234,14 @@ individually has precedent in parts; the synthesis is what we offer.
 
 ## 4. Architecture
 
+> Diagrams (runtime shape, single-turn flow, persistence model,
+> auth/tool boundary, eval harness, component claim map) are
+> consolidated in
+> [`docs/ARCHITECTURE_DIAGRAMS.md`](docs/ARCHITECTURE_DIAGRAMS.md) and
+> embedded as static SVG assets.
+
+![Single-turn cognitive flow](docs/diagrams/single-turn-cognitive-flow.svg)
+
 Each turn through the cognitive layer runs a consistent sequence: the
 emotional state updates from the user's message, memory and profile
 information is retrieved into context, a deterministic appraisal selects
@@ -437,8 +445,9 @@ conversational turn the LLM is called at three primary sites:
 generating the final response, optionally running inner-dialogue
 deliberation when heuristics suggest a non-trivial turn, and
 optionally running a higher-cost self-check on extreme-intensity
-turns. A separate agentic tool-arbitration loop uses additional LLM
-calls when tools are engaged; Phase 11 scenarios in §6 do not engage
+turns. A separate agentic tool-arbitration loop can perform additional
+tool executions or provider calls when tools are engaged; Phase 11
+scenarios in §6 do not engage
 tools, so that path is out of scope for this paper. Social appraisal
 is rule-based rather than LLM-based: this loses linguistic coverage on
 unusual phrasings but keeps appraisal outcomes inspectable and
@@ -450,6 +459,8 @@ calibrated without re-prompting a model whose behavior may shift
 between provider updates. The split is also why the ablation protocol
 in §6 can isolate architectural contributions cleanly: changing the
 LLM backend does not change what the deterministic layers compute.
+
+![Runtime architecture](docs/diagrams/runtime-architecture.svg)
 
 ### 5.2 Runtime and cognitive layer separation
 
@@ -479,6 +490,8 @@ SQLite database at `data/shared/self_model.db`, keyed by the literal
 entity id `__self__`, deliberately separated from any user's data so
 "delete this user" has a clean definition.
 
+![Memory and persistence model](docs/diagrams/memory-persistence-model.svg)
+
 ### 5.3 Host surfaces
 
 Three channels plug into the same pipeline: a web UI with a debug
@@ -497,6 +510,8 @@ database and every session JSON file under that user's directory, and
 by design does not touch the shared self-model database. Best-effort
 row counts are reported in the response so the caller can verify what
 was wiped.
+
+![Auth and tool-safety boundary](docs/diagrams/auth-tool-safety-boundary.svg)
 
 ### 5.4 Provenance-first evaluation harness
 
@@ -656,6 +671,8 @@ commit, a single backend, and a single set of config fingerprints
 in the run's provenance block so a reader can verify that no variant
 was run against a different code state or configuration.
 
+![Evaluation and ablation harness](docs/diagrams/evaluation-ablation-harness.svg)
+
 ### 6.4 Results
 
 Baseline and the four ablations, Phase 11 on MiniMax M2.7-highspeed:
@@ -713,6 +730,8 @@ on this suite. The accurate count is locked by a regression test that
 fails if the hardcoded heuristic returns. Latency varies by about 10%
 across variants; this is within the bounds of provider jitter and does
 not reflect systematic differences between variants.
+
+![Component claim map](docs/diagrams/component-claim-map.svg)
 
 ### 6.6 Reproducibility
 

@@ -53,6 +53,30 @@ deliberation") is what we take from the cognitive-science literature;
 the theoretical content (drive systems, formal activation equations,
 learned implicit/explicit coordination) is not.
 
+> Full diagram set, including runtime architecture, memory/persistence
+> model, auth/tool-safety boundary, and the evaluation harness:
+> [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md).
+> For a single shareable reader-facing file, use
+> [PROJECT_NUR_OVERVIEW.html](PROJECT_NUR_OVERVIEW.html); it embeds
+> the diagrams directly.
+
+### Single-turn flow
+
+The runtime has two hosts (`nur` and `nur-web`) that share the same
+session and cognitive layer.
+
+![Runtime architecture](docs/diagrams/runtime-architecture.svg)
+
+One message, one pass through the pipeline. Stage order matches
+`pipeline.py::CognitivePipeline.process`. Diamonds are gates; label
+counts are LLM calls per stage.
+
+![Single-turn cognitive flow](docs/diagrams/single-turn-cognitive-flow.svg)
+
+Typical per-turn LLM budget: **1**. Optional paths add inner dialogue,
+LLM self-check, and one possible regeneration. There is no fixed safe
+upper bound because inner-dialogue parsing can retry.
+
 ### Six continuous modulators
 
 The cognitive state is a six-dimensional vector in [0, 1]: arousal,
@@ -105,6 +129,8 @@ On each turn, the layer injects a compact relationship context — a
 summary, up to two active open loops, and up to two recent events —
 into the generator's prompt.
 
+![Memory and persistence model](docs/diagrams/memory-persistence-model.svg)
+
 ### Social appraisal and response strategy
 
 Before event classification, each user message passes through a
@@ -145,6 +171,8 @@ A provenance-stamped harness ablates one component at a time against a
 behavioral scenario suite on a real LLM backend. Every run records git
 SHA, backend identity, config fingerprints (SHA-256 of 16 prompt and
 configuration files), scenario set, and execution counters.
+
+![Evaluation and ablation harness](docs/diagrams/evaluation-ablation-harness.svg)
 
 **Important framing:** the scenario suite tests *structural* outcomes —
 whether the right strategy was selected, whether modulators moved the
@@ -191,6 +219,8 @@ whose structural contribution is measurable under reproducible
 conditions, and the remaining components are **not falsifiable by this
 suite** rather than shown inert.
 
+![Component claim map](docs/diagrams/component-claim-map.svg)
+
 ---
 
 ## What this does *not* show
@@ -230,6 +260,8 @@ shared self-model. Best-effort row counts are returned.
 Deployers of this system to anyone other than themselves are
 responsible for obtaining informed consent. Persistent relational state
 can invite attachment beyond what is appropriate for an assistant.
+
+![Auth and tool-safety boundary](docs/diagrams/auth-tool-safety-boundary.svg)
 
 ---
 

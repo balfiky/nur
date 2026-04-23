@@ -5,11 +5,18 @@ A hybrid cognitive architecture for AI assistants, inspired by PSI Theory, ACT-R
 Nūr (internal name Jarvis) maintains a continuous emotional state, a dual memory system, a self-model earned through behavioral observation, and a relationship memory that tracks ruptures, repairs, and open loops across sessions. The state persists and decays between turns and across sessions, so the system's stance toward a given user is shaped by accumulated history rather than re-derived from each prompt.
 
 **Public write-ups (start here):**
+- 🌐 **[PROJECT_NUR_OVERVIEW.html](PROJECT_NUR_OVERVIEW.html)** — one self-contained reader-facing document. Theory, implementation, safety, evaluation, and all diagrams embedded in one file.
 - 📄 **[TECHNICAL_NOTE.md](TECHNICAL_NOTE.md)** — ~2,000 word public technical note: problem, architecture, one reproducible ablation result, limitations, privacy posture. Best first read.
 - 📝 **[LINKEDIN_POST.md](LINKEDIN_POST.md)** — short and long drafts for public posting.
 - 📖 **[PAPER_DRAFT.md](PAPER_DRAFT.md)** — long-form 7,600-word version of the technical note with fuller related-work positioning. Framed as a design paper, not an academic submission.
 
 **Honest scope note:** this is a research prototype. The evaluation demonstrates *one* architecturally load-bearing component (relationship memory) under a reproducible ablation protocol. It does *not* validate human-likeness — that is deferred future work and requires a blinded user study.
+
+## Architecture At A Glance
+
+![Project Nūr runtime architecture](docs/diagrams/runtime-architecture.svg)
+
+For the full reader-facing explanation with all diagrams embedded in one file, start with [PROJECT_NUR_OVERVIEW.html](PROJECT_NUR_OVERVIEW.html).
 
 ## 5-Minute Start
 
@@ -154,6 +161,8 @@ pipe.apply_rest(hours=8.0)
 ---
 
 ## Architecture Overview
+
+> **Full diagram set:** [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md) — runtime, cognitive flow, persistence, auth/tool safety, eval harness, component claim map. Static SVGs, not ASCII art. For a single shareable file, use [PROJECT_NUR_OVERVIEW.html](PROJECT_NUR_OVERVIEW.html).
 
 ### The Core Idea
 

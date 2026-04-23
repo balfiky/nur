@@ -1,0 +1,989 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project Nūr: Technical Overview</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --panel: #ffffff;
+    --ink: #111827;
+    --muted: #4b5563;
+    --line: #e5e7eb;
+    --accent: #1d4ed8;
+    --accent2: #0f766e;
+    --code: #f3f4f6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 17px/1.62 "Segoe UI", Arial, sans-serif;
+  }
+  main { max-width: 1120px; margin: 0 auto; padding: 54px 24px 90px; }
+  header { border-bottom: 2px solid var(--line); padding-bottom: 30px; margin-bottom: 34px; }
+  h1 { font-size: clamp(38px, 7vw, 72px); line-height: .96; margin: 0 0 18px; letter-spacing: -0.045em; }
+  h2 { font: 800 32px/1.15 "Segoe UI", Arial, sans-serif; margin: 54px 0 16px; letter-spacing: -.02em; }
+  h3 { font: 800 23px/1.2 "Segoe UI", Arial, sans-serif; margin: 30px 0 10px; }
+  p { margin: 0 0 16px; }
+  a { color: var(--accent); }
+  code { background: var(--code); padding: 2px 6px; border-radius: 5px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em; }
+  ul { margin-top: 8px; }
+  li { margin: 7px 0; }
+  .dek { color: var(--muted); font-size: 22px; max-width: 840px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+  .chip { border: 1px solid var(--line); border-radius: 999px; padding: 7px 11px; background: #f9fafb; font: 700 13px/1 "Segoe UI", Arial, sans-serif; color: var(--muted); }
+  .notice { background: #e7f5f3; border: 1px solid #99d3cb; border-left: 6px solid var(--accent2); border-radius: 14px; padding: 16px 18px; margin: 22px 0; font-family: "Segoe UI", Arial, sans-serif; }
+  .warning { background: #eff6ff; border-color: #bfdbfe; border-left-color: var(--accent); }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .card { background: #ffffff; border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px; }
+  .card strong { font-family: "Segoe UI", Arial, sans-serif; }
+  .diagram { background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 14px; margin: 22px 0 26px; box-shadow: 0 10px 28px rgba(17, 24, 39, .08); overflow-x: auto; }
+  .diagram svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+  .caption { color: var(--muted); font: 14px/1.45 "Segoe UI", Arial, sans-serif; margin-top: -14px; margin-bottom: 24px; }
+  .toc { columns: 2; font-family: "Segoe UI", Arial, sans-serif; }
+  .table { width: 100%; border-collapse: collapse; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); }
+  .table th, .table td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  .table th { font: 800 14px/1.2 "Segoe UI", Arial, sans-serif; background: #f3f4f6; }
+  .table td { font: 15px/1.45 "Segoe UI", Arial, sans-serif; color: var(--muted); }
+  pre { background: #1f2937; color: #f8fafc; padding: 16px; border-radius: 14px; overflow-x: auto; font-size: 14px; }
+  footer { margin-top: 64px; padding-top: 24px; border-top: 2px solid var(--line); color: var(--muted); font-family: "Segoe UI", Arial, sans-serif; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } .toc { columns: 1; } main { padding: 34px 14px 64px; } }
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>Project Nūr</h1>
+<p class="dek">A practical technical overview of the idea, theory stance, implementation, safety posture, and evaluation evidence behind Nūr: a hybrid cognitive architecture for AI assistants with persistent emotional state and relationship memory.</p>
+<div class="meta">
+<span class="chip">Single self-contained file</span>
+<span class="chip">All diagrams embedded</span>
+<span class="chip">Research prototype</span>
+<span class="chip">No human-likeness claim</span>
+</div>
+</header>
+
+<div class="notice">
+<strong>How to read this file:</strong> this is the public one-file version. It embeds the diagrams directly, so it can be shared or downloaded without a separate <code>docs/diagrams</code> folder.
+</div>
+
+<h2 id="contents">Contents</h2>
+<ul class="toc">
+<li><a href="#idea">1. The idea</a></li>
+<li><a href="#theory">2. Theory stance</a></li>
+<li><a href="#architecture">3. Architecture</a></li>
+<li><a href="#flow">4. Single-turn flow</a></li>
+<li><a href="#memory">5. Memory and persistence</a></li>
+<li><a href="#safety">6. Auth and tool safety</a></li>
+<li><a href="#evaluation">7. Evaluation</a></li>
+<li><a href="#claims">8. What the evidence supports</a></li>
+<li><a href="#run">9. How to run it</a></li>
+<li><a href="#limits">10. Limitations</a></li>
+</ul>
+
+<h2 id="idea">1. The idea</h2>
+<p>Nūr started from a practical observation: many LLM assistants can sound emotionally responsive, especially when a prompt gives them a personality and memory, but the response often still feels like styling on top of the current conversation. The state does not always feel like it has depth, history, tension, or consequence.</p>
+<p>The design question is: what if emotional behavior is not only prompted, but carried by explicit state? Nūr treats emotion as persistent internal variables, relationship history, unresolved loops, and self-observation. The LLM still writes the final language, but it receives context from a cognitive layer that changes over time.</p>
+
+<div class="grid">
+<div class="card"><strong>Core thesis</strong><br>State should persist, decay, and remain inspectable. A response after history should be shaped by accumulated context, not only by a fresh prompt.</div>
+<div class="card"><strong>Honest scope</strong><br>This is a research prototype. It does not prove human-likeness, consciousness, therapeutic value, or psychological validity.</div>
+</div>
+
+<h2 id="theory">2. Theory stance</h2>
+<p>Nūr is inspired by PSI Theory, ACT-R, and CLARION, but it is not a faithful implementation of any of them. The project borrows engineering ideas: continuous state, decay, activation-weighted memory, fast/slow deliberation, and explicit internal traces. It does not implement formal drive systems, ACT-R production rules, or CLARION's full implicit/explicit learning architecture.</p>
+<p>The point is not to claim psychological correctness. The point is to build an inspectable architecture where emotional continuity can be tested, ablated, and criticized.</p>
+
+<h2 id="architecture">3. Architecture</h2>
+<p>There are two runtime hosts: <code>nur</code> for console/Telegram/debug runtime, and <code>nur-web</code> for FastAPI, web UI, legacy endpoints, and the versioned <code>/v1</code> API. Both feed into the same session manager and cognitive pipeline.</p>
+<div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980" role="img" aria-labelledby="runtime-title runtime-desc">
+<title id="runtime-title">Project Nūr Runtime Architecture</title>
+<desc id="runtime-desc">Two runtime hosts share one session and cognitive layer; persistence and tool access are explicitly gated.</desc>
+<defs>
+  <marker id="runtime-arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+    <path d="M2,2 L10,6 L2,10 Z" fill="#334155"/>
+  </marker>
+  <filter id="runtime-shadow" x="-10%" y="-10%" width="120%" height="130%">
+    <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.16"/>
+  </filter>
+  <style>
+    .title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 30px; font-weight: 800; fill: #0f172a; }
+    .subtitle { font-family: 'Segoe UI', Arial, sans-serif; font-size: 15px; fill: #475569; }
+    .group-title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 18px; font-weight: 800; fill: #0f172a; }
+    .box-title { font-family: 'Segoe UI', Arial, sans-serif; font-weight: 800; fill: #0f172a; }
+    .box-body { font-family: 'Segoe UI', Arial, sans-serif; fill: #334155; }
+    .edge-label { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; font-weight: 700; fill: #334155; }
+    .plain { font-family: 'Segoe UI', Arial, sans-serif; }
+  </style>
+</defs>
+<rect width="100%" height="100%" fill="#f8fafc"/>
+<text x="40" y="50" class="title">Project Nūr Runtime Architecture</text>
+<text x="40" y="78" class="subtitle">Two runtime hosts share one session and cognitive layer; persistence and tool access are explicitly gated.</text>
+<rect x="40" y="120" width="230" height="680" rx="24" fill="#eff6ff" stroke="#93c5fd" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="60" y="154" class="group-title">External clients</text>
+<rect x="315" y="120" width="330" height="680" rx="24" fill="#f0fdf4" stroke="#86efac" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="335" y="154" class="group-title">nur CLI runtime</text>
+<rect x="690" y="120" width="330" height="680" rx="24" fill="#f0fdf4" stroke="#86efac" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="710" y="154" class="group-title">nur-web runtime</text>
+<rect x="1065" y="120" width="260" height="680" rx="24" fill="#fff7ed" stroke="#fdba74" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="1085" y="154" class="group-title">Shared cognition</text>
+<rect x="1370" y="120" width="190" height="680" rx="24" fill="#f1f5f9" stroke="#94a3b8" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="1390" y="154" class="group-title">Persistence / IO</text>
+<path d="M240,215 L720,205" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<rect x="400.0" y="185.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="480.0" y="202.0" text-anchor="middle" class="edge-label">HTTP</text>
+<path d="M240,325 L345,332" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<rect x="212.5" y="303.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="292.5" y="320.5" text-anchor="middle" class="edge-label">stdin</text>
+<path d="M240,435 L345,432" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<rect x="212.5" y="408.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="292.5" y="425.5" text-anchor="middle" class="edge-label">bot</text>
+<path d="M240,545 L720,540" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<rect x="400.0" y="517.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="480.0" y="534.5" text-anchor="middle" class="edge-label">API</text>
+<path d="M470,252 L470,300" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<path d="M470,252 L470,400" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<path d="M470,252 L470,500" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<path d="M595,332 L1095,215" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<rect x="765.0" y="248.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="845.0" y="265.5" text-anchor="middle" class="edge-label">chat</text>
+<path d="M595,432 L1095,215" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<rect x="765.0" y="298.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="845.0" y="315.5" text-anchor="middle" class="edge-label">chat</text>
+<path d="M595,532 L1095,215" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)" stroke-dasharray="7 6"/>
+<rect x="765.0" y="348.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="845.0" y="365.5" text-anchor="middle" class="edge-label">inspect</text>
+<path d="M845,234 L845,270" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<path d="M845,234 L845,380" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<path d="M845,234 L845,505" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<path d="M845,234 L845,620" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<path d="M970,421 L1095,215" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<rect x="952.5" y="293.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1032.5" y="310.0" text-anchor="middle" class="edge-label">legacy chat/API</text>
+<path d="M970,541 L1095,215" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<rect x="952.5" y="353.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1032.5" y="370.0" text-anchor="middle" class="edge-label">/v1</text>
+<path d="M970,652 L1095,215" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<rect x="952.5" y="408.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1032.5" y="425.5" text-anchor="middle" class="edge-label">bot</text>
+<path d="M1195,252 L1195,315" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<path d="M1195,387 L1195,455" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<path d="M1295,496 L1395,211" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<rect x="1265.0" y="328.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1345.0" y="345.5" text-anchor="middle" class="edge-label">generate</text>
+<path d="M1295,496 L1395,351" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<rect x="1265.0" y="398.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1345.0" y="415.5" text-anchor="middle" class="edge-label">read/write</text>
+<path d="M1295,496 L1395,491" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<rect x="1265.0" y="468.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1345.0" y="485.5" text-anchor="middle" class="edge-label">save</text>
+<path d="M1295,496 L1395,631" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<rect x="1265.0" y="538.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1345.0" y="555.5" text-anchor="middle" class="edge-label">self-model</text>
+<path d="M1195,537 L1195,615" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<rect x="1115.0" y="551.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1195.0" y="568.0" text-anchor="middle" class="edge-label">optional</text>
+<path d="M1295,651 L1395,750" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#runtime-arrow)"/>
+<rect x="1265.0" y="675.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1345.0" y="692.5" text-anchor="middle" class="edge-label">sandbox</text>
+<rect x="70" y="180" width="170" height="70" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="155.0" y="206" text-anchor="middle" class="box-title" style="font-size:16px">Browser</text>
+<text x="155.0" y="235" text-anchor="middle" class="box-body" style="font-size:13px">web UI, docs, API</text>
+<text x="155.0" y="251" text-anchor="middle" class="box-body" style="font-size:13px">calls</text>
+<rect x="70" y="290" width="170" height="70" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="155.0" y="316" text-anchor="middle" class="box-title" style="font-size:16px">Terminal</text>
+<text x="155.0" y="345" text-anchor="middle" class="box-body" style="font-size:13px">stdin/stdout</text>
+<rect x="70" y="400" width="170" height="70" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="155.0" y="426" text-anchor="middle" class="box-title" style="font-size:16px">Telegram user</text>
+<text x="155.0" y="455" text-anchor="middle" class="box-body" style="font-size:13px">optional channel</text>
+<rect x="70" y="510" width="170" height="70" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="155.0" y="536" text-anchor="middle" class="box-title" style="font-size:16px">Integrator</text>
+<text x="155.0" y="565" text-anchor="middle" class="box-body" style="font-size:13px">curl, NurClient,</text>
+<text x="155.0" y="581" text-anchor="middle" class="box-body" style="font-size:13px">dashboards</text>
+<rect x="345" y="180" width="250" height="72" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="470.0" y="206" text-anchor="middle" class="box-title" style="font-size:16px">JarvisApp</text>
+<text x="470.0" y="235" text-anchor="middle" class="box-body" style="font-size:13px">owns channels and lifecycle</text>
+<rect x="345" y="300" width="250" height="64" rx="16" fill="#ffffff" stroke="#16a34a" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="470.0" y="326" text-anchor="middle" class="box-title" style="font-size:16px">ConsoleChannel</text>
+<text x="470.0" y="355" text-anchor="middle" class="box-body" style="font-size:13px">interactive local chat</text>
+<rect x="345" y="400" width="250" height="64" rx="16" fill="#ffffff" stroke="#16a34a" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="470.0" y="426" text-anchor="middle" class="box-title" style="font-size:16px">TelegramChannel</text>
+<text x="470.0" y="455" text-anchor="middle" class="box-body" style="font-size:13px">enabled only with token</text>
+<rect x="345" y="500" width="250" height="64" rx="16" fill="#ffffff" stroke="#16a34a" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="470.0" y="526" text-anchor="middle" class="box-title" style="font-size:16px">Debug API :8077</text>
+<text x="470.0" y="555" text-anchor="middle" class="box-body" style="font-size:13px">read-only inspection</text>
+<rect x="720" y="170" width="250" height="64" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="845.0" y="196" text-anchor="middle" class="box-title" style="font-size:16px">uvicorn + FastAPI</text>
+<text x="845.0" y="225" text-anchor="middle" class="box-body" style="font-size:13px">HTTP/WebSocket host</text>
+<rect x="720" y="270" width="250" height="72" rx="16" fill="#ffffff" stroke="#16a34a" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="845.0" y="296" text-anchor="middle" class="box-title" style="font-size:16px">Static web UI</text>
+<text x="845.0" y="325" text-anchor="middle" class="box-body" style="font-size:13px">GET / stays open</text>
+<rect x="720" y="380" width="250" height="82" rx="16" fill="#ffffff" stroke="#16a34a" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="845.0" y="406" text-anchor="middle" class="box-title" style="font-size:16px">Legacy endpoints</text>
+<text x="845.0" y="435" text-anchor="middle" class="box-body" style="font-size:13px">/chat /debug /config</text>
+<text x="845.0" y="451" text-anchor="middle" class="box-body" style="font-size:13px">/session/end /rest /ws</text>
+<rect x="720" y="505" width="250" height="72" rx="16" fill="#ffffff" stroke="#16a34a" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="845.0" y="531" text-anchor="middle" class="box-title" style="font-size:16px">/v1 router</text>
+<text x="845.0" y="560" text-anchor="middle" class="box-body" style="font-size:13px">versioned product API</text>
+<rect x="720" y="620" width="250" height="64" rx="16" fill="#ffffff" stroke="#16a34a" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="845.0" y="646" text-anchor="middle" class="box-title" style="font-size:16px">TelegramChannel</text>
+<text x="845.0" y="675" text-anchor="middle" class="box-body" style="font-size:13px">optional web-hosted bot</text>
+<rect x="1095" y="180" width="200" height="72" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="1195.0" y="206" text-anchor="middle" class="box-title" style="font-size:16px">SessionManager</text>
+<text x="1195.0" y="235" text-anchor="middle" class="box-body" style="font-size:13px">per-user locks,</text>
+<text x="1195.0" y="251" text-anchor="middle" class="box-body" style="font-size:13px">backpressure, idle</text>
+<text x="1195.0" y="267" text-anchor="middle" class="box-body" style="font-size:13px">eviction</text>
+<rect x="1095" y="315" width="200" height="72" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="1195.0" y="341" text-anchor="middle" class="box-title" style="font-size:16px">UserSession</text>
+<text x="1195.0" y="370" text-anchor="middle" class="box-body" style="font-size:13px">platform:user_id:chat_id</text>
+<rect x="1095" y="455" width="200" height="82" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="1195.0" y="481" text-anchor="middle" class="box-title" style="font-size:16px">CognitivePipeline</text>
+<text x="1195.0" y="510" text-anchor="middle" class="box-body" style="font-size:13px">synchronous stateful turn</text>
+<text x="1195.0" y="526" text-anchor="middle" class="box-body" style="font-size:13px">processor</text>
+<rect x="1095" y="615" width="200" height="72" rx="16" fill="#fee2e2" stroke="#dc2626" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="1195.0" y="641" text-anchor="middle" class="box-title" style="font-size:16px">Tool executor</text>
+<text x="1195.0" y="670" text-anchor="middle" class="box-body" style="font-size:13px">None unless tools_enabled</text>
+<rect x="1395" y="175" width="140" height="72" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="1465.0" y="201" text-anchor="middle" class="box-title" style="font-size:16px">LLM backend</text>
+<text x="1465.0" y="230" text-anchor="middle" class="box-body" style="font-size:13px">mock, MiniMax,</text>
+<text x="1465.0" y="246" text-anchor="middle" class="box-body" style="font-size:13px">OpenAI-compatible</text>
+<rect x="1395" y="315" width="140" height="72" rx="16" fill="#e2e8f0" stroke="#64748b" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="1465.0" y="341" text-anchor="middle" class="box-title" style="font-size:16px">Per-user nur.db</text>
+<text x="1465.0" y="370" text-anchor="middle" class="box-body" style="font-size:13px">SQLite</text>
+<text x="1465.0" y="386" text-anchor="middle" class="box-body" style="font-size:13px">memory/profile</text>
+<text x="1465.0" y="402" text-anchor="middle" class="box-body" style="font-size:13px">tables</text>
+<rect x="1395" y="455" width="140" height="72" rx="16" fill="#e2e8f0" stroke="#64748b" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="1465.0" y="481" text-anchor="middle" class="box-title" style="font-size:16px">Session JSON</text>
+<text x="1465.0" y="510" text-anchor="middle" class="box-body" style="font-size:13px">engine snapshot</text>
+<text x="1465.0" y="526" text-anchor="middle" class="box-body" style="font-size:13px">per chat</text>
+<rect x="1395" y="595" width="140" height="72" rx="16" fill="#e2e8f0" stroke="#64748b" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="1465.0" y="621" text-anchor="middle" class="box-title" style="font-size:16px">Shared</text>
+<text x="1465.0" y="640" text-anchor="middle" class="box-title" style="font-size:16px">self_model.db</text>
+<text x="1465.0" y="669" text-anchor="middle" class="box-body" style="font-size:13px">assistant self</text>
+<text x="1465.0" y="685" text-anchor="middle" class="box-body" style="font-size:13px">observations</text>
+<rect x="1395" y="720" width="140" height="60" rx="16" fill="#fee2e2" stroke="#dc2626" stroke-width="2" filter="url(#runtime-shadow)"/>
+<text x="1465.0" y="746" text-anchor="middle" class="box-title" style="font-size:16px">Tools workspace</text>
+<text x="1465.0" y="775" text-anchor="middle" class="box-body" style="font-size:13px">sandboxed side</text>
+<text x="1465.0" y="791" text-anchor="middle" class="box-body" style="font-size:13px">effects</text>
+<text x="60" y="860" text-anchor="start" fill="#0f172a" font-size="15" font-weight="700" class="plain">Explicit non-goals in the current implementation: no WhatsApp channel, no OpenClaw integration. OpenClaw inspired the idea; it is not a</text>
+<text x="60" y="880" text-anchor="start" fill="#0f172a" font-size="15" font-weight="700" class="plain">runtime dependency.</text>
+</svg>
+</div>
+<p class="caption">Runtime architecture: two hosts, one shared session/cognition layer, explicit persistence and tool boundaries.</p>
+
+<h2 id="flow">4. Single-turn flow</h2>
+<p>One user message runs through deterministic state updates, memory retrieval, optional deliberation, optional tool handling, defense shaping, response strategy selection, final generation, self-check, and post-processing. The common case uses one LLM call. Optional paths can add calls; there is no fixed safe upper bound because inner-dialogue parsing can retry.</p>
+<div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" width="1700" height="1360" viewBox="0 0 1700 1360" role="img" aria-labelledby="flow-title flow-desc">
+<title id="flow-title">Single-Turn Cognitive Flow</title>
+<desc id="flow-desc">Actual CognitivePipeline.process order with gates and honest LLM-call accounting.</desc>
+<defs>
+  <marker id="flow-arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+    <path d="M2,2 L10,6 L2,10 Z" fill="#334155"/>
+  </marker>
+  <filter id="flow-shadow" x="-10%" y="-10%" width="120%" height="130%">
+    <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.16"/>
+  </filter>
+  <style>
+    .title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 30px; font-weight: 800; fill: #0f172a; }
+    .subtitle { font-family: 'Segoe UI', Arial, sans-serif; font-size: 15px; fill: #475569; }
+    .group-title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 18px; font-weight: 800; fill: #0f172a; }
+    .box-title { font-family: 'Segoe UI', Arial, sans-serif; font-weight: 800; fill: #0f172a; }
+    .box-body { font-family: 'Segoe UI', Arial, sans-serif; fill: #334155; }
+    .edge-label { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; font-weight: 700; fill: #334155; }
+    .plain { font-family: 'Segoe UI', Arial, sans-serif; }
+  </style>
+</defs>
+<rect width="100%" height="100%" fill="#f8fafc"/>
+<text x="40" y="50" class="title">Single-Turn Cognitive Flow</text>
+<text x="40" y="78" class="subtitle">Actual CognitivePipeline.process order with gates and honest LLM-call accounting.</text>
+<path d="M205.0,188 L205.0,208" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<path d="M205.0,266 L205.0,286" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<path d="M205.0,344 L205.0,364" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<path d="M205.0,422 L205.0,442" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<path d="M205.0,500 L205.0,520" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<path d="M205.0,578 L205.0,598" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<path d="M205.0,656 L205.0,676" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<path d="M205.0,734 L485,215" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<rect x="265.0" y="449.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="345.0" y="466.5" text-anchor="middle" class="edge-label">state</text>
+<path d="M595,261 L595,320" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<rect x="515.0" y="265.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="595.0" y="282.5" text-anchor="middle" class="edge-label">yes</text>
+<path d="M595,261 C830,270 830,395 595,425" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<rect x="515.0" y="318.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="595.0" y="335.0" text-anchor="middle" class="edge-label">no</text>
+<path d="M595,382 L595,425" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<path d="M595,497 L595,540" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<path d="M595,628 L595,680" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<path d="M720,712 L840,150" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<rect x="700.0" y="406.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="780.0" y="423.0" text-anchor="middle" class="edge-label">context</text>
+<path d="M975,200 L975,275" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<rect x="895.0" y="212.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="975.0" y="229.5" text-anchor="middle" class="edge-label">yes</text>
+<path d="M975,200 C1270,220 1270,380 975,430" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<rect x="895.0" y="290.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="975.0" y="307.0" text-anchor="middle" class="edge-label">no</text>
+<path d="M975,363 L975,430" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<path d="M975,478 L975,555" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<rect x="895.0" y="491.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="975.0" y="508.5" text-anchor="middle" class="edge-label">yes</text>
+<path d="M975,478 C1270,500 1270,660 975,710" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<rect x="895.0" y="569.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="975.0" y="586.0" text-anchor="middle" class="edge-label">no</text>
+<path d="M975,643 L975,710" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<path d="M975,758 L975,835" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<rect x="895.0" y="771.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="975.0" y="788.5" text-anchor="middle" class="edge-label">yes</text>
+<path d="M975,758 C1270,775 1270,940 975,970" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<rect x="895.0" y="839.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="975.0" y="856.0" text-anchor="middle" class="edge-label">no</text>
+<path d="M975,917 L975,970" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<path d="M1110,1005 L1240,314" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<rect x="1095.0" y="634.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1175.0" y="651.5" text-anchor="middle" class="edge-label">prompt inputs</text>
+<path d="M1380,353 L1380,380" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<path d="M1380,480 L1380,575" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<rect x="1300.0" y="502.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1380.0" y="519.5" text-anchor="middle" class="edge-label">no</text>
+<path d="M1380,480 C1690,505 1690,670 1380,695" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<rect x="1300.0" y="562.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1380.0" y="579.5" text-anchor="middle" class="edge-label">yes</text>
+<path d="M1380,643 L1380,804" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<path d="M1380,763 L1380,804" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<path d="M1380,896 L1380,975" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<rect x="1300.0" y="910.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1380.0" y="927.5" text-anchor="middle" class="edge-label">no</text>
+<path d="M1380,896 C1690,915 1690,1065 1380,1095" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<rect x="1300.0" y="970.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1380.0" y="987.5" text-anchor="middle" class="edge-label">yes</text>
+<path d="M1380,1043 L1380,1095" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<path d="M1380,1181 L1380,1255" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#flow-arrow)"/>
+<rect x="80" y="130" width="250" height="58" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="205.0" y="156" text-anchor="middle" class="box-title" style="font-size:14px">User message arrives</text>
+<rect x="80" y="208" width="250" height="58" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="205.0" y="234" text-anchor="middle" class="box-title" style="font-size:14px">Auto-decay + anticipation</text>
+<text x="205.0" y="263" text-anchor="middle" class="box-body" style="font-size:12px">predict forward emotional</text>
+<text x="205.0" y="279" text-anchor="middle" class="box-body" style="font-size:12px">pressure · 0 LLM</text>
+<rect x="80" y="286" width="250" height="58" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="205.0" y="312" text-anchor="middle" class="box-title" style="font-size:14px">Contagion</text>
+<text x="205.0" y="341" text-anchor="middle" class="box-body" style="font-size:12px">detect user arousal/valence · 0</text>
+<text x="205.0" y="357" text-anchor="middle" class="box-body" style="font-size:12px">LLM</text>
+<rect x="80" y="364" width="250" height="58" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="205.0" y="390" text-anchor="middle" class="box-title" style="font-size:14px">Social appraisal</text>
+<text x="205.0" y="419" text-anchor="middle" class="box-body" style="font-size:12px">target, intent, vulnerability ·</text>
+<text x="205.0" y="435" text-anchor="middle" class="box-body" style="font-size:12px">0 LLM</text>
+<rect x="80" y="442" width="250" height="58" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="205.0" y="468" text-anchor="middle" class="box-title" style="font-size:14px">Baseline shift</text>
+<text x="205.0" y="497" text-anchor="middle" class="box-body" style="font-size:12px">person-specific adjustment · 0</text>
+<text x="205.0" y="513" text-anchor="middle" class="box-body" style="font-size:12px">LLM</text>
+<rect x="80" y="520" width="250" height="58" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="205.0" y="546" text-anchor="middle" class="box-title" style="font-size:14px">Event classification + PSI</text>
+<text x="205.0" y="565" text-anchor="middle" class="box-title" style="font-size:14px">update</text>
+<text x="205.0" y="594" text-anchor="middle" class="box-body" style="font-size:12px">deterministic modulator impulse</text>
+<text x="205.0" y="610" text-anchor="middle" class="box-body" style="font-size:12px">· 0 LLM</text>
+<rect x="80" y="598" width="250" height="58" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="205.0" y="624" text-anchor="middle" class="box-title" style="font-size:14px">Resolution update</text>
+<text x="205.0" y="653" text-anchor="middle" class="box-body" style="font-size:12px">create/close unresolved items ·</text>
+<text x="205.0" y="669" text-anchor="middle" class="box-body" style="font-size:12px">0 LLM</text>
+<rect x="80" y="676" width="250" height="58" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="205.0" y="702" text-anchor="middle" class="box-title" style="font-size:14px">Short-term memory</text>
+<text x="205.0" y="731" text-anchor="middle" class="box-body" style="font-size:12px">record turn context · 0 LLM</text>
+<polygon points="595,169.0 710.0,215 595,261.0 480.0,215" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="595" y="215" text-anchor="middle" class="box-title" style="font-size:14px">Intensity &gt;= 0.8?</text>
+<rect x="470" y="320" width="250" height="62" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="595.0" y="346" text-anchor="middle" class="box-title" style="font-size:16px">Force-write LTM</text>
+<text x="595.0" y="375" text-anchor="middle" class="box-body" style="font-size:13px">spike branch · 0 LLM</text>
+<rect x="470" y="425" width="250" height="72" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="595.0" y="451" text-anchor="middle" class="box-title" style="font-size:16px">Long-term retrieval</text>
+<text x="595.0" y="480" text-anchor="middle" class="box-body" style="font-size:13px">recency + frequency + context ·</text>
+<text x="595.0" y="496" text-anchor="middle" class="box-body" style="font-size:13px">0 LLM</text>
+<rect x="470" y="540" width="250" height="88" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="595.0" y="566" text-anchor="middle" class="box-title" style="font-size:16px">Profile + relationship +</text>
+<text x="595.0" y="585" text-anchor="middle" class="box-title" style="font-size:16px">semantic lookup</text>
+<text x="595.0" y="614" text-anchor="middle" class="box-body" style="font-size:13px">person, self, topic, open</text>
+<text x="595.0" y="630" text-anchor="middle" class="box-body" style="font-size:13px">loops, memories · 0 LLM</text>
+<rect x="470" y="680" width="250" height="64" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="595.0" y="706" text-anchor="middle" class="box-title" style="font-size:16px">Contradiction check</text>
+<text x="595.0" y="735" text-anchor="middle" class="box-body" style="font-size:13px">detect unresolved pressure · 0</text>
+<text x="595.0" y="751" text-anchor="middle" class="box-body" style="font-size:13px">LLM</text>
+<polygon points="975,100.0 1105.0,150 975,200.0 845.0,150" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="975" y="142" text-anchor="middle" class="box-title" style="font-size:14px">Inner dialogue enabled and</text>
+<text x="975" y="159" text-anchor="middle" class="box-title" style="font-size:14px">worth it?</text>
+<rect x="840" y="275" width="270" height="88" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="975.0" y="301" text-anchor="middle" class="box-title" style="font-size:16px">Inner dialogue</text>
+<text x="975.0" y="330" text-anchor="middle" class="box-body" style="font-size:13px">fast/slow rounds · 0 to 5+ LLM</text>
+<text x="975.0" y="346" text-anchor="middle" class="box-body" style="font-size:13px">depending on retries</text>
+<polygon points="975,382.0 1105.0,430 975,478.0 845.0,430" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="975" y="430" text-anchor="middle" class="box-title" style="font-size:14px">Tool executor configured?</text>
+<rect x="840" y="555" width="270" height="88" rx="16" fill="#fee2e2" stroke="#dc2626" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="975.0" y="581" text-anchor="middle" class="box-title" style="font-size:16px">Tool loop</text>
+<text x="975.0" y="610" text-anchor="middle" class="box-body" style="font-size:13px">intent -&gt; arbiter -&gt; execute -&gt;</text>
+<text x="975.0" y="626" text-anchor="middle" class="box-body" style="font-size:13px">observe · no LLM in current</text>
+<text x="975.0" y="642" text-anchor="middle" class="box-body" style="font-size:13px">implementation</text>
+<polygon points="975,662.0 1105.0,710 975,758.0 845.0,710" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="975" y="710" text-anchor="middle" class="box-title" style="font-size:14px">Defense feature active?</text>
+<rect x="840" y="835" width="270" height="82" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="975.0" y="861" text-anchor="middle" class="box-title" style="font-size:16px">Defense instruction</text>
+<text x="975.0" y="890" text-anchor="middle" class="box-body" style="font-size:13px">shapes generator inputs, not</text>
+<text x="975.0" y="906" text-anchor="middle" class="box-body" style="font-size:13px">post-output filtering</text>
+<rect x="840" y="970" width="270" height="70" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="975.0" y="996" text-anchor="middle" class="box-title" style="font-size:16px">Response strategy</text>
+<text x="975.0" y="1025" text-anchor="middle" class="box-body" style="font-size:13px">8 deterministic stances · 0 LLM</text>
+<rect x="1240" y="275" width="280" height="78" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="1380.0" y="301" text-anchor="middle" class="box-title" style="font-size:16px">Master LLM generation</text>
+<text x="1380.0" y="330" text-anchor="middle" class="box-body" style="font-size:13px">primary response call · 1 LLM</text>
+<polygon points="1380,380.0 1515.0,430 1380,480.0 1245.0,430" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="1380" y="430" text-anchor="middle" class="box-title" style="font-size:14px">Self-check needs LLM?</text>
+<rect x="1240" y="575" width="280" height="68" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="1380.0" y="601" text-anchor="middle" class="box-title" style="font-size:16px">Rule self-check</text>
+<text x="1380.0" y="630" text-anchor="middle" class="box-body" style="font-size:13px">common path · 0 LLM</text>
+<rect x="1240" y="695" width="280" height="68" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="1380.0" y="721" text-anchor="middle" class="box-title" style="font-size:16px">LLM self-check</text>
+<text x="1380.0" y="750" text-anchor="middle" class="box-body" style="font-size:13px">intensity / contradiction /</text>
+<text x="1380.0" y="766" text-anchor="middle" class="box-body" style="font-size:13px">deadlock · 1 LLM</text>
+<polygon points="1380,804.0 1505.0,850 1380,896.0 1255.0,850" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="1380" y="850" text-anchor="middle" class="box-title" style="font-size:14px">Passed?</text>
+<rect x="1240" y="975" width="280" height="68" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="1380.0" y="1001" text-anchor="middle" class="box-title" style="font-size:16px">Optional regenerate</text>
+<text x="1380.0" y="1030" text-anchor="middle" class="box-body" style="font-size:13px">first failed check only · +1 LLM</text>
+<rect x="1240" y="1095" width="280" height="86" rx="16" fill="#e2e8f0" stroke="#64748b" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="1380.0" y="1121" text-anchor="middle" class="box-title" style="font-size:16px">Post-processing</text>
+<text x="1380.0" y="1150" text-anchor="middle" class="box-body" style="font-size:13px">response delivered, memory writes,</text>
+<text x="1380.0" y="1166" text-anchor="middle" class="box-body" style="font-size:13px">energy drain, self-observation</text>
+<rect x="1240" y="1255" width="280" height="68" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="2" filter="url(#flow-shadow)"/>
+<text x="1380.0" y="1281" text-anchor="middle" class="box-title" style="font-size:16px">Response + DebugState</text>
+<text x="1380.0" y="1310" text-anchor="middle" class="box-body" style="font-size:13px">returned to host</text>
+<text x="60" y="1245" text-anchor="start" fill="#0f172a" font-size="16" font-weight="700" class="plain">LLM-call accounting: common case = 1 call. Optional paths add inner dialogue (0 to 5+ calls depending on parse retries), LLM self-check (+1), and one</text>
+<text x="60" y="1266" text-anchor="start" fill="#0f172a" font-size="16" font-weight="700" class="plain">regeneration (+1). Do not treat this as a fixed upper bound.</text>
+</svg>
+</div>
+<p class="caption">Single-turn flow: actual pipeline order, including gates and LLM-call accounting.</p>
+
+<h2 id="memory">5. Memory and persistence</h2>
+<p>Nūr separates per-user data from the assistant's shared self-model. Per-user data lives under <code>data/&lt;platform&gt;_&lt;user_id&gt;/</code>, including <code>nur.db</code> and session JSON files. The shared self-model lives under <code>data/shared/self_model.db</code>.</p>
+<div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" width="1650" height="1040" viewBox="0 0 1650 1040" role="img" aria-labelledby="memory-title memory-desc">
+<title id="memory-title">Memory and Persistence Model</title>
+<desc id="memory-desc">Per-user data is separable and deletable; shared self-model data is deliberately preserved.</desc>
+<defs>
+  <marker id="memory-arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+    <path d="M2,2 L10,6 L2,10 Z" fill="#334155"/>
+  </marker>
+  <filter id="memory-shadow" x="-10%" y="-10%" width="120%" height="130%">
+    <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.16"/>
+  </filter>
+  <style>
+    .title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 30px; font-weight: 800; fill: #0f172a; }
+    .subtitle { font-family: 'Segoe UI', Arial, sans-serif; font-size: 15px; fill: #475569; }
+    .group-title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 18px; font-weight: 800; fill: #0f172a; }
+    .box-title { font-family: 'Segoe UI', Arial, sans-serif; font-weight: 800; fill: #0f172a; }
+    .box-body { font-family: 'Segoe UI', Arial, sans-serif; fill: #334155; }
+    .edge-label { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; font-weight: 700; fill: #334155; }
+    .plain { font-family: 'Segoe UI', Arial, sans-serif; }
+  </style>
+</defs>
+<rect width="100%" height="100%" fill="#f8fafc"/>
+<text x="40" y="50" class="title">Memory and Persistence Model</text>
+<text x="40" y="78" class="subtitle">Per-user data is separable and deletable; shared self-model data is deliberately preserved.</text>
+<rect x="55" y="125" width="290" height="270" rx="24" fill="#eff6ff" stroke="#93c5fd" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="75" y="159" class="group-title">Key derivation</text>
+<rect x="405" y="125" width="440" height="480" rx="24" fill="#f0fdf4" stroke="#86efac" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="425" y="159" class="group-title">Per-user directory</text>
+<rect x="930" y="125" width="310" height="480" rx="24" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="950" y="159" class="group-title">Shared assistant self-model</text>
+<rect x="1320" y="125" width="270" height="480" rx="24" fill="#fff7ed" stroke="#fdba74" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="1340" y="159" class="group-title">Deletion boundary</text>
+<path d="M200,255 L200,300" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#memory-arrow)"/>
+<rect x="120.0" y="252.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="200.0" y="269.5" text-anchor="middle" class="edge-label">drops chat_id</text>
+<path d="M315,335 L445,257" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#memory-arrow)"/>
+<rect x="300.0" y="271.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="380.0" y="288.0" text-anchor="middle" class="edge-label">rel_key</text>
+<path d="M315,220 L635,257" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#memory-arrow)"/>
+<rect x="395.0" y="213.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="475.0" y="230.5" text-anchor="middle" class="edge-label">session_key</text>
+<path d="M615,294 L555,455" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#memory-arrow)"/>
+<rect x="505.0" y="349.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="585.0" y="366.5" text-anchor="middle" class="edge-label">tables</text>
+<path d="M720,294 L705,330" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#memory-arrow)"/>
+<rect x="632.5" y="287.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="712.5" y="304.0" text-anchor="middle" class="edge-label">snapshot</text>
+<path d="M1360,420 C1210,420 1000,420 845,365" fill="none" stroke="#dc2626" stroke-width="2.2" marker-end="url(#memory-arrow)"/>
+<rect x="1022.5" y="367.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1102.5" y="384.5" text-anchor="middle" class="edge-label">rmtree</text>
+<path d="M1455,505 L1240,505" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#memory-arrow)" stroke-dasharray="7 6"/>
+<rect x="1267.5" y="480.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1347.5" y="497.0" text-anchor="middle" class="edge-label">untouched</text>
+<rect x="85" y="185" width="230" height="70" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="2" filter="url(#memory-shadow)"/>
+<text x="200.0" y="211" text-anchor="middle" class="box-title" style="font-size:16px">session_key</text>
+<text x="200.0" y="240" text-anchor="middle" class="box-body" style="font-size:13px">platform:user_id:chat_id</text>
+<rect x="85" y="300" width="230" height="70" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="2" filter="url(#memory-shadow)"/>
+<text x="200.0" y="326" text-anchor="middle" class="box-title" style="font-size:16px">rel_key</text>
+<text x="200.0" y="355" text-anchor="middle" class="box-body" style="font-size:13px">platform:user_id</text>
+<rect x="445" y="220" width="170" height="74" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#memory-shadow)"/>
+<text x="530.0" y="246" text-anchor="middle" class="box-title" style="font-size:16px">nur.db</text>
+<text x="530.0" y="275" text-anchor="middle" class="box-body" style="font-size:13px">per-user SQLite</text>
+<rect x="635" y="220" width="170" height="74" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#memory-shadow)"/>
+<text x="720.0" y="246" text-anchor="middle" class="box-title" style="font-size:16px">sessions/&lt;chat_id&gt;.json</text>
+<text x="720.0" y="275" text-anchor="middle" class="box-body" style="font-size:13px">engine snapshot</text>
+<rect x="535" y="330" width="170" height="74" rx="16" fill="#e2e8f0" stroke="#64748b" stroke-width="2" filter="url(#memory-shadow)"/>
+<text x="620.0" y="356" text-anchor="middle" class="box-title" style="font-size:16px">engine_state.json</text>
+<text x="620.0" y="385" text-anchor="middle" class="box-body" style="font-size:13px">legacy fallback</text>
+<rect x="445" y="455" width="360" height="104" rx="16" fill="#ffffff" stroke="#16a34a" stroke-width="2" filter="url(#memory-shadow)"/>
+<text x="625.0" y="481" text-anchor="middle" class="box-title" style="font-size:15px">Primary logical tables</text>
+<text x="625.0" y="510" text-anchor="middle" class="box-body" style="font-size:12px">memories, relationship_events, open_loops,</text>
+<text x="625.0" y="526" text-anchor="middle" class="box-body" style="font-size:12px">semantic_memories, observations,</text>
+<text x="625.0" y="542" text-anchor="middle" class="box-body" style="font-size:12px">extracted_traits, person_profiles,</text>
+<text x="625.0" y="558" text-anchor="middle" class="box-body" style="font-size:12px">topic_profiles, defense_events,</text>
+<text x="625.0" y="574" text-anchor="middle" class="box-body" style="font-size:12px">schema_version</text>
+<rect x="980" y="230" width="210" height="78" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#memory-shadow)"/>
+<text x="1085.0" y="256" text-anchor="middle" class="box-title" style="font-size:16px">Self observations</text>
+<text x="1085.0" y="285" text-anchor="middle" class="box-body" style="font-size:13px">entity_id = __self__</text>
+<rect x="980" y="345" width="210" height="78" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#memory-shadow)"/>
+<text x="1085.0" y="371" text-anchor="middle" class="box-title" style="font-size:16px">Extracted self traits</text>
+<text x="1085.0" y="400" text-anchor="middle" class="box-body" style="font-size:13px">strengths, flaws, triggers</text>
+<rect x="980" y="460" width="210" height="78" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#memory-shadow)"/>
+<text x="1085.0" y="486" text-anchor="middle" class="box-title" style="font-size:16px">Defense events</text>
+<text x="1085.0" y="515" text-anchor="middle" class="box-body" style="font-size:13px">assistant defense history</text>
+<rect x="1360" y="220" width="190" height="86" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#memory-shadow)"/>
+<text x="1455.0" y="246" text-anchor="middle" class="box-title" style="font-size:16px">DELETE</text>
+<text x="1455.0" y="265" text-anchor="middle" class="box-title" style="font-size:16px">/v1/users/{platform}/{user_id}</text>
+<text x="1455.0" y="294" text-anchor="middle" class="box-body" style="font-size:13px">evict live sessions</text>
+<text x="1455.0" y="310" text-anchor="middle" class="box-body" style="font-size:13px">first</text>
+<rect x="1360" y="380" width="190" height="74" rx="16" fill="#fee2e2" stroke="#dc2626" stroke-width="2" filter="url(#memory-shadow)"/>
+<text x="1455.0" y="406" text-anchor="middle" class="box-title" style="font-size:16px">Wipes</text>
+<text x="1455.0" y="435" text-anchor="middle" class="box-body" style="font-size:13px">per-user directory and</text>
+<text x="1455.0" y="451" text-anchor="middle" class="box-body" style="font-size:13px">sessions</text>
+<rect x="1360" y="505" width="190" height="62" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#memory-shadow)"/>
+<text x="1455.0" y="531" text-anchor="middle" class="box-title" style="font-size:16px">Preserves</text>
+<text x="1455.0" y="560" text-anchor="middle" class="box-body" style="font-size:13px">shared self_model.db</text>
+<text x="430" y="175" text-anchor="start" fill="#0f172a" font-size="17" font-weight="800" class="plain">data/&lt;platform&gt;_&lt;user_id&gt;/</text>
+<text x="955" y="175" text-anchor="start" fill="#0f172a" font-size="17" font-weight="800" class="plain">data/shared/self_model.db</text>
+<text x="75" y="740" text-anchor="start" fill="#0f172a" font-size="17" font-weight="700" class="plain">Deletion semantics: remove the user directory, count rows best-effort before deletion, and leave the assistant self-model intact. This is</text>
+<text x="75" y="762" text-anchor="start" fill="#0f172a" font-size="17" font-weight="700" class="plain">why shared self-memory must not contain user-scoped private state unless explicitly intended.</text>
+<text x="75" y="850" text-anchor="start" fill="#475569" font-size="15" font-weight="400" class="plain">SQLite internal tables such as sqlite_sequence are intentionally omitted from the drawing. The listed tables are the product-relevant persistence</text>
+<text x="75" y="870" text-anchor="start" fill="#475569" font-size="15" font-weight="400" class="plain">surface.</text>
+</svg>
+</div>
+<p class="caption">Memory and persistence: per-user deletion wipes user data while preserving the assistant self-model by design.</p>
+
+<h2 id="safety">6. Auth and tool safety</h2>
+<p>The public launch blockers found during validation were not in the cognitive layer; they were in packaging, auth coverage, and tool safety. Those were fixed before publication readiness: install works, legacy endpoints honor the bearer token when <code>api_key</code> is set, tools are off by default, filesystem tools are sandboxed, and shell execution requires a separate opt-in flag.</p>
+<div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" width="1650" height="1060" viewBox="0 0 1650 1060" role="img" aria-labelledby="safety-title safety-desc">
+<title id="safety-title">Auth and Tool-Safety Boundary</title>
+<desc id="safety-desc">HTTP auth and local side-effect tools are independent gates; tools are off by default.</desc>
+<defs>
+  <marker id="safety-arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+    <path d="M2,2 L10,6 L2,10 Z" fill="#334155"/>
+  </marker>
+  <filter id="safety-shadow" x="-10%" y="-10%" width="120%" height="130%">
+    <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.16"/>
+  </filter>
+  <style>
+    .title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 30px; font-weight: 800; fill: #0f172a; }
+    .subtitle { font-family: 'Segoe UI', Arial, sans-serif; font-size: 15px; fill: #475569; }
+    .group-title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 18px; font-weight: 800; fill: #0f172a; }
+    .box-title { font-family: 'Segoe UI', Arial, sans-serif; font-weight: 800; fill: #0f172a; }
+    .box-body { font-family: 'Segoe UI', Arial, sans-serif; fill: #334155; }
+    .edge-label { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; font-weight: 700; fill: #334155; }
+    .plain { font-family: 'Segoe UI', Arial, sans-serif; }
+  </style>
+</defs>
+<rect width="100%" height="100%" fill="#f8fafc"/>
+<text x="40" y="50" class="title">Auth and Tool-Safety Boundary</text>
+<text x="40" y="78" class="subtitle">HTTP auth and local side-effect tools are independent gates; tools are off by default.</text>
+<rect x="55" y="135" width="440" height="720" rx="24" fill="#eff6ff" stroke="#93c5fd" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="75" y="169" class="group-title">HTTP request boundary</text>
+<rect x="585" y="135" width="460" height="720" rx="24" fill="#fff7ed" stroke="#fdba74" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="605" y="169" class="group-title">Chat route path</text>
+<rect x="1135" y="135" width="455" height="720" rx="24" fill="#fee2e2" stroke="#fecaca" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="1155" y="169" class="group-title">Tool side-effect boundary</text>
+<path d="M185,264 L185,292" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#safety-arrow)"/>
+<path d="M185,388 L165,480" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#safety-arrow)"/>
+<rect x="95.0" y="409.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="175.0" y="426.0" text-anchor="middle" class="edge-label">open</text>
+<path d="M185,388 L380,480" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#safety-arrow)"/>
+<rect x="202.5" y="409.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="282.5" y="426.0" text-anchor="middle" class="edge-label">protected</text>
+<path d="M380,572 L380,614" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#safety-arrow)"/>
+<path d="M380,706 L340,790" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#safety-arrow)"/>
+<rect x="280.0" y="723.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="360.0" y="740.0" text-anchor="middle" class="edge-label">no</text>
+<path d="M380,706 L515,790" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#safety-arrow)"/>
+<rect x="367.5" y="723.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="447.5" y="740.0" text-anchor="middle" class="edge-label">yes</text>
+<path d="M590,820 L625,258" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#safety-arrow)"/>
+<rect x="527.5" y="514.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="607.5" y="531.0" text-anchor="middle" class="edge-label">if chat</text>
+<path d="M590,820 L625,720" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#safety-arrow)" stroke-dasharray="7 6"/>
+<rect x="527.5" y="745.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="607.5" y="762.0" text-anchor="middle" class="edge-label">if non-chat</text>
+<path d="M730,296 L730,365" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#safety-arrow)"/>
+<path d="M730,441 L730,510" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#safety-arrow)"/>
+<path d="M835,548 L1135,250" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#safety-arrow)"/>
+<rect x="905.0" y="374.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="985.0" y="391.0" text-anchor="middle" class="edge-label">tool gate</text>
+<path d="M1365,298 L1310,390" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#safety-arrow)"/>
+<rect x="1257.5" y="319.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1337.5" y="336.0" text-anchor="middle" class="edge-label">false</text>
+<path d="M1365,298 L1495,390" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#safety-arrow)"/>
+<rect x="1350.0" y="319.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1430.0" y="336.0" text-anchor="middle" class="edge-label">true</text>
+<path d="M1495,468 L1310,530" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#safety-arrow)"/>
+<rect x="1322.5" y="474.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1402.5" y="491.0" text-anchor="middle" class="edge-label">fs tools</text>
+<path d="M1495,468 L1495,532" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#safety-arrow)"/>
+<rect x="1415.0" y="475.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1495.0" y="492.0" text-anchor="middle" class="edge-label">shell gate</text>
+<path d="M1495,618 L1310,705" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#safety-arrow)"/>
+<rect x="1322.5" y="636.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1402.5" y="653.5" text-anchor="middle" class="edge-label">false</text>
+<path d="M1495,618 L1510,705" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#safety-arrow)"/>
+<rect x="1422.5" y="636.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1502.5" y="653.5" text-anchor="middle" class="edge-label">true</text>
+<rect x="95" y="200" width="180" height="64" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="2" filter="url(#safety-shadow)"/>
+<text x="185.0" y="226" text-anchor="middle" class="box-title" style="font-size:16px">Incoming</text>
+<text x="185.0" y="245" text-anchor="middle" class="box-title" style="font-size:16px">HTTP/WebSocket</text>
+<text x="185.0" y="264" text-anchor="middle" class="box-title" style="font-size:16px">request</text>
+<polygon points="185,292.0 295.0,340 185,388.0 75.0,340" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#safety-shadow)"/>
+<text x="185" y="340" text-anchor="middle" class="box-title" style="font-size:14px">Route class?</text>
+<rect x="75" y="480" width="180" height="78" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#safety-shadow)"/>
+<text x="165.0" y="506" text-anchor="middle" class="box-title" style="font-size:16px">Always open</text>
+<text x="165.0" y="535" text-anchor="middle" class="box-body" style="font-size:13px">GET / static HTML,</text>
+<text x="165.0" y="551" text-anchor="middle" class="box-body" style="font-size:13px">/v1/health, /v1/ready</text>
+<rect x="290" y="480" width="180" height="92" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#safety-shadow)"/>
+<text x="380.0" y="506" text-anchor="middle" class="box-title" style="font-size:16px">Protected when</text>
+<text x="380.0" y="525" text-anchor="middle" class="box-title" style="font-size:16px">api_key is set</text>
+<text x="380.0" y="554" text-anchor="middle" class="box-body" style="font-size:13px">legacy routes, /ws,</text>
+<text x="380.0" y="570" text-anchor="middle" class="box-body" style="font-size:13px">all other /v1 routes</text>
+<polygon points="380,614.0 485.0,660 380,706.0 275.0,660" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#safety-shadow)"/>
+<text x="380" y="660" text-anchor="middle" class="box-title" style="font-size:14px">Bearer valid?</text>
+<rect x="265" y="790" width="150" height="60" rx="16" fill="#fee2e2" stroke="#dc2626" stroke-width="2" filter="url(#safety-shadow)"/>
+<text x="340.0" y="816" text-anchor="middle" class="box-title" style="font-size:16px">401 Unauthorized</text>
+<rect x="440" y="790" width="150" height="60" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#safety-shadow)"/>
+<text x="515.0" y="816" text-anchor="middle" class="box-title" style="font-size:16px">Route handler</text>
+<text x="515.0" y="835" text-anchor="middle" class="box-title" style="font-size:16px">runs</text>
+<rect x="625" y="220" width="210" height="76" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#safety-shadow)"/>
+<text x="730.0" y="246" text-anchor="middle" class="box-title" style="font-size:16px">Chat-like handler</text>
+<text x="730.0" y="275" text-anchor="middle" class="box-body" style="font-size:13px">/chat, /v1/chat, /ws</text>
+<text x="730.0" y="291" text-anchor="middle" class="box-body" style="font-size:13px">message</text>
+<rect x="625" y="365" width="210" height="76" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#safety-shadow)"/>
+<text x="730.0" y="391" text-anchor="middle" class="box-title" style="font-size:16px">SessionManager</text>
+<text x="730.0" y="420" text-anchor="middle" class="box-body" style="font-size:13px">per-user lock</text>
+<rect x="625" y="510" width="210" height="76" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#safety-shadow)"/>
+<text x="730.0" y="536" text-anchor="middle" class="box-title" style="font-size:16px">CognitivePipeline.process</text>
+<text x="730.0" y="565" text-anchor="middle" class="box-body" style="font-size:13px">normal turn handling</text>
+<rect x="625" y="680" width="210" height="76" rx="16" fill="#e2e8f0" stroke="#64748b" stroke-width="2" filter="url(#safety-shadow)"/>
+<text x="730.0" y="706" text-anchor="middle" class="box-title" style="font-size:16px">Non-chat handlers</text>
+<text x="730.0" y="735" text-anchor="middle" class="box-body" style="font-size:13px">/config, /debug, /rest,</text>
+<text x="730.0" y="751" text-anchor="middle" class="box-body" style="font-size:13px">session endpoints do not</text>
+<text x="730.0" y="767" text-anchor="middle" class="box-body" style="font-size:13px">run process()</text>
+<polygon points="1365,202.0 1490.0,250 1365,298.0 1240.0,250" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#safety-shadow)"/>
+<text x="1365" y="250" text-anchor="middle" class="box-title" style="font-size:14px">tools_enabled?</text>
+<rect x="1215" y="390" width="190" height="78" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#safety-shadow)"/>
+<text x="1310.0" y="416" text-anchor="middle" class="box-title" style="font-size:16px">false by default</text>
+<text x="1310.0" y="445" text-anchor="middle" class="box-body" style="font-size:13px">Tool executor = None</text>
+<rect x="1430" y="390" width="130" height="78" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#safety-shadow)"/>
+<text x="1495.0" y="416" text-anchor="middle" class="box-title" style="font-size:16px">true</text>
+<text x="1495.0" y="445" text-anchor="middle" class="box-body" style="font-size:13px">register safe</text>
+<text x="1495.0" y="461" text-anchor="middle" class="box-body" style="font-size:13px">set</text>
+<rect x="1215" y="530" width="190" height="88" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#safety-shadow)"/>
+<text x="1310.0" y="556" text-anchor="middle" class="box-title" style="font-size:16px">Filesystem tools</text>
+<text x="1310.0" y="585" text-anchor="middle" class="box-body" style="font-size:13px">paths must resolve</text>
+<text x="1310.0" y="601" text-anchor="middle" class="box-body" style="font-size:13px">inside tools_workspace</text>
+<polygon points="1495,532.0 1590.0,575 1495,618.0 1400.0,575" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#safety-shadow)"/>
+<text x="1495" y="575" text-anchor="middle" class="box-title" style="font-size:14px">shell_tool_enabled?</text>
+<rect x="1225" y="705" width="170" height="68" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#safety-shadow)"/>
+<text x="1310.0" y="731" text-anchor="middle" class="box-title" style="font-size:16px">Shell off</text>
+<text x="1310.0" y="760" text-anchor="middle" class="box-body" style="font-size:13px">default</text>
+<rect x="1425" y="705" width="170" height="68" rx="16" fill="#fee2e2" stroke="#dc2626" stroke-width="2" filter="url(#safety-shadow)"/>
+<text x="1510.0" y="731" text-anchor="middle" class="box-title" style="font-size:16px">Shell on</text>
+<text x="1510.0" y="760" text-anchor="middle" class="box-body" style="font-size:13px">explicit opt-in,</text>
+<text x="1510.0" y="776" text-anchor="middle" class="box-body" style="font-size:13px">shell=False</text>
+<text x="75" y="940" text-anchor="start" fill="#0f172a" font-size="17" font-weight="700" class="plain">Security posture for public use: set api_key, keep tools_enabled false unless you need agentic side effects, and keep shell_tool_enabled false</text>
+<text x="75" y="962" text-anchor="start" fill="#0f172a" font-size="17" font-weight="700" class="plain">unless you explicitly accept host command execution risk.</text>
+</svg>
+</div>
+<p class="caption">Safety boundary: HTTP auth and local side-effect tools are independent switches.</p>
+
+<h2 id="evaluation">7. Evaluation</h2>
+<p>The current evaluation is structural, not human-subject evaluation. Phase 11 scenarios check whether the system selects expected strategies, moves modulators in expected directions, writes or closes relationship memory, and produces valid debug state. They do not grade whether a human finds the response emotionally convincing.</p>
+<div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" width="1650" height="1060" viewBox="0 0 1650 1060" role="img" aria-labelledby="eval-title eval-desc">
+<title id="eval-title">Evaluation and Ablation Harness</title>
+<desc id="eval-desc">Scenarios run against a real pipeline with explicit backend selection and provenance-stamped reports.</desc>
+<defs>
+  <marker id="eval-arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+    <path d="M2,2 L10,6 L2,10 Z" fill="#334155"/>
+  </marker>
+  <filter id="eval-shadow" x="-10%" y="-10%" width="120%" height="130%">
+    <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.16"/>
+  </filter>
+  <style>
+    .title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 30px; font-weight: 800; fill: #0f172a; }
+    .subtitle { font-family: 'Segoe UI', Arial, sans-serif; font-size: 15px; fill: #475569; }
+    .group-title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 18px; font-weight: 800; fill: #0f172a; }
+    .box-title { font-family: 'Segoe UI', Arial, sans-serif; font-weight: 800; fill: #0f172a; }
+    .box-body { font-family: 'Segoe UI', Arial, sans-serif; fill: #334155; }
+    .edge-label { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; font-weight: 700; fill: #334155; }
+    .plain { font-family: 'Segoe UI', Arial, sans-serif; }
+  </style>
+</defs>
+<rect width="100%" height="100%" fill="#f8fafc"/>
+<text x="40" y="50" class="title">Evaluation and Ablation Harness</text>
+<text x="40" y="78" class="subtitle">Scenarios run against a real pipeline with explicit backend selection and provenance-stamped reports.</text>
+<rect x="60" y="130" width="330" height="650" rx="24" fill="#eff6ff" stroke="#93c5fd" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="80" y="164" class="group-title">CLI input</text>
+<rect x="460" y="130" width="430" height="650" rx="24" fill="#f0fdf4" stroke="#86efac" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="480" y="164" class="group-title">Per-scenario execution</text>
+<rect x="970" y="130" width="260" height="650" rx="24" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="990" y="164" class="group-title">Provenance</text>
+<rect x="1320" y="130" width="270" height="650" rx="24" fill="#fff7ed" stroke="#fdba74" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="1340" y="164" class="group-title">Artifacts</text>
+<rect x="460" y="820" width="1130" height="170" rx="24" fill="#fef3c7" stroke="#fbbf24" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="480" y="854" class="group-title">Ablation mode</text>
+<path d="M355,253 L500,242" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#eval-arrow)"/>
+<rect x="347.5" y="222.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="427.5" y="239.5" text-anchor="middle" class="edge-label">backend factory</text>
+<path d="M355,395 L500,242" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#eval-arrow)"/>
+<rect x="347.5" y="293.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="427.5" y="310.5" text-anchor="middle" class="edge-label">scenarios</text>
+<path d="M625,279 L625,330" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#eval-arrow)"/>
+<path d="M625,404 L625,455" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#eval-arrow)"/>
+<path d="M625,529 L625,580" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#eval-arrow)"/>
+<path d="M750,617 L1360,260" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#eval-arrow)"/>
+<rect x="975.0" y="413.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1055.0" y="430.5" text-anchor="middle" class="edge-label">metrics</text>
+<path d="M1100,310 L1360,260" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#eval-arrow)" stroke-dasharray="7 6"/>
+<rect x="1150.0" y="260.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1230.0" y="277.0" text-anchor="middle" class="edge-label">stamp</text>
+<path d="M1100,460 L1360,260" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#eval-arrow)" stroke-dasharray="7 6"/>
+<rect x="1150.0" y="335.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1230.0" y="352.0" text-anchor="middle" class="edge-label">stamp</text>
+<path d="M1100,610 L1360,260" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#eval-arrow)" stroke-dasharray="7 6"/>
+<rect x="1150.0" y="410.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1230.0" y="427.0" text-anchor="middle" class="edge-label">stamp</text>
+<path d="M355,543 L1360,565" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#eval-arrow)" stroke-dasharray="7 6"/>
+<rect x="777.5" y="529.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="857.5" y="546.0" text-anchor="middle" class="edge-label">optional raw-dir only</text>
+<path d="M740,910 L835,910" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#eval-arrow)"/>
+<path d="M1075,910 L1170,910" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#eval-arrow)"/>
+<path d="M1320,910 L1455,454" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#eval-arrow)"/>
+<rect x="1307.5" y="657.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1387.5" y="674.0" text-anchor="middle" class="edge-label">summary</text>
+<rect x="95" y="210" width="260" height="86" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="2" filter="url(#eval-shadow)"/>
+<text x="225.0" y="236" text-anchor="middle" class="box-title" style="font-size:16px">python -m evals</text>
+<text x="225.0" y="265" text-anchor="middle" class="box-body" style="font-size:13px">--backend required: mock,</text>
+<text x="225.0" y="281" text-anchor="middle" class="box-body" style="font-size:13px">minimax, openai_compat</text>
+<rect x="95" y="360" width="260" height="70" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="2" filter="url(#eval-shadow)"/>
+<text x="225.0" y="386" text-anchor="middle" class="box-title" style="font-size:16px">Scenario selector</text>
+<text x="225.0" y="415" text-anchor="middle" class="box-body" style="font-size:13px">--tag phase11 or explicit set</text>
+<rect x="95" y="500" width="260" height="86" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="2" filter="url(#eval-shadow)"/>
+<text x="225.0" y="526" text-anchor="middle" class="box-title" style="font-size:16px">Output flags</text>
+<text x="225.0" y="555" text-anchor="middle" class="box-body" style="font-size:13px">--report writes one report;</text>
+<text x="225.0" y="571" text-anchor="middle" class="box-body" style="font-size:13px">--raw-dir optionally writes raw</text>
+<text x="225.0" y="587" text-anchor="middle" class="box-body" style="font-size:13px">per-scenario artifacts</text>
+<rect x="500" y="205" width="250" height="74" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#eval-shadow)"/>
+<text x="625.0" y="231" text-anchor="middle" class="box-title" style="font-size:16px">Fresh pipeline</text>
+<text x="625.0" y="260" text-anchor="middle" class="box-body" style="font-size:13px">per scenario; no state leakage</text>
+<rect x="500" y="330" width="250" height="74" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#eval-shadow)"/>
+<text x="625.0" y="356" text-anchor="middle" class="box-title" style="font-size:16px">InstrumentedBackend</text>
+<text x="625.0" y="385" text-anchor="middle" class="box-body" style="font-size:13px">shared counter wraps every</text>
+<text x="625.0" y="401" text-anchor="middle" class="box-body" style="font-size:13px">backend factory</text>
+<rect x="500" y="455" width="250" height="74" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#eval-shadow)"/>
+<text x="625.0" y="481" text-anchor="middle" class="box-title" style="font-size:16px">Run turns</text>
+<text x="625.0" y="510" text-anchor="middle" class="box-body" style="font-size:13px">pipeline.process(message)</text>
+<rect x="500" y="580" width="250" height="84" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#eval-shadow)"/>
+<text x="625.0" y="606" text-anchor="middle" class="box-title" style="font-size:16px">Evaluate assertions</text>
+<text x="625.0" y="635" text-anchor="middle" class="box-body" style="font-size:13px">strategy, modulator ranges,</text>
+<text x="625.0" y="651" text-anchor="middle" class="box-body" style="font-size:13px">memory/open-loop effects, debug</text>
+<text x="625.0" y="667" text-anchor="middle" class="box-body" style="font-size:13px">fields</text>
+<rect x="1000" y="220" width="200" height="90" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#eval-shadow)"/>
+<text x="1100.0" y="246" text-anchor="middle" class="box-title" style="font-size:16px">Code identity</text>
+<text x="1100.0" y="275" text-anchor="middle" class="box-body" style="font-size:13px">git SHA, branch, dirty</text>
+<text x="1100.0" y="291" text-anchor="middle" class="box-body" style="font-size:13px">worktree</text>
+<rect x="1000" y="370" width="200" height="90" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#eval-shadow)"/>
+<text x="1100.0" y="396" text-anchor="middle" class="box-title" style="font-size:16px">Backend identity</text>
+<text x="1100.0" y="425" text-anchor="middle" class="box-body" style="font-size:13px">type, requested/resolved</text>
+<text x="1100.0" y="441" text-anchor="middle" class="box-body" style="font-size:13px">model, base URL</text>
+<rect x="1000" y="520" width="200" height="90" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#eval-shadow)"/>
+<text x="1100.0" y="546" text-anchor="middle" class="box-title" style="font-size:16px">Config fingerprints</text>
+<text x="1100.0" y="575" text-anchor="middle" class="box-body" style="font-size:13px">SHA-256 over</text>
+<text x="1100.0" y="591" text-anchor="middle" class="box-body" style="font-size:13px">prompt/config files</text>
+<rect x="1360" y="220" width="190" height="80" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#eval-shadow)"/>
+<text x="1455.0" y="246" text-anchor="middle" class="box-title" style="font-size:16px">EvalReport JSON</text>
+<text x="1455.0" y="275" text-anchor="middle" class="box-body" style="font-size:13px">turns, latency, LLM</text>
+<text x="1455.0" y="291" text-anchor="middle" class="box-body" style="font-size:13px">calls, pass/fail</text>
+<rect x="1360" y="370" width="190" height="84" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#eval-shadow)"/>
+<text x="1455.0" y="396" text-anchor="middle" class="box-title" style="font-size:16px">Ablation reports</text>
+<text x="1455.0" y="425" text-anchor="middle" class="box-body" style="font-size:13px">baseline.json,</text>
+<text x="1455.0" y="441" text-anchor="middle" class="box-body" style="font-size:13px">per-variant JSON,</text>
+<text x="1455.0" y="457" text-anchor="middle" class="box-body" style="font-size:13px">summary.json</text>
+<rect x="1360" y="520" width="190" height="90" rx="16" fill="#e2e8f0" stroke="#64748b" stroke-width="2" filter="url(#eval-shadow)"/>
+<text x="1455.0" y="546" text-anchor="middle" class="box-title" style="font-size:16px">Honest nulls</text>
+<text x="1455.0" y="575" text-anchor="middle" class="box-body" style="font-size:13px">tokens, cost, retries</text>
+<text x="1455.0" y="591" text-anchor="middle" class="box-body" style="font-size:13px">remain null until</text>
+<text x="1455.0" y="607" text-anchor="middle" class="box-body" style="font-size:13px">client instrumentation</text>
+<text x="1455.0" y="623" text-anchor="middle" class="box-body" style="font-size:13px">exists</text>
+<rect x="500" y="875" width="240" height="70" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#eval-shadow)"/>
+<text x="620.0" y="901" text-anchor="middle" class="box-title" style="font-size:16px">Pre-registered variants</text>
+<text x="620.0" y="930" text-anchor="middle" class="box-body" style="font-size:13px">relationship, inner dialogue,</text>
+<text x="620.0" y="946" text-anchor="middle" class="box-body" style="font-size:13px">defense, semantic memory</text>
+<rect x="835" y="875" width="240" height="70" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#eval-shadow)"/>
+<text x="955.0" y="901" text-anchor="middle" class="box-title" style="font-size:16px">PipelineFeatures toggles</text>
+<text x="955.0" y="930" text-anchor="middle" class="box-body" style="font-size:13px">component bypass contract</text>
+<rect x="1170" y="875" width="300" height="70" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#eval-shadow)"/>
+<text x="1320.0" y="901" text-anchor="middle" class="box-title" style="font-size:16px">Outcome labels</text>
+<text x="1320.0" y="930" text-anchor="middle" class="box-body" style="font-size:13px">expected_failure, unexpected_failure,</text>
+<text x="1320.0" y="946" text-anchor="middle" class="box-body" style="font-size:13px">no_effect, newly_passing</text>
+<text x="80" y="845" text-anchor="start" fill="#0f172a" font-size="16" font-weight="700" class="plain">The eval CLI is not a unit-test runner. It is a behavioral</text>
+<text x="80" y="866" text-anchor="start" fill="#0f172a" font-size="16" font-weight="700" class="plain">scenario runner that can use mock or real LLM backends, while</text>
+<text x="80" y="887" text-anchor="start" fill="#0f172a" font-size="16" font-weight="700" class="plain">recording enough provenance to make reports interpretable</text>
+<text x="80" y="908" text-anchor="start" fill="#0f172a" font-size="16" font-weight="700" class="plain">later.</text>
+</svg>
+</div>
+<p class="caption">Evaluation harness: explicit backend selection, fresh scenario pipelines, instrumented LLM-call counting, and provenance-stamped reports.</p>
+
+<table class="table">
+<thead><tr><th>Variant</th><th>Pass</th><th>Expected failures</th><th>Unexpected failures</th><th>LLM calls</th></tr></thead>
+<tbody>
+<tr><td>baseline</td><td>6/6</td><td>-</td><td>-</td><td>14</td></tr>
+<tr><td>no_relationship_memory</td><td>4/6</td><td>2</td><td>0</td><td>14</td></tr>
+<tr><td>no_inner_dialogue</td><td>6/6</td><td>0</td><td>0</td><td>14</td></tr>
+<tr><td>no_defense</td><td>6/6</td><td>0</td><td>0</td><td>14</td></tr>
+<tr><td>no_semantic_memory</td><td>6/6</td><td>0</td><td>0</td><td>14</td></tr>
+</tbody>
+</table>
+
+<h2 id="claims">8. What the evidence supports</h2>
+<p>The strongest current result is narrow but useful: relationship memory is load-bearing for the two cross-turn structural scenarios that require open-loop tracking. Disabling it breaks exactly those two scenarios and causes no unexpected failures. Other components are present but not falsifiable by this scenario suite.</p>
+<div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" width="1650" height="950" viewBox="0 0 1650 950" role="img" aria-labelledby="claims-title claims-desc">
+<title id="claims-title">Component Claim Map</title>
+<desc id="claims-desc">What the current evidence supports, what it does not test, and what remains a future-study claim.</desc>
+<defs>
+  <marker id="claims-arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+    <path d="M2,2 L10,6 L2,10 Z" fill="#334155"/>
+  </marker>
+  <filter id="claims-shadow" x="-10%" y="-10%" width="120%" height="130%">
+    <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.16"/>
+  </filter>
+  <style>
+    .title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 30px; font-weight: 800; fill: #0f172a; }
+    .subtitle { font-family: 'Segoe UI', Arial, sans-serif; font-size: 15px; fill: #475569; }
+    .group-title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 18px; font-weight: 800; fill: #0f172a; }
+    .box-title { font-family: 'Segoe UI', Arial, sans-serif; font-weight: 800; fill: #0f172a; }
+    .box-body { font-family: 'Segoe UI', Arial, sans-serif; fill: #334155; }
+    .edge-label { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; font-weight: 700; fill: #334155; }
+    .plain { font-family: 'Segoe UI', Arial, sans-serif; }
+  </style>
+</defs>
+<rect width="100%" height="100%" fill="#f8fafc"/>
+<text x="40" y="50" class="title">Component Claim Map</text>
+<text x="40" y="78" class="subtitle">What the current evidence supports, what it does not test, and what remains a future-study claim.</text>
+<rect x="70" y="280" width="345" height="420" rx="24" fill="#f0fdf4" stroke="#86efac" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="90" y="314" class="group-title">Supported by current ablation</text>
+<rect x="465" y="280" width="345" height="420" rx="24" fill="#f8fafc" stroke="#94a3b8" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="485" y="314" class="group-title">Negative control</text>
+<rect x="860" y="280" width="345" height="420" rx="24" fill="#fff7ed" stroke="#fdba74" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="880" y="314" class="group-title">Present, not falsifiable here</text>
+<rect x="1255" y="280" width="320" height="420" rx="24" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="1275" y="314" class="group-title">Conceptual architecture claim</text>
+<path d="M375,420 L690,165" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#claims-arrow)"/>
+<rect x="452.5" y="267.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="532.5" y="284.5" text-anchor="middle" class="edge-label">measured effect</text>
+<path d="M505,420 L690,165" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#claims-arrow)" stroke-dasharray="7 6"/>
+<rect x="517.5" y="267.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="597.5" y="284.5" text-anchor="middle" class="edge-label">expected no effect</text>
+<path d="M900,396 L850,210" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#claims-arrow)" stroke-dasharray="7 6"/>
+<rect x="795.0" y="278.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="875.0" y="295.0" text-anchor="middle" class="edge-label">not sensitive</text>
+<path d="M1165,526 L970,210" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#claims-arrow)" stroke-dasharray="7 6"/>
+<rect x="987.5" y="343.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1067.5" y="360.0" text-anchor="middle" class="edge-label">not sensitive</text>
+<path d="M1290,427 L970,165" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#claims-arrow)" stroke-dasharray="7 6"/>
+<rect x="1050.0" y="271.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1130.0" y="288.0" text-anchor="middle" class="edge-label">architectural claim</text>
+<rect x="690" y="120" width="280" height="90" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="2" filter="url(#claims-shadow)"/>
+<text x="830.0" y="146" text-anchor="middle" class="box-title" style="font-size:16px">Phase 11 structural suite</text>
+<text x="830.0" y="175" text-anchor="middle" class="box-body" style="font-size:13px">6 scenarios · 25 assertions ·</text>
+<text x="830.0" y="191" text-anchor="middle" class="box-body" style="font-size:13px">structural outcomes only</text>
+<rect x="110" y="365" width="265" height="110" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#claims-shadow)"/>
+<text x="242.5" y="391" text-anchor="middle" class="box-title" style="font-size:16px">Relationship memory</text>
+<text x="242.5" y="420" text-anchor="middle" class="box-body" style="font-size:13px">Disabling it breaks exactly</text>
+<text x="242.5" y="436" text-anchor="middle" class="box-body" style="font-size:13px">p11_open_loop_challenge and</text>
+<text x="242.5" y="452" text-anchor="middle" class="box-body" style="font-size:13px">p11_repair_closes_loop; 0</text>
+<text x="242.5" y="468" text-anchor="middle" class="box-body" style="font-size:13px">unexpected failures.</text>
+<rect x="110" y="535" width="265" height="82" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#claims-shadow)"/>
+<text x="242.5" y="561" text-anchor="middle" class="box-title" style="font-size:16px">Claim strength</text>
+<text x="242.5" y="590" text-anchor="middle" class="box-body" style="font-size:13px">Load-bearing for cross-turn</text>
+<text x="242.5" y="606" text-anchor="middle" class="box-body" style="font-size:13px">structural continuity.</text>
+<rect x="505" y="365" width="265" height="110" rx="16" fill="#e2e8f0" stroke="#64748b" stroke-width="2" filter="url(#claims-shadow)"/>
+<text x="637.5" y="391" text-anchor="middle" class="box-title" style="font-size:16px">Semantic memory</text>
+<text x="637.5" y="420" text-anchor="middle" class="box-body" style="font-size:13px">Phase 11 does not exercise</text>
+<text x="637.5" y="436" text-anchor="middle" class="box-body" style="font-size:13px">semantic retrieval; zero effect</text>
+<text x="637.5" y="452" text-anchor="middle" class="box-body" style="font-size:13px">is the expected outcome.</text>
+<rect x="505" y="535" width="265" height="82" rx="16" fill="#e2e8f0" stroke="#64748b" stroke-width="2" filter="url(#claims-shadow)"/>
+<text x="637.5" y="561" text-anchor="middle" class="box-title" style="font-size:16px">Claim strength</text>
+<text x="637.5" y="590" text-anchor="middle" class="box-body" style="font-size:13px">No hidden coupling detected in</text>
+<text x="637.5" y="606" text-anchor="middle" class="box-body" style="font-size:13px">this suite.</text>
+<rect x="900" y="350" width="265" height="92" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#claims-shadow)"/>
+<text x="1032.5" y="376" text-anchor="middle" class="box-title" style="font-size:16px">Inner dialogue</text>
+<text x="1032.5" y="405" text-anchor="middle" class="box-body" style="font-size:13px">Upstream of what Phase 11</text>
+<text x="1032.5" y="421" text-anchor="middle" class="box-body" style="font-size:13px">measures; quality/depth scenarios</text>
+<text x="1032.5" y="437" text-anchor="middle" class="box-body" style="font-size:13px">needed.</text>
+<rect x="900" y="480" width="265" height="92" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#claims-shadow)"/>
+<text x="1032.5" y="506" text-anchor="middle" class="box-title" style="font-size:16px">Defense</text>
+<text x="1032.5" y="535" text-anchor="middle" class="box-body" style="font-size:13px">Shapes wording and expressed</text>
+<text x="1032.5" y="551" text-anchor="middle" class="box-body" style="font-size:13px">intensity; structural assertions</text>
+<text x="1032.5" y="567" text-anchor="middle" class="box-body" style="font-size:13px">do not grade wording.</text>
+<rect x="900" y="610" width="265" height="58" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#claims-shadow)"/>
+<text x="1032.5" y="636" text-anchor="middle" class="box-title" style="font-size:16px">Claim strength</text>
+<text x="1032.5" y="665" text-anchor="middle" class="box-body" style="font-size:13px">Implemented, not validated by</text>
+<text x="1032.5" y="681" text-anchor="middle" class="box-body" style="font-size:13px">this suite.</text>
+<rect x="1290" y="365" width="250" height="124" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#claims-shadow)"/>
+<text x="1415.0" y="391" text-anchor="middle" class="box-title" style="font-size:16px">Unified self/other</text>
+<text x="1415.0" y="410" text-anchor="middle" class="box-title" style="font-size:16px">profiling</text>
+<text x="1415.0" y="439" text-anchor="middle" class="box-body" style="font-size:13px">Same ProfileStore mechanism for</text>
+<text x="1415.0" y="455" text-anchor="middle" class="box-body" style="font-size:13px">user, topic, and assistant self</text>
+<text x="1415.0" y="471" text-anchor="middle" class="box-body" style="font-size:13px">(__self__).</text>
+<rect x="1290" y="545" width="250" height="90" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#claims-shadow)"/>
+<text x="1415.0" y="571" text-anchor="middle" class="box-title" style="font-size:16px">Needed evidence</text>
+<text x="1415.0" y="600" text-anchor="middle" class="box-body" style="font-size:13px">Blinded human/HCI study to test</text>
+<text x="1415.0" y="616" text-anchor="middle" class="box-body" style="font-size:13px">felt behavior.</text>
+<text x="95" y="820" text-anchor="start" fill="#0f172a" font-size="18" font-weight="800" class="plain">Honest reading: one component is load-bearing on the current structural suite. Zero-effect ablations do not prove components are</text>
+<text x="95" y="843" text-anchor="start" fill="#0f172a" font-size="18" font-weight="800" class="plain">useless; they identify what Phase 11 cannot falsify. Human-likeness remains unvalidated.</text>
+</svg>
+</div>
+<p class="caption">Claim map: the current evidence supports one load-bearing component; other claims are explicitly scoped.</p>
+
+<div class="warning notice">
+<strong>Do not overclaim this result.</strong> It does not prove human-likeness. It does not prove that inner dialogue or defense mechanisms are useless. It says the current structural suite can falsify relationship memory and cannot yet falsify the other components.
+</div>
+
+<h2 id="run">9. How to run it</h2>
+<p>The intended quick path is:</p>
+<pre><code>git clone https://github.com/balfiky/nur.git
+cd nur
+python3 -m pip install -e ".[dev]"
+nur-web</code></pre>
+<p>Then open <code>http://localhost:8000</code>. The tracked config starts in mock mode, so a first run does not need an API key. For terminal use, run <code>nur</code>. For offline structural evals, run:</p>
+<pre><code>python3 -m evals --backend mock --tag phase11</code></pre>
+
+<h2 id="limits">10. Limitations</h2>
+<ul>
+<li>No prompt-only baseline yet. The current scenarios test internal structural behavior, so a fair prompt-only baseline needs a different scenario design.</li>
+<li>No blinded human study yet. Human-likeness and emotional quality remain future work.</li>
+<li>Token, retry, and cost telemetry are intentionally null until client-level instrumentation is implemented.</li>
+<li>Telegram live bot behavior needs real end-to-end validation with a throwaway bot token before being advertised as a polished demo path.</li>
+<li>WhatsApp is not implemented or claimed.</li>
+<li>OpenClaw inspired the initial thinking, but Nūr does not integrate with OpenClaw and does not depend on it.</li>
+</ul>
+
+<footer>
+<p>Project Nūr technical overview. This file is intentionally self-contained: text, diagrams, and caveats are embedded in one HTML document.</p>
+</footer>
+</main>
+</body>
+</html>

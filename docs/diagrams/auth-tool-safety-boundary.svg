@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1650" height="1060" viewBox="0 0 1650 1060" role="img" aria-labelledby="title desc">
+<title id="title">Auth and Tool-Safety Boundary</title>
+<desc id="desc">HTTP auth and local side-effect tools are independent gates; tools are off by default.</desc>
+<defs>
+  <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+    <path d="M2,2 L10,6 L2,10 Z" fill="#334155"/>
+  </marker>
+  <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+    <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.16"/>
+  </filter>
+  <style>
+    .title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 30px; font-weight: 800; fill: #0f172a; }
+    .subtitle { font-family: 'Segoe UI', Arial, sans-serif; font-size: 15px; fill: #475569; }
+    .group-title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 18px; font-weight: 800; fill: #0f172a; }
+    .box-title { font-family: 'Segoe UI', Arial, sans-serif; font-weight: 800; fill: #0f172a; }
+    .box-body { font-family: 'Segoe UI', Arial, sans-serif; fill: #334155; }
+    .edge-label { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; font-weight: 700; fill: #334155; }
+    .plain { font-family: 'Segoe UI', Arial, sans-serif; }
+  </style>
+</defs>
+<rect width="100%" height="100%" fill="#f8fafc"/>
+<text x="40" y="50" class="title">Auth and Tool-Safety Boundary</text>
+<text x="40" y="78" class="subtitle">HTTP auth and local side-effect tools are independent gates; tools are off by default.</text>
+<rect x="55" y="135" width="440" height="720" rx="24" fill="#eff6ff" stroke="#93c5fd" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="75" y="169" class="group-title">HTTP request boundary</text>
+<rect x="585" y="135" width="460" height="720" rx="24" fill="#fff7ed" stroke="#fdba74" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="605" y="169" class="group-title">Chat route path</text>
+<rect x="1135" y="135" width="455" height="720" rx="24" fill="#fee2e2" stroke="#fecaca" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="1155" y="169" class="group-title">Tool side-effect boundary</text>
+<path d="M185,264 L185,292" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
+<path d="M185,388 L165,480" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="95.0" y="409.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="175.0" y="426.0" text-anchor="middle" class="edge-label">open</text>
+<path d="M185,388 L380,480" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="202.5" y="409.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="282.5" y="426.0" text-anchor="middle" class="edge-label">protected</text>
+<path d="M380,572 L380,614" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
+<path d="M380,706 L340,790" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="280.0" y="723.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="360.0" y="740.0" text-anchor="middle" class="edge-label">no</text>
+<path d="M380,706 L515,790" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="367.5" y="723.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="447.5" y="740.0" text-anchor="middle" class="edge-label">yes</text>
+<path d="M590,820 L625,258" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="527.5" y="514.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="607.5" y="531.0" text-anchor="middle" class="edge-label">if chat</text>
+<path d="M590,820 L625,720" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)" stroke-dasharray="7 6"/>
+<rect x="527.5" y="745.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="607.5" y="762.0" text-anchor="middle" class="edge-label">if non-chat</text>
+<path d="M730,296 L730,365" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
+<path d="M730,441 L730,510" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
+<path d="M835,548 L1135,250" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="905.0" y="374.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="985.0" y="391.0" text-anchor="middle" class="edge-label">tool gate</text>
+<path d="M1365,298 L1310,390" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="1257.5" y="319.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1337.5" y="336.0" text-anchor="middle" class="edge-label">false</text>
+<path d="M1365,298 L1495,390" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="1350.0" y="319.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1430.0" y="336.0" text-anchor="middle" class="edge-label">true</text>
+<path d="M1495,468 L1310,530" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="1322.5" y="474.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1402.5" y="491.0" text-anchor="middle" class="edge-label">fs tools</text>
+<path d="M1495,468 L1495,532" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="1415.0" y="475.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1495.0" y="492.0" text-anchor="middle" class="edge-label">shell gate</text>
+<path d="M1495,618 L1310,705" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="1322.5" y="636.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1402.5" y="653.5" text-anchor="middle" class="edge-label">false</text>
+<path d="M1495,618 L1510,705" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
+<rect x="1422.5" y="636.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
+<text x="1502.5" y="653.5" text-anchor="middle" class="edge-label">true</text>
+<rect x="95" y="200" width="180" height="64" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="2" filter="url(#shadow)"/>
+<text x="185.0" y="226" text-anchor="middle" class="box-title" style="font-size:16px">Incoming</text>
+<text x="185.0" y="245" text-anchor="middle" class="box-title" style="font-size:16px">HTTP/WebSocket</text>
+<text x="185.0" y="264" text-anchor="middle" class="box-title" style="font-size:16px">request</text>
+<polygon points="185,292.0 295.0,340 185,388.0 75.0,340" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#shadow)"/>
+<text x="185" y="340" text-anchor="middle" class="box-title" style="font-size:14px">Route class?</text>
+<rect x="75" y="480" width="180" height="78" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
+<text x="165.0" y="506" text-anchor="middle" class="box-title" style="font-size:16px">Always open</text>
+<text x="165.0" y="535" text-anchor="middle" class="box-body" style="font-size:13px">GET / static HTML,</text>
+<text x="165.0" y="551" text-anchor="middle" class="box-body" style="font-size:13px">/v1/health, /v1/ready</text>
+<rect x="290" y="480" width="180" height="92" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#shadow)"/>
+<text x="380.0" y="506" text-anchor="middle" class="box-title" style="font-size:16px">Protected when</text>
+<text x="380.0" y="525" text-anchor="middle" class="box-title" style="font-size:16px">api_key is set</text>
+<text x="380.0" y="554" text-anchor="middle" class="box-body" style="font-size:13px">legacy routes, /ws,</text>
+<text x="380.0" y="570" text-anchor="middle" class="box-body" style="font-size:13px">all other /v1 routes</text>
+<polygon points="380,614.0 485.0,660 380,706.0 275.0,660" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#shadow)"/>
+<text x="380" y="660" text-anchor="middle" class="box-title" style="font-size:14px">Bearer valid?</text>
+<rect x="265" y="790" width="150" height="60" rx="16" fill="#fee2e2" stroke="#dc2626" stroke-width="2" filter="url(#shadow)"/>
+<text x="340.0" y="816" text-anchor="middle" class="box-title" style="font-size:16px">401 Unauthorized</text>
+<rect x="440" y="790" width="150" height="60" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
+<text x="515.0" y="816" text-anchor="middle" class="box-title" style="font-size:16px">Route handler</text>
+<text x="515.0" y="835" text-anchor="middle" class="box-title" style="font-size:16px">runs</text>
+<rect x="625" y="220" width="210" height="76" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#shadow)"/>
+<text x="730.0" y="246" text-anchor="middle" class="box-title" style="font-size:16px">Chat-like handler</text>
+<text x="730.0" y="275" text-anchor="middle" class="box-body" style="font-size:13px">/chat, /v1/chat, /ws</text>
+<text x="730.0" y="291" text-anchor="middle" class="box-body" style="font-size:13px">message</text>
+<rect x="625" y="365" width="210" height="76" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#shadow)"/>
+<text x="730.0" y="391" text-anchor="middle" class="box-title" style="font-size:16px">SessionManager</text>
+<text x="730.0" y="420" text-anchor="middle" class="box-body" style="font-size:13px">per-user lock</text>
+<rect x="625" y="510" width="210" height="76" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#shadow)"/>
+<text x="730.0" y="536" text-anchor="middle" class="box-title" style="font-size:16px">CognitivePipeline.process</text>
+<text x="730.0" y="565" text-anchor="middle" class="box-body" style="font-size:13px">normal turn handling</text>
+<rect x="625" y="680" width="210" height="76" rx="16" fill="#e2e8f0" stroke="#64748b" stroke-width="2" filter="url(#shadow)"/>
+<text x="730.0" y="706" text-anchor="middle" class="box-title" style="font-size:16px">Non-chat handlers</text>
+<text x="730.0" y="735" text-anchor="middle" class="box-body" style="font-size:13px">/config, /debug, /rest,</text>
+<text x="730.0" y="751" text-anchor="middle" class="box-body" style="font-size:13px">session endpoints do not</text>
+<text x="730.0" y="767" text-anchor="middle" class="box-body" style="font-size:13px">run process()</text>
+<polygon points="1365,202.0 1490.0,250 1365,298.0 1240.0,250" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#shadow)"/>
+<text x="1365" y="250" text-anchor="middle" class="box-title" style="font-size:14px">tools_enabled?</text>
+<rect x="1215" y="390" width="190" height="78" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
+<text x="1310.0" y="416" text-anchor="middle" class="box-title" style="font-size:16px">false by default</text>
+<text x="1310.0" y="445" text-anchor="middle" class="box-body" style="font-size:13px">Tool executor = None</text>
+<rect x="1430" y="390" width="130" height="78" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#shadow)"/>
+<text x="1495.0" y="416" text-anchor="middle" class="box-title" style="font-size:16px">true</text>
+<text x="1495.0" y="445" text-anchor="middle" class="box-body" style="font-size:13px">register safe</text>
+<text x="1495.0" y="461" text-anchor="middle" class="box-body" style="font-size:13px">set</text>
+<rect x="1215" y="530" width="190" height="88" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#shadow)"/>
+<text x="1310.0" y="556" text-anchor="middle" class="box-title" style="font-size:16px">Filesystem tools</text>
+<text x="1310.0" y="585" text-anchor="middle" class="box-body" style="font-size:13px">paths must resolve</text>
+<text x="1310.0" y="601" text-anchor="middle" class="box-body" style="font-size:13px">inside tools_workspace</text>
+<polygon points="1495,532.0 1590.0,575 1495,618.0 1400.0,575" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#shadow)"/>
+<text x="1495" y="575" text-anchor="middle" class="box-title" style="font-size:14px">shell_tool_enabled?</text>
+<rect x="1225" y="705" width="170" height="68" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
+<text x="1310.0" y="731" text-anchor="middle" class="box-title" style="font-size:16px">Shell off</text>
+<text x="1310.0" y="760" text-anchor="middle" class="box-body" style="font-size:13px">default</text>
+<rect x="1425" y="705" width="170" height="68" rx="16" fill="#fee2e2" stroke="#dc2626" stroke-width="2" filter="url(#shadow)"/>
+<text x="1510.0" y="731" text-anchor="middle" class="box-title" style="font-size:16px">Shell on</text>
+<text x="1510.0" y="760" text-anchor="middle" class="box-body" style="font-size:13px">explicit opt-in,</text>
+<text x="1510.0" y="776" text-anchor="middle" class="box-body" style="font-size:13px">shell=False</text>
+<text x="75" y="940" text-anchor="start" fill="#0f172a" font-size="17" font-weight="700" class="plain">Security posture for public use: set api_key, keep tools_enabled false unless you need agentic side effects, and keep shell_tool_enabled false</text>
+<text x="75" y="962" text-anchor="start" fill="#0f172a" font-size="17" font-weight="700" class="plain">unless you explicitly accept host command execution risk.</text>
+</svg>

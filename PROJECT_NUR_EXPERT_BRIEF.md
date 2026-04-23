@@ -217,6 +217,11 @@ That distinction matters when consulting psychologists.
 
 ## 6. Architectural Overview
 
+> Visual reference: static SVG diagrams for the runtime shape, single-turn
+> cognitive flow, persistence model, auth and tool-safety boundary,
+> evaluation harness, and component claim map are in
+> [`docs/ARCHITECTURE_DIAGRAMS.md`](docs/ARCHITECTURE_DIAGRAMS.md).
+
 At the highest level, the project has two layers:
 
 - the **cognitive layer**: Nūr’s internal “mind”
