@@ -5,8 +5,12 @@ for compatibility; the SVG files remain in `docs/diagrams/` as the
 source assets.
 
 If you download this Markdown file by itself, the diagrams will not
-appear because the SVG files live under `docs/diagrams/`. For a single
-reader-facing file with the diagrams embedded directly, use:
+appear because the image files live under `docs/diagrams/`. For the main
+GitHub-friendly walkthrough, use:
+
+- [../PROJECT_NUR_OVERVIEW.md](../PROJECT_NUR_OVERVIEW.md)
+
+For a single reader-facing file with the diagrams embedded directly, use:
 
 - [../PROJECT_NUR_OVERVIEW.html](../PROJECT_NUR_OVERVIEW.html)
 

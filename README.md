@@ -5,7 +5,8 @@ A hybrid cognitive architecture for AI assistants, inspired by PSI Theory, ACT-R
 Nūr maintains a continuous emotional state, a dual memory system, a self-model earned through behavioral observation, and a relationship memory that tracks ruptures, repairs, and open loops across sessions. The state persists and decays between turns and across sessions, so the system's stance toward a given user is shaped by accumulated history rather than re-derived from each prompt.
 
 **Public write-ups (start here):**
-- 🌐 **[PROJECT_NUR_OVERVIEW.html](PROJECT_NUR_OVERVIEW.html)** — one self-contained reader-facing document. Theory, implementation, safety, evaluation, and all diagrams embedded in one file.
+- 📘 **[PROJECT_NUR_OVERVIEW.md](PROJECT_NUR_OVERVIEW.md)** — best GitHub reading path. Theory, implementation, safety, evaluation, and all diagrams inline.
+- 🌐 **[PROJECT_NUR_OVERVIEW.html](PROJECT_NUR_OVERVIEW.html)** — one self-contained downloadable version with everything embedded in a single file.
 - 📄 **[TECHNICAL_NOTE.md](TECHNICAL_NOTE.md)** — ~2,000 word public technical note: problem, architecture, one reproducible ablation result, limitations, privacy posture. Best first Markdown read.
 - 📝 **[LINKEDIN_POST.md](LINKEDIN_POST.md)** — short and long drafts for public posting.
 - 📖 **[PAPER_DRAFT.md](PAPER_DRAFT.md)** — long-form 7,600-word version of the technical note with fuller related-work positioning. Framed as a design paper, not an academic submission.
@@ -16,7 +17,7 @@ Nūr maintains a continuous emotional state, a dual memory system, a self-model 
 
 ![Project Nūr runtime architecture](docs/diagrams/runtime-architecture.png)
 
-For the full reader-facing explanation with all diagrams embedded in one file, start with [PROJECT_NUR_OVERVIEW.html](PROJECT_NUR_OVERVIEW.html).
+For the full reader-facing explanation on GitHub, start with [PROJECT_NUR_OVERVIEW.md](PROJECT_NUR_OVERVIEW.md). If you want a single downloadable file, use [PROJECT_NUR_OVERVIEW.html](PROJECT_NUR_OVERVIEW.html).
 
 ## 5-Minute Start
 
@@ -163,7 +164,7 @@ pipe.apply_rest(hours=8.0)
 
 ## Architecture Overview
 
-> **Full diagram set:** [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md) — runtime, cognitive flow, persistence, auth/tool safety, eval harness, component claim map. Markdown uses PNG previews; SVG source files remain in `docs/diagrams/`. For a single shareable file, use [PROJECT_NUR_OVERVIEW.html](PROJECT_NUR_OVERVIEW.html).
+> **Full diagram set:** [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md) — runtime, cognitive flow, persistence, auth/tool safety, eval harness, component claim map. Markdown uses PNG previews; SVG source files remain in `docs/diagrams/`. For the GitHub-friendly walkthrough, use [PROJECT_NUR_OVERVIEW.md](PROJECT_NUR_OVERVIEW.md). For a single downloadable file, use [PROJECT_NUR_OVERVIEW.html](PROJECT_NUR_OVERVIEW.html).
 
 ### The Core Idea
 

@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DOC_PATHS = [
     path
     for path in sorted(ROOT.glob("*.md"))
-    if path.name != ".pytest_cache/README.md"
+    if path.name not in {".pytest_cache/README.md", "PROJECT_NUR_OVERVIEW.md"}
 ] + sorted((ROOT / "docs").glob("*.md"))
 
 
