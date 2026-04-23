@@ -2,7 +2,7 @@
 
 This layer interprets how a message lands socially before the emotional
 engine updates. It aims to answer questions like:
-  - Is the user upset at Jarvis, themselves, or something else?
+  - Is the user upset at Nūr, themselves, or something else?
   - Is this an attack, an apology, a bid for connection, or a support request?
   - How much blame, vulnerability, and expectation violation are present?
 

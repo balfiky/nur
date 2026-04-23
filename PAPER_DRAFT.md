@@ -1,7 +1,7 @@
 # Paper Draft
 
 This file accumulates prose drafts as outline sections become stable.
-`PAPER_OUTLINE.md` remains the navigable skeleton; this file is the
+`docs/internal/PAPER_OUTLINE.md` remains the navigable skeleton; this file is the
 running text. Sections were drafted §6 first (to lock scope language
 before other sections lean on it), then §4, then §1 + §2 together
 while §4 and §6 were fresh.

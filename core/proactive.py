@@ -1,6 +1,6 @@
 """Proactive behavior evaluation — bounded self-initiated action.
 
-Evaluates whether Jarvis feels compelled to initiate something based on:
+Evaluates whether Nūr feels compelled to initiate something based on:
   - Unresolved cognitive tension (items with sufficient intensity)
   - Pending task plans (incomplete multi-step work)
   - Commitments and follow-up obligations
@@ -225,7 +225,7 @@ def evaluate_proactive(
     cooldown: float = DEFAULT_COOLDOWN,
     activation_threshold: float = DEFAULT_ACTIVATION_THRESHOLD,
 ) -> tuple[ProactiveAction | None, ProactiveTrace]:
-    """Evaluate whether Jarvis should initiate proactive behavior.
+    """Evaluate whether Nūr should initiate proactive behavior.
 
     Returns (action, trace) where action is None if no proactive behavior
     is warranted. The trace is always populated for debug visibility.

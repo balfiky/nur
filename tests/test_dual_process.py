@@ -174,7 +174,7 @@ class TestBuildSystemPrompt:
     def test_empty_context(self):
         ctx = PipelineContext()
         prompt = build_system_prompt(ctx)
-        assert "Jarvis" in prompt
+        assert "Nūr" in prompt
 
 
 # =========================================================================

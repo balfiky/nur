@@ -3,7 +3,7 @@
 Converts a ToolResult into a ToolObservation with emotional deltas.
 Pure function, zero LLM calls.
 
-Default deltas from AGENTIC_TOOLS_DESIGN.md Section 12.2:
+Default deltas from docs/internal/AGENTIC_TOOLS_DESIGN.md Section 12.2:
 
 | Outcome             | Arousal | Valence | Certainty | Energy | Resolution |
 |---------------------|---------|---------|-----------|--------|------------|

@@ -148,7 +148,7 @@ Neutral re-review of the codebase surfaced four real bugs the earlier pass misse
 
 ### Audit Notes (false positives discarded)
 - "Race on `_pending_message_count`" — rejected. asyncio is single-threaded; no `await` exists between the backpressure check and the increment.
-- "Path traversal in `fs.*`" — rejected. Per CLAUDE.md the agent is a local personal assistant; filesystem access is by-design.
+- "Path traversal in `fs.*`" — rejected. Per `docs/internal/CLAUDE.md` the agent is a local personal assistant; filesystem access is by-design.
 
 ### Tests
 - Full suite: **1225 passed** (`python -m pytest`) — 9 new tests added, zero regressions.
@@ -210,7 +210,7 @@ Moves the practical runtime configuration out of scattered YAML/manual file edit
 - `interface/api.py` — replaced deprecated `@app.on_event("shutdown")` with `lifespan` context manager
 
 ### Docs
-- `CLAUDE.md` — updated test count from 1194 to 1210
+- `docs/internal/CLAUDE.md` — updated test count from 1194 to 1210
 - `README.md` — updated Phase 11 status from "underway" to "complete"
 
 ---
@@ -267,7 +267,7 @@ Adds an automated Phase 11 human-likeness regression pack and tightens a few str
 
 ### Docs
 - `README.md` — added Phase 11 eval command
-- `CLAUDE.md` — updated eval suite counts and Phase 11 tag guidance
+- `docs/internal/CLAUDE.md` — updated eval suite counts and Phase 11 tag guidance
 
 ---
 
@@ -360,7 +360,7 @@ Tunes decision heuristics based on eval results, extracts arbiter thresholds as 
   - Tool trust positive delta is 0.015
 
 ### Documentation
-- `CALIBRATION_NOTES.md` — detailed notes on what was tuned, original vs new values, rationale, tradeoffs
+- `docs/internal/CALIBRATION_NOTES.md` — detailed notes on what was tuned, original vs new values, rationale, tradeoffs
 
 ### Tests
 - 9 new tests in `tests/test_evals.py` (8 calibration integration + 1 count check)
@@ -972,8 +972,8 @@ Five pre-merge fixes closing spec gaps in the Nūr Runtime.
 - `UserSession._processing` flag set during pipeline.process()
 
 ### Fix 5: Docs sync
-- CHANGELOG.md, CLAUDE.md, README.md updated to match final implementation
-- Design doc (`NUR_RUNTIME_DESIGN_REVISED.md`) left as-is — it is a pre-implementation spec; intentional deviations documented in CLAUDE.md
+- CHANGELOG.md, `docs/internal/CLAUDE.md`, README.md updated to match final implementation
+- Design doc (`docs/internal/NUR_RUNTIME_DESIGN_REVISED.md`) left as-is — it is a pre-implementation spec; intentional deviations documented in `docs/internal/CLAUDE.md`
 
 ### Testing
 - 643 tests total (26 new)
@@ -1390,7 +1390,7 @@ Second round of fixes from review. Primacy, dedup, labeling, contagion signals.
 
 ## v0.2.1 — 2026-04-01 (Second-pass fixes 1-5)
 
-Fixes from SECOND_PASS_REVIEW.md phases 0-5. Makes v2 behaviorally real.
+Fixes from `docs/internal/SECOND_PASS_REVIEW.md` phases 0-5. Makes v2 behaviorally real.
 
 ### Fix 1: v2 controls the response
 - Added `candidate_response` and `defense_instruction` to PipelineContext

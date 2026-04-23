@@ -573,7 +573,7 @@ class ToolCapability:
 
 @dataclass
 class ToolIntent:
-    """What Jarvis wants to do — the key cognitive action object."""
+    """What Nūr wants to do — the key cognitive action object."""
     tool_name: str
     arguments: dict[str, Any]
     reason: str
@@ -755,7 +755,7 @@ class ProactiveTrigger:
 
 @dataclass
 class ProactiveAction:
-    """A proactive action Jarvis wants to take.
+    """A proactive action Nūr wants to take.
 
     action_type:
       - follow_up: send a follow-up message about something unresolved

@@ -18,7 +18,7 @@ Swappable LLM backend (OpenAI/Anthropic/Ollama). With tests.
 
 ## Phase 6: pipeline.py
 Orchestrator wiring all modules. Follow v1 flow steps 1-15 from
-PROJECT_NUR_BUILD_PLAN.md. Takes user input + user_id, returns
+`PROJECT_NUR_BUILD_PLAN.md`. Takes user input + user_id, returns
 response + full debug state. With tests.
 
 ## Phase 7: interface/

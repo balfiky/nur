@@ -155,7 +155,7 @@ class TestLoadConfig:
 
     def test_loads_prompts(self):
         cfg = load_config()
-        assert "Jarvis" in cfg.generator_prompt
+        assert "Nūr" in cfg.generator_prompt
         assert "Tone Fit" in cfg.self_check_prompt
         assert "Digestion" in cfg.digestion_prompt
 
@@ -320,7 +320,7 @@ class TestPromptTemplates:
     def test_generator_prompt_exists(self):
         cfg = load_config()
         assert len(cfg.generator_prompt) > 50
-        assert "Jarvis" in cfg.generator_prompt
+        assert "Nūr" in cfg.generator_prompt
 
     def test_self_check_prompt_exists(self):
         cfg = load_config()

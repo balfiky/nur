@@ -227,8 +227,3 @@ class NurApp:
         self._shutdown_event.set()
         if self._console is not None:
             self._console._running = False
-
-
-# Backward-compatibility alias for older imports/tests while the public name
-# moves to Nūr.
-JarvisApp = NurApp

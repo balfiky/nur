@@ -987,7 +987,7 @@ class CognitivePipeline:
         if state.certainty > 0.7:
             observations.append(("blunt", state.certainty, "high_certainty"))
 
-        # Empathetic: user distress that is not aimed at Jarvis
+        # Empathetic: user distress that is not aimed at Nūr
         if detected.valence < 0.3 and not appraisal.targets_assistant:
             observations.append(("empathetic", 0.6, "negative_user_emotion"))
 
@@ -1306,7 +1306,7 @@ class CognitivePipeline:
                 metadata=metadata,
             )
 
-        # Betrayal / deception only counts as relational betrayal when aimed at Jarvis.
+        # Betrayal / deception only counts as relational betrayal when aimed at Nūr.
         if appraisal.targets_assistant and any(w in lower for w in ["betray", "lied", "deceived", "cheated"]):
             return EmotionalEvent(
                 event_type=EventType.BETRAYAL,
@@ -1315,7 +1315,7 @@ class CognitivePipeline:
                 metadata=metadata,
             )
 
-        # Direct conflict with Jarvis, not general distress elsewhere.
+        # Direct conflict with Nūr, not general distress elsewhere.
         if appraisal.targets_assistant and any(
             w in lower
             for w in [
@@ -1384,7 +1384,7 @@ class CognitivePipeline:
                 metadata=metadata,
             )
 
-        # Positive feedback remains relational only when directed at Jarvis.
+        # Positive feedback remains relational only when directed at Nūr.
         _positive_words = [
             "thank", "grateful", "appreciate", "love", "great job",
             "wonderful", "amazing", "awesome", "fantastic", "excellent",
@@ -1399,7 +1399,7 @@ class CognitivePipeline:
                 metadata=metadata,
             )
 
-        # General negativity should only damage the relationship when aimed at Jarvis.
+        # General negativity should only damage the relationship when aimed at Nūr.
         if appraisal.targets_assistant and any(w in lower for w in ["wrong", "bad", "terrible", "awful", "disappointed"]):
             return EmotionalEvent(
                 event_type=EventType.NEGATIVE_FEEDBACK,

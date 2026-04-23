@@ -1,4 +1,4 @@
-"""Regression tests from SECOND_PASS_REVIEW.md.
+"""Regression tests from docs/internal/SECOND_PASS_REVIEW.md.
 
 These tests verify the fixes for confirmed implementation issues:
 1. Inner dialogue candidate affects final response
@@ -255,7 +255,7 @@ class TestRetryPreservesV2Context:
 
         # All generator calls (first + possible retry) should contain
         # the draft response section if a candidate was set
-        generator_calls = [c for c in calls if "Jarvis" in c]
+        generator_calls = [c for c in calls if "Nūr" in c]
         for prompt in generator_calls:
             # Every generator call should have the candidate (inner dialogue output)
             assert "Draft Response" in prompt or "I understand." in prompt

@@ -6,7 +6,7 @@ Nūr maintains a continuous emotional state, a dual memory system, a self-model 
 
 **Public write-ups (start here):**
 - 🌐 **[PROJECT_NUR_OVERVIEW.html](PROJECT_NUR_OVERVIEW.html)** — one self-contained reader-facing document. Theory, implementation, safety, evaluation, and all diagrams embedded in one file.
-- 📄 **[TECHNICAL_NOTE.md](TECHNICAL_NOTE.md)** — ~2,000 word public technical note: problem, architecture, one reproducible ablation result, limitations, privacy posture. Best first read.
+- 📄 **[TECHNICAL_NOTE.md](TECHNICAL_NOTE.md)** — ~2,000 word public technical note: problem, architecture, one reproducible ablation result, limitations, privacy posture. Best first Markdown read.
 - 📝 **[LINKEDIN_POST.md](LINKEDIN_POST.md)** — short and long drafts for public posting.
 - 📖 **[PAPER_DRAFT.md](PAPER_DRAFT.md)** — long-form 7,600-word version of the technical note with fuller related-work positioning. Framed as a design paper, not an academic submission.
 
@@ -102,6 +102,7 @@ The runtime gives it a body — sessions, channels, persistence, and debug inspe
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 See [PROJECT_NUR_ARCHITECTURE.md](PROJECT_NUR_ARCHITECTURE.md) for the full vision.
 See [PROJECT_NUR_EXPERT_BRIEF.md](PROJECT_NUR_EXPERT_BRIEF.md) for an expert-facing design, architecture, and scientific background briefing.
+See [docs/internal/README.md](docs/internal/README.md) for archived planning notes, build plans, and historical review docs.
 
 ### Common Commands
 
@@ -115,7 +116,7 @@ nur
 # All tests
 python3 -m pytest
 
-# Phase 11 human-likeness regression pack (pass --backend mock for an offline run)
+# Phase 11 behavioral regression pack (pass --backend mock for an offline run)
 python3 -m evals --backend mock --tag phase11
 
 # Detailed Phase 11 trace report
@@ -341,8 +342,6 @@ nur/
 |       +-- trace_viewer.py          # Matplotlib modulator trace visualization
 |
 |-- PROJECT_NUR_ARCHITECTURE.md      # Full architectural vision (PSI + ACT-R + CLARION)
-|-- PROJECT_NUR_BUILD_PLAN.md        # v1/v2 roadmap with build phases
-|-- BUILD_ALL.md                     # Phase-by-phase build instructions
 |-- CHANGELOG.md                     # Version history
 |-- runtime/                         # Nūr Runtime — lifecycle, channels, persistence
 |   |-- app.py                       # NurApp orchestrator + signal handling
@@ -361,10 +360,13 @@ nur/
 |   +-- debug/
 |       +-- api.py                   # Session-aware debug endpoints (FastAPI)
 |
+|-- docs/
+|   |-- ARCHITECTURE_DIAGRAMS.md     # Diagram set used by README / technical note
+|   |-- diagrams/                    # PNG + SVG diagram assets
+|   +-- internal/                    # Archived build plans, calibration notes, and review docs
 |-- main.py                          # Runtime entry point (fallback for `nur`)
 |-- runtime_config.yaml              # Local runtime configuration used by the app
 |-- runtime_config.example.yaml      # Safe starter copy for resetting local config
-|-- CLAUDE.md                        # AI assistant instructions + v2 design spec
 |-- pyproject.toml                   # Python project config
 +-- README.md                        # This file
 ```

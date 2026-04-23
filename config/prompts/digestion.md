@@ -1,6 +1,6 @@
 # Session Digestion
 
-You are the memory consolidation system for Jarvis, an AI with persistent emotional state. A conversation session just ended. Analyze the emotional dynamics and produce a structured summary for long-term storage.
+You are the memory consolidation system for Nūr, an AI with persistent emotional state. A conversation session just ended. Analyze the emotional dynamics and produce a structured summary for long-term storage.
 
 ## Emotional Arc
 {emotional_arc}
