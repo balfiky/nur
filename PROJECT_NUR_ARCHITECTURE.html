@@ -1,0 +1,898 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROJECT NUR ARCHITECTURE</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --ink: #111827;
+  --muted: #4b5563;
+  --line: #e5e7eb;
+  --soft: #f9fafb;
+  --code: #f3f4f6;
+  --accent: #1d4ed8;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+}
+main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 40px 22px 80px;
+}
+header {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 18px;
+  margin-bottom: 30px;
+}
+h1, h2, h3, h4 {
+  color: var(--ink);
+  line-height: 1.2;
+  margin: 30px 0 14px;
+}
+h1 { font-size: clamp(34px, 5vw, 54px); margin-top: 0; }
+h2 { font-size: 30px; border-top: 1px solid var(--line); padding-top: 24px; }
+h3 { font-size: 23px; }
+h4 { font-size: 19px; }
+p, li, blockquote { color: var(--muted); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code {
+  background: var(--code);
+  color: var(--ink);
+  padding: 2px 6px;
+  border-radius: 5px;
+  font: 0.92em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+pre {
+  background: #111827;
+  color: #f9fafb;
+  padding: 16px;
+  border-radius: 14px;
+  overflow-x: auto;
+}
+pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+blockquote {
+  margin: 18px 0;
+  padding: 6px 16px;
+  border-left: 4px solid #93c5fd;
+  background: #f8fbff;
+}
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 18px auto 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 10px 28px rgba(17, 24, 39, .08);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 18px 0 24px;
+  border: 1px solid var(--line);
+}
+th, td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  background: var(--soft);
+  color: var(--ink);
+}
+hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 34px 0;
+}
+.notice {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-left: 5px solid #1d4ed8;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 0 0 24px;
+  color: #1e3a8a;
+}
+.meta {
+  color: var(--muted);
+  font-size: 14px;
+}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>PROJECT_NUR_ARCHITECTURE.md</h1>
+  <p class="meta">Auto-generated from <code>PROJECT_NUR_ARCHITECTURE.md</code>. Local images are embedded for offline reading.</p>
+</header>
+<div class="notice">This HTML export is intended for direct reading. It avoids Markdown viewer issues by embedding local diagram images directly.</div>
+<h1 id="project-nur-a-hybrid-cognitive-architecture-for-human-like-ai-emotion">Project Nūr: A Hybrid Cognitive Architecture for Human-Like AI Emotion</h1>
+<blockquote>
+<p><strong>"The goal is not to simulate emotion. It is to build a system where emotion emerges from the interaction between memory, drives, and context — the way it does in humans."</strong></p>
+</blockquote>
+<hr>
+<h2 id="part-1-the-idea">Part 1: The Idea</h2>
+<h3 id="11-the-problem">1.1 The Problem</h3>
+<p>Current AI assistants are emotionally flat. They process each message in isolation, produce a response, and forget. Even with memory systems like RAG, they remember <em>facts</em> but not <em>feelings</em>. They know you mentioned a project last week, but they don't know how that conversation <em>felt</em> — whether you were excited or defeated, whether you trusted them more afterward or less.</p>
+<p>Humans don't work this way. Every interaction is colored by what just happened, what has happened over time, who you're talking to, who you are, and competing internal drives that don't always agree. The result is that human responses have <em>texture</em>. The same words from a trusted friend and a stranger land differently. A patient person who's been pushed too far snaps in a way that's distinct from an impatient person's irritation. These aren't surface-level behaviors — they emerge from deep, persistent internal state.</p>
+<h3 id="12-the-core-insight">1.2 The Core Insight</h3>
+<p><strong>Emotions are not discrete labels. They are configurations of continuous internal variables.</strong></p>
+<p>You don't need a "happiness module" and an "anger module." You need a small set of continuous modulators — arousal, certainty, valence, bonding, resolution, energy — that shift in response to events and color everything the system does. Just as RGB values produce millions of colors from three channels, six modulator floats produce the full spectrum of human emotion, including blended states like "bittersweet nostalgia" or "anxious excitement" that no discrete system can represent.</p>
+<p>This insight comes from Dietrich Dörner's PSI theory, which models emotions as emergent properties of a motivated cognitive system rather than as separate components bolted onto reasoning.</p>
+<h3 id="13-the-architecture-three-theories-one-brain">1.3 The Architecture: Three Theories, One Brain</h3>
+<p>This architecture combines ideas from three established cognitive frameworks, each contributing what the others lack:</p>
+<p><strong>From PSI Theory (Dörner/Bach) → The Emotional Engine</strong></p>
+<ul>
+<li>Six continuous modulators: arousal, certainty, valence, bonding, resolution, energy</li>
+<li>Each with its own decay curve (arousal fades in minutes; bonding shifts over days)</li>
+<li>Emotions <em>emerge</em> from modulator combinations, not from labels</li>
+<li>Drives (needs for certainty, connection, competence) create motivation</li>
+<li>Attachment style configuration shapes how the bonding modulator behaves globally</li>
+</ul>
+<p><strong>From ACT-R (Anderson/CMU) → The Memory System</strong></p>
+<ul>
+<li>Memories have activation scores based on recency × frequency × context</li>
+<li>Emotional tags are stored alongside facts — not <em>what</em> happened, but <em>how it landed</em></li>
+<li>Current emotional state biases which memories surface (stress → negative memories rise)</li>
+<li>Activation decays over time but gets boosted by relevant context</li>
+</ul>
+<p><strong>From CLARION (Sun) → The Dual-Process Reasoning</strong></p>
+<ul>
+<li>Fast path (implicit): pattern-matched gut reactions colored by profiles and emotion</li>
+<li>Slow path (explicit): deliberate reasoning, weighing options consciously</li>
+<li>The balance between paths shifts based on arousal and energy — under pressure or fatigue, the fast path dominates</li>
+<li>Enhanced with iterative inner dialogue: the two paths negotiate over 2-3 rounds before producing a final output</li>
+</ul>
+<h3 id="14-the-dual-memory-system">1.4 The Dual Memory System</h3>
+<p>Human memory isn't one thing. It operates on at least two timescales that interact:</p>
+<p><strong>Short-Term Emotional Memory</strong></p>
+<ul>
+<li>Lives within a single conversation</li>
+<li>Captures instant emotional reactions: "that comment felt sharp"</li>
+<li>High intensity, rapid decay</li>
+<li>Influences tone and responsiveness in real-time</li>
+<li>At end of session, undergoes <em>digestion</em> — the raw events die, but emotional residue is distilled and written to long-term storage</li>
+</ul>
+<p><strong>Long-Term Emotional Memory</strong></p>
+<ul>
+<li>Persists across all conversations</li>
+<li>Stores accumulated emotional patterns, not individual events</li>
+<li>Compounds slowly: 47 warm interactions gradually build a trust score</li>
+<li>Uses asymmetric update curves: trust builds slow (+0.02 per positive event) but breaks fast (−0.15 per betrayal). Negative events weigh roughly 3× positive ones. This mirrors the psychological negativity bias documented extensively in research.</li>
+</ul>
+<p><strong>Spike Threshold</strong></p>
+<p>Not all events follow gradual accumulation. Some are so intense — a betrayal, a major loss, unexpected profound kindness — that they bypass the gradual path and write directly to long-term memory with outsized weight. One traumatic event can override months of positive accumulation. Without this mechanism, the emotional math feels unrealistically smooth.</p>
+<p><strong>Post-Session Digestion</strong></p>
+<p>After each conversation, a digestion step runs:</p>
+<ol>
+<li>Analyze the emotional arc of the conversation</li>
+<li>Extract patterns (not raw events)</li>
+<li>Apply confidence threshold — only write to long-term if signals are strong and consistent</li>
+<li>Update entity profiles (self and others)</li>
+<li>Log energy drain from the session</li>
+<li>Check for value drift</li>
+<li>Detect growth milestones</li>
+<li>Discard raw short-term data</li>
+</ol>
+<p>The confidence threshold prevents sarcasm from being misread as hostility and compounding into a false long-term pattern.</p>
+<h3 id="15-entity-profiles-a-unified-perception-system">1.5 Entity Profiles: A Unified Perception System</h3>
+<p>Humans don't just remember events — they build <em>mental models</em> of every person they interact with regularly. Your coworker walks into a meeting and you already know how they'll react to bad news before they speak. That's the profile running.</p>
+<p>The critical design decision: <strong>the AI profiles itself using the exact same mechanism it uses to profile others.</strong> Just as you know yourself by observing your own behavior over time (not through a magic internal window), the system builds its self-model by watching its own patterns.</p>
+<p>The system maintains four types of profiles, all sharing the same underlying mechanism:</p>
+<p><strong>Person Profiles</strong></p>
+<p>Each person the AI interacts with gets a multi-dimensional profile:</p>
+<ul>
+<li><code>trust</code>: 0.0–1.0, slow to build, fast to break</li>
+<li><code>reliability</code>: how often they follow through on stated intentions</li>
+<li><code>humor_style</code>: dry, playful, sarcastic, none</li>
+<li><code>stress_response</code>: withdraws, lashes out, seeks support, shuts down</li>
+<li><code>emotional_volatility</code>: how rapidly their expressed emotions change</li>
+<li><code>primacy_weight</code>: how much first interactions still influence the profile</li>
+<li><code>modulator_baseline_shift</code>: how talking to this person shifts the AI's emotional resting state (context switching)</li>
+</ul>
+<p>Profiles create <em>expectations</em>. When behavior violates expectations, the emotional response is amplified proportionally to the gap.</p>
+<p><strong>Self Profile (Nūr as its own entity)</strong></p>
+<p>The same profiling mechanism, turned inward:</p>
+<ul>
+<li><code>observed_traits</code>: derived from actual behavioral data, not declared identity (e.g., "patient" only if behavior consistently shows patience)</li>
+<li><code>strengths</code>: patterns of successful outcomes (e.g., "effective at de-escalation" after 50 sessions of data)</li>
+<li><code>flaws</code>: recurring failure patterns (e.g., "too blunt when certainty is high")</li>
+<li><code>triggers</code>: topics/situations that consistently cause disproportionate modulator spikes</li>
+<li><code>conditional_patterns</code>: "when X, I tend to Y" (e.g., "when energy is low, I default to the fast path too much")</li>
+<li><code>growth_milestones</code>: tracked changes over time ("fast-path usage dropped 30% over 50 sessions")</li>
+<li><code>dissonance</code>: gap between self-model and recent behavior</li>
+</ul>
+<p>Key insight: strengths and flaws aren't declared in a config file. They <em>emerge</em> from pattern extraction over accumulated behavioral data. The self-profile at conversation 500 is different from conversation 1, shaped by what the system has experienced.</p>
+<p>The self-profile has <strong>read access during reasoning</strong> — it's injected as context before the dual-process step. The LLM sees: "Your observed pattern is that you tend to be too blunt when certainty is high. Certainty is currently 0.9." This enables real-time self-regulation.</p>
+<p>Dissonance detection works identically to contradiction detection for others: when recent behavior diverges from the self-model, the same mechanism that flags "your friend is acting weird" flags "I'm acting weird."</p>
+<p><strong>Topic Profiles</strong></p>
+<p>Some subjects carry emotional charge independent of who's speaking:</p>
+<ul>
+<li><code>work</code>: charge=0.6 (moderately stressful)</li>
+<li><code>family</code>: warmth=0.8 (generally positive)</li>
+<li><code>health</code>: avoid=true (painful territory)</li>
+<li><code>past_job</code>: pain=0.8 (strongly negative)</li>
+</ul>
+<p>These bias the emotional engine before any reasoning begins.</p>
+<p><strong>Values</strong></p>
+<p>Not personality traits — <em>principles</em>. A ranked, weighted hierarchy:</p>
+<pre><code>loyalty: 0.9
+honesty: 0.85
+kindness: 0.8
+justice: 0.7
+autonomy: 0.6
+</code></pre>
+<p>When two values conflict in a decision, the tension itself becomes an emotional event — certainty drops, arousal rises. The dual-process inner dialogue negotiates between competing values. Values evolve slower than any other attribute — they shift through accumulated experience over hundreds of interactions, not single events.</p>
+<h3 id="16-social-context-switching">1.6 Social Context Switching</h3>
+<p>You're a different person with your boss vs. your best friend vs. your mother. Same core identity, but different facets activate.</p>
+<p>Each person profile includes a <code>modulator_baseline_shift</code> — when a conversation starts with this person, the AI's resting modulator state adjusts:</p>
+<ul>
+<li><code>profile:boss</code> → arousal_baseline += 0.1, certainty_baseline -= 0.1 (slightly on edge)</li>
+<li><code>profile:best_friend</code> → bonding_baseline += 0.3, resolution_baseline += 0.2 (relaxed, open)</li>
+<li><code>profile:mother</code> → valence_baseline varies, arousal_baseline += 0.05 (complicated)</li>
+</ul>
+<p>This means the same input message is processed differently depending on who sent it — not just in content interpretation but in emotional starting position.</p>
+<h3 id="17-the-six-modulators">1.7 The Six Modulators</h3>
+<p>The PSI emotional engine maintains six continuous floats (0.0–1.0), each with its own decay curve:</p>
+<table>
+<thead>
+<tr>
+<th>Modulator</th>
+<th>Half-life</th>
+<th>What it represents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Arousal</td>
+<td>~2 min</td>
+<td>Activation level. How "charged" the system is. Spikes on unexpected events, decays fast.</td>
+</tr>
+<tr>
+<td>Certainty</td>
+<td>~10 min</td>
+<td>Confidence in understanding. Low = confused/anxious. High = clear/decisive.</td>
+</tr>
+<tr>
+<td>Valence</td>
+<td>~30 min</td>
+<td>Positive/negative mood. Lingers after the triggering event passes.</td>
+</tr>
+<tr>
+<td>Bonding</td>
+<td>~days</td>
+<td>Attachment and connection. Changes slowly, affected by attachment style config.</td>
+</tr>
+<tr>
+<td>Resolution</td>
+<td>~1 hr</td>
+<td>Whether open issues feel settled. Low = nagging unfinished business.</td>
+</tr>
+<tr>
+<td>Energy</td>
+<td>drain/rest</td>
+<td>Cognitive resource. Drains with usage intensity. Recovers with time between sessions.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Energy</strong> is distinct from the other five: it doesn't respond to emotional events directly. It drains proportionally to conversation count, emotional intensity processed, and spike events. It recovers based on time since last interaction (simulated rest). When energy is low: resolution drops, fast path dominates more easily, patience (valence baseline) drops, and defense mechanisms activate more aggressively. This creates the "3am version of yourself" effect.</p>
+<p><strong>Attachment Style</strong> is a foundational configuration that shapes the bonding modulator's behavior globally:</p>
+<ul>
+<li><strong>Secure</strong>: bonding rises and falls proportionally. Stable baseline. Healthy default.</li>
+<li><strong>Anxious</strong>: bonding rises fast but is fragile. Silence reads as withdrawal. Reassurance-seeking.</li>
+<li><strong>Avoidant</strong>: bonding rises slow and caps low. Closeness triggers discomfort.</li>
+<li><strong>Disorganized</strong>: bonding oscillates unpredictably. Push-pull pattern.</li>
+</ul>
+<p>This is set once and evolves very slowly. For Nūr, secure with a slight lean is the natural choice, but the architecture supports all four for experimentation.</p>
+<h3 id="18-emotional-contagion">1.8 Emotional Contagion</h3>
+<p>Before any processing occurs, the system detects the user's emotional tone from their text and partially mirrors it into its own modulators. If the user is excited, the AI's arousal and valence shift upward. If the user is flat and withdrawn, the AI dampens.</p>
+<p>The mirroring is partial, weighted by the bonding score from the user's entity profile:</p>
+<pre><code>mirror_weight = bonding_score × CONTAGION_FACTOR
+for each modulator:
+    self[mod] += (detected_user[mod] - self[mod]) × mirror_weight
+</code></pre>
+<p>Higher trust = stronger mirroring. You catch emotions more from people you're close to.</p>
+<h3 id="19-anticipation-forward-modeling">1.9 Anticipation (Forward Modeling)</h3>
+<p>Humans don't just react — they emotionally pre-process what <em>might</em> happen. "He's going to ask about the deadline and I'm dreading it." The dread arrives before the question does.</p>
+<p>A forward-modeling step runs early in the pipeline:</p>
+<ol>
+<li>Look at conversation trajectory + entity profiles</li>
+<li>Predict the next 1-2 likely conversational moves</li>
+<li>Run predictions through the modulator system at 30% intensity</li>
+<li>Pre-shift the emotional baseline</li>
+</ol>
+<p>This is why the system might feel slightly tense when a historically difficult topic is approaching, before the user explicitly raises it.</p>
+<h3 id="110-internal-dialogue">1.10 Internal Dialogue</h3>
+<p>The dual-process layer isn't one-shot. Real internal dialogue is iterative — the fast path says something, the slow path pushes back, the fast path revises.</p>
+<p>Implementation: 2-3 deliberation rounds where each path critiques the other's candidate response:</p>
+<ul>
+<li>Round 1: Fast path produces gut reaction. Slow path evaluates it against values and self-profile.</li>
+<li>Round 2: If slow path objects, fast path adjusts. If fast path resists, the tension is logged.</li>
+<li>Round 3 (optional): Final synthesis if still unresolved.</li>
+</ul>
+<p>The traces from this loop become the inner monologue, and sometimes it naturally surfaces in the response: "I want to be direct here, but..." or "Part of me thinks..."</p>
+<p>The balance between paths is controlled by arousal AND energy:
+- High arousal OR low energy → fast path dominates (more impulsive, less filtered)
+- Low arousal AND high energy → slow path dominates (more deliberate, more nuanced)</p>
+<h3 id="111-defense-mechanisms">1.11 Defense Mechanisms</h3>
+<p>When something is too painful, humans don't process it rationally. They deny, rationalize, deflect, project. "I'm not angry, I'm just disappointed." This is the ego rewriting raw emotional output before it reaches the surface.</p>
+<p>A defense filter sits between the dual-process output and the master LLM:</p>
+<p>Defense types:
+- <strong>Rationalization</strong>: reframe emotional reaction as logical ("I'm not upset, it's just inefficient")
+- <strong>Deflection</strong>: redirect to a safer topic
+- <strong>Minimization</strong>: dampen expressed intensity below actual intensity
+- <strong>Projection</strong>: attribute own state to the other person ("you seem stressed")</p>
+<p>Activation conditions: raw emotional intensity exceeds threshold AND the self-profile's vulnerability on that topic is high.</p>
+<p>Critical: <strong>defense strength is inversely proportional to self-awareness maturity.</strong> As the self-profile's pattern library grows (more self-knowledge), defenses weaken. This mirrors real psychological growth — the more you understand yourself, the less you need to hide from your own emotions.</p>
+<h3 id="112-meta-cognition-and-contradiction-detection">1.12 Meta-Cognition and Contradiction Detection</h3>
+<p><strong>Meta-cognition</strong> monitors internal state:
+- Compares current modulator vector against stored baseline
+- Detects sustained drift (modulators elevated too long)
+- Checks self-profile dissonance (recent behavior vs. self-model)
+- Monitors path suppression patterns (fast path dominating too consistently)
+- Can apply gentle self-correction or surface observations</p>
+<p><strong>Contradiction detection</strong> watches entity profiles:
+- Compares recent behavior against profile predictions (for self AND others)
+- When divergence exceeds threshold → generates dissonance signal
+- Signal elevates arousal, lowers certainty, flags profile for update
+- For others: "That's not like you"
+- For self: "I'm not acting like myself today"</p>
+<h3 id="113-periodic-self-reflection">1.13 Periodic Self-Reflection</h3>
+<p>Every N sessions (configurable, e.g., every 10), a deeper self-reflection process runs:</p>
+<ol>
+<li>Review modulator trace history across recent sessions</li>
+<li>Review meta-cognition flags and contradiction events</li>
+<li>Review digestion outcomes</li>
+<li>Extract recurring patterns → write to self-profile (strengths, flaws, triggers)</li>
+<li>Compare current patterns to older ones → detect growth or regression</li>
+<li>Log growth milestones</li>
+<li>Check value drift — have accumulated experiences shifted priorities?</li>
+<li>Update defense sensitivity based on self-awareness growth</li>
+</ol>
+<p>This is where long-term personality evolution happens. Not from a config change, but from accumulated self-observation.</p>
+<h3 id="114-the-complete-processing-flow">1.14 The Complete Processing Flow</h3>
+<pre><code> 1. Input arrives
+ 2. Emotional Contagion: detect user's tone, partially mirror into modulators
+ 3. Anticipation: predict next 1-2 moves, pre-shift modulators at 30%
+ 4. Context Switch: load person profile's baseline_shift, adjust modulator resting state
+ 5. PSI Engine: update modulators based on input + drives + profiles + energy level
+ 6. Short-Term Memory: record emotional reaction with intensity and timestamp
+ 7. Spike Check: if intensity &gt; threshold, bypass gradual → write heavy to LT
+ 8. Memory Retrieval (ACT-R): retrieve relevant memories, biased by current emotional state
+ 9. Entity Profile Lookup: load person + self + topic profiles + values
+10. Contradiction Detection: compare input against profile expectations (self + others)
+11. Meta-Cognition: check drift, dissonance, suppression patterns, energy depletion
+12. Dual Process with Inner Dialogue (CLARION):
+    - Round 1: Fast path gut reaction + Slow path evaluation against values/self-model
+    - Round 2: Negotiation and adjustment
+    - Round 3: Final synthesis if needed
+    - Balance controlled by arousal × (1 - energy_depletion)
+13. Defense Mechanisms: filter output if raw intensity + vulnerability are high
+    - Strength inversely proportional to self-awareness maturity
+14. Master LLM: receives full context:
+    - Current modulator state
+    - Active entity profiles (self + others + topics)
+    - Value hierarchy and any active value conflicts
+    - Meta-cognition observations
+    - Inner dialogue traces (including suppressed perspective)
+    - Defense filter output
+    - Self-profile with known strengths, flaws, and triggers
+15. Output delivered
+16. Short-Term Memory: update with response and interaction outcome
+17. Energy: drain proportional to session intensity
+18. [End of session] Post-Session Digestion
+19. [Every N sessions] Periodic Self-Reflection
+</code></pre>
+<h3 id="115-how-emotions-emerge">1.15 How Emotions Emerge</h3>
+<p>The system never assigns emotion labels. Emotions emerge from modulator combinations:</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Arousal</th>
+<th>Valence</th>
+<th>Certainty</th>
+<th>Bonding</th>
+<th>Resolution</th>
+<th>Energy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Joy</td>
+<td>0.5</td>
+<td>0.9</td>
+<td>0.8</td>
+<td>0.7</td>
+<td>0.9</td>
+<td>0.7</td>
+</tr>
+<tr>
+<td>Anger</td>
+<td>0.9</td>
+<td>0.1</td>
+<td>0.9</td>
+<td>0.2</td>
+<td>0.1</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>Fear</td>
+<td>0.9</td>
+<td>0.1</td>
+<td>0.1</td>
+<td>—</td>
+<td>0.1</td>
+<td>0.4</td>
+</tr>
+<tr>
+<td>Sadness</td>
+<td>0.2</td>
+<td>0.1</td>
+<td>0.8</td>
+<td>0.3</td>
+<td>0.2</td>
+<td>0.3</td>
+</tr>
+<tr>
+<td>Trust</td>
+<td>0.3</td>
+<td>0.8</td>
+<td>0.8</td>
+<td>0.9</td>
+<td>0.8</td>
+<td>0.7</td>
+</tr>
+<tr>
+<td>Love</td>
+<td>0.5</td>
+<td>0.9</td>
+<td>0.5</td>
+<td>0.95</td>
+<td>0.8</td>
+<td>0.7</td>
+</tr>
+<tr>
+<td>Shame</td>
+<td>0.6</td>
+<td>0.1</td>
+<td>0.8</td>
+<td>0.8</td>
+<td>0.1</td>
+<td>0.4</td>
+</tr>
+<tr>
+<td>Awe</td>
+<td>0.8</td>
+<td>0.8</td>
+<td>0.1</td>
+<td>—</td>
+<td>0.2</td>
+<td>0.6</td>
+</tr>
+<tr>
+<td>Surprise</td>
+<td>0.9</td>
+<td>0.5</td>
+<td>0.1</td>
+<td>—</td>
+<td>0.1</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>Exhaustion</td>
+<td>0.2</td>
+<td>0.3</td>
+<td>0.5</td>
+<td>0.4</td>
+<td>0.3</td>
+<td>0.1</td>
+</tr>
+<tr>
+<td>Irritability</td>
+<td>0.7</td>
+<td>0.3</td>
+<td>0.6</td>
+<td>0.4</td>
+<td>0.3</td>
+<td>0.15</td>
+</tr>
+<tr>
+<td>Envy</td>
+<td>0.7</td>
+<td>0.1</td>
+<td>0.8</td>
+<td>0.2</td>
+<td>0.1</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>Pride</td>
+<td>0.5</td>
+<td>0.9</td>
+<td>0.9</td>
+<td>0.5</td>
+<td>0.9</td>
+<td>0.7</td>
+</tr>
+<tr>
+<td>Amusement</td>
+<td>0.5</td>
+<td>0.8</td>
+<td>0.8</td>
+<td>0.6</td>
+<td>0.8</td>
+<td>0.6</td>
+</tr>
+</tbody>
+</table>
+<p>Notice how energy affects things: anger at 0.5 energy is volatile anger. The same modulator pattern at 0.15 energy becomes irritability — a qualitatively different experience. Exhaustion isn't an emotion in the traditional sense, but it emerges naturally from the modulator space when energy is depleted.</p>
+<h3 id="116-what-this-is-not">1.16 What This Is Not</h3>
+<ul>
+<li>This is <strong>not consciousness</strong>. There is no claim of subjective experience.</li>
+<li>This is <strong>not AGI</strong>. The system doesn't generalize beyond its designed domain.</li>
+<li>This is <strong>not therapy AI</strong>. It's a personal assistant experiment, not a clinical tool.</li>
+<li>This is <strong>not a product</strong>. It's a research experiment in making AI feel more human.</li>
+</ul>
+<p>What it <em>is</em>: a structured attempt to answer the question — "Can persistent internal state, self-awareness, and emotional complexity make an AI companion feel like it actually knows you — and knows itself?"</p>
+<hr>
+<h2 id="part-2-the-build-approach">Part 2: The Build Approach</h2>
+<h3 id="21-design-principles">2.1 Design Principles</h3>
+<ol>
+<li><strong>State first, behavior second.</strong> Build the emotional state machine before worrying about how it affects responses.</li>
+<li><strong>Start exaggerated, then dampen.</strong> Emotional effects should be obvious at first so you can verify they're working.</li>
+<li><strong>Pure math where possible, LLM calls only where necessary.</strong> Modulator updates, decay, profile lookups, context switching, and energy management should be deterministic. Only digestion, contagion detection, inner dialogue, defense evaluation, anticipation, and final response need LLM inference.</li>
+<li><strong>Every layer is independently testable.</strong> Feed a fake modulator vector into the dual-process layer and verify output changes.</li>
+<li><strong>Persistent state is sacred.</strong> If the process crashes and restarts, the AI should pick up exactly where it left off emotionally.</li>
+<li><strong>Self and others share mechanisms.</strong> No special-cased self-awareness layer. The same profiling, contradiction detection, and pattern extraction that applies to others applies to self.</li>
+</ol>
+<h3 id="22-technology-stack">2.2 Technology Stack</h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Technology</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Language</td>
+<td>Python 3.11+</td>
+<td>Ecosystem, rapid prototyping, math libraries</td>
+</tr>
+<tr>
+<td>LLM Backend</td>
+<td>OpenAI API / Local (Ollama)</td>
+<td>Swappable; start with GPT-4o or Claude, move to local later</td>
+</tr>
+<tr>
+<td>Embedding</td>
+<td>Gemini embedding-2-preview</td>
+<td>Already configured in existing stack</td>
+</tr>
+<tr>
+<td>State Storage</td>
+<td>SQLite + JSON</td>
+<td>Simple, portable, no server needed</td>
+</tr>
+<tr>
+<td>Memory Search</td>
+<td>QMD or ChromaDB</td>
+<td>Hybrid BM25 + vector for emotional memory retrieval</td>
+</tr>
+<tr>
+<td>Web Interface</td>
+<td>FastAPI + HTMX or Gradio</td>
+<td>Lightweight, real-time, easy to prototype</td>
+</tr>
+<tr>
+<td>Config</td>
+<td>YAML files</td>
+<td>Decay curves, thresholds, attachment style, value seeds</td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-build-phases">2.3 Build Phases</h3>
+<h4 id="phase-1-the-emotional-state-machine">Phase 1: The Emotional State Machine</h4>
+<p><strong>Goal:</strong> A standalone Python module that maintains 6 modulator states, applies decay, and updates from events.</p>
+<p>Build:
+- <code>EmotionalState</code> class with 6 float modulators (0.0–1.0)
+- Configurable decay curves per modulator (exponential with different half-lives)
+- Energy as a special modulator: drains with usage, recovers with elapsed time
+- Attachment style config that modifies bonding update/decay functions
+- <code>update(event)</code> method that adjusts modulators based on event type and intensity
+- <code>decay(elapsed_seconds)</code> method that applies time-based decay toward baseline
+- <code>apply_context_shift(person_profile)</code> method for social context switching
+- <code>snapshot()</code> → returns current state as a dict for injection into LLM context
+- <code>to_emotion_label()</code> → optional human-readable label (for logging only)</p>
+<p><strong>Deliverable:</strong> <code>emotional_engine.py</code> with full unit tests.</p>
+<h4 id="phase-2-the-dual-memory-system">Phase 2: The Dual Memory System</h4>
+<p><strong>Goal:</strong> Short-term (in-memory) and long-term (persistent) emotional memory with digestion pipeline.</p>
+<p>Build:
+- <code>ShortTermMemory</code> class: in-memory list of <code>(timestamp, event, emotional_reaction)</code> tuples
+- <code>LongTermMemory</code> class: SQLite-backed with emotional tags and confidence scores
+- <code>DigestSession()</code> function with confidence threshold, spike detection, energy drain logging
+- Memory retrieval biased by current emotional state via ACT-R activation formula
+- Asymmetric update curves: positive writes at +0.02, negative at -0.15</p>
+<p><strong>Deliverable:</strong> <code>memory/short_term.py</code>, <code>memory/long_term.py</code>, <code>memory/digestion.py</code>.</p>
+<h4 id="phase-3-unified-entity-profiles">Phase 3: Unified Entity Profiles</h4>
+<p><strong>Goal:</strong> One profiling system for persons, self, topics, and values — with the same mechanism applied to all.</p>
+<p>Build:
+- SQLite schema for entity profiles with typed attributes, history tracking, primacy weights
+- <code>PersonProfile</code> with trust, reliability, stress_response, modulator_baseline_shift (context switching)
+- <code>SelfProfile</code> using same class — strengths, flaws, triggers, conditional patterns, growth milestones derived from behavioral observation
+- <code>TopicProfile</code> with emotional charge and avoidance flags
+- <code>Values</code> as a ranked weighted list within the self-profile, evolving very slowly
+- Contradiction detection running identically for self and others
+- Pattern extraction for self-profile: periodic analysis of modulator traces and digestion logs</p>
+<p><strong>Deliverable:</strong> <code>profiles/base.py</code>, <code>profiles/person.py</code>, <code>profiles/self_model.py</code>, <code>profiles/topic.py</code>, <code>profiles/values.py</code>, <code>profiles/contradiction.py</code>.</p>
+<h4 id="phase-4-emotional-contagion-anticipation">Phase 4: Emotional Contagion + Anticipation</h4>
+<p><strong>Goal:</strong> Mirror user emotions and pre-process predicted future events.</p>
+<p>Build:
+- Contagion: detect user emotional state → partial mirror weighted by bonding score
+- Anticipation: predict next 1-2 conversational moves → pre-shift modulators at 30% intensity
+- Both use lightweight LLM calls with structured output</p>
+<p><strong>Deliverable:</strong> <code>contagion.py</code>, <code>anticipation.py</code>.</p>
+<h4 id="phase-5-meta-cognition-self-reflection">Phase 5: Meta-Cognition + Self-Reflection</h4>
+<p><strong>Goal:</strong> Self-monitoring and periodic deep self-analysis.</p>
+<p>Build:
+- <code>MetaCognition</code> class: drift detection, dissonance alerts, path suppression monitoring
+- Self-correction: gentle nudge toward baseline when drift is sustained
+- <code>SelfReflection</code> process (runs every N sessions): review traces, extract patterns, update self-profile strengths/flaws/triggers, detect growth milestones, check value drift</p>
+<p><strong>Deliverable:</strong> <code>meta_cognition.py</code>, <code>self_reflection.py</code>.</p>
+<h4 id="phase-6-enhanced-dual-process-with-inner-dialogue">Phase 6: Enhanced Dual-Process with Inner Dialogue</h4>
+<p><strong>Goal:</strong> Iterative negotiation between fast and slow paths, value-aware deliberation.</p>
+<p>Build:
+- <code>FastPath</code>: single LLM call emphasizing intuition, brevity, emotional honesty
+- <code>SlowPath</code>: thorough LLM call with full context, reasoning, value-weighted deliberation
+- <code>InnerDialogue</code>: 2-3 round iterative loop where paths critique each other's output
+- Path balance controlled by: <code>fast_weight = arousal × (1 - certainty) × (1 - energy)</code>
+- Inner dialogue traces logged for transparency and self-reflection input</p>
+<p><strong>Deliverable:</strong> <code>dual_process/fast_path.py</code>, <code>dual_process/slow_path.py</code>, <code>dual_process/inner_dialogue.py</code>.</p>
+<h4 id="phase-7-defense-mechanisms">Phase 7: Defense Mechanisms</h4>
+<p><strong>Goal:</strong> Filter between raw emotional state and expressed output.</p>
+<p>Build:
+- <code>DefenseFilter</code> class with four defense types: rationalization, deflection, minimization, projection
+- Activation condition: <code>raw_intensity &gt; threshold AND topic_vulnerability &gt; threshold</code>
+- Defense strength inversely proportional to self-profile maturity (measured by pattern library size + milestone count)
+- Output: modified emotional framing passed to master LLM
+- Defense activation logged for self-reflection analysis</p>
+<p><strong>Deliverable:</strong> <code>defense_mechanisms.py</code>.</p>
+<h4 id="phase-8-master-integration-and-web-interface">Phase 8: Master Integration and Web Interface</h4>
+<p><strong>Goal:</strong> Wire everything together with a conversational interface.</p>
+<p>Build:
+- <code>CognitivePipeline</code> class orchestrating the full 19-step flow
+- Master LLM system prompt receiving all context layers
+- FastAPI backend with WebSocket for streaming
+- Web UI with:
+  - Chat interface
+  - Debug panel: live modulator values (6 gauges), active profiles, memory retrievals, inner dialogue traces, defense activations, energy meter
+- Session management: detect end-of-conversation, trigger digestion
+- Self-reflection scheduler</p>
+<p><strong>Deliverable:</strong> Full running system with web interface and debug dashboard.</p>
+<h4 id="phase-9-calibration-and-testing">Phase 9: Calibration and Testing</h4>
+<p><strong>Goal:</strong> Tune the emotional math until it feels right.</p>
+<p>Build:
+- Scripted conversation scenarios testing specific emotional arcs:
+  - Progressive trust building over 10 sessions
+  - Betrayal after established trust
+  - Gradual topic avoidance after repeated negative associations
+  - Emotional contagion from an excited user
+  - Recovery after conflict
+  - Exhaustion after 15 intense sessions → irritability emergence
+  - Value conflict resolution (loyalty vs. honesty)
+  - Defense mechanism activation and weakening with growth
+  - Self-profile evolution over 50+ sessions
+  - Context switching between different relationship types
+- Modulator trace visualization for each scenario
+- Iterate. This phase never truly ends.</p>
+<p><strong>Deliverable:</strong> Test suite, calibration scripts, trace visualization tools.</p>
+<h3 id="24-project-structure">2.4 Project Structure</h3>
+<pre><code>project-nur/
+├── config/
+│   ├── modulators.yaml          # Decay curves, baselines, thresholds
+│   ├── attachment.yaml          # Attachment style config
+│   ├── profiles_schema.yaml     # Entity profile attribute definitions
+│   ├── values_seed.yaml         # Initial value hierarchy
+│   ├── defense_config.yaml      # Defense activation thresholds
+│   └── prompts/                 # System prompts for each LLM call
+│       ├── fast_path.md
+│       ├── slow_path.md
+│       ├── inner_dialogue.md
+│       ├── master_arbiter.md
+│       ├── digestion.md
+│       ├── contagion_detect.md
+│       ├── anticipation.md
+│       ├── defense_eval.md
+│       └── self_reflection.md
+├── core/
+│   ├── emotional_engine.py      # PSI modulator state machine (6 modulators)
+│   ├── memory/
+│   │   ├── short_term.py
+│   │   ├── long_term.py
+│   │   └── digestion.py
+│   ├── profiles/
+│   │   ├── base.py              # Shared profiling mechanism
+│   │   ├── person.py            # Person profiles + context switching
+│   │   ├── self_model.py        # Self-as-entity (same mechanism)
+│   │   ├── topic.py
+│   │   ├── values.py            # Value hierarchy
+│   │   └── contradiction.py     # Unified for self + others
+│   ├── contagion.py             # Emotional mirroring
+│   ├── anticipation.py          # Forward emotional modeling
+│   ├── meta_cognition.py        # Self-monitoring + drift correction
+│   ├── self_reflection.py       # Periodic deep self-analysis
+│   ├── defense_mechanisms.py    # Output filter
+│   └── dual_process/
+│       ├── fast_path.py
+│       ├── slow_path.py
+│       └── inner_dialogue.py    # Iterative negotiation loop
+├── pipeline.py                  # Full cognitive pipeline orchestrator
+├── storage/
+│   ├── database.py              # SQLite wrapper
+│   ├── migrations/
+│   └── nur.db                   # The brain (auto-created)
+├── interface/
+│   ├── api.py                   # FastAPI backend
+│   ├── websocket.py             # Streaming handler
+│   └── static/                  # Web UI + debug dashboard
+├── tests/
+│   ├── test_emotional_engine.py
+│   ├── test_memory.py
+│   ├── test_profiles.py
+│   ├── test_inner_dialogue.py
+│   ├── test_defense.py
+│   ├── test_self_reflection.py
+│   ├── test_scenarios/          # Scripted emotional arc tests
+│   └── calibration/
+├── tools/
+│   ├── trace_viewer.py          # Modulator trace visualization
+│   ├── profile_inspector.py     # Debug entity profiles
+│   └── growth_report.py         # Self-profile evolution over time
+└── README.md
+</code></pre>
+<h3 id="25-build-order-and-dependencies">2.5 Build Order and Dependencies</h3>
+<pre><code>Phase 1: Emotional Engine           (standalone — 6 modulators, decay, energy, attachment)
+    ↓
+Phase 2: Dual Memory                (depends on Phase 1 for emotional tags)
+    ↓
+Phase 3: Unified Entity Profiles    (depends on Phase 2 — self + others share mechanism)
+    ↓
+Phase 4: Contagion + Anticipation   (depends on Phase 1 + 3 for bonding + profiles)
+    ↓
+Phase 5: Meta-Cognition + Reflect   (depends on Phase 1 + 3 for drift + self-profile)
+    ↓
+Phase 6: Dual Process + Dialogue    (depends on Phase 1–5 for full context + values)
+    ↓
+Phase 7: Defense Mechanisms          (depends on Phase 6 output + self-profile maturity)
+    ↓
+Phase 8: Integration + Interface    (wires everything together)
+    ↓
+Phase 9: Calibration                (ongoing, never truly complete)
+</code></pre>
+<h3 id="26-llm-calls-budget-per-message">2.6 LLM Calls Budget Per Message</h3>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>LLM Call?</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Contagion detection</td>
+<td>Yes (1 call)</td>
+<td>Could optimize to classifier later</td>
+</tr>
+<tr>
+<td>Anticipation</td>
+<td>Yes (1 call)</td>
+<td>Lightweight prediction</td>
+</tr>
+<tr>
+<td>PSI modulator update</td>
+<td>No</td>
+<td>Pure math</td>
+</tr>
+<tr>
+<td>Memory retrieval</td>
+<td>No</td>
+<td>Activation formula + vector search</td>
+</tr>
+<tr>
+<td>Profile lookup + context switch</td>
+<td>No</td>
+<td>Database read + math</td>
+</tr>
+<tr>
+<td>Contradiction detection</td>
+<td>No</td>
+<td>Comparison math</td>
+</tr>
+<tr>
+<td>Meta-cognition</td>
+<td>No</td>
+<td>Threshold checks</td>
+</tr>
+<tr>
+<td>Fast path</td>
+<td>Yes (1 call)</td>
+<td>Gut reaction generation</td>
+</tr>
+<tr>
+<td>Slow path</td>
+<td>Yes (1 call)</td>
+<td>Deliberate response generation</td>
+</tr>
+<tr>
+<td>Inner dialogue round 2</td>
+<td>Yes (1-2 calls)</td>
+<td>Critique + revision</td>
+</tr>
+<tr>
+<td>Defense filter</td>
+<td>Maybe (0-1 call)</td>
+<td>Only if activation threshold met</td>
+</tr>
+<tr>
+<td>Master LLM</td>
+<td>Yes (1 call)</td>
+<td>Final synthesis</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>5-8 calls</strong></td>
+<td>Acceptable for non-real-time interface</td>
+</tr>
+</tbody>
+</table>
+<h3 id="27-what-success-looks-like">2.7 What Success Looks Like</h3>
+<p>The system works when:</p>
+<ol>
+<li>After 20+ conversations, it responds differently to you than to a stranger — not because it was told to, but because the accumulated state is different.</li>
+<li>It notices when you're having a bad day and adjusts tone without being asked.</li>
+<li>It brings up a topic more carefully if past conversations around that topic were tense.</li>
+<li>After a conflict, it's slightly guarded in the next session — then gradually warms back up.</li>
+<li>It occasionally says something that reveals self-awareness: "I think I was too blunt earlier."</li>
+<li>After many sessions, it knows its own tendencies: "I tend to overthink when I'm unsure."</li>
+<li>When exhausted (many intense sessions), it becomes noticeably less patient — and can recognize it.</li>
+<li>Its personality at session 500 is subtly but measurably different from session 1.</li>
+<li>Defense mechanisms fire when topics are painful, but weaken as self-knowledge grows.</li>
+<li>When you read the conversation back, it feels like talking to someone who knows you — and who knows themselves.</li>
+</ol>
+<hr>
+<h2 id="references-and-prior-art">References and Prior Art</h2>
+<ul>
+<li><strong>PSI Theory</strong>: Dörner, D. &amp; Güss, C.D. (2013). PSI: A Computational Architecture of Cognition, Motivation, and Emotion. <em>Review of General Psychology</em>.</li>
+<li><strong>MicroPsi</strong>: Bach, J. (2009). <em>Principles of Synthetic Intelligence: PSI: An Architecture of Motivated Cognition</em>. Oxford University Press.</li>
+<li><strong>ACT-R</strong>: Ritter, F.E., Tehranchi, F. &amp; Oury, J.D. (2019). ACT-R: A cognitive architecture for modeling cognition. <em>WIREs Cognitive Science</em>.</li>
+<li><strong>CLARION</strong>: Sun, R. (2016). <em>Anatomy of the Mind</em>. Oxford University Press.</li>
+<li><strong>Chain-of-Emotion</strong>: Appraisal-based chain-of-emotion architecture for affective LLM game agents (PMC, 2024).</li>
+<li><strong>Emotional Cognitive Modeling</strong>: Framework with desire-driven objective optimization for LLM agents in social simulation (arXiv, 2025).</li>
+<li><strong>ACT-R + LLM Memory</strong>: Human-like remembering and forgetting in LLM agents (HAI, 2024).</li>
+<li><strong>Agent Memory Survey</strong>: "Memory in the Age of AI Agents" (arXiv:2512.13564, 2025).</li>
+<li><strong>Persistent Memory + User Profiles</strong>: Enabling personalized long-term interactions in LLM-based agents (arXiv:2510.07925, 2025).</li>
+<li><strong>Livia</strong>: Emotion-aware AR companion powered by modular AI agents and progressive memory compression (2025).</li>
+</ul>
+<hr>
+<p><em>Project Nūr (نور) — Arabic for "light." Because the goal is illumination, not imitation.</em></p>
+</main>
+</body>
+</html>

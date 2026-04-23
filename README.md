@@ -2,7 +2,7 @@
 
 A hybrid cognitive architecture for AI assistants, inspired by PSI Theory, ACT-R, and CLARION. Treats emotion as persistent internal state rather than a prompt-level style layer.
 
-Nūr (internal name Jarvis) maintains a continuous emotional state, a dual memory system, a self-model earned through behavioral observation, and a relationship memory that tracks ruptures, repairs, and open loops across sessions. The state persists and decays between turns and across sessions, so the system's stance toward a given user is shaped by accumulated history rather than re-derived from each prompt.
+Nūr maintains a continuous emotional state, a dual memory system, a self-model earned through behavioral observation, and a relationship memory that tracks ruptures, repairs, and open loops across sessions. The state persists and decays between turns and across sessions, so the system's stance toward a given user is shaped by accumulated history rather than re-derived from each prompt.
 
 **Public write-ups (start here):**
 - 🌐 **[PROJECT_NUR_OVERVIEW.html](PROJECT_NUR_OVERVIEW.html)** — one self-contained reader-facing document. Theory, implementation, safety, evaluation, and all diagrams embedded in one file.
@@ -14,7 +14,7 @@ Nūr (internal name Jarvis) maintains a continuous emotional state, a dual memor
 
 ## Architecture At A Glance
 
-![Project Nūr runtime architecture](docs/diagrams/runtime-architecture.svg)
+![Project Nūr runtime architecture](docs/diagrams/runtime-architecture.png)
 
 For the full reader-facing explanation with all diagrams embedded in one file, start with [PROJECT_NUR_OVERVIEW.html](PROJECT_NUR_OVERVIEW.html).
 
@@ -92,7 +92,7 @@ Keep committed `runtime_config.yaml` secrets blank and inject real values locall
 
 ## Status
 
-**v2 + Jarvis Runtime + Phase 11 complete, plus a stable `/v1` integration API.** All three Phase 11 sub-phases are deployed: deterministic social appraisal, relationship-arc memory, and response strategy selection. The test suite has grown past 1330 tests.
+**v2 + Nūr Runtime + Phase 11 complete, plus a stable `/v1` integration API.** All three Phase 11 sub-phases are deployed: deterministic social appraisal, relationship-arc memory, and response strategy selection. The test suite has grown past 1330 tests.
 
 v1 gave it a brain that remembers and adapts.
 v2 gives it deliberation, dread, and self-protection.
@@ -136,7 +136,7 @@ from core.llm_client import LLMClient
 
 # With real LLM
 client = LLMClient(api_key="your-key")
-pipe = CognitivePipeline(llm_backend=client, db_path="jarvis.db")
+pipe = CognitivePipeline(llm_backend=client, db_path="nur.db")
 
 # Process messages
 result = pipe.process("Hey, how are you?", user_id="paco")
@@ -162,7 +162,7 @@ pipe.apply_rest(hours=8.0)
 
 ## Architecture Overview
 
-> **Full diagram set:** [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md) — runtime, cognitive flow, persistence, auth/tool safety, eval harness, component claim map. Static SVGs, not ASCII art. For a single shareable file, use [PROJECT_NUR_OVERVIEW.html](PROJECT_NUR_OVERVIEW.html).
+> **Full diagram set:** [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md) — runtime, cognitive flow, persistence, auth/tool safety, eval harness, component claim map. Markdown uses PNG previews; SVG source files remain in `docs/diagrams/`. For a single shareable file, use [PROJECT_NUR_OVERVIEW.html](PROJECT_NUR_OVERVIEW.html).
 
 ### The Core Idea
 
@@ -276,7 +276,7 @@ nur/
 |   |-- values_seed.yaml             # Value hierarchy (static in v1)
 |   |-- loader.py                    # Config loader with singleton, typed dataclasses
 |   +-- prompts/                     # LLM prompt templates
-|       |-- generator.md             # Jarvis personality + response generation
+|       |-- generator.md             # Nūr personality + response generation
 |       |-- self_check.md            # Self-check (tone fit, overconfidence, etc.)
 |       |-- digestion.md             # Session digestion / memory consolidation
 |       |-- contagion.md             # Emotional detection from user text
@@ -344,8 +344,8 @@ nur/
 |-- PROJECT_NUR_BUILD_PLAN.md        # v1/v2 roadmap with build phases
 |-- BUILD_ALL.md                     # Phase-by-phase build instructions
 |-- CHANGELOG.md                     # Version history
-|-- runtime/                         # Jarvis Runtime — lifecycle, channels, persistence
-|   |-- app.py                       # JarvisApp orchestrator + signal handling
+|-- runtime/                         # Nūr Runtime — lifecycle, channels, persistence
+|   |-- app.py                       # NurApp orchestrator + signal handling
 |   |-- config.py                    # RuntimeConfig dataclass + path helpers
 |   |-- channels/
 |   |   |-- base.py                  # Channel protocol (start/stop)
@@ -501,7 +501,7 @@ stm.emotional_arc()                    # List of (timestamp, valence) pairs
 
 **LongTermMemory** — SQLite-backed, persists across sessions:
 ```python
-ltm = LongTermMemory(db_path="jarvis.db")
+ltm = LongTermMemory(db_path="nur.db")
 ltm.store(entry)                       # Only if confidence >= 0.6 or spike
 ltm.store_spike(entry)                 # Force-write, bypasses confidence threshold
 ltm.retrieve(current_state, source_person="paco", limit=5)  # ACT-R biased retrieval
@@ -509,7 +509,7 @@ ltm.retrieve(current_state, source_person="paco", limit=5)  # ACT-R biased retri
 
 **RelationshipMemory** — SQLite-backed relational continuity:
 ```python
-rel = RelationshipMemory(db_path="jarvis.db")
+rel = RelationshipMemory(db_path="nur.db")
 rel.record_event(event)                # rupture / repair / commitment / recurring_tension
 rel.upsert_open_loop(loop)             # unresolved tension or pending follow-up
 rel.build_context("paco", topic="work")
@@ -524,7 +524,7 @@ All profiles use the same underlying `ProfileStore` mechanism. The AI profiles i
 ```python
 pipe = CognitivePipeline(
     llm_backend=client,      # or MockLLMBackend() for testing
-    db_path="jarvis.db",     # ":memory:" for transient
+    db_path="nur.db",     # ":memory:" for transient
 )
 
 result = pipe.process("Hello!", user_id="paco")

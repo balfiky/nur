@@ -106,7 +106,7 @@ Each person the AI interacts with gets a multi-dimensional profile:
 
 Profiles create *expectations*. When behavior violates expectations, the emotional response is amplified proportionally to the gap.
 
-**Self Profile (Jarvis as its own entity)**
+**Self Profile (Nūr as its own entity)**
 
 The same profiling mechanism, turned inward:
 
@@ -183,7 +183,7 @@ The PSI emotional engine maintains six continuous floats (0.0–1.0), each with 
 - **Avoidant**: bonding rises slow and caps low. Closeness triggers discomfort.
 - **Disorganized**: bonding oscillates unpredictably. Push-pull pattern.
 
-This is set once and evolves very slowly. For Jarvis, secure with a slight lean is the natural choice, but the architecture supports all four for experimentation.
+This is set once and evolves very slowly. For Nūr, secure with a slight lean is the natural choice, but the architecture supports all four for experimentation.
 
 ### 1.8 Emotional Contagion
 

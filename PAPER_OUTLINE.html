@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PAPER OUTLINE</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --ink: #111827;
+  --muted: #4b5563;
+  --line: #e5e7eb;
+  --soft: #f9fafb;
+  --code: #f3f4f6;
+  --accent: #1d4ed8;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+}
+main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 40px 22px 80px;
+}
+header {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 18px;
+  margin-bottom: 30px;
+}
+h1, h2, h3, h4 {
+  color: var(--ink);
+  line-height: 1.2;
+  margin: 30px 0 14px;
+}
+h1 { font-size: clamp(34px, 5vw, 54px); margin-top: 0; }
+h2 { font-size: 30px; border-top: 1px solid var(--line); padding-top: 24px; }
+h3 { font-size: 23px; }
+h4 { font-size: 19px; }
+p, li, blockquote { color: var(--muted); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code {
+  background: var(--code);
+  color: var(--ink);
+  padding: 2px 6px;
+  border-radius: 5px;
+  font: 0.92em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+pre {
+  background: #111827;
+  color: #f9fafb;
+  padding: 16px;
+  border-radius: 14px;
+  overflow-x: auto;
+}
+pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+blockquote {
+  margin: 18px 0;
+  padding: 6px 16px;
+  border-left: 4px solid #93c5fd;
+  background: #f8fbff;
+}
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 18px auto 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 10px 28px rgba(17, 24, 39, .08);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 18px 0 24px;
+  border: 1px solid var(--line);
+}
+th, td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  background: var(--soft);
+  color: var(--ink);
+}
+hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 34px 0;
+}
+.notice {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-left: 5px solid #1d4ed8;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 0 0 24px;
+  color: #1e3a8a;
+}
+.meta {
+  color: var(--muted);
+  font-size: 14px;
+}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>PAPER_OUTLINE.md</h1>
+  <p class="meta">Auto-generated from <code>PAPER_OUTLINE.md</code>. Local images are embedded for offline reading.</p>
+</header>
+<div class="notice">This HTML export is intended for direct reading. It avoids Markdown viewer issues by embedding local diagram images directly.</div>
+<h1 id="paper-outline-project-nur">Paper Outline: Project Nūr</h1>
+<p><strong>Working title:</strong> An Inspectable Hybrid Architecture for Relational Continuity in AI Assistants</p>
+<p><strong>Type:</strong> architecture / prototype paper (not an empirical human-study paper)</p>
+<p><strong>Target length:</strong> 8–10 pages main text + references. Trims to 4 pages for short-format venues (CHI LBW, workshop papers).</p>
+<p><strong>Target venues (in rough preference order):</strong>
+1. IUI (Intelligent User Interfaces) — good fit for hybrid architecture + interaction design
+2. HAI (Human-Agent Interaction) — good fit for relational agent framing
+3. IEEE ACII workshops — strongest affective-computing audience
+4. arXiv preprint — no gate; useful for priority + discoverability while longer work continues</p>
+<p><strong>Honest framing up front:</strong> this paper claims an <em>inspectable, state-first architecture</em>; it does <strong>not</strong> claim validated human-likeness. Empirical user study is deferred to a follow-up paper.</p>
+<hr>
+<h2 id="1-abstract-150-words">1. Abstract (~150 words)</h2>
+<p>The problem: current AI assistants process each interaction in isolation. Even with RAG they remember <em>facts</em>, not <em>feelings</em>. The same words from a trusted friend and a stranger land identically.</p>
+<p>The thesis: <strong>emotion should be treated as persistent internal state, not as a prompt-level style layer.</strong></p>
+<p>The approach: a hybrid architecture combining six continuous modulators, dual memory, unified self/other profiling, deterministic social appraisal, bounded dual-process deliberation, and defense mechanisms — inspired by PSI, ACT-R, and CLARION but not claiming faithful implementation of any of them.</p>
+<p>The evidence: a provenance-stamped evaluation harness runs a behavioral scenario suite against real LLMs. One ablation result: disabling relationship memory breaks exactly the two scenarios that test cross-turn open-loop tracking, while three other component toggles have no measurable effect on structural assertions. This demonstrates at least one architecturally load-bearing component under a reproducible protocol.</p>
+<p>The limitation: scenarios test internal structural state, not response quality. Human-likeness claims require a follow-up user study.</p>
+<hr>
+<h2 id="2-introduction-1-page">2. Introduction (~1 page)</h2>
+<h3 id="21-motivation">2.1 Motivation</h3>
+<ul>
+<li>LLM-based assistants produce fluent responses, but those responses lack <em>texture</em>. Same words land the same way regardless of history, context, or relationship.</li>
+<li>RAG-based memory adds facts, not feelings. It preserves <em>what</em> was said, not <em>how it landed</em>.</li>
+<li>The engineering shortcut — "tell the LLM to sound warm" — is a cosmetic fix for a structural problem.</li>
+</ul>
+<h3 id="22-thesis">2.2 Thesis</h3>
+<p>Emotions are not discrete labels. They are configurations of continuous internal variables that persist, decay, and interact with memory and relational context. Build that substrate, and behavior emerges from it.</p>
+<h3 id="23-contributions">2.3 Contributions</h3>
+<ol>
+<li><strong>Architecture</strong>: a coherent integration of continuous modulators, dual memory, self/other profiling, and explicit response strategy selection.</li>
+<li><strong>Unified self/other profiling</strong>: the assistant observes itself via the same mechanism it uses to profile others (entity id <code>__self__</code>). Self-knowledge is <em>earned</em>, not declared.</li>
+<li><strong>Inspectable pipeline</strong>: every major decision point produces a traceable debug record (appraisal, strategy selection, dialogue rounds, defense activations, unresolved items).</li>
+<li><strong>Provenance-first evaluation harness</strong>: each eval run records git SHA, backend identity, config fingerprints (SHA256 of 16 files), scenario set, and execution counters. Reports are self-describing and reproducible.</li>
+<li><strong>Architecture ablation protocol + one load-bearing result</strong>: a prior-hypothesis table labels each scenario outcome under each ablation (expected-failure / unexpected / no-effect / newly-passing). Relationship memory is demonstrably load-bearing; three other components have no structural effect on this suite.</li>
+</ol>
+<h3 id="24-non-goals-explicit">2.4 Non-goals (explicit)</h3>
+<ul>
+<li>Not an implementation of PSI, ACT-R, or CLARION.</li>
+<li>Not a validated psychological model.</li>
+<li>Not a human-likeness claim — no user study in this paper.</li>
+<li>Not an autonomous agent or AGI.</li>
+</ul>
+<h3 id="25-paper-structure">2.5 Paper structure</h3>
+<p>One sentence per section.</p>
+<hr>
+<h2 id="3-background-and-related-work-1-page">3. Background and Related Work (~1 page)</h2>
+<h3 id="31-cognitive-architecture-inspirations">3.1 Cognitive-architecture inspirations</h3>
+<ul>
+<li><strong>PSI (Dörner/Bach)</strong> — continuous modulators, motivated cognition. We adopt <em>continuous state</em> as the substrate.</li>
+<li><strong>ACT-R (Anderson)</strong> — activation-weighted memory retrieval. We adopt <em>recency × frequency × context</em> biasing, not the full activation equation.</li>
+<li><strong>CLARION (Sun)</strong> — fast/slow dual-process. We adopt <em>bounded iterative deliberation</em>, not a full learned implicit/explicit split.</li>
+</ul>
+<p>We are explicit that these are <strong>inspirations</strong>, not implementations. No drive system (PSI), no formal activation formula (ACT-R), no emergent path balancing (CLARION).</p>
+<h3 id="32-recent-affective-agent-work">3.2 Recent affective-agent work</h3>
+<ul>
+<li><strong>Chain-of-Emotion</strong> (PMC, 2024) — appraisal-based prompting for game agents.</li>
+<li><strong>Emotional Cognitive Modeling</strong> (arXiv, 2025) — desire-driven agents for social simulation.</li>
+<li><strong>ACT-R + LLM memory</strong> (HAI, 2024) — human-like remembering/forgetting in LLM agents.</li>
+<li><strong>Livia</strong> (2025) — emotion-aware AR companion with progressive memory compression.</li>
+</ul>
+<p>Where we differ: <em>unified self/other profiling</em>, <em>relationship-arc memory as a first-class layer</em> (not implicit in semantic memory), and an <em>inspectable pipeline with explicit strategy selection</em>.</p>
+<h3 id="33-agent-memory-landscape">3.3 Agent memory landscape</h3>
+<p>Brief survey pointer: "Memory in the Age of AI Agents" (arXiv:2512.13564, 2025). Position our relationship-arc layer as orthogonal to semantic/episodic memory.</p>
+<hr>
+<h2 id="4-architecture-2-pages">4. Architecture (~2 pages)</h2>
+<h3 id="41-six-continuous-modulators">4.1 Six continuous modulators</h3>
+<p>Table: arousal, valence, certainty, bonding, energy, resolution — with half-lives and what each represents. Emergent emotions illustrated (joy, anger, irritability) as points in the 6-D modulator space.</p>
+<h3 id="42-dual-memory">4.2 Dual memory</h3>
+<ul>
+<li><strong>Short-term</strong>: in-memory, cleared at session end.</li>
+<li><strong>Long-term</strong>: SQLite, distilled summaries with asymmetric negativity bias (7.5× break-vs-build on trust).</li>
+<li><strong>Spike bypass</strong>: intensity ≥ 0.8 writes directly to long-term, bypassing confidence thresholds.</li>
+</ul>
+<h3 id="43-unified-selfother-profiling-the-novel-mechanism">4.3 Unified self/other profiling — the novel mechanism</h3>
+<p>Same <code>ProfileStore</code> mechanism used for users, topics, and the assistant's self-model (entity id <code>__self__</code>). The self-profile is <em>earned</em> through observation, not declared in config. Strengths, flaws, triggers, and maturity emerge from accumulated behavioral observations.</p>
+<h3 id="44-relationship-memory">4.4 Relationship memory</h3>
+<p>First-class layer separate from factual/semantic memory. Records rupture/repair/commitment/recurring_tension events and open loops. This is the component the ablation shows is load-bearing.</p>
+<h3 id="45-social-appraisal-and-strategy-selection">4.5 Social appraisal and strategy selection</h3>
+<p>Deterministic passes. Appraisal distinguishes assistant-targeted vs. external distress, apology vs. complaint, vulnerability level. Strategy selector picks from 8 explicit response stances (validate, reassure, repair, ground, give_space, practical_help, challenge_gently, set_boundary). This is where psychology-expert review can meaningfully engage.</p>
+<h3 id="46-bounded-dual-process-deliberation">4.6 Bounded dual-process deliberation</h3>
+<p>Fast/slow iteration for 2–3 rounds on non-trivial turns. Bypasses on high arousal or low energy. Adds <code>unresolved_item</code> on deadlock.</p>
+<h3 id="47-defense-mechanisms">4.7 Defense mechanisms</h3>
+<p>Four types (rationalization, deflection, minimization, projection). Activation gated by raw intensity × comfort threshold. Suppression weakens with maturity — defenses are never zero but become less distorting as self-knowledge grows.</p>
+<h3 id="48-semantic-memory">4.8 Semantic memory</h3>
+<p>Explicit preferences, decisions, facts. Retrieval-injected into the generator prompt. Stored beside the emotional and relational layers.</p>
+<hr>
+<h2 id="5-implementation-15-pages">5. Implementation (~1.5 pages)</h2>
+<h3 id="51-hybrid-deterministicllm-split">5.1 Hybrid deterministic/LLM split</h3>
+<p>Math-first: modulator updates, decay, profile math, strategy selection, retrieval ranking are deterministic and unit-testable. LLM is used only where needed: final response generation, inner-dialogue deliberation, optional high-risk self-check.</p>
+<h3 id="52-runtime-vs-cognitive-separation">5.2 Runtime vs. cognitive separation</h3>
+<p><code>CognitivePipeline</code> (synchronous, stateful) wrapped by an async <code>SessionManager</code> with per-user locks, bounded concurrency, idle eviction, atomic state persistence. Relationship is keyed by <code>platform:user_id</code>; session is <code>platform:user_id:chat_id</code>.</p>
+<h3 id="53-host-interfaces">5.3 Host interfaces</h3>
+<p>Channels (web, console, Telegram) plug into the same pipeline. A versioned <code>/v1</code> API exposes every introspection surface: modulators, profiles, memory layers, unresolved items, tools, config. A <code>DELETE /v1/users/{platform}/{user_id}</code> endpoint fulfills a published privacy contract.</p>
+<h3 id="54-provenance-first-evaluation-harness">5.4 Provenance-first evaluation harness</h3>
+<p>Every eval run records:
+- Code state: git SHA, branch, dirty-worktree flag
+- Backend identity: type, requested model, resolved model, base URL
+- Config fingerprints: SHA256 of 16 prompt/config files
+- Scenario set, IDs, counts
+- Execution counters: LLM calls (via shared <code>BackendCounter</code>), latency, failures</p>
+<p>Unmeasured fields serialize as JSON null, not fake zeros. CLI fails loud if a live backend is asked for without required config — no silent mock fallback.</p>
+<h3 id="55-code-scale">5.5 Code scale</h3>
+<p>~10,000 LOC in <code>core/</code>. 1,316 passing tests. Provenance-stamped reports for the ablation results reported below.</p>
+<hr>
+<h2 id="6-evaluation-2-pages">6. Evaluation (~2 pages)</h2>
+<h3 id="61-scope-and-limitations-stated-up-front">6.1 Scope and limitations, stated up front</h3>
+<p>These scenarios test <strong>structural</strong> outcomes:
+- Correct strategy selected?
+- Correct modulator direction?
+- Correct memory write / open-loop closure?</p>
+<p>They do <strong>not</strong> test response quality or "human-likeness" — that's the follow-up paper. Scenarios that answer the quality question need different design (open-ended conversations rated by blinded humans).</p>
+<h3 id="62-scenario-suite-phase-11">6.2 Scenario suite — Phase 11</h3>
+<p>Six scenarios focused on cross-turn social continuity: external_distress_validate, low_trust_hostility_boundary, overwhelm_ground, action_request_practical, open_loop_challenge, repair_closes_loop. Each has 1–3 turns and multiple structural assertions.</p>
+<h3 id="63-setup">6.3 Setup</h3>
+<ul>
+<li>Backend: MiniMax M2.7-highspeed</li>
+<li>Scenario set: phase11 (6 scenarios, 25 assertions total)</li>
+<li>Baseline: all components enabled</li>
+<li>Ablations: one component disabled per variant</li>
+<li>All variants share one git SHA, one backend identity, and one config fingerprint set (recorded in <code>reports/ablation/summary.json</code>)</li>
+</ul>
+<h3 id="64-results-table">6.4 Results table</h3>
+<p>Reproduce the summary from <code>reports/ablation/summary.json</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th style="text-align: right;">Pass</th>
+<th style="text-align: right;">Expected fail</th>
+<th style="text-align: right;">Unexpected</th>
+<th style="text-align: right;">No effect</th>
+<th style="text-align: right;">LLM calls</th>
+<th style="text-align: right;">Latency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>baseline</td>
+<td style="text-align: right;">6/6</td>
+<td style="text-align: right;">–</td>
+<td style="text-align: right;">–</td>
+<td style="text-align: right;">–</td>
+<td style="text-align: right;">14</td>
+<td style="text-align: right;">118.7s</td>
+</tr>
+<tr>
+<td>no_relationship_memory</td>
+<td style="text-align: right;"><strong>4/6</strong></td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">14</td>
+<td style="text-align: right;">115.6s</td>
+</tr>
+<tr>
+<td>no_inner_dialogue</td>
+<td style="text-align: right;">6/6</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">14</td>
+<td style="text-align: right;">119.6s</td>
+</tr>
+<tr>
+<td>no_defense</td>
+<td style="text-align: right;">6/6</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">14</td>
+<td style="text-align: right;">106.1s</td>
+</tr>
+<tr>
+<td>no_semantic_memory</td>
+<td style="text-align: right;">6/6</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">14</td>
+<td style="text-align: right;">116.2s</td>
+</tr>
+</tbody>
+</table>
+<h3 id="65-interpretation">6.5 Interpretation</h3>
+<ul>
+<li><strong>Load-bearing finding</strong>: <code>no_relationship_memory</code> breaks exactly the two scenarios that depend on cross-turn open-loop tracking (<code>p11_open_loop_challenge</code>, <code>p11_repair_closes_loop</code>). All 2/2 predicted failures are "expected_failure." Zero unexpected failures.</li>
+<li><strong>No structural effect on this suite</strong>: <code>no_inner_dialogue</code>, <code>no_defense</code>, and <code>no_semantic_memory</code> leave every assertion passing. The hypothesis table predicted this (strategy/state assertions are upstream of these components; semantic memory is a negative control).</li>
+<li><strong>Interpretation limit</strong>: an ablation with zero effect on <em>these</em> scenarios does not mean the component has zero effect on <em>any</em> scenario — only that the Phase 11 suite is not the right test for it. This is a limitation of the scenario set, not a negative finding about the component.</li>
+</ul>
+<h3 id="66-reproducibility">6.6 Reproducibility</h3>
+<ul>
+<li>Git SHA: from <code>summary.json</code> → <code>provenance.git_sha</code> (populated as of commit <code>a978477</code>)</li>
+<li>Command: <code>python -m evals.ablation --backend minimax --api-key-env MINIMAX_API_KEY --tag phase11 --report-dir reports/ablation</code></li>
+<li>Config fingerprints: 16 prompt/config file SHA256s recorded per run</li>
+<li>Tracked artifact: <code>reports/ablation/summary.json</code> (raw per-variant reports stay local)</li>
+</ul>
+<hr>
+<h2 id="7-discussion-1-page">7. Discussion (~1 page)</h2>
+<h3 id="71-what-the-ablation-does-and-does-not-show">7.1 What the ablation does and does not show</h3>
+<p>It shows: at least one architectural component is measurably load-bearing under a reproducible protocol, and negative controls behave as expected.</p>
+<p>It does not show: that the <em>overall architecture</em> produces better responses than a simpler alternative (prompt-only baseline, memoryless LLM). That's apples-to-oranges on this suite — structural assertions presume pipeline internals a prompt-only baseline doesn't have.</p>
+<h3 id="72-why-prompt-only-baseline-is-a-separate-design-problem">7.2 Why prompt-only baseline is a separate design problem</h3>
+<p>A fair prompt-only comparison needs:
+- Different scenarios (open-ended, quality-rated, not structural)
+- Blinded human raters
+- Same base model on both sides
+- Matched token/compute budget</p>
+<p>That's a second paper.</p>
+<h3 id="73-where-expert-review-can-meaningfully-engage">7.3 Where expert review can meaningfully engage</h3>
+<ul>
+<li>Psychology: Is the modulator set sufficient? Is the defense-maturity coupling coherent?</li>
+<li>Cognitive architecture: Is the deterministic/LLM split at the right seams?</li>
+<li>Product/HCI: Which components actually move perceived experience?</li>
+</ul>
+<h3 id="74-threats-to-validity">7.4 Threats to validity</h3>
+<ul>
+<li>Scenario authorship bias (we wrote the scenarios; an external suite would strengthen).</li>
+<li>Small scenario count (6 for this ablation; full suite is 34).</li>
+<li>Single backend tested at the real-inference layer.</li>
+</ul>
+<hr>
+<h2 id="8-limitations-05-page">8. Limitations (~0.5 page)</h2>
+<p>Explicit list, not buried:</p>
+<ol>
+<li>No human-subject validation.</li>
+<li>Scenarios test internal structural state, not response quality or continuity-as-experienced.</li>
+<li>Token usage, retry counts, and cost are not yet measured (deferred client instrumentation).</li>
+<li>Single real backend evaluated (MiniMax). Local-model comparability is untested.</li>
+<li>Theory framing is inspirational, not faithful — this is stated in §3.1 and maintained throughout.</li>
+<li>Ablation hypotheses were authored by the same people as the architecture; external-reviewer priors would be stronger.</li>
+</ol>
+<hr>
+<h2 id="9-ethics-and-responsible-deployment-05-page">9. Ethics and Responsible Deployment (~0.5 page)</h2>
+<ul>
+<li><strong>Anthropomorphism</strong>: a system that tracks trust, bonding, and open loops can invite attachment. We discuss failure modes (over-reliance, emotional manipulation, users disclosing more than they would to a stateless tool).</li>
+<li><strong>Consent</strong>: the system persists relational state about its users. <code>PRIVACY.md</code> describes what's stored, where, and how to inspect/delete it.</li>
+<li><strong>Data retention</strong>: no automatic expiry. <code>DELETE /v1/users/{platform}/{user_id}</code> is a first-class deletion surface.</li>
+<li><strong>Dual-use concerns</strong>: a persistent-state assistant could be configured to simulate relationship dynamics users did not consent to. We recommend consent-first deployment and retention limits.</li>
+<li><strong>Security</strong>: <code>SECURITY.md</code> documents disclosure flow and sensitive surfaces.</li>
+</ul>
+<hr>
+<h2 id="10-future-work-025-page">10. Future Work (~0.25 page)</h2>
+<ol>
+<li><strong>Client-level instrumentation</strong> — retries, prompt/completion tokens, estimated cost.</li>
+<li><strong>Prompt-only baseline</strong> — separate scenario design, blinded raters.</li>
+<li><strong>Human-subject study</strong> — 15–25 participants, 3+ sessions, blind ratings of continuity / coherence / creepiness.</li>
+<li><strong>Additional scenario suites</strong> — quality-graded rather than structural.</li>
+<li><strong>Local-model comparability</strong> — Ollama / llama.cpp reproducibility track.</li>
+<li><strong>Pipeline decomposition</strong> — <code>pipeline.py</code> currently orchestrates 1,500 LOC; natural decomposition into phase-modules.</li>
+</ol>
+<hr>
+<h2 id="11-reproducibility-statement">11. Reproducibility Statement</h2>
+<p>Repository: [private at time of drafting; public URL on publication].
+Commit pinned in each run's <code>provenance.git_sha</code>.
+Full test suite: <code>python3 -m pytest</code> (1,316 tests at time of drafting).
+Ablation command in §6.6.
+License: MIT. Ethics surface: PRIVACY.md, SECURITY.md.</p>
+<hr>
+<h2 id="drafting-notes-not-for-paper">Drafting notes (not for paper)</h2>
+<ul>
+<li>Before citing any specific number from <code>reports/ablation/summary.json</code>, regenerate it so the tracked file includes the provenance block added in <code>a978477</code>.</li>
+<li>Client instrumentation is <em>not</em> a prerequisite for this paper. Defer.</li>
+<li>Do not cite <code>reports/phase11-minimax.json</code> — deleted; pre-dates the counter fix.</li>
+<li>Keep the honest "inspired by" framing in every section where PSI/ACT-R/CLARION are mentioned. Watch for slips into "based on" or "implements."</li>
+<li>The ablation table is the single strongest piece of evidence; everything else supports it.</li>
+</ul>
+</main>
+</body>
+</html>

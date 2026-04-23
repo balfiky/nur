@@ -1,8 +1,8 @@
 # Project Nūr — Architecture Diagrams
 
-These are static SVG diagrams, not ASCII art and not Mermaid source.
-They render directly on GitHub, in browsers, and in normal Markdown
-previewers.
+These are rendered diagram previews for Markdown readers. PNG is used
+for compatibility; the SVG files remain in `docs/diagrams/` as the
+source assets.
 
 If you download this Markdown file by itself, the diagrams will not
 appear because the SVG files live under `docs/diagrams/`. For a single
@@ -24,12 +24,12 @@ Contents:
 ## A. High-level runtime architecture
 
 Two independent entry points share the same session and cognition layer.
-`nur` runs the console + Telegram + debug API via `JarvisApp`; `nur-web`
+`nur` runs the console + Telegram + debug API via `NurApp`; `nur-web`
 runs FastAPI via uvicorn and serves the web UI, the legacy endpoints,
 and the versioned `/v1/*` router. They do not run together in the same
 process.
 
-![High-level runtime architecture](diagrams/runtime-architecture.svg)
+![High-level runtime architecture](diagrams/runtime-architecture.png)
 
 [Open the SVG directly](diagrams/runtime-architecture.svg)
 
@@ -53,7 +53,7 @@ The order matches `CognitivePipeline.process` in `pipeline.py`.
 Diamonds are gates that can skip or short-circuit a stage; rectangles
 are unconditional. LLM-call counts are annotated in the diagram.
 
-![Single-turn cognitive flow](diagrams/single-turn-cognitive-flow.svg)
+![Single-turn cognitive flow](diagrams/single-turn-cognitive-flow.png)
 
 [Open the SVG directly](diagrams/single-turn-cognitive-flow.svg)
 
@@ -72,7 +72,7 @@ engine state lives in its own JSON file; the assistant's self-model is
 deliberately separated into a shared DB so per-user deletion never
 erases the growth history of the assistant itself.
 
-![Memory and persistence model](diagrams/memory-persistence-model.svg)
+![Memory and persistence model](diagrams/memory-persistence-model.png)
 
 [Open the SVG directly](diagrams/memory-persistence-model.svg)
 
@@ -95,7 +95,7 @@ HTTP access. `tools_enabled`, `shell_tool_enabled`, and
 `tools_workspace` control whether a chat turn can trigger side effects
 on the host. Flipping one does not flip the other.
 
-![Auth and tool-safety boundary](diagrams/auth-tool-safety-boundary.svg)
+![Auth and tool-safety boundary](diagrams/auth-tool-safety-boundary.png)
 
 [Open the SVG directly](diagrams/auth-tool-safety-boundary.svg)
 
@@ -120,7 +120,7 @@ The eval CLI is not a unit-test runner. It runs scripted behavioral
 scenarios against a real pipeline with a user-chosen backend, stamps the
 run with git + config-hash provenance, and emits JSON reports.
 
-![Evaluation and ablation harness](diagrams/evaluation-ablation-harness.svg)
+![Evaluation and ablation harness](diagrams/evaluation-ablation-harness.png)
 
 [Open the SVG directly](diagrams/evaluation-ablation-harness.svg)
 
@@ -136,7 +136,7 @@ What the current evidence actually supports versus what the architecture
 claims to contribute. This is the anchor for the Technical Note's
 evaluation section and the Paper Draft's discussion section.
 
-![Component claim map](diagrams/component-claim-map.svg)
+![Component claim map](diagrams/component-claim-map.png)
 
 [Open the SVG directly](diagrams/component-claim-map.svg)
 

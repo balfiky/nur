@@ -135,7 +135,7 @@ def _llm_summarizer(
     if conversation_history:
         conv_lines = []
         for msg in conversation_history[-20:]:
-            role = "User" if msg["role"] == "user" else "Jarvis"
+            role = "User" if msg["role"] == "user" else "Nūr"
             conv_lines.append(f"{role}: {msg['content']}")
         conv_str = "\n".join(conv_lines)
 

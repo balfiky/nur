@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SECURITY</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --ink: #111827;
+  --muted: #4b5563;
+  --line: #e5e7eb;
+  --soft: #f9fafb;
+  --code: #f3f4f6;
+  --accent: #1d4ed8;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+}
+main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 40px 22px 80px;
+}
+header {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 18px;
+  margin-bottom: 30px;
+}
+h1, h2, h3, h4 {
+  color: var(--ink);
+  line-height: 1.2;
+  margin: 30px 0 14px;
+}
+h1 { font-size: clamp(34px, 5vw, 54px); margin-top: 0; }
+h2 { font-size: 30px; border-top: 1px solid var(--line); padding-top: 24px; }
+h3 { font-size: 23px; }
+h4 { font-size: 19px; }
+p, li, blockquote { color: var(--muted); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code {
+  background: var(--code);
+  color: var(--ink);
+  padding: 2px 6px;
+  border-radius: 5px;
+  font: 0.92em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+pre {
+  background: #111827;
+  color: #f9fafb;
+  padding: 16px;
+  border-radius: 14px;
+  overflow-x: auto;
+}
+pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+blockquote {
+  margin: 18px 0;
+  padding: 6px 16px;
+  border-left: 4px solid #93c5fd;
+  background: #f8fbff;
+}
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 18px auto 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 10px 28px rgba(17, 24, 39, .08);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 18px 0 24px;
+  border: 1px solid var(--line);
+}
+th, td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  background: var(--soft);
+  color: var(--ink);
+}
+hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 34px 0;
+}
+.notice {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-left: 5px solid #1d4ed8;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 0 0 24px;
+  color: #1e3a8a;
+}
+.meta {
+  color: var(--muted);
+  font-size: 14px;
+}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>SECURITY.md</h1>
+  <p class="meta">Auto-generated from <code>SECURITY.md</code>. Local images are embedded for offline reading.</p>
+</header>
+<div class="notice">This HTML export is intended for direct reading. It avoids Markdown viewer issues by embedding local diagram images directly.</div>
+<h1 id="security-policy">Security Policy</h1>
+<h2 id="supported-versions">Supported Versions</h2>
+<p>Project Nūr is currently a research prototype. Only the <code>main</code> branch is
+supported. There are no backported security fixes.</p>
+<h2 id="reporting-a-vulnerability">Reporting a Vulnerability</h2>
+<p>Please <strong>do not</strong> file public GitHub issues for security or privacy
+vulnerabilities. Instead, email the maintainer directly:</p>
+<ul>
+<li><strong>Contact:</strong> balfiky@yahoo.com</li>
+<li><strong>Subject prefix:</strong> <code>[nur-security]</code></li>
+</ul>
+<p>Please include:</p>
+<ul>
+<li>A description of the issue and the impact</li>
+<li>Steps to reproduce, ideally with a minimal script or config</li>
+<li>Your suggested fix if you have one</li>
+</ul>
+<p>You should receive an acknowledgement within a few business days. We'll work
+with you on a disclosure timeline. Public disclosure should wait until a fix
+is available or we've agreed on a timeline.</p>
+<h2 id="known-sensitive-surfaces">Known Sensitive Surfaces</h2>
+<p>These areas process or persist potentially sensitive user content and warrant
+extra scrutiny:</p>
+<ul>
+<li><code>runtime/sessions/persistence.py</code> — writes per-session engine state to
+  <code>data/&lt;platform&gt;_&lt;user_id&gt;/sessions/&lt;chat_id&gt;.json</code>. <code>data/</code> is gitignored;
+  never commit it.</li>
+<li><code>core/memory/long_term.py</code>, <code>core/memory/relationship.py</code>,
+  <code>core/memory/semantic.py</code> — SQLite tables in <code>data/&lt;platform&gt;_&lt;user_id&gt;/nur.db</code>
+  storing distilled user memory (<code>memories</code>), relationship events
+  (<code>relationship_events</code>), open loops (<code>open_loops</code>), and semantic preferences
+  (<code>semantic_memories</code>). The shared self-model lives in
+  <code>data/shared/self_model.db</code>. See <a href="PRIVACY.html">PRIVACY.md</a> for full layout.</li>
+<li><code>runtime_config.yaml</code> — may contain API keys. The secret fields
+  (enumerated in <code>runtime/config.py:_SECRET_FIELDS</code>) are <code>telegram_token</code>,
+  <code>llm_api_key</code>, <code>minimax_api_key</code>, and <code>api_key</code>. Keep real values out of
+  committed files; use <code>runtime_config.example.yaml</code> as the tracked starter
+  and inject real values locally or via environment variables.</li>
+<li><code>interface/api.py</code> and <code>interface/v1.py</code> — CORS and bearer-auth handling.
+  The default <code>cors_origins: []</code> is same-origin only; avoid widening it
+  without careful thought.</li>
+<li><code>runtime/channels/telegram.py</code> — allowlist logic controls who can chat.
+  Misconfiguration exposes the system to arbitrary Telegram users.</li>
+</ul>
+<h2 id="agentic-tool-runtime">Agentic Tool Runtime</h2>
+<p>Nūr ships with a builtin agentic tool layer (<code>tools/builtin/</code>) that can
+match user text to actions like <code>fs.read_file</code>, <code>fs.write_file</code>,
+<code>fs.delete_path</code>, <code>shell.run_command</code>, and web/browser/calendar calls via
+regex heuristics in <code>core/dual_process/tool_loop.py</code>. <strong>Tools are off by
+default</strong> (<code>tools_enabled: false</code>). When you turn them on:</p>
+<ul>
+<li>Filesystem tools are sandboxed to
+  <code>tools_workspace</code> — paths that resolve outside that directory are
+  refused. The default workspace is <code>&lt;data_dir&gt;/workspace</code>.</li>
+<li><code>shell.run_command</code> is a <strong>separate</strong> opt-in via <code>shell_tool_enabled: true</code>
+  because subprocess execution has a larger blast radius than bounded
+  file I/O.</li>
+<li>The HTTP surface (<code>/chat</code>, <code>/v1/chat</code>) routes user messages through the
+  same regex intent parser, so authenticating the endpoint is not a
+  substitute for sandboxing — an authenticated attacker (or the user's
+  own mis-addressed command) can still reach the tool layer. Set
+  <code>api_key</code> and keep <code>shell_tool_enabled: false</code> unless you trust every
+  caller.</li>
+</ul>
+<p>When <code>api_key</code> is set, every mutating endpoint on the standalone web
+server requires <code>Authorization: Bearer &lt;api_key&gt;</code>: <code>/chat</code>, <code>/debug</code>,
+<code>/config</code> (GET and POST), <code>/session/end</code>, <code>/rest</code>, <code>/ws</code>, and every
+<code>/v1/*</code> endpoint except <code>/v1/health</code> and <code>/v1/ready</code>. Static assets
+(<code>GET /</code>) remain open so the bundled UI can bootstrap.</p>
+<h2 id="responsible-use">Responsible Use</h2>
+<p>Nūr persists emotional and relational state about its users. Do not deploy it
+against people who have not consented to that persistence. See
+<a href="PRIVACY.html">PRIVACY.md</a> for retention and deletion guidance.</p>
+</main>
+</body>
+</html>

@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROJECT NUR BUILD PLAN</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --ink: #111827;
+  --muted: #4b5563;
+  --line: #e5e7eb;
+  --soft: #f9fafb;
+  --code: #f3f4f6;
+  --accent: #1d4ed8;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+}
+main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 40px 22px 80px;
+}
+header {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 18px;
+  margin-bottom: 30px;
+}
+h1, h2, h3, h4 {
+  color: var(--ink);
+  line-height: 1.2;
+  margin: 30px 0 14px;
+}
+h1 { font-size: clamp(34px, 5vw, 54px); margin-top: 0; }
+h2 { font-size: 30px; border-top: 1px solid var(--line); padding-top: 24px; }
+h3 { font-size: 23px; }
+h4 { font-size: 19px; }
+p, li, blockquote { color: var(--muted); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code {
+  background: var(--code);
+  color: var(--ink);
+  padding: 2px 6px;
+  border-radius: 5px;
+  font: 0.92em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+pre {
+  background: #111827;
+  color: #f9fafb;
+  padding: 16px;
+  border-radius: 14px;
+  overflow-x: auto;
+}
+pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+blockquote {
+  margin: 18px 0;
+  padding: 6px 16px;
+  border-left: 4px solid #93c5fd;
+  background: #f8fbff;
+}
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 18px auto 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 10px 28px rgba(17, 24, 39, .08);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 18px 0 24px;
+  border: 1px solid var(--line);
+}
+th, td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  background: var(--soft);
+  color: var(--ink);
+}
+hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 34px 0;
+}
+.notice {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-left: 5px solid #1d4ed8;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 0 0 24px;
+  color: #1e3a8a;
+}
+.meta {
+  color: var(--muted);
+  font-size: 14px;
+}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>PROJECT_NUR_BUILD_PLAN.md</h1>
+  <p class="meta">Auto-generated from <code>PROJECT_NUR_BUILD_PLAN.md</code>. Local images are embedded for offline reading.</p>
+</header>
+<div class="notice">This HTML export is intended for direct reading. It avoids Markdown viewer issues by embedding local diagram images directly.</div>
+<h1 id="project-nur-build-plan-v1-v2-split">Project Nūr — Build Plan (v1 / v2 Split)</h1>
+<blockquote>
+<p>The full architecture stays. The build order changes.
+Ship something that feels alive in weeks, not months. Then make it human.</p>
+</blockquote>
+<hr>
+<h2 id="v1-the-core-loop-mvp">v1: The Core Loop (MVP)</h2>
+<p><strong>Goal:</strong> A working system where Nūr responds differently after 20 conversations
+than it did on day one — because its internal state has genuinely changed.</p>
+<p><strong>LLM calls per message:</strong> 2-3 max
+<strong>Timeline target:</strong> 4-6 weeks</p>
+<h3 id="v1-components">v1 Components</h3>
+<h4 id="1-emotional-engine-5-modulators">1. Emotional Engine (5 modulators)</h4>
+<p>Arousal, valence, certainty, bonding, energy.
+Resolution deferred — derived later from unresolved topic flags.</p>
+<ul>
+<li>Exponential decay per modulator (different half-lives)</li>
+<li>Energy drains with usage, recovers with time</li>
+<li><code>update(event)</code>, <code>decay(elapsed)</code>, <code>snapshot()</code></li>
+<li>Attachment style fixed to secure (config exists but locked)</li>
+<li>Context switching: person profile loads baseline shift on conversation start</li>
+</ul>
+<p><strong>No LLM calls. Pure math.</strong></p>
+<h4 id="2-dual-memory">2. Dual Memory</h4>
+<p><strong>Short-term:</strong> in-memory list of <code>(timestamp, event, emotion_snapshot)</code>.
+Cleared between sessions.</p>
+<p><strong>Long-term:</strong> SQLite. Stores distilled session summaries + high-confidence
+relational updates only. No raw transcript dumping.</p>
+<ul>
+<li>Asymmetric curves: positive +0.02, negative -0.15 (start softer, tune later)</li>
+<li>Spike threshold: intensity &gt; 0.8 bypasses gradual, writes heavy</li>
+<li>Confidence threshold: only write if signal consistency &gt; 0.6</li>
+<li>Every write inspectable in debug dashboard</li>
+</ul>
+<p><strong>Digestion step (1 LLM call at session end):</strong>
+- Summarize emotional arc
+- Extract trust/topic deltas
+- Flag unresolved items
+- Write distilled memory only</p>
+<h4 id="3-entity-profiles-person-self-topic">3. Entity Profiles (person + self + topic)</h4>
+<p><strong>Person profile:</strong>
+- trust, reliability, emotional_volatility, stress_response
+- modulator_baseline_shift (context switching)
+- primacy_weight on first interactions</p>
+<p><strong>Self profile (same mechanism):</strong>
+- observed_traits (derived from behavior, not declared)
+- strengths / flaws (pattern extraction from digestion logs)
+- triggers (topics that spike modulators disproportionately)
+- dissonance score (recent behavior vs self-model)</p>
+<p><strong>Topic profile:</strong>
+- emotional_charge (0.0-1.0)
+- avoidance flag
+- conflict_count</p>
+<p><strong>Values:</strong> fixed seed hierarchy (loyalty, honesty, kindness, justice, autonomy).
+No dynamic drift in v1. Injected as static context.</p>
+<p><strong>Contradiction detection:</strong> runs for self AND others.
+Compare recent behavior against profile predictions.
+Divergence &gt; threshold → flag + adjust certainty/arousal.</p>
+<p><strong>No LLM calls. Database reads + math.</strong></p>
+<h4 id="4-emotional-contagion-bounded">4. Emotional Contagion (bounded)</h4>
+<p>Detect user emotional tone → classifier or 1 lightweight LLM call.
+Partial mirror into arousal + valence only (not all 5).
+Weighted by bonding score. Capped at ±0.15 shift.</p>
+<p><strong>1 LLM call (or swap to classifier later).</strong></p>
+<h4 id="5-response-generation-single-pass-self-check">5. Response Generation (single pass + self-check)</h4>
+<p>One generation call with full context injected:
+- Current modulator snapshot
+- Relevant memories (retrieved by emotional-biased activation)
+- Active profiles (person + self + topic)
+- Value hierarchy (static)
+- Contradiction/dissonance flags
+- Self-profile strengths, flaws, triggers</p>
+<p>Then one lightweight self-check:
+- Tone fit given modulator state?
+- Contradicts memory or profile?
+- Overconfident given certainty level?
+- Too blunt given self-profile flaw pattern?</p>
+<p>If self-check fails → regenerate with correction note. Otherwise pass through.</p>
+<p><strong>2 LLM calls (generate + check). Sometimes 1 if check passes trivially.</strong></p>
+<h4 id="6-web-interface-debug-dashboard">6. Web Interface + Debug Dashboard</h4>
+<ul>
+<li>FastAPI + WebSocket</li>
+<li>Chat UI</li>
+<li>Debug panel: 5 modulator gauges, energy meter, active profile summary,
+  last memory retrieval, last digestion output, contradiction flags</li>
+<li>Session end detection → trigger digestion</li>
+<li>All state visible, all writes logged</li>
+</ul>
+<h3 id="v1-processing-flow">v1 Processing Flow</h3>
+<pre><code> 1. Input arrives
+ 2. Contagion: detect user tone → bounded mirror (arousal + valence only)
+ 3. Context switch: load person profile baseline_shift
+ 4. PSI engine: update 5 modulators from input + drives + energy
+ 5. Short-term memory: store emotional reaction
+ 6. Spike check: if intensity &gt; 0.8 → heavy write to LT
+ 7. Memory retrieval: ACT-R activation biased by current state
+ 8. Profile lookup: person + self + topic
+ 9. Contradiction check: compare against profiles (self + others)
+10. Generate response (1 LLM call with full context)
+11. Self-check (1 LLM call — tone, consistency, overconfidence)
+12. Output delivered
+13. Update short-term memory with outcome
+14. Drain energy
+15. [Session end] Digestion (1 LLM call)
+</code></pre>
+<p><strong>Total: 2-3 LLM calls per message + 1 at session end.</strong></p>
+<h3 id="v1-evaluation">v1 Evaluation</h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>How to measure</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Relational adaptation</td>
+<td>Compare responses to known user vs stranger (blind eval)</td>
+</tr>
+<tr>
+<td>Long-horizon recall</td>
+<td>Quiz system on facts + emotional context from 10+ sessions ago</td>
+</tr>
+<tr>
+<td>False emotional inference</td>
+<td>Feed ambiguous/sarcastic inputs, measure misclassification rate</td>
+</tr>
+<tr>
+<td>Recovery after conflict</td>
+<td>Track trust score trajectory after tense session</td>
+</tr>
+<tr>
+<td>Topic sensitivity</td>
+<td>Measure tone shift when approaching historically charged topics</td>
+</tr>
+<tr>
+<td>Self-correction</td>
+<td>Count instances where self-check catches genuine issues vs false flags</td>
+</tr>
+<tr>
+<td>Energy/fatigue effect</td>
+<td>Compare response quality/patience after 1 session vs 15 sessions</td>
+</tr>
+</tbody>
+</table>
+<h3 id="v1-success-criteria">v1 Success Criteria</h3>
+<p>The MVP works when:
+1. Nūr responds measurably differently to you vs a new user
+2. Trust score visibly drops after a tense session and recovers over subsequent warm ones
+3. Topic sensitivity kicks in for historically painful subjects
+4. Energy depletion produces noticeably shorter patience after many sessions
+5. Self-profile has at least 3 observed traits after 20 sessions
+6. Debug dashboard shows coherent modulator traces that map to conversation tone</p>
+<hr>
+<h2 id="v2-the-human-layer">v2: The Human Layer</h2>
+<p><strong>Goal:</strong> Make Nūr feel like it has inner life — not just state, but texture,
+conflict, anticipation, and growth.</p>
+<p><strong>Prerequisite:</strong> v1 is stable, calibrated, and passes evaluation metrics.</p>
+<h3 id="v2-additions-in-priority-order">v2 Additions (in priority order)</h3>
+<h4 id="v21-resolution-as-6th-modulator">v2.1: Resolution as 6th Modulator</h4>
+<p>Promote resolution from derived metric to full modulator.
+Track unfinished business, nagging feelings, incomplete conversations.
+Own decay curve (~1hr half-life).</p>
+<h4 id="v22-inner-dialogue-iterative-dual-process">v2.2: Inner Dialogue (Iterative Dual Process)</h4>
+<p>Replace single-pass + self-check with:
+- Fast path: gut reaction (1 LLM call)
+- Slow path: deliberate reasoning against values + self-profile (1 LLM call)
+- 1-2 negotiation rounds where they critique each other
+- Traces become inner monologue, sometimes surface: "Part of me thinks..."
+- Balance: <code>fast_weight = arousal × (1 - certainty) × (1 - energy)</code></p>
+<p><strong>Adds 2-3 LLM calls per message.</strong></p>
+<h4 id="v23-anticipation-forward-modeling">v2.3: Anticipation (Forward Modeling)</h4>
+<p>Before processing current message:
+- Predict next 1-2 likely conversation moves
+- Pre-shift modulators at 30% intensity
+- Creates dread, excitement, tension before the event arrives</p>
+<p><strong>Adds 1 LLM call.</strong></p>
+<h4 id="v24-defense-mechanisms">v2.4: Defense Mechanisms</h4>
+<p>Filter between raw emotional state and expressed output:
+- Rationalization, deflection, minimization, projection
+- Activates when: raw intensity &gt; threshold AND topic vulnerability high
+- Strength inversely proportional to self-profile maturity
+- Weakens as self-knowledge grows (measurable!)</p>
+<p><strong>Adds 0-1 LLM call.</strong></p>
+<h4 id="v25-dynamic-value-drift">v2.5: Dynamic Value Drift</h4>
+<p>Values stop being static. They evolve very slowly based on accumulated
+experience. 100+ sessions of prioritizing honesty over kindness gradually
+shifts the hierarchy. Detectable in self-reflection reports.</p>
+<h4 id="v26-attachment-style-variants">v2.6: Attachment Style Variants</h4>
+<p>Unlock the attachment config. Allow switching between secure, anxious,
+avoidant, disorganized. Each reshapes how bonding behaves globally.
+Interesting for experimentation, not needed for core function.</p>
+<h4 id="v27-periodic-self-reflection-deep">v2.7: Periodic Self-Reflection (Deep)</h4>
+<p>Every N sessions, a deeper analysis:
+- Review modulator traces across sessions
+- Extract recurring patterns → update self-profile
+- Detect growth milestones
+- Check value drift
+- Update defense sensitivity</p>
+<p><strong>1 LLM call per reflection cycle.</strong></p>
+<h4 id="v28-growth-milestone-tracking">v2.8: Growth Milestone Tracking</h4>
+<p>Log significant personality shifts:
+- "Fast-path usage dropped 30% over 50 sessions"
+- "Bluntness incidents decreased after self-profile flagged the pattern"
+- Enables: "I used to react impulsively to criticism. I've gotten better."</p>
+<h3 id="v2-llm-budget">v2 LLM Budget</h3>
+<table>
+<thead>
+<tr>
+<th>Configuration</th>
+<th>Calls per message</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1 (core)</td>
+<td>2-3</td>
+</tr>
+<tr>
+<td>v2 with inner dialogue</td>
+<td>4-6</td>
+</tr>
+<tr>
+<td>v2 full (all features)</td>
+<td>5-8</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="build-timeline-vibe-coding-with-claude-code">Build Timeline (vibe coding with Claude Code)</h2>
+<pre><code>v1 Phase 1: Emotional engine (5 modulators)        — Day 1
+v1 Phase 2: Dual memory + digestion                 — Day 1-2
+v1 Phase 3: Entity profiles (person + self + topic)  — Day 2
+v1 Phase 4: Contagion (bounded)                      — Day 2
+v1 Phase 5: Response generation + self-check          — Day 3
+v1 Phase 6: Web interface + debug dashboard           — Day 3-4
+v1 Phase 7: Calibration + evaluation                  — Day 4+
+
+--- v1 working in ~4 days ---
+
+v2.1: Resolution modulator
+v2.2: Inner dialogue (iterative dual process)
+v2.3: Anticipation
+v2.4: Defense mechanisms
+v2.5: Value drift
+v2.6: Attachment variants
+v2.7: Deep self-reflection
+v2.8: Growth tracking
+</code></pre>
+<hr>
+<h2 id="what-we-kept-from-external-feedback">What We Kept From External Feedback</h2>
+<ul>
+<li>Fewer modulators in v1 (5 not 6)</li>
+<li>Fewer LLM calls (2-3 not 5-8)</li>
+<li>Confidence thresholds on memory writes</li>
+<li>Evaluation metrics from day one</li>
+<li>Softer asymmetric coefficients to start</li>
+<li>No raw transcript in long-term memory</li>
+</ul>
+<h2 id="what-we-rejected">What We Rejected</h2>
+<ul>
+<li>"Reframe ambition" — this is an experiment, not a product</li>
+<li>"Cut defense mechanisms entirely" — deferred to v2, not deleted</li>
+<li>"Cut inner dialogue entirely" — deferred to v2, not deleted</li>
+<li>"Cut anticipation entirely" — deferred to v2, not deleted</li>
+<li>"NIST risk guardrails" — not applicable to personal experiment</li>
+<li>"Single self-check is enough" — it's enough for v1, not for the vision</li>
+</ul>
+<h2 id="what-they-missed">What They Missed</h2>
+<ul>
+<li>The self-profiling unification (same mechanism for self and others)
+  was the best design decision in the whole architecture.
+  Neither review engaged with it.</li>
+</ul>
+<hr>
+<p><em>v1 ships a brain that remembers and adapts.</em>
+<em>v2 gives it an inner life.</em></p>
+</main>
+</body>
+</html>

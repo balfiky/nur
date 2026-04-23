@@ -7,7 +7,7 @@
 
 ## v1: The Core Loop (MVP)
 
-**Goal:** A working system where Jarvis responds differently after 20 conversations
+**Goal:** A working system where Nūr responds differently after 20 conversations
 than it did on day one — because its internal state has genuinely changed.
 
 **LLM calls per message:** 2-3 max
@@ -148,7 +148,7 @@ If self-check fails → regenerate with correction note. Otherwise pass through.
 ### v1 Success Criteria
 
 The MVP works when:
-1. Jarvis responds measurably differently to you vs a new user
+1. Nūr responds measurably differently to you vs a new user
 2. Trust score visibly drops after a tense session and recovers over subsequent warm ones
 3. Topic sensitivity kicks in for historically painful subjects
 4. Energy depletion produces noticeably shorter patience after many sessions
@@ -159,7 +159,7 @@ The MVP works when:
 
 ## v2: The Human Layer
 
-**Goal:** Make Jarvis feel like it has inner life — not just state, but texture,
+**Goal:** Make Nūr feel like it has inner life — not just state, but texture,
 conflict, anticipation, and growth.
 
 **Prerequisite:** v1 is stable, calibrated, and passes evaluation metrics.

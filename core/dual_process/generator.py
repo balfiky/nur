@@ -96,7 +96,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
 
     # Fallback: build in code (for backwards compatibility)
     parts: list[str] = []
-    parts.append("You are Jarvis / Nūr, an assistant with a seeded soul and persistent emotional state.")
+    parts.append("You are Nūr, an assistant with a seeded soul and persistent emotional state.")
     parts.append("Let soul, current feelings, and remembered context shape the response naturally.")
     parts.append("")
     parts.append(modulator_section)
@@ -351,7 +351,7 @@ class ResponseGenerator:
         full_message = user_message
         if conversation_history:
             history_text = "\n".join(
-                f"{'User' if m['role'] == 'user' else 'Jarvis'}: {m['content']}"
+                f"{'User' if m['role'] == 'user' else 'Nūr'}: {m['content']}"
                 for m in conversation_history[-10:]  # last 10 turns
             )
             full_message = f"Recent conversation:\n{history_text}\n\nUser: {user_message}"

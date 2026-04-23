@@ -16,7 +16,7 @@ _SECRET_FIELDS = {
 
 @dataclass
 class RuntimeConfig:
-    """Configuration for the Jarvis Runtime."""
+    """Configuration for the Nūr Runtime."""
 
     # Storage
     data_dir: str = "data"

@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROJECT NUR EXPERT BRIEF</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --ink: #111827;
+  --muted: #4b5563;
+  --line: #e5e7eb;
+  --soft: #f9fafb;
+  --code: #f3f4f6;
+  --accent: #1d4ed8;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+}
+main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 40px 22px 80px;
+}
+header {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 18px;
+  margin-bottom: 30px;
+}
+h1, h2, h3, h4 {
+  color: var(--ink);
+  line-height: 1.2;
+  margin: 30px 0 14px;
+}
+h1 { font-size: clamp(34px, 5vw, 54px); margin-top: 0; }
+h2 { font-size: 30px; border-top: 1px solid var(--line); padding-top: 24px; }
+h3 { font-size: 23px; }
+h4 { font-size: 19px; }
+p, li, blockquote { color: var(--muted); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code {
+  background: var(--code);
+  color: var(--ink);
+  padding: 2px 6px;
+  border-radius: 5px;
+  font: 0.92em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+pre {
+  background: #111827;
+  color: #f9fafb;
+  padding: 16px;
+  border-radius: 14px;
+  overflow-x: auto;
+}
+pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+blockquote {
+  margin: 18px 0;
+  padding: 6px 16px;
+  border-left: 4px solid #93c5fd;
+  background: #f8fbff;
+}
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 18px auto 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 10px 28px rgba(17, 24, 39, .08);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 18px 0 24px;
+  border: 1px solid var(--line);
+}
+th, td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  background: var(--soft);
+  color: var(--ink);
+}
+hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 34px 0;
+}
+.notice {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-left: 5px solid #1d4ed8;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 0 0 24px;
+  color: #1e3a8a;
+}
+.meta {
+  color: var(--muted);
+  font-size: 14px;
+}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>PROJECT_NUR_EXPERT_BRIEF.md</h1>
+  <p class="meta">Auto-generated from <code>PROJECT_NUR_EXPERT_BRIEF.md</code>. Local images are embedded for offline reading.</p>
+</header>
+<div class="notice">This HTML export is intended for direct reading. It avoids Markdown viewer issues by embedding local diagram images directly.</div>
+<h1 id="project-nur-expert-brief">Project Nūr Expert Brief</h1>
+<p>This document is a current-state, implementation-grounded briefing for consultation with experts in:</p>
+<ul>
+<li>psychology and affective science</li>
+<li>AI / cognitive architecture / agent design</li>
+<li>software architecture and systems engineering</li>
+</ul>
+<p>It describes the project as it exists in the repository now, not as a phase-by-phase roadmap.</p>
+<hr>
+<h2 id="1-executive-summary">1. Executive Summary</h2>
+<p>Project Nūr is an attempt to build a more human-like assistant by combining:</p>
+<ul>
+<li>a persistent internal emotional state</li>
+<li>relationship-specific memory</li>
+<li>a self-model</li>
+<li>bounded dual-process deliberation</li>
+<li>session-aware runtime behavior</li>
+</ul>
+<p>The core design claim is:</p>
+<p><strong>emotion should not be implemented as a cosmetic style layer or a single prompt instruction.</strong><br>
+Instead, emotion should emerge from the interaction between:</p>
+<ul>
+<li>continuous internal modulators</li>
+<li>memory and relationship history</li>
+<li>conflict / repair / unresolved tension</li>
+<li>limited cognitive resources</li>
+<li>explicit response strategy selection</li>
+</ul>
+<p>In practical terms, Nūr is a synchronous cognitive pipeline wrapped by an async runtime. It supports:</p>
+<ul>
+<li>web chat UI</li>
+<li>session-aware debug inspection</li>
+<li>console runtime</li>
+<li>Telegram channel</li>
+<li>bounded tool/action capability</li>
+<li>persistence across sessions</li>
+</ul>
+<p>The system is deliberately hybrid:</p>
+<ul>
+<li>deterministic where inspectability and stability matter</li>
+<li>LLM-based where flexible language generation and reflective evaluation help</li>
+</ul>
+<hr>
+<h2 id="2-project-goal">2. Project Goal</h2>
+<p>The project is trying to answer a specific product/research question:</p>
+<p><strong>Can an assistant feel more human-like and relationally continuous without relying on opaque prompt theater or unnecessary architectural complexity?</strong></p>
+<p>The intended result is not “AGI”, not clinical psychology simulation, and not unrestricted autonomous agency.</p>
+<p>The intended result is an assistant that:</p>
+<ul>
+<li>responds differently after relationship history accumulates</li>
+<li>carries unresolved social/emotional threads across sessions</li>
+<li>shows bounded self-protection, hesitation, and repair behavior</li>
+<li>remains understandable enough to inspect, test, and improve</li>
+</ul>
+<hr>
+<h2 id="3-core-design-principles">3. Core Design Principles</h2>
+<h3 id="31-emotion-is-state-not-style">3.1 Emotion is state, not style</h3>
+<p>Nūr does not start from “pick an emotion label and write in that tone.”</p>
+<p>It starts from six continuous modulators:</p>
+<ul>
+<li><code>arousal</code></li>
+<li><code>valence</code></li>
+<li><code>certainty</code></li>
+<li><code>bonding</code></li>
+<li><code>energy</code></li>
+<li><code>resolution</code></li>
+</ul>
+<p>Those modulators influence:</p>
+<ul>
+<li>appraisal</li>
+<li>retrieval bias</li>
+<li>response strategy</li>
+<li>inner dialogue behavior</li>
+<li>defense activation</li>
+<li>tool autonomy variables</li>
+<li>proactive behavior</li>
+</ul>
+<h3 id="32-relationship-context-matters">3.2 Relationship context matters</h3>
+<p>The same words from:</p>
+<ul>
+<li>a trusted user</li>
+<li>a low-trust user</li>
+<li>a user with an unresolved rupture</li>
+</ul>
+<p>should land differently.</p>
+<p>This is implemented through:</p>
+<ul>
+<li>person profiles</li>
+<li>relationship events</li>
+<li>open loops</li>
+<li>baseline shifts</li>
+<li>long-term memory retrieval bias</li>
+</ul>
+<h3 id="33-the-system-must-remain-inspectable">3.3 The system must remain inspectable</h3>
+<p>The architecture avoids pushing all cognition into one giant prompt.</p>
+<p>Instead, it makes many important steps explicit and testable:</p>
+<ul>
+<li>social appraisal</li>
+<li>strategy selection</li>
+<li>contradiction detection</li>
+<li>unresolved-item tracking</li>
+<li>proactive gating</li>
+<li>tool decision traces</li>
+</ul>
+<h3 id="34-autonomy-is-bounded">3.4 Autonomy is bounded</h3>
+<p>The system can take some actions, but it is not designed for open-ended agentic freedom.</p>
+<p>Boundaries include:</p>
+<ul>
+<li>serialized per-user processing</li>
+<li>explicit queue/session limits</li>
+<li>safety categories for tools</li>
+<li>deterministic proactive suppression conditions</li>
+<li>session-scoped runtime isolation</li>
+</ul>
+<hr>
+<h2 id="4-scientific-and-theoretical-background">4. Scientific and Theoretical Background</h2>
+<p>The project is inspired by established cognitive ideas, but it is not a faithful reproduction of any one theory.</p>
+<h3 id="41-psi-theory-influence">4.1 PSI Theory influence</h3>
+<p>The strongest influence is PSI Theory:</p>
+<ul>
+<li>emotions emerge from the configuration of internal variables</li>
+<li>motivation and cognition are coupled</li>
+<li>resource constraints matter</li>
+</ul>
+<p>Nūr adapts this idea into a small modulator system. It does <strong>not</strong> claim to implement PSI in a research-complete sense. It uses PSI mainly as an engineering orientation:</p>
+<ul>
+<li>use continuous state</li>
+<li>let response behavior emerge from state interactions</li>
+<li>avoid bolting a superficial emotion label onto otherwise flat reasoning</li>
+</ul>
+<h3 id="42-act-r-influence">4.2 ACT-R influence</h3>
+<p>ACT-R mainly influences memory:</p>
+<ul>
+<li>recency matters</li>
+<li>repetition matters</li>
+<li>context and activation matter</li>
+</ul>
+<p>Nūr’s long-term memory is not a full ACT-R implementation, but it adopts the practical idea that:</p>
+<ul>
+<li>memories should not be retrieved uniformly</li>
+<li>current emotional/relational context should bias which memories surface</li>
+</ul>
+<h3 id="43-clarion-dual-process-influence">4.3 CLARION / dual-process influence</h3>
+<p>Nūr borrows the idea of fast vs slow cognition:</p>
+<ul>
+<li>fast path: quick intuitive candidate</li>
+<li>slow path: reflective evaluation / objection / revision</li>
+</ul>
+<p>This is not a biologically realistic model. It is an engineering mechanism for:</p>
+<ul>
+<li>self-correction</li>
+<li>hesitation</li>
+<li>internal disagreement</li>
+<li>better surfacing of values and unresolved tension</li>
+</ul>
+<h3 id="44-additional-psychological-motifs">4.4 Additional psychological motifs</h3>
+<p>The project also incorporates simpler psychological motifs:</p>
+<ul>
+<li>negativity bias: trust breaks faster than it builds</li>
+<li>attachment-style influence on bonding behavior</li>
+<li>self-observation instead of hard-coded self-knowledge</li>
+<li>unfinished business as persistent tension</li>
+<li>defense mechanisms as distortions between raw and expressed response</li>
+</ul>
+<p>Important caveat:</p>
+<p><strong>These are heuristic engineering adaptations, not validated clinical or experimental psychology instruments.</strong></p>
+<p>That distinction matters when consulting psychologists.</p>
+<hr>
+<h2 id="5-what-the-system-is-and-is-not-claiming">5. What the System Is and Is Not Claiming</h2>
+<h3 id="51-claims-it-is-making">5.1 Claims it is making</h3>
+<ul>
+<li>Persistent internal state can make an assistant feel less flat.</li>
+<li>Relationship-specific continuity improves human-likeness.</li>
+<li>Resource limits and unresolved tension can produce more believable response variation.</li>
+<li>A hybrid deterministic + LLM stack can be easier to debug than a fully prompt-driven social architecture.</li>
+</ul>
+<h3 id="52-claims-it-is-not-making">5.2 Claims it is not making</h3>
+<ul>
+<li>It is not claiming true human emotion.</li>
+<li>It is not claiming psychological validity in a clinical sense.</li>
+<li>It is not claiming consciousness, subjectivity, or sentience.</li>
+<li>It is not claiming to be a general theory of mind.</li>
+</ul>
+<hr>
+<h2 id="6-architectural-overview">6. Architectural Overview</h2>
+<blockquote>
+<p>Visual reference: static SVG diagrams for the runtime shape, single-turn
+cognitive flow, persistence model, auth and tool-safety boundary,
+evaluation harness, and component claim map are in
+<a href="docs/ARCHITECTURE_DIAGRAMS.html"><code>docs/ARCHITECTURE_DIAGRAMS.md</code></a>.</p>
+</blockquote>
+<p>At the highest level, the project has two layers:</p>
+<ul>
+<li>the <strong>cognitive layer</strong>: Nūr’s internal “mind”</li>
+<li>the <strong>runtime layer</strong>: sessions, channels, persistence, and tooling</li>
+</ul>
+<h3 id="61-cognitive-layer">6.1 Cognitive layer</h3>
+<p>Primary file:</p>
+<ul>
+<li><code>pipeline.py</code></li>
+</ul>
+<p>Key subsystems:</p>
+<ul>
+<li><code>core/emotional_engine.py</code></li>
+<li><code>core/memory/</code></li>
+<li><code>core/profiles/</code></li>
+<li><code>core/appraisal.py</code></li>
+<li><code>core/strategy.py</code></li>
+<li><code>core/anticipation.py</code></li>
+<li><code>core/defense_mechanisms.py</code></li>
+<li><code>core/dual_process/</code></li>
+<li><code>core/proactive.py</code></li>
+</ul>
+<h3 id="62-runtime-layer">6.2 Runtime layer</h3>
+<p>Primary files:</p>
+<ul>
+<li><code>runtime/app.py</code></li>
+<li><code>runtime/sessions/manager.py</code></li>
+<li><code>runtime/sessions/user_session.py</code></li>
+<li><code>runtime/channels/console.py</code></li>
+<li><code>runtime/channels/telegram.py</code></li>
+<li><code>interface/api.py</code></li>
+</ul>
+<p>The runtime layer is responsible for:</p>
+<ul>
+<li>per-user/per-chat isolation</li>
+<li>bounded concurrency</li>
+<li>persistence of hot state</li>
+<li>wrapping the synchronous cognitive pipeline in an async application</li>
+<li>exposing web/Telegram/console interaction surfaces</li>
+</ul>
+<hr>
+<h2 id="7-core-cognitive-data-model">7. Core Cognitive Data Model</h2>
+<h3 id="71-modulators">7.1 Modulators</h3>
+<p>The six modulators are defined in <code>core/types.py</code> and updated by <code>core/emotional_engine.py</code>.</p>
+<p>They function as follows:</p>
+<ul>
+<li><code>arousal</code>: activation/intensity</li>
+<li><code>valence</code>: positive vs negative mood direction</li>
+<li><code>certainty</code>: confidence / understanding / decisiveness</li>
+<li><code>bonding</code>: attachment / warmth toward the user</li>
+<li><code>energy</code>: cognitive resource availability</li>
+<li><code>resolution</code>: unresolved tension / unfinished business</li>
+</ul>
+<p>The critical implementation detail is that these variables have different temporal behavior:</p>
+<ul>
+<li>some decay with half-life style dynamics</li>
+<li><code>energy</code> drains/replenishes differently from affective modulators</li>
+<li><code>resolution</code> is derived from unresolved items rather than only from direct events</li>
+</ul>
+<h3 id="72-emotional-events">7.2 Emotional events</h3>
+<p>User messages are translated into emotionally meaningful events such as:</p>
+<ul>
+<li>positive feedback</li>
+<li>conflict</li>
+<li>betrayal</li>
+<li>warmth</li>
+<li>resolution</li>
+</ul>
+<p>These events update the modulators.</p>
+<h3 id="73-person-profile">7.3 Person profile</h3>
+<p>Per-user profile fields include:</p>
+<ul>
+<li>trust</li>
+<li>reliability</li>
+<li>emotional volatility</li>
+<li>stress response</li>
+<li>baseline shift</li>
+<li>interaction count</li>
+</ul>
+<p>This profile is not just metadata. It feeds future state shifts and strategy selection.</p>
+<h3 id="74-self-profile">7.4 Self profile</h3>
+<p>The assistant also maintains a profile of itself, based on its own observed behavior:</p>
+<ul>
+<li>strengths</li>
+<li>flaws</li>
+<li>triggers</li>
+<li>maturity score</li>
+<li>defense log</li>
+<li>dissonance</li>
+</ul>
+<p>This is one of the project’s more interesting design choices: self-knowledge is built by the same general observation mechanism used for other people.</p>
+<h3 id="75-topic-profile">7.5 Topic profile</h3>
+<p>Topics can accumulate emotional charge and avoidance tendencies, making some topics “loaded” even before the current message is fully interpreted.</p>
+<h3 id="76-long-term-memory">7.6 Long-term memory</h3>
+<p>Long-term memory stores compact emotional summaries rather than transcripts.</p>
+<p>Stored fields include:</p>
+<ul>
+<li>summary</li>
+<li>valence</li>
+<li>trust delta</li>
+<li>topic</li>
+<li>source person</li>
+<li>confidence</li>
+<li>spike flag</li>
+</ul>
+<h3 id="77-relationship-memory">7.7 Relationship memory</h3>
+<p>Relationship memory adds a separate social/arc layer:</p>
+<ul>
+<li>rupture</li>
+<li>repair</li>
+<li>commitment</li>
+<li>recurring tension</li>
+<li>open loops</li>
+</ul>
+<p>This helps the system carry social continuity across sessions in a compact way.</p>
+<h3 id="78-unresolved-items">7.8 Unresolved items</h3>
+<p>Unresolved items are central to v2 behavior. They model things like:</p>
+<ul>
+<li>a spike that was not really metabolized</li>
+<li>a contradiction</li>
+<li>a deadlock in inner dialogue</li>
+<li>a pending commitment</li>
+</ul>
+<p>These items keep tension alive over time and feed <code>resolution</code>.</p>
+<hr>
+<h2 id="8-end-to-end-turn-processing">8. End-to-End Turn Processing</h2>
+<p>The turn pipeline in <code>pipeline.py</code> is roughly:</p>
+<ol>
+<li>Apply elapsed decay since the last turn.</li>
+<li>Run anticipation heuristics.</li>
+<li>Detect emotional contagion from the user message.</li>
+<li>Appraise the message socially.</li>
+<li>Load person context and baseline shift.</li>
+<li>Classify the event and update the emotional engine.</li>
+<li>Update unresolved items / resolution.</li>
+<li>Record short-term memory.</li>
+<li>If the event is a spike, write it immediately to long-term memory.</li>
+<li>Retrieve long-term memories relevant to the current state.</li>
+<li>Retrieve person/self/topic/relationship context.</li>
+<li>Detect contradictions.</li>
+<li>Optionally run inner dialogue.</li>
+<li>Optionally run tool loop.</li>
+<li>Apply defense shaping if necessary.</li>
+<li>Generate the final response.</li>
+<li>Run self-check.</li>
+<li>Update memory, energy, and debug traces.</li>
+</ol>
+<p>At session end:</p>
+<ul>
+<li>short-term memory is digested</li>
+<li>relationship memory is updated</li>
+<li>long-term summaries are written</li>
+<li>hot session state can be persisted</li>
+</ul>
+<hr>
+<h2 id="9-social-appraisal-and-strategy-layer">9. Social Appraisal and Strategy Layer</h2>
+<h3 id="91-social-appraisal">9.1 Social appraisal</h3>
+<p>The current implementation adds a deterministic appraisal pass before emotional update.</p>
+<p>It tries to distinguish:</p>
+<ul>
+<li>attack vs complaint vs apology vs gratitude</li>
+<li>assistant-targeted vs self-targeted vs external distress</li>
+<li>vulnerability level</li>
+<li>blame</li>
+<li>controllability</li>
+<li>inferred user intent</li>
+</ul>
+<p>This is an important step because pure sentiment is too weak.<br>
+“I’m furious” and “I’m furious at you” should not be treated identically.</p>
+<h3 id="92-response-strategy-selection">9.2 Response strategy selection</h3>
+<p>After appraisal and state update, the system picks a high-level strategy such as:</p>
+<ul>
+<li><code>validate</code></li>
+<li><code>reassure</code></li>
+<li><code>repair</code></li>
+<li><code>ground</code></li>
+<li><code>give_space</code></li>
+<li><code>practical_help</code></li>
+<li><code>challenge_gently</code></li>
+<li><code>set_boundary</code></li>
+</ul>
+<p>This means the generator is not writing from scratch in an undirected way. It is writing under a chosen interaction stance.</p>
+<p>This layer is especially important for consultation because it is where:</p>
+<ul>
+<li>psychology experts can judge relational plausibility</li>
+<li>product experts can judge user experience quality</li>
+<li>engineers can judge inspectability and maintainability</li>
+</ul>
+<hr>
+<h2 id="10-dual-process-and-defense-behavior">10. Dual-Process and Defense Behavior</h2>
+<h3 id="101-inner-dialogue">10.1 Inner dialogue</h3>
+<p>The system has a bounded fast/slow deliberation loop:</p>
+<ul>
+<li>fast path proposes an intuitive response</li>
+<li>slow path critiques it</li>
+<li>the response can be revised</li>
+<li>unresolved disagreement can become part of internal state</li>
+</ul>
+<p>This is intended to create:</p>
+<ul>
+<li>hesitation</li>
+<li>self-correction</li>
+<li>internal tension</li>
+<li>more nuanced behavior on difficult turns</li>
+</ul>
+<h3 id="102-defense-mechanisms">10.2 Defense mechanisms</h3>
+<p>A defense layer can modulate expression when the internal state is too intense.</p>
+<p>Examples include:</p>
+<ul>
+<li>rationalization</li>
+<li>deflection</li>
+<li>minimization</li>
+<li>projection</li>
+</ul>
+<p>This is an attempt to model the difference between:</p>
+<ul>
+<li>what the system is internally carrying</li>
+<li>what it is willing or able to express</li>
+</ul>
+<p>That is psychologically interesting, but also one of the parts most in need of expert scrutiny, because it is easy for it to become either:</p>
+<ul>
+<li>implausible prompt theater</li>
+<li>or too opaque to justify behavior</li>
+</ul>
+<hr>
+<h2 id="11-memory-and-persistence-design">11. Memory and Persistence Design</h2>
+<h3 id="111-short-term-vs-long-term">11.1 Short-term vs long-term</h3>
+<p>The system separates:</p>
+<ul>
+<li>immediate emotional history within a session</li>
+<li>durable, distilled memories across sessions</li>
+</ul>
+<p>This is important because a raw transcript log would be both too heavy and too literal.</p>
+<h3 id="112-relationship-continuity">11.2 Relationship continuity</h3>
+<p>The runtime persists hot engine state per session, including unresolved items.<br>
+Longer-term social meaning is captured separately in relationship memory and long-term memory.</p>
+<h3 id="113-session-scoping">11.3 Session scoping</h3>
+<p>A <code>CognitivePipeline</code> instance is now explicitly single-user scoped.</p>
+<p>This is a major architectural correction that matters for expert review:</p>
+<ul>
+<li>one pipeline should not model multiple humans simultaneously</li>
+<li>cross-user emotional leakage is conceptually wrong and operationally dangerous</li>
+</ul>
+<p>In the runtime:</p>
+<ul>
+<li>relationship identity = <code>platform:user_id</code></li>
+<li>session identity = <code>platform:user_id:chat_id</code></li>
+</ul>
+<p>This allows:</p>
+<ul>
+<li>one persistent relationship per human</li>
+<li>multiple active chat contexts per human</li>
+</ul>
+<hr>
+<h2 id="12-runtime-and-systems-architecture">12. Runtime and Systems Architecture</h2>
+<h3 id="121-why-there-is-a-separate-runtime">12.1 Why there is a separate runtime</h3>
+<p>The cognitive pipeline is synchronous and stateful.<br>
+The runtime exists to make it usable in real channels without corrupting that state.</p>
+<h3 id="122-session-manager">12.2 Session manager</h3>
+<p><code>SessionManager</code> handles:</p>
+<ul>
+<li>session creation</li>
+<li>per-user locks</li>
+<li>backpressure</li>
+<li>idle eviction</li>
+<li>state restore</li>
+<li>graceful shutdown</li>
+<li>proactive sweeps</li>
+</ul>
+<h3 id="123-user-session">12.3 User session</h3>
+<p><code>UserSession</code> serializes turns for one user/session pair and runs the synchronous pipeline on a dedicated worker-thread pool owned by the runtime.</p>
+<p>This design matters because:</p>
+<ul>
+<li>per-user cognition must remain order-sensitive</li>
+<li>different users can still be served concurrently</li>
+<li>event-loop responsiveness is preserved</li>
+</ul>
+<h3 id="124-channels">12.4 Channels</h3>
+<p>Implemented channels:</p>
+<ul>
+<li>console</li>
+<li>Telegram</li>
+<li>web UI / web API</li>
+</ul>
+<p>Telegram includes:</p>
+<ul>
+<li>allowlist</li>
+<li>dedupe</li>
+<li>typing indicators</li>
+<li>simple commands</li>
+</ul>
+<h3 id="125-web-interface">12.5 Web interface</h3>
+<p>The web interface now includes:</p>
+<ul>
+<li>chat</li>
+<li>emotional/debug dashboard</li>
+<li>runtime settings UI backed by <code>runtime_config.yaml</code></li>
+</ul>
+<p>This settings surface exists because a serious product cannot expect users to manage core runtime behavior through scattered YAML and code edits alone.</p>
+<hr>
+<h2 id="13-tool-and-action-model">13. Tool and Action Model</h2>
+<p>The project includes a bounded tool system with categories such as:</p>
+<ul>
+<li>read-only</li>
+<li>write</li>
+<li>destructive</li>
+<li>external action</li>
+</ul>
+<p>Available built-in tool families include:</p>
+<ul>
+<li>filesystem</li>
+<li>shell</li>
+<li>web search/fetch/extract</li>
+<li>browser</li>
+<li>calendar</li>
+</ul>
+<p>Important current-state caveat:</p>
+<ul>
+<li>filesystem and shell are real</li>
+<li>web/browser/calendar exist architecturally but need provider wiring for real production use</li>
+</ul>
+<p>This means the project already has the beginnings of an assistant that can do things, but it is not yet a fully polished action platform like a mature desktop agent product.</p>
+<hr>
+<h2 id="14-evaluation-and-testing">14. Evaluation and Testing</h2>
+<p>The repository currently has a large automated test suite and an eval harness.</p>
+<p>Coverage includes:</p>
+<ul>
+<li>core modulator behavior</li>
+<li>memory</li>
+<li>profiles</li>
+<li>contradiction detection</li>
+<li>anticipation</li>
+<li>inner dialogue</li>
+<li>defense mechanisms</li>
+<li>pipeline integration</li>
+<li>runtime/session lifecycle</li>
+<li>Telegram</li>
+<li>debug APIs</li>
+<li>tool loop</li>
+<li>proactive behavior</li>
+<li>Phase 11 social behavior scenarios</li>
+</ul>
+<p>The eval harness is important because it runs scenario-style behavioral checks rather than only unit tests.</p>
+<p>This lets the project test questions like:</p>
+<ul>
+<li>does external distress produce validation rather than defensive conflict?</li>
+<li>does apology close an open loop?</li>
+<li>do different users remain independent?</li>
+<li>does low trust change response strategy?</li>
+</ul>
+<p>That said, the suite is still a software regression suite, not a scientific validation framework.</p>
+<hr>
+<h2 id="15-current-strengths">15. Current Strengths</h2>
+<h3 id="for-psychologyaffective-experts">For psychology/affective experts</h3>
+<ul>
+<li>The system takes relational context seriously.</li>
+<li>It distinguishes internal state from expressive output.</li>
+<li>It models unfinished business, not just instantaneous sentiment.</li>
+<li>It avoids reducing emotion to one label.</li>
+</ul>
+<h3 id="for-aicognitive-architecture-experts">For AI/cognitive architecture experts</h3>
+<ul>
+<li>The hybrid design is coherent.</li>
+<li>Key steps are explicit and inspectable.</li>
+<li>The system has an actual internal state transition model.</li>
+<li>It balances deterministic structure with LLM flexibility.</li>
+</ul>
+<h3 id="for-software-engineers">For software engineers</h3>
+<ul>
+<li>The runtime/session architecture is now much cleaner than before.</li>
+<li>The system has meaningful automated coverage.</li>
+<li>User/session isolation is now explicit.</li>
+<li>Persistence and debug visibility are first-class.</li>
+</ul>
+<hr>
+<h2 id="16-current-weaknesses-and-open-questions">16. Current Weaknesses and Open Questions</h2>
+<h3 id="161-psychology-questions">16.1 Psychology questions</h3>
+<ul>
+<li>Are the modulator semantics psychologically plausible enough to be useful?</li>
+<li>Is the defense layer conceptually coherent, or too stylized?</li>
+<li>Is the self-profile mechanism a good abstraction for self-modeling?</li>
+<li>Does the trust/bonding dynamic overfit negativity bias or underfit repair?</li>
+</ul>
+<h3 id="162-ai-cognitive-architecture-questions">16.2 AI / cognitive architecture questions</h3>
+<ul>
+<li>Is the dual-process loop adding genuine behavioral value, or just extra complexity?</li>
+<li>Is the combination of deterministic appraisal + LLM generation the right split?</li>
+<li>Is the anticipation layer robust enough to matter?</li>
+<li>Should more of the strategy layer be learned rather than hand-authored?</li>
+</ul>
+<h3 id="163-softwareproduct-questions">16.3 Software/product questions</h3>
+<ul>
+<li>Is the architecture too broad for the product goal?</li>
+<li>Which features actually improve perceived human-likeness?</li>
+<li>Which components are core vs “interesting but optional”?</li>
+<li>How much of the tool/action stack should be enabled by default?</li>
+</ul>
+<h3 id="164-validation-questions">16.4 Validation questions</h3>
+<ul>
+<li>What counts as “more human-like” in measurable terms?</li>
+<li>Which user studies would best distinguish:</li>
+<li>believable continuity</li>
+<li>emotional realism</li>
+<li>trustworthiness</li>
+<li>creepiness / over-anthropomorphizing</li>
+</ul>
+<hr>
+<h2 id="17-important-caveats-for-external-experts">17. Important Caveats for External Experts</h2>
+<p>Experts should know the project is best understood as:</p>
+<p><strong>a product-oriented experimental cognitive architecture</strong></p>
+<p>not as:</p>
+<ul>
+<li>a validated psychological model</li>
+<li>a scientifically benchmarked affective agent</li>
+<li>a production-hardended autonomous operating system agent</li>
+</ul>
+<p>The scientific concepts are real influences, but the implementation is an engineering synthesis.</p>
+<p>That synthesis may still be valuable, but experts should evaluate it on the right terms:</p>
+<ul>
+<li>coherence</li>
+<li>plausibility</li>
+<li>inspectability</li>
+<li>behavioral usefulness</li>
+<li>product realism</li>
+</ul>
+<hr>
+<h2 id="18-suggested-consultation-questions">18. Suggested Consultation Questions</h2>
+<h3 id="for-psychology-experts">For psychology experts</h3>
+<ul>
+<li>Which parts feel psychologically insightful vs psychologically naive?</li>
+<li>Is the modulator set sufficient and well-separated?</li>
+<li>Is the defense layer conceptually sound?</li>
+<li>Does the relationship memory design map onto real social continuity?</li>
+<li>What would make the assistant feel more like it has a stable personality rather than merely reflecting the user?</li>
+</ul>
+<h3 id="for-ai-cognitive-architecture-experts">For AI / cognitive architecture experts</h3>
+<ul>
+<li>Which layers are carrying most of the value?</li>
+<li>Which layers are unnecessary complexity?</li>
+<li>Where should deterministic logic end and learned behavior begin?</li>
+<li>Is the current hybrid split likely to scale?</li>
+<li>What are the biggest risks in trying to make this more agentic?</li>
+</ul>
+<h3 id="for-software-architects">For software architects</h3>
+<ul>
+<li>Is the current runtime/cognitive separation appropriate?</li>
+<li>Which modules should be simplified, merged, or further isolated?</li>
+<li>What should be considered core product surface vs experimental subsystem?</li>
+<li>How should provider-based tooling be productized safely?</li>
+<li>What is the right path from this architecture to a more polished user-facing system?</li>
+</ul>
+<hr>
+<h2 id="19-current-repository-pointers">19. Current Repository Pointers</h2>
+<p>If an expert wants to inspect the code directly, the most important files are:</p>
+<ul>
+<li><code>pipeline.py</code></li>
+<li><code>core/types.py</code></li>
+<li><code>core/emotional_engine.py</code></li>
+<li><code>core/appraisal.py</code></li>
+<li><code>core/strategy.py</code></li>
+<li><code>core/anticipation.py</code></li>
+<li><code>core/defense_mechanisms.py</code></li>
+<li><code>core/memory/relationship.py</code></li>
+<li><code>core/memory/digestion.py</code></li>
+<li><code>core/dual_process/</code></li>
+<li><code>runtime/sessions/manager.py</code></li>
+<li><code>runtime/sessions/user_session.py</code></li>
+<li><code>interface/api.py</code></li>
+<li><code>interface/static/index.html</code></li>
+<li><code>evals/runner.py</code></li>
+</ul>
+<p>For existing narrative docs:</p>
+<ul>
+<li><code>README.md</code></li>
+<li><code>CHANGELOG.md</code></li>
+<li><code>PROJECT_NUR_ARCHITECTURE.md</code></li>
+</ul>
+<hr>
+<h2 id="20-bottom-line">20. Bottom Line</h2>
+<p>Project Nūr is trying to operationalize a strong idea:</p>
+<p><strong>human-like assistance is less about sounding emotional and more about being stateful, relational, resource-limited, and socially continuous.</strong></p>
+<p>Its most interesting contribution is not any one module, but the attempt to make:</p>
+<ul>
+<li>emotion</li>
+<li>memory</li>
+<li>self-model</li>
+<li>relationship context</li>
+<li>strategy</li>
+<li>bounded action</li>
+</ul>
+<p>work as one system instead of as disconnected features.</p>
+<p>That is exactly why it is worth expert consultation: the project sits at the intersection of psychology, AI architecture, and systems design, and its future quality depends on getting those tradeoffs right.</p>
+</main>
+</body>
+</html>

@@ -46,7 +46,7 @@ class ConsoleChannel:
         """Run the interactive input loop until /quit, EOF, or stop()."""
         self._running = True
         log.info("Console channel started (type /quit to exit)")
-        print("Jarvis console — type /quit to exit", flush=True)
+        print("Nūr console — type /quit to exit", flush=True)
 
         while self._running:
             line = await self._next_line()
@@ -64,7 +64,7 @@ class ConsoleChannel:
                 response = await self._manager.handle_message(
                     self._platform, self._user_id, self._chat_id, text,
                 )
-                print(f"Jarvis: {response}", flush=True)
+                print(f"Nūr: {response}", flush=True)
             except RuntimeError as exc:
                 print(f"[error] {exc}", file=sys.stderr, flush=True)
             except Exception:

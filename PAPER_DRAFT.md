@@ -238,9 +238,10 @@ individually has precedent in parts; the synthesis is what we offer.
 > auth/tool boundary, eval harness, component claim map) are
 > consolidated in
 > [`docs/ARCHITECTURE_DIAGRAMS.md`](docs/ARCHITECTURE_DIAGRAMS.md) and
-> embedded as static SVG assets.
+> rendered in Markdown as PNG previews, with SVG source assets kept
+> under `docs/diagrams/`.
 
-![Single-turn cognitive flow](docs/diagrams/single-turn-cognitive-flow.svg)
+![Single-turn cognitive flow](docs/diagrams/single-turn-cognitive-flow.png)
 
 Each turn through the cognitive layer runs a consistent sequence: the
 emotional state updates from the user's message, memory and profile
@@ -460,7 +461,7 @@ between provider updates. The split is also why the ablation protocol
 in §6 can isolate architectural contributions cleanly: changing the
 LLM backend does not change what the deterministic layers compute.
 
-![Runtime architecture](docs/diagrams/runtime-architecture.svg)
+![Runtime architecture](docs/diagrams/runtime-architecture.png)
 
 ### 5.2 Runtime and cognitive layer separation
 
@@ -490,7 +491,7 @@ SQLite database at `data/shared/self_model.db`, keyed by the literal
 entity id `__self__`, deliberately separated from any user's data so
 "delete this user" has a clean definition.
 
-![Memory and persistence model](docs/diagrams/memory-persistence-model.svg)
+![Memory and persistence model](docs/diagrams/memory-persistence-model.png)
 
 ### 5.3 Host surfaces
 
@@ -511,7 +512,7 @@ by design does not touch the shared self-model database. Best-effort
 row counts are reported in the response so the caller can verify what
 was wiped.
 
-![Auth and tool-safety boundary](docs/diagrams/auth-tool-safety-boundary.svg)
+![Auth and tool-safety boundary](docs/diagrams/auth-tool-safety-boundary.png)
 
 ### 5.4 Provenance-first evaluation harness
 
@@ -671,7 +672,7 @@ commit, a single backend, and a single set of config fingerprints
 in the run's provenance block so a reader can verify that no variant
 was run against a different code state or configuration.
 
-![Evaluation and ablation harness](docs/diagrams/evaluation-ablation-harness.svg)
+![Evaluation and ablation harness](docs/diagrams/evaluation-ablation-harness.png)
 
 ### 6.4 Results
 
@@ -731,7 +732,7 @@ fails if the hardcoded heuristic returns. Latency varies by about 10%
 across variants; this is within the bounds of provider jitter and does
 not reflect systematic differences between variants.
 
-![Component claim map](docs/diagrams/component-claim-map.svg)
+![Component claim map](docs/diagrams/component-claim-map.png)
 
 ### 6.6 Reproducibility
 

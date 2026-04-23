@@ -65,13 +65,13 @@ learned implicit/explicit coordination) is not.
 The runtime has two hosts (`nur` and `nur-web`) that share the same
 session and cognitive layer.
 
-![Runtime architecture](docs/diagrams/runtime-architecture.svg)
+![Runtime architecture](docs/diagrams/runtime-architecture.png)
 
 One message, one pass through the pipeline. Stage order matches
 `pipeline.py::CognitivePipeline.process`. Diamonds are gates; label
 counts are LLM calls per stage.
 
-![Single-turn cognitive flow](docs/diagrams/single-turn-cognitive-flow.svg)
+![Single-turn cognitive flow](docs/diagrams/single-turn-cognitive-flow.png)
 
 Typical per-turn LLM budget: **1**. Optional paths add inner dialogue,
 LLM self-check, and one possible regeneration. There is no fixed safe
@@ -129,7 +129,7 @@ On each turn, the layer injects a compact relationship context — a
 summary, up to two active open loops, and up to two recent events —
 into the generator's prompt.
 
-![Memory and persistence model](docs/diagrams/memory-persistence-model.svg)
+![Memory and persistence model](docs/diagrams/memory-persistence-model.png)
 
 ### Social appraisal and response strategy
 
@@ -172,7 +172,7 @@ behavioral scenario suite on a real LLM backend. Every run records git
 SHA, backend identity, config fingerprints (SHA-256 of 16 prompt and
 configuration files), scenario set, and execution counters.
 
-![Evaluation and ablation harness](docs/diagrams/evaluation-ablation-harness.svg)
+![Evaluation and ablation harness](docs/diagrams/evaluation-ablation-harness.png)
 
 **Important framing:** the scenario suite tests *structural* outcomes —
 whether the right strategy was selected, whether modulators moved the
@@ -219,7 +219,7 @@ whose structural contribution is measurable under reproducible
 conditions, and the remaining components are **not falsifiable by this
 suite** rather than shown inert.
 
-![Component claim map](docs/diagrams/component-claim-map.svg)
+![Component claim map](docs/diagrams/component-claim-map.png)
 
 ---
 
@@ -261,7 +261,7 @@ Deployers of this system to anyone other than themselves are
 responsible for obtaining informed consent. Persistent relational state
 can invite attachment beyond what is appropriate for an assistant.
 
-![Auth and tool-safety boundary](docs/diagrams/auth-tool-safety-boundary.svg)
+![Auth and tool-safety boundary](docs/diagrams/auth-tool-safety-boundary.png)
 
 ---
 

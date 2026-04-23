@@ -1,11 +1,11 @@
-# Jarvis Runtime — Revised Implementation Spec
+# Nūr Runtime — Revised Implementation Spec
 
 > **Status:** Pre-implementation, implementation-ready
 > **Purpose:** Build a purpose-built runtime around Project Nūr without fighting a framework and without assuming APIs Nūr does not currently expose.
 
 ## 1. Goal
 
-Jarvis Runtime is the transport and lifecycle layer around Nūr.
+Nūr Runtime is the transport and lifecycle layer around Nūr.
 
 It is responsible for:
 - receiving messages from channels
@@ -77,7 +77,7 @@ Refactor pipeline construction so:
   - self-profile observations
   - defense history
 
-Without this, “one Jarvis personality across all users” is false.
+Without this, “one Nūr personality across all users” is false.
 
 ### 4.4 Keep Nūr synchronous in phase 1
 
@@ -96,7 +96,7 @@ Current implementation:
 Channels (Telegram / Console / later WhatsApp)
         │
         ▼
-JarvisApp
+NurApp
         │
         ▼
 SessionManager
@@ -125,7 +125,7 @@ The runtime must distinguish between **relationship identity** and **session ide
 - Session state key: `platform:user_id:chat_id`
 
 Implication:
-- the same human can have one accumulated relationship with Jarvis
+- the same human can have one accumulated relationship with Nūr
 - but distinct active conversational sessions across DM vs group contexts
 
 Default group-chat interpretation:
@@ -227,7 +227,7 @@ Each session-state JSON contains:
 - self observations
 - self trait extraction cache if kept
 - defense history
-- any future global Jarvis identity state
+- any future global Nūr identity state
 
 Shared self-model write invariant:
 - all writes to the shared self-model happen only inside serialized per-user
@@ -492,7 +492,7 @@ Do not do these in the first runtime pass:
 
 ## 18. Final Design Principle
 
-Jarvis Runtime should be thin, but not fake-thin.
+Nūr Runtime should be thin, but not fake-thin.
 
 The correct thinness is:
 - channels

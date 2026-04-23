@@ -1,4 +1,4 @@
-"""JarvisApp — top-level runtime orchestrator."""
+"""NurApp — top-level runtime orchestrator."""
 
 from __future__ import annotations
 
@@ -16,8 +16,8 @@ from runtime.tools import create_tool_executor
 log = logging.getLogger(__name__)
 
 
-class JarvisApp:
-    """Lifecycle manager for the Jarvis Runtime.
+class NurApp:
+    """Lifecycle manager for the Nūr Runtime.
 
     Wires together the session manager, LLM backend, channels, and debug API.
     Handles graceful shutdown on SIGINT / SIGTERM.
@@ -202,7 +202,7 @@ class JarvisApp:
         platform, _, chat_id = parts
 
         if platform == "console" and self._console is not None:
-            print(f"Jarvis: {message}", flush=True)
+            print(f"Nūr: {message}", flush=True)
         elif platform == "telegram" and self._telegram is not None:
             try:
                 await self._telegram._client.send_message(int(chat_id), message)
@@ -227,3 +227,8 @@ class JarvisApp:
         self._shutdown_event.set()
         if self._console is not None:
             self._console._running = False
+
+
+# Backward-compatibility alias for older imports/tests while the public name
+# moves to Nūr.
+JarvisApp = NurApp

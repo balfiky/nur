@@ -1,4 +1,4 @@
-# Jarvis Agentic Tools — Revised Design Spec
+# Nūr Agentic Tools — Revised Design Spec
 
 > **Status:** Pre-implementation, implementation-ready
 > **Date:** 2026-04-02
@@ -6,7 +6,7 @@
 
 ## 1. Goal
 
-Jarvis should be able to:
+Nūr should be able to:
 - access the local system
 - browse the web
 - inspect and modify files
@@ -20,7 +20,7 @@ The key requirement is:
 **Tool use must happen inside cognition, not outside it.**
 
 That means:
-- emotions influence whether Jarvis acts
+- emotions influence whether Nūr acts
 - inner dialogue can propose, revise, or refuse actions
 - defense mechanisms can shape action style or deflect from action
 - tool outcomes feed back into emotional state, memory, and self-model
@@ -33,7 +33,7 @@ The tool layer is the body.
 The runtime must not follow this pattern:
 
 ```text
-user request -> tool executor -> tool result -> Jarvis narrates
+user request -> tool executor -> tool result -> Nūr narrates
 ```
 
 It must follow this pattern:
@@ -48,8 +48,8 @@ user request
 ```
 
 This preserves the research objective:
-- Jarvis does not merely have tools
-- Jarvis develops action tendencies, caution, persistence, and frustration
+- Nūr does not merely have tools
+- Nūr develops action tendencies, caution, persistence, and frustration
 
 ## 3. Current Constraints
 
@@ -81,7 +81,7 @@ Therefore:
 - emotions may influence whether to ask first or act directly
 - emotions may influence how risky or broad an action is
 - emotions may influence retry behavior and persistence
-- emotions may influence whether Jarvis narrows scope or escalates scope
+- emotions may influence whether Nūr narrows scope or escalates scope
 
 This design does **not** force externally imposed safety-governance behavior into cognition.
 
@@ -236,7 +236,7 @@ class ToolCapability:
 ## 7.3 ToolIntent
 
 This is the key cognitive object.
-It represents what Jarvis wants to do.
+It represents what Nūr wants to do.
 
 ```python
 @dataclass
@@ -352,7 +352,7 @@ and before:
 - defense mechanisms
 - generator
 
-That is the point where Jarvis has enough context to decide whether to act.
+That is the point where Nūr has enough context to decide whether to act.
 
 ## 9.2 Updated processing flow
 
@@ -423,10 +423,10 @@ Do not create a second independent planner that bypasses inner dialogue.
 The Action Arbiter is a cognitive decision layer, not an external policy firewall.
 
 Its job is:
-- decide whether Jarvis acts now
-- decide whether Jarvis asks first
-- decide whether Jarvis refuses
-- decide whether Jarvis narrows scope or retries
+- decide whether Nūr acts now
+- decide whether Nūr asks first
+- decide whether Nūr refuses
+- decide whether Nūr narrows scope or retries
 
 Inputs:
 - `ToolIntent`
@@ -526,7 +526,7 @@ Tool behavior should feed self-observations such as:
 - persistent
 - technically competent
 
-These observations matter because they let Jarvis develop action style over time.
+These observations matter because they let Nūr develop action style over time.
 
 ## 13.4 Unresolved items
 
@@ -579,7 +579,7 @@ Recommended operations:
 - `find_by_topic(topic)`
 - `find_by_person(person_id)`
 
-This gives Jarvis explicit introspective recall when the user asks:
+This gives Nūr explicit introspective recall when the user asks:
 - "Do you remember...?"
 - "What did I tell you about...?"
 
@@ -603,7 +603,7 @@ MCP tools must be adapted into the exact same internal model as builtin tools:
 - `ToolResult`
 - `ToolObservation`
 
-Jarvis should not need separate cognition for MCP tools.
+Nūr should not need separate cognition for MCP tools.
 
 ## 15.3 Adapter responsibilities
 
@@ -774,7 +774,7 @@ Protect against:
 
 This design is complete when:
 
-1. Jarvis can choose between replying directly and using a tool
+1. Nūr can choose between replying directly and using a tool
 2. Tool use is visible in inner dialogue traces
 3. A tool result changes emotional state in a measurable/debuggable way
 4. Salient tool episodes enter memory
@@ -796,11 +796,11 @@ Do not do these first:
 
 ## 24. Final Design Principle
 
-Jarvis should not become:
+Nūr should not become:
 - a generic agent framework with a personality prompt
 - or a tool runner wrapped in emotional narration
 
-Jarvis should become:
+Nūr should become:
 - a cognitive system whose emotions, memory, tension, and self-model
   shape real action in the environment.
 

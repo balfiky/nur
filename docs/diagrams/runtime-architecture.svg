@@ -103,7 +103,7 @@
 <text x="155.0" y="565" text-anchor="middle" class="box-body" style="font-size:13px">curl, NurClient,</text>
 <text x="155.0" y="581" text-anchor="middle" class="box-body" style="font-size:13px">dashboards</text>
 <rect x="345" y="180" width="250" height="72" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
-<text x="470.0" y="206" text-anchor="middle" class="box-title" style="font-size:16px">JarvisApp</text>
+<text x="470.0" y="206" text-anchor="middle" class="box-title" style="font-size:16px">NurApp</text>
 <text x="470.0" y="235" text-anchor="middle" class="box-body" style="font-size:13px">owns channels and lifecycle</text>
 <rect x="345" y="300" width="250" height="64" rx="16" fill="#ffffff" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
 <text x="470.0" y="326" text-anchor="middle" class="box-title" style="font-size:16px">ConsoleChannel</text>

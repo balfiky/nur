@@ -371,7 +371,7 @@ Tunes decision heuristics based on eval results, extracts arbiter thresholds as 
 
 ## v0.18.0 — 2026-04-02 (Phase 9: Evaluation, calibration, and benchmark harness)
 
-Adds a dedicated evaluation layer that makes Jarvis measurable, comparable across revisions, and easier to tune. No new user-facing features — purely instrumentation and regression infrastructure.
+Adds a dedicated evaluation layer that makes Nūr measurable, comparable across revisions, and easier to tune. No new user-facing features — purely instrumentation and regression infrastructure.
 
 ### Evaluation framework (`evals/`)
 - `evals/types.py` — `EvalScenario`, `EvalTurn`, `EvalAssertion`, `EvalResult`, `EvalReport`, `EvalMetrics`, `ModulatorRange`
@@ -443,7 +443,7 @@ evicted by the idle timer mid-execution.
 Fixes three correctness issues in the Phase 8 proactive behavior implementation.
 
 ### Fix 1: Proactive delivery wiring (`runtime/app.py`)
-- `JarvisApp` now passes `_deliver_proactive` as `proactive_callback` to `SessionManager`
+- `NurApp` now passes `_deliver_proactive` as `proactive_callback` to `SessionManager`
 - Console delivery: prints proactive messages to stdout (same format as normal responses)
 - Telegram delivery: sends proactive messages via `TelegramClient.send_message`
 - Routes based on platform extracted from session_key (`platform:user_id:chat_id`)
@@ -468,7 +468,7 @@ Fixes three correctness issues in the Phase 8 proactive behavior implementation.
 
 ## v0.17.0 — 2026-04-02 (Agentic Tools Phase 8: proactive and autonomous behavior)
 
-Adds bounded proactive behavior — Jarvis can now initiate actions and follow-up messages based on unresolved tension, pending tasks, commitments, and idle-time patterns. All autonomy is explicitly bounded and inspectable.
+Adds bounded proactive behavior — Nūr can now initiate actions and follow-up messages based on unresolved tension, pending tasks, commitments, and idle-time patterns. All autonomy is explicitly bounded and inspectable.
 
 ### Proactive trigger model (`core/types.py`)
 - `ProactiveTriggerSource` enum: unresolved_item, pending_task, commitment, temporal, emotional_salience
@@ -477,7 +477,7 @@ Adds bounded proactive behavior — Jarvis can now initiate actions and follow-u
 - `ProactiveTrace` dataclass: triggers found, action taken, suppressed reasons, limits applied, idle time, count
 
 ### Proactive evaluation layer (`core/proactive.py`)
-- `evaluate_proactive()` — deterministic evaluation (zero LLM calls) of whether Jarvis should initiate behavior
+- `evaluate_proactive()` — deterministic evaluation (zero LLM calls) of whether Nūr should initiate behavior
 - Trigger collection: gathers candidates from unresolved items (intensity ≥ 0.3), pending task plans, commitments, temporal patterns (idle + resolution), emotional salience
 - Trigger scoring: intensity adjusted by resolution boost, energy penalty, bonding/trust boost, arousal modulation
 - Bound checks: max proactive per session, idle threshold, cooldown between actions, energy floor
@@ -497,7 +497,7 @@ Adds bounded proactive behavior — Jarvis can now initiate actions and follow-u
 - `SessionManager.run_proactive_loop()` — periodic async loop that sweeps all sessions for proactive opportunities
 - `_proactive_sweep()` / `_run_proactive()` — per-session evaluation with idle guards and error isolation
 - Proactive callback mechanism: `proactive_callback(session_key, user_id, message)` for channel delivery
-- `JarvisApp` starts proactive loop as background task when `proactive_enabled=True`
+- `NurApp` starts proactive loop as background task when `proactive_enabled=True`
 - Proactive loop cleanly cancelled on shutdown
 
 ### Debug / observability (`runtime/debug/api.py`)
@@ -705,7 +705,7 @@ Full observability for tool-aware turns through the runtime debug API.
 
 ## v0.12.0 — 2026-04-02 (Agentic Tools Phase 3: memory and self-model coupling)
 
-Tool episodes now persist into memory, self-model, and unresolved tension — making tool behavior part of Jarvis's ongoing identity and emotional history.
+Tool episodes now persist into memory, self-model, and unresolved tension — making tool behavior part of Nūr's ongoing identity and emotional history.
 
 ### Tool memory coupling (`core/tool_memory.py`)
 - `create_tool_event()` — creates EmotionalEvent for short-term memory from tool results
@@ -940,7 +940,7 @@ Closes the remaining runtime gaps after the pre-merge review.
 
 ## v0.8.1 — 2026-04-02 (Runtime pre-merge fixes)
 
-Five pre-merge fixes closing spec gaps in the Jarvis Runtime.
+Five pre-merge fixes closing spec gaps in the Nūr Runtime.
 
 ### Fix 1: Session identity semantics (`runtime/sessions/manager.py`, `user_session.py`)
 - Sessions now keyed by **session_key** (`platform:user_id:chat_id`), not rel_key
@@ -959,7 +959,7 @@ Five pre-merge fixes closing spec gaps in the Jarvis Runtime.
 
 ### Fix 3: Config-driven channel startup (`runtime/app.py`, `runtime/config.py`)
 - `RuntimeConfig` gains `console_enabled: bool = True`
-- `JarvisApp.run()` starts console only when `console_enabled=True`
+- `NurApp.run()` starts console only when `console_enabled=True`
 - Headless mode: when console disabled, blocks on `_shutdown_event.wait()`
 - Signal handler sets `_shutdown_event` for both console and headless modes
 - Telegram-only runtime works without console
@@ -973,7 +973,7 @@ Five pre-merge fixes closing spec gaps in the Jarvis Runtime.
 
 ### Fix 5: Docs sync
 - CHANGELOG.md, CLAUDE.md, README.md updated to match final implementation
-- Design doc (`JARVIS_RUNTIME_DESIGN_REVISED.md`) left as-is — it is a pre-implementation spec; intentional deviations documented in CLAUDE.md
+- Design doc (`NUR_RUNTIME_DESIGN_REVISED.md`) left as-is — it is a pre-implementation spec; intentional deviations documented in CLAUDE.md
 
 ### Testing
 - 643 tests total (26 new)
@@ -1005,7 +1005,7 @@ Session-aware debug API replacing the old single-pipeline debug model.
 ### Config + wiring
 - `RuntimeConfig` gains `debug_host` (default `127.0.0.1`) and `debug_port` (default `8077`)
 - `runtime_config.yaml` updated with debug section
-- Debug server runs as background uvicorn task in JarvisApp
+- Debug server runs as background uvicorn task in NurApp
 - Graceful shutdown stops debug server alongside channels
 
 ### Testing
@@ -1133,7 +1133,7 @@ First runtime layer around Nūr. Console-only. Nūr remains synchronous — the 
 - One backend per pipeline (thread safety — `requests.Session` is not thread-safe)
 
 ### App orchestrator (`runtime/app.py`, `main.py`)
-- `JarvisApp` wires session manager + console channel
+- `NurApp` wires session manager + console channel
 - Signal handler for SIGINT/SIGTERM → graceful shutdown
 - Entry point: `python main.py`
 
@@ -1162,7 +1162,7 @@ First runtime layer around Nūr. Console-only. Nūr remains synchronous — the 
 
 ## v0.4.0 — 2026-04-02 (Phase 0: Runtime embedding)
 
-Mandatory Nūr-side changes to support the Jarvis Runtime. No external behavior changes.
+Mandatory Nūr-side changes to support the Nūr Runtime. No external behavior changes.
 
 ### EmotionalEngine.restore()
 - `restore(snapshot, saved_at=None)` restores modulators from a dict snapshot
@@ -1527,7 +1527,7 @@ First complete version. All v1 systems built, tested, and wired together.
 - Bounded mirroring: max +/-0.15 shift, weighted by bonding score
 
 ### Dual Process
-- Response generation: single LLM call with full emotional context (Jarvis personality)
+- Response generation: single LLM call with full emotional context (Nūr personality)
 - Self-check: rule-based (tone fit, overconfidence, bluntness, energy, contradictions) + optional LLM
 - Regeneration with correction note on self-check failure
 

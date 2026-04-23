@@ -1,0 +1,1769 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CHANGELOG</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --ink: #111827;
+  --muted: #4b5563;
+  --line: #e5e7eb;
+  --soft: #f9fafb;
+  --code: #f3f4f6;
+  --accent: #1d4ed8;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+}
+main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 40px 22px 80px;
+}
+header {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 18px;
+  margin-bottom: 30px;
+}
+h1, h2, h3, h4 {
+  color: var(--ink);
+  line-height: 1.2;
+  margin: 30px 0 14px;
+}
+h1 { font-size: clamp(34px, 5vw, 54px); margin-top: 0; }
+h2 { font-size: 30px; border-top: 1px solid var(--line); padding-top: 24px; }
+h3 { font-size: 23px; }
+h4 { font-size: 19px; }
+p, li, blockquote { color: var(--muted); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code {
+  background: var(--code);
+  color: var(--ink);
+  padding: 2px 6px;
+  border-radius: 5px;
+  font: 0.92em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+pre {
+  background: #111827;
+  color: #f9fafb;
+  padding: 16px;
+  border-radius: 14px;
+  overflow-x: auto;
+}
+pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+blockquote {
+  margin: 18px 0;
+  padding: 6px 16px;
+  border-left: 4px solid #93c5fd;
+  background: #f8fbff;
+}
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 18px auto 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 10px 28px rgba(17, 24, 39, .08);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 18px 0 24px;
+  border: 1px solid var(--line);
+}
+th, td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  background: var(--soft);
+  color: var(--ink);
+}
+hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 34px 0;
+}
+.notice {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-left: 5px solid #1d4ed8;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 0 0 24px;
+  color: #1e3a8a;
+}
+.meta {
+  color: var(--muted);
+  font-size: 14px;
+}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>CHANGELOG.md</h1>
+  <p class="meta">Auto-generated from <code>CHANGELOG.md</code>. Local images are embedded for offline reading.</p>
+</header>
+<div class="notice">This HTML export is intended for direct reading. It avoids Markdown viewer issues by embedding local diagram images directly.</div>
+<h1 id="changelog">Changelog</h1>
+<p>All notable changes to Project Nur are documented here.</p>
+<hr>
+<h2 id="v0220-2026-04-23-pre-publication-launch-blocker-fixes">v0.22.0 — 2026-04-23 (Pre-publication launch-blocker fixes)</h2>
+<p>Fixes three release-acceptance blockers surfaced by a pre-publication audit.
+The cognitive/eval layer was healthy; the runtime packaging and the
+auth/tool security posture were not. This release makes the public launch
+safe.</p>
+<h3 id="fixed">Fixed</h3>
+<ul>
+<li><strong>B1 — packaging.</strong> <code>python3 -m pip install -e ".[dev]"</code> no longer fails
+  with <code>Multiple top-level packages discovered in a flat-layout</code>. Added
+  <code>[tool.setuptools] py-modules = ["main", "pipeline"]</code> and an explicit
+  <code>[tool.setuptools.packages.find]</code> include/exclude list in
+  <code>pyproject.toml:21-29</code>. The <code>nur</code> and <code>nur-web</code> console scripts
+  advertised in README's 5-Minute Start are installed again.</li>
+<li><strong>B2 — auth coverage on legacy routes.</strong> README previously claimed that
+  setting <code>api_key</code> protects every endpoint except <code>/v1/health</code> and
+  <code>/v1/ready</code>. In fact only the <code>/v1/*</code> router enforced it; <code>/chat</code>,
+  <code>/debug</code>, <code>/config</code> (GET + POST), <code>/session/end</code>, <code>/rest</code>, and <code>/ws</code>
+  stayed open — an unauthenticated <code>POST /config</code> could even clear the
+  api_key and disable auth entirely. Added a shared <code>_require_bearer</code>
+  dependency in <code>interface/api.py</code> and attached it to every mutating
+  legacy route. <code>/ws</code> does an inline check on a <code>?token=</code> query param
+  because FastAPI does not run dependencies for WebSocket handlers. Only
+  <code>GET /</code> (the static HTML shell) stays open so the UI can bootstrap.</li>
+<li><strong>B2 — bundled UI keeps working under auth.</strong> <code>interface/static/index.html</code>
+  now has a <code>Web/API Bearer Token</code> field in the Settings drawer plus an
+  <code>authHeaders()</code> helper. The token is persisted to <code>localStorage</code> and
+  attached to every <code>fetch</code> to <code>/chat</code>, <code>/config</code>, <code>/debug</code>, <code>/session/end</code>,
+  and <code>/rest</code>.</li>
+<li><strong>B3 — agentic tool runtime is off by default.</strong> Three new
+  <code>RuntimeConfig</code> fields (<code>tools_enabled</code>, <code>tools_workspace</code>,
+  <code>shell_tool_enabled</code>) gate the production factory in
+  <code>runtime/tools.py</code>. Default is <code>tools_enabled=false</code>, so chat messages
+  that match the regex intents in <code>core/dual_process/tool_loop.py</code> no
+  longer trigger <code>fs.delete_path</code>, <code>shell.run_command</code>, etc. When the
+  operator flips <code>tools_enabled: true</code>, filesystem tools are sandboxed
+  to <code>tools_workspace</code> (default <code>&lt;data_dir&gt;/workspace</code>); paths that
+  resolve outside it are refused. <code>shell.run_command</code> is a separate
+  opt-in because subprocess execution has a larger blast radius than
+  bounded file I/O.</li>
+</ul>
+<h3 id="added">Added</h3>
+<ul>
+<li><code>tools/builtin/filesystem.py:create_handlers(workspace)</code> — returns
+  sandboxed handlers that validate every path against a workspace root
+  before performing I/O. Relative paths are resolved against the
+  workspace so workspace-relative usage works.</li>
+<li><code>tests/test_interface_v1.py::TestLegacyEndpointAuth</code> — 10 regression
+  tests locking in the B2 fix: <code>/chat</code>, <code>/debug</code>, <code>GET /config</code>,
+  <code>POST /config</code>, <code>/session/end</code>, <code>/rest</code>, and <code>/ws</code> all reject
+  unauthenticated requests when <code>api_key</code> is set; the static <code>/</code> stays
+  open; a valid token is accepted on both HTTP and WS.</li>
+<li><code>SECURITY.md</code> — new "Agentic Tool Runtime" section documenting the
+  regex-intent layer, the sandbox, and the full auth coverage.</li>
+</ul>
+<h3 id="documentation">Documentation</h3>
+<ul>
+<li>README 5-Minute Start, auth-coverage paragraph, and tool-safety
+  callout rewritten against the new behavior.</li>
+<li>Test counts reconciled to <strong>1331</strong> across <code>README.md</code>,
+  <code>TECHNICAL_NOTE.md</code>, and <code>PAPER_DRAFT.md</code>.</li>
+<li>README eval example updated to <code>python3 -m evals --backend mock --tag
+  phase11</code> (the CLI has required <code>--backend</code> since v0.19).</li>
+</ul>
+<h3 id="also-fixed-during-the-same-release-audit">Also fixed during the same release audit</h3>
+<ul>
+<li><strong><code>nur</code> console SIGINT/shutdown hang.</strong> The console loop used
+  <code>asyncio.to_thread(input)</code>, which left a worker thread blocked on
+  stdin and in turn blocked <code>loop.shutdown_default_executor</code> on exit.
+  <code>runtime/channels/console.py</code> now polls stdin via <code>select</code> with a
+  200 ms timeout so setting <code>_running = False</code> (from signal handlers or
+  <code>/quit</code>) takes effect within that window. <code>_signal_shutdown</code> no longer
+  fire-and-forgets a <code>ConsoleChannel.stop()</code> coroutine.
+  <code>runtime/app.py::_teardown</code> replaces the old task-cancel scattershot
+  with a single graceful-then-cancel path that sets uvicorn's
+  <code>should_exit = True</code>, awaits background tasks with a 5 s timeout,
+  then hard-cancels stragglers. SIGINT now exits in ~250 ms.</li>
+<li><strong><code>POST /config</code> silently resetting tool settings.</strong> The web Settings
+  form does not surface <code>tools_enabled</code> / <code>tools_workspace</code> /
+  <code>shell_tool_enabled</code>, so a plain save used to reset them to the safe
+  defaults (False / ""). <code>ConfigUpdateRequest</code> now defaults those
+  fields to <code>None</code> and the handler treats <code>None</code> as "leave the existing
+  YAML value intact"; explicit booleans/strings still take effect. Two
+  new tests in <code>test_interface.py</code> lock this in.</li>
+<li><strong>Dependency bounds.</strong> Added upper caps on every production
+  dependency (<code>fastapi&lt;0.140</code>, <code>starlette&lt;2.0</code>, <code>httpx&lt;1.0</code>,
+  <code>uvicorn&lt;1.0</code>, <code>pyyaml&lt;7.0</code>, <code>requests&lt;3.0</code>, <code>anyio&lt;5.0</code>,
+  <code>pydantic&lt;3.0</code>) plus an inline comment recording the exact
+  known-good combination (<code>fastapi 0.135.2 / starlette 1.0.0 / uvicorn
+  0.42.0 / httpx 0.28.1 / anyio 4.13.0 / pydantic 2.12.x</code>). Keeps a
+  fresh public <code>pip install</code> from resolving to an untested combo.</li>
+</ul>
+<h3 id="tests">Tests</h3>
+<ul>
+<li>Full suite: <strong>1331 passed</strong> (<code>python -m pytest</code>) across two clean
+  runs — 12 new tests total, zero regressions.</li>
+</ul>
+<hr>
+<h2 id="v0210-2026-04-08-versioned-integration-api-python-client">v0.21.0 — 2026-04-08 (Versioned integration API + Python client)</h2>
+<p>Adds a stable <code>/v1/*</code> HTTP surface and a thin Python client so Project Nūr can be embedded into dashboards, chatbots, eval harnesses, and orchestrators without depending on the bundled web UI or scraping the legacy endpoints.</p>
+<h3 id="added_1">Added</h3>
+<ul>
+<li><code>interface/v1.py</code> — versioned FastAPI router built by <code>build_v1_router(session_manager_getter, config_getter, serve_started_at)</code>. Endpoints:</li>
+<li><code>GET /v1/health</code>, <code>GET /v1/ready</code> — liveness / readiness (no auth even when a key is set).</li>
+<li><code>POST /v1/chat</code> — run one turn through the pipeline; returns <code>response</code>, <code>session_key</code>, <code>emotion_label</code>, <code>energy</code>, and optional <code>debug</code>.</li>
+<li><code>GET /v1/sessions</code>, <code>GET /v1/sessions/{key:path}</code>, <code>POST /v1/sessions/{key:path}/reset</code>.</li>
+<li><code>POST /v1/sessions/end</code>, <code>POST /v1/sessions/rest</code>.</li>
+<li><code>GET /v1/profiles/self</code>, <code>GET /v1/profiles/person</code>.</li>
+<li><code>GET /v1/memory/long_term</code>, <code>GET /v1/memory/relationship</code>.</li>
+<li><code>GET /v1/tools</code> — enumerate registered capabilities.</li>
+<li><code>GET /v1/config</code> — runtime config with secrets redacted.</li>
+<li><code>interface/client.py</code> — <code>NurClient</code> synchronous Python wrapper (stdlib + <code>requests</code>) with typed <code>NurAPIError</code>, context-manager support, and one method per endpoint.</li>
+<li><code>runtime/config.py</code> — new fields <code>api_key</code> (bearer token; empty = auth disabled) and <code>cors_origins</code> (list; empty = same-origin only). <code>api_key</code> joins the secret-redaction set alongside <code>telegram_token</code>, <code>llm_api_key</code>, and <code>minimax_api_key</code>.</li>
+<li><code>interface/api.py</code> — mounts the v1 router at app startup, installs CORS middleware driven by <code>cors_origins</code>, and extends the <code>POST /config</code> schema with <code>api_key</code>, <code>cors_origins</code>, and <code>clear_api_key</code> so the bearer token can be rotated through the settings UI.</li>
+<li><code>tests/test_interface_v1.py</code> — 26 tests covering every endpoint, the opt-in Bearer middleware, secret redaction, and the <code>NurClient</code> error path.</li>
+</ul>
+<h3 id="design-notes">Design notes</h3>
+<ul>
+<li><strong>Auth is opt-in.</strong> With <code>api_key=""</code> the v1 surface is wide open (useful for local dev and CI). Set it, and every endpoint except <code>/v1/health</code> and <code>/v1/ready</code> rejects requests without <code>Authorization: Bearer &lt;key&gt;</code>. The dependency re-reads the current config on every request, so rotating the key through <code>POST /config</code> takes effect immediately — no restart.</li>
+<li><strong>Single source of truth.</strong> The v1 router queries the live <code>SessionManager</code>, so integrators see the same state as the web UI and the Telegram channel. No duplicate cache layer.</li>
+<li><strong>Legacy endpoints unchanged.</strong> The root <code>/</code>, <code>/chat</code>, <code>/config</code>, <code>/ws</code>, etc. still serve the bundled web UI for backward compatibility.</li>
+</ul>
+<h3 id="tests_1">Tests</h3>
+<ul>
+<li>Full suite: <strong>1251 passed</strong> (<code>python -m pytest</code>) — 26 new tests, zero regressions.</li>
+</ul>
+<hr>
+<h2 id="v0206-2026-04-08-second-pass-neutral-audit-real-resource-bugs">v0.20.6 — 2026-04-08 (Second-pass neutral audit — real resource bugs)</h2>
+<p>Neutral re-review of the codebase surfaced four real bugs the earlier pass missed. Focus: resource hygiene under sustained use.</p>
+<h3 id="fixed_1">Fixed</h3>
+<ul>
+<li><code>tools/builtin/web_provider.py</code> — <strong><code>fetch()</code> silently ignored the 2 MB cap</strong>. The previous implementation used <code>requests.get(stream=True)</code> followed by <code>resp.content[:CAP]</code>, but accessing <code>.content</code> buffers the entire body before the slice. A large page would consume memory proportional to its full size, not the cap. Rewritten to stream via <code>iter_content</code> and stop once <code>_MAX_FETCH_BYTES</code> is reached.</li>
+<li><code>tools/builtin/web_provider.py</code> — <code>search()</code> / <code>fetch()</code> now wrap the <code>Response</code> in a context manager so the HTTP connection is returned to the pool on every exit path, including errors.</li>
+<li><code>tools/builtin/web_provider.py</code> — added <code>RequestsWebProvider.close()</code> to release the underlying <code>requests.Session</code> on shutdown.</li>
+<li><code>tools/builtin/filesystem.py</code> — <code>_read_file</code> used <code>open(path).read()</code> without a context manager, leaving the file handle reliant on GC timing. Wrapped in <code>with</code>.</li>
+<li><code>core/llm_client.py</code> — added <code>LLMClient.close()</code> so session evictions can release the persistent HTTP connection pool instead of leaking it for every evicted user.</li>
+<li><code>pipeline.py</code> — <code>CognitivePipeline.close()</code> now releases the LLM backend's HTTP session (deduped when fast and primary share the same instance) and any closable resources registered via <code>ToolExecutor._owned_resources</code>.</li>
+<li><code>runtime/tools.py</code> — <code>create_tool_executor</code> registers the <code>RequestsWebProvider</code> on <code>executor._owned_resources</code> so pipeline shutdown can drain its connection pool.</li>
+<li><code>interface/api.py</code> — <code>_start_telegram</code> failures were silently swallowed by the lifespan task. Added a <code>done_callback</code> that logs exceptions immediately, plus a broadened <code>except</code> in <code>_stop_telegram_channel</code> so a task that already failed cannot break the shutdown path.</li>
+</ul>
+<h3 id="added_2">Added</h3>
+<ul>
+<li><code>tests/test_web_provider.py</code> — regression coverage for the <code>_MAX_FETCH_BYTES</code> cap, <code>Response</code> context-manager usage, <code>close()</code>, DDG parsing, and HTML-to-text stripping.</li>
+<li><code>tests/test_llm_client.py::TestLLMClient::test_close_releases_session</code> — guards the new <code>close()</code> contract.</li>
+</ul>
+<h3 id="audit-notes-false-positives-discarded">Audit Notes (false positives discarded)</h3>
+<ul>
+<li>"Race on <code>_pending_message_count</code>" — rejected. asyncio is single-threaded; no <code>await</code> exists between the backpressure check and the increment.</li>
+<li>"Path traversal in <code>fs.*</code>" — rejected. Per CLAUDE.md the agent is a local personal assistant; filesystem access is by-design.</li>
+</ul>
+<h3 id="tests_2">Tests</h3>
+<ul>
+<li>Full suite: <strong>1225 passed</strong> (<code>python -m pytest</code>) — 9 new tests added, zero regressions.</li>
+</ul>
+<hr>
+<h2 id="v0205-2026-04-08-deep-review-tool-wiring-test-alignment">v0.20.5 — 2026-04-08 (Deep review, tool wiring, test alignment)</h2>
+<p>Full-codebase audit against the stated cognitive-architecture purpose, followed by a bug sweep of modified files.</p>
+<h3 id="added_3">Added</h3>
+<ul>
+<li><code>tools/builtin/web_provider.py</code> — <code>RequestsWebProvider</code> using DuckDuckGo HTML lite for search, <code>requests.Session</code> for fetch, and a lightweight HTML-to-text extractor. No new dependencies.</li>
+</ul>
+<h3 id="fixed_2">Fixed</h3>
+<ul>
+<li><code>runtime/tools.py</code> — the production <code>create_tool_executor</code> now wires <code>RequestsWebProvider</code> so <code>web.search</code> / <code>web.fetch</code> / <code>web.extract_text</code> work in the runtime surface (previously no provider → tools were unavailable).</li>
+<li><code>core/llm_client.py</code> — log HTTP body on non-200 LLM responses before raising, so upstream errors surface instead of being opaque.</li>
+<li><code>core/dual_process/tool_loop.py</code> — default-path trigger patterns for <code>fs.list_dir</code> ("what's in /tmp", "list the files", "show me files"), and broadened the web-search pattern to cover "internet", "online", "google", "browse".</li>
+<li><code>tests/test_interface.py</code> — <code>test_serves_html</code> and <code>test_has_v2_sections</code> assertions aligned with the redesigned UI strings ("Nūr", "Unresolved", "Settings", "Save").</li>
+</ul>
+<h3 id="tests_3">Tests</h3>
+<ul>
+<li>Full suite: <strong>1216 passed</strong> (<code>python -m pytest</code>).</li>
+</ul>
+<hr>
+<h2 id="v0204-2026-04-03-web-settings-surface-for-runtime-config">v0.20.4 — 2026-04-03 (Web settings surface for runtime config)</h2>
+<p>Moves the practical runtime configuration out of scattered YAML/manual file edits and into the existing web interface.</p>
+<h3 id="added_4">Added</h3>
+<ul>
+<li><code>GET /config</code> and <code>POST /config</code> in <code>interface/api.py</code></li>
+<li>browser-based settings drawer in <code>interface/static/index.html</code></li>
+<li><code>RuntimeConfig.to_yaml_dict()</code>, <code>write_yaml()</code>, <code>to_public_dict()</code>, and <code>secret_status()</code> in <code>runtime/config.py</code></li>
+</ul>
+<h3 id="behavior">Behavior</h3>
+<ul>
+<li>Web UI can now edit:</li>
+<li>Telegram token / allowlist / polling settings</li>
+<li>LLM backend type, base URL, model, and keys</li>
+<li>runtime queue/session limits</li>
+<li>debug host/port</li>
+<li>proactive behavior settings</li>
+<li>Secret values are never returned to the browser</li>
+<li>Blank secret fields preserve existing stored values</li>
+<li>Explicit clear toggles remove stored secret values</li>
+<li>Saving via the web UI writes back to <code>runtime_config.yaml</code></li>
+<li>Saving also reloads the standalone web surface's <code>SessionManager</code></li>
+</ul>
+<h3 id="tests_4">Tests</h3>
+<ul>
+<li>Added focused config-UI coverage in <code>tests/test_interface.py</code></li>
+<li><code>tests/test_interface.py</code> and <code>tests/test_runtime_config.py</code> pass</li>
+</ul>
+<h3 id="docs">Docs</h3>
+<ul>
+<li><code>README.md</code> now documents the Settings button and <code>/config</code> endpoints</li>
+</ul>
+<hr>
+<h2 id="v0203-2026-04-03-post-review-housekeeping">v0.20.3 — 2026-04-03 (Post-review housekeeping)</h2>
+<h3 id="fixed_3">Fixed</h3>
+<ul>
+<li><code>interface/api.py</code> — replaced deprecated <code>@app.on_event("shutdown")</code> with <code>lifespan</code> context manager</li>
+</ul>
+<h3 id="docs_1">Docs</h3>
+<ul>
+<li><code>CLAUDE.md</code> — updated test count from 1194 to 1210</li>
+<li><code>README.md</code> — updated Phase 11 status from "underway" to "complete"</li>
+</ul>
+<hr>
+<h2 id="v0202-2026-04-02-phase-11-reporting-utility">v0.20.2 — 2026-04-02 (Phase 11 reporting utility)</h2>
+<p>Adds a focused developer script for inspecting Phase 11 human-likeness behavior turn by turn.</p>
+<h3 id="reporting-utility-testsrun_phase11_reportpy">Reporting utility (<code>tests/run_phase11_report.py</code>)</h3>
+<ul>
+<li>Added <code>python -m tests.run_phase11_report</code></li>
+<li>Runs the existing <code>phase11</code> eval scenarios and prints:</li>
+<li>the normal pass/fail assertion report</li>
+<li>a detailed per-turn trace with event classification, appraisal target/move, selected response strategy, relationship summary, and session-end digestion</li>
+<li>Supports <code>--scenario &lt;id&gt;</code> for a single Phase 11 scenario</li>
+<li>Supports <code>--json</code> for structured output</li>
+</ul>
+<h3 id="tests_5">Tests</h3>
+<ul>
+<li>Added <code>tests/test_phase11_report.py</code></li>
+</ul>
+<h3 id="docs_2">Docs</h3>
+<ul>
+<li><code>README.md</code> — added the Phase 11 trace-report command</li>
+<li><code>README.md</code> — future roadmap now reflects that the lean Phase 11 track is complete and the next step is soak/calibration, not more architecture</li>
+</ul>
+<hr>
+<h2 id="v0201-2026-04-02-phase-11-eval-automation-and-strategyappraisal-fixes">v0.20.1 — 2026-04-02 (Phase 11 eval automation and strategy/appraisal fixes)</h2>
+<p>Adds an automated Phase 11 human-likeness regression pack and tightens a few strategy/appraisal edges it exposed.</p>
+<h3 id="eval-harness-evalstypespy-evalsrunnerpy-evalsscenariospy">Eval harness (<code>evals/types.py</code>, <code>evals/runner.py</code>, <code>evals/scenarios.py</code>)</h3>
+<ul>
+<li><code>EvalTurn.end_session</code> allows multi-session scenarios inside the existing eval runner</li>
+<li><code>run_scenario()</code> now persists <code>initial_trust</code> correctly before turns run</li>
+<li>Runner closes the pipeline after each scenario</li>
+<li>Added 6 <code>phase11</code> scenarios covering:</li>
+<li>external distress vs relational harm</li>
+<li>low-trust hostility -&gt; <code>set_boundary</code></li>
+<li>mixed-affect overwhelm -&gt; <code>ground</code></li>
+<li>actionable request -&gt; <code>practical_help</code></li>
+<li>persisted open loop -&gt; <code>challenge_gently</code></li>
+<li>apology/repair closing an open loop across sessions</li>
+<li>New one-command regression path: <code>python -m evals --tag phase11</code></li>
+</ul>
+<h3 id="fixes-surfaced-by-the-new-evals">Fixes surfaced by the new evals</h3>
+<ul>
+<li><code>core/strategy.py</code></li>
+<li>external non-directed complaints validate more often instead of defaulting to reassure</li>
+<li>mixed affect + vulnerability grounds earlier when the system is already activated</li>
+<li>apologies into active open loops choose <code>repair</code></li>
+<li><code>core/appraisal.py</code></li>
+<li>assistant-addressed apologies now target the assistant correctly</li>
+<li><code>core/memory/digestion.py</code></li>
+<li>apology-based resolution can resolve existing relationship open loops even when appraisal target is imperfect</li>
+<li><code>pipeline.py</code></li>
+<li>self-check regeneration now preserves <code>response_strategy</code> in the correction context</li>
+</ul>
+<h3 id="docs_3">Docs</h3>
+<ul>
+<li><code>README.md</code> — added Phase 11 eval command</li>
+<li><code>CLAUDE.md</code> — updated eval suite counts and Phase 11 tag guidance</li>
+</ul>
+<hr>
+<h2 id="v0200-2026-04-02-phase-11-appraisal-relationship-memory-and-response-strategy">v0.20.0 — 2026-04-02 (Phase 11: appraisal, relationship memory, and response strategy)</h2>
+<p>Starts the lean Phase 11 track aimed at making Nūr feel more human without adding prompt theater or heavy new subsystems. This release improves how Nūr interprets social meaning, carries relationship continuity across sessions, and selects a concrete response approach before generation.</p>
+<h3 id="deterministic-social-appraisal-coreappraisalpy-coretypespy-pipelinepy">Deterministic social appraisal (<code>core/appraisal.py</code>, <code>core/types.py</code>, <code>pipeline.py</code>)</h3>
+<ul>
+<li>Added <code>AppraisalFrame</code> to represent turn-level social interpretation before emotional update:</li>
+<li><code>primary_target</code>, <code>social_move</code>, <code>inferred_intent</code>, <code>blame</code>, <code>controllability</code></li>
+<li><code>expectation_violation</code>, <code>vulnerability</code>, <code>affiliation_bid</code>, <code>mixed_affect</code></li>
+<li>explicit <code>targets_assistant</code> flag for relational vs non-relational affect</li>
+<li>Added <code>core/appraisal.py</code> — deterministic appraisal pass with no mandatory LLM call</li>
+<li>Pipeline now runs <code>contagion -&gt; appraisal -&gt; event classification</code></li>
+<li>External distress such as "I'm furious about work, not at you" no longer damages trust or gets misclassified as conflict</li>
+<li>Assistant-directed conflict, hostility, gratitude, apology, and warmth now route through appraisal-aware event classification</li>
+</ul>
+<h3 id="relationship-arc-memory-corememoryrelationshippy-corememorydigestionpy-pipelinepy">Relationship-arc memory (<code>core/memory/relationship.py</code>, <code>core/memory/digestion.py</code>, <code>pipeline.py</code>)</h3>
+<ul>
+<li>Added <code>RelationshipMemory</code> with two SQLite-backed stores:</li>
+<li><code>relationship_events</code> — durable arc events like <code>rupture</code>, <code>repair</code>, <code>commitment</code>, <code>recurring_tension</code></li>
+<li><code>open_loops</code> — unresolved relational threads and pending follow-up commitments</li>
+<li>Added new shared types:</li>
+<li><code>RelationshipEvent</code></li>
+<li><code>OpenLoop</code></li>
+<li><code>RelationshipContext</code></li>
+<li>Session digestion now extracts only high-value relational updates:</li>
+<li>rupture after assistant-directed conflict / strong negative feedback</li>
+<li>repair after apology / resolution</li>
+<li>explicit follow-up commitments from assistant replies</li>
+<li>recurring tension when the same conflict pattern returns</li>
+<li>Pipeline retrieves a compact <code>relationship_context</code> before generation and exposes it in debug output</li>
+<li>Generator prompt now includes relationship context alongside regular long-term memory</li>
+</ul>
+<h3 id="response-strategy-selector-corestrategypy-coretypespy-pipelinepy">Response strategy selector (<code>core/strategy.py</code>, <code>core/types.py</code>, <code>pipeline.py</code>)</h3>
+<ul>
+<li>Added <code>ResponseStrategy</code> enum: <code>validate</code>, <code>reassure</code>, <code>repair</code>, <code>ground</code>, <code>give_space</code>, <code>practical_help</code>, <code>challenge_gently</code>, <code>set_boundary</code></li>
+<li>Added <code>core/strategy.py</code> — deterministic strategy selection from appraisal + modulators + person profile + relationship context (0 LLM calls)</li>
+<li>Priority-ordered selection: boundary → repair → give_space → ground → validate → reassure → practical_help → challenge_gently → fallback</li>
+<li><code>STRATEGY_INSTRUCTIONS</code> dict maps each strategy to a compact prompt directive</li>
+<li>Pipeline runs strategy selection after defense (Step 13b), before generation</li>
+<li>Strategy instruction injected into generator system prompt as <code>## Response Strategy</code> section</li>
+<li><code>DebugState.response_strategy</code> captures the chosen strategy for inspection</li>
+<li>Debug API serializes <code>response_strategy</code> field</li>
+</ul>
+<h3 id="schema-migration-coreschemapy">Schema migration (<code>core/schema.py</code>)</h3>
+<ul>
+<li>Schema version bumped <code>1 -&gt; 2</code></li>
+<li>Added a real migration path instead of placeholder version bumps</li>
+<li>Migration creates:</li>
+<li><code>relationship_events</code></li>
+<li><code>open_loops</code></li>
+<li>indexes for per-person retrieval</li>
+</ul>
+<h3 id="debug-observability-runtimedebugapipy">Debug / observability (<code>runtime/debug/api.py</code>)</h3>
+<ul>
+<li>Session debug memory counts now include:</li>
+<li><code>relationship_events</code></li>
+<li><code>open_loops</code></li>
+<li><code>last_turn</code> debug payload now includes <code>relationship_context</code></li>
+</ul>
+<h3 id="tests_6">Tests</h3>
+<ul>
+<li>Added <code>tests/test_appraisal.py</code></li>
+<li>Added <code>tests/test_relationship_memory.py</code></li>
+<li>Added <code>tests/test_strategy.py</code> — 27 tests covering all 8 strategies, priority ordering, pipeline integration, generator prompt injection, debug serialization</li>
+<li>Expanded integration coverage in:</li>
+<li><code>tests/test_pipeline.py</code></li>
+<li><code>tests/test_dual_process.py</code></li>
+<li><code>tests/test_debug_api.py</code></li>
+<li><code>tests/test_phase0.py</code></li>
+<li><code>tests/test_agentic_tools_phase2.py</code></li>
+</ul>
+<hr>
+<h2 id="v0190-2026-04-02-phase-10-calibration-and-policy-shaping">v0.19.0 — 2026-04-02 (Phase 10: Calibration and policy shaping)</h2>
+<p>Tunes decision heuristics based on eval results, extracts arbiter thresholds as named constants, and adds calibration boundary regression scenarios.</p>
+<h3 id="calibration-changes">Calibration changes</h3>
+<ul>
+<li><code>core/action_variables.py</code> — persistence_drive base 0.50 → 0.45 (plans block under moderate fatigue instead of always continuing)</li>
+<li><code>core/action_variables.py</code> — action_urgency base 0.30 → 0.25 (defer path reachable when tired + calm)</li>
+<li><code>core/proactive.py</code> — valence boost +0.05 when <code>valence &lt; 0.3</code> (negative mood amplifies unfinished-business triggers)</li>
+<li><code>core/tool_memory.py</code> — <code>_TRUST_POSITIVE_TOOL</code> 0.01 → 0.015 (tool trust asymmetry 1:3 → 1:2, still conservative)</li>
+<li><code>core/dual_process/tool_loop.py</code> — arbiter thresholds extracted as named constants: <code>REFUSE_RISK_TOLERANCE</code>, <code>CLARIFY_AUTONOMY_BIAS</code>, <code>CLARIFY_WRITE_THRESHOLD</code>, <code>DEFER_URGENCY_THRESHOLD</code></li>
+</ul>
+<h3 id="calibration-boundary-scenarios-evalsscenariospy">Calibration boundary scenarios (<code>evals/scenarios.py</code>)</h3>
+<ul>
+<li>8 new scenarios in Suite 7 (calibration regression):</li>
+<li>Persistence drive below/above blocking threshold at different energy levels</li>
+<li>Defer path reachable with low arousal + low energy</li>
+<li>No defer at moderate state</li>
+<li>Negative valence boundary for proactive boost</li>
+<li>Refuse destructive with low certainty + trust</li>
+<li>Clarify when autonomy bias drops below threshold</li>
+<li>Tool trust positive delta is 0.015</li>
+</ul>
+<h3 id="documentation_1">Documentation</h3>
+<ul>
+<li><code>CALIBRATION_NOTES.md</code> — detailed notes on what was tuned, original vs new values, rationale, tradeoffs</li>
+</ul>
+<h3 id="tests_7">Tests</h3>
+<ul>
+<li>9 new tests in <code>tests/test_evals.py</code> (8 calibration integration + 1 count check)</li>
+<li>28/28 eval scenarios passing (72/72 assertions)</li>
+<li>Full suite: 1153 tests passing</li>
+</ul>
+<hr>
+<h2 id="v0180-2026-04-02-phase-9-evaluation-calibration-and-benchmark-harness">v0.18.0 — 2026-04-02 (Phase 9: Evaluation, calibration, and benchmark harness)</h2>
+<p>Adds a dedicated evaluation layer that makes Nūr measurable, comparable across revisions, and easier to tune. No new user-facing features — purely instrumentation and regression infrastructure.</p>
+<h3 id="evaluation-framework-evals">Evaluation framework (<code>evals/</code>)</h3>
+<ul>
+<li><code>evals/types.py</code> — <code>EvalScenario</code>, <code>EvalTurn</code>, <code>EvalAssertion</code>, <code>EvalResult</code>, <code>EvalReport</code>, <code>EvalMetrics</code>, <code>ModulatorRange</code></li>
+<li>14 assertion kinds: tool_used, tool_not_used, tool_category, decision, modulator_range, unresolved_created/resolved, task_plan_created/continued/completed, proactive_triggered/suppressed, debug_field, response_contains, response_not_empty, custom</li>
+<li>Scenarios describe initial state, conversation turns, expected tool/emotional/task/proactive behavior, with range-based assertions</li>
+<li><code>evals/runner.py</code> — deterministic runner executing scenarios through the real <code>CognitivePipeline</code></li>
+<li><code>run_scenario()</code>, <code>run_scenarios()</code>, <code>run_by_tag()</code> — single, batch, and tag-filtered execution</li>
+<li>Per-assertion checking against pipeline response + debug state</li>
+<li>Proactive evaluation support with configurable idle simulation</li>
+<li>Performance metrics collection: LLM calls, tool calls, latency, stage timings, defense activations</li>
+<li><code>evals/reporting.py</code> — text and JSON report generators</li>
+<li>Text: pass/fail summary, per-scenario metrics, failure details</li>
+<li>JSON: full structured output with turn modulators, assertion results, metrics</li>
+<li><code>evals/__main__.py</code> — CLI entrypoint: <code>python -m evals [--tag TAG] [--json] [--list]</code></li>
+</ul>
+<h3 id="golden-behavior-suites-evalsscenariospy">Golden behavior suites (<code>evals/scenarios.py</code>)</h3>
+<ul>
+<li>20 scenarios across 6 suites:</li>
+<li><strong>Emotional core</strong> (5): warm greeting, hostile spike, escalation, energy drain, de-escalation recovery</li>
+<li><strong>Tool loop</strong> (6): file read, list dir, conversational no-trigger, web search, failure emotional effects, debug trace population</li>
+<li><strong>Task planning</strong> (2): multi-step plan creation, single-step no-plan</li>
+<li><strong>Proactive</strong> (2): suppressed when calm, suppressed when low energy</li>
+<li><strong>Defense/resolution</strong> (2): defense with low trust, contradiction unresolved tension</li>
+<li><strong>Relationship</strong> (3): high trust positive, low trust guarded, independent user states</li>
+<li>56 assertions total, all passing</li>
+</ul>
+<h3 id="performance-counters">Performance counters</h3>
+<ul>
+<li>LLM call count, tool call count, total latency, per-stage timings</li>
+<li>Proactive count, task loop count, unresolved items created, defense activations</li>
+<li>All counters appear in both text and JSON report output</li>
+</ul>
+<h3 id="tests_8">Tests</h3>
+<ul>
+<li>52 new tests in <code>tests/test_evals.py</code></li>
+<li>Framework unit tests: types, assertion checking, modulator ranges</li>
+<li>Reporting tests: text format, JSON validity, metrics display</li>
+<li>Scenario definition tests: counts, IDs unique, tags present</li>
+<li>Integration tests: 12 scenarios run through real pipeline with mock backend</li>
+<li>Runner tests: batch, tag filtering, metrics collection</li>
+<li>Full suite: 1144 tests passing</li>
+</ul>
+<hr>
+<h2 id="v0172-2026-04-02-phase-8-correctness-fix-proactive-active-work-guard">v0.17.2 — 2026-04-02 (Phase 8 correctness fix: proactive active-work guard)</h2>
+<p>Fixes the remaining Phase 8 race where a long proactive run could still be
+evicted by the idle timer mid-execution.</p>
+<h3 id="proactive-active-work-accounting-runtimesessionsuser_sessionpy-runtimesessionsmanagerpy">Proactive active-work accounting (<code>runtime/sessions/user_session.py</code>, <code>runtime/sessions/manager.py</code>)</h3>
+<ul>
+<li><code>UserSession</code> now tracks active work with an explicit counter instead of a
+  single shared boolean</li>
+<li>Normal message processing and proactive execution both participate in the
+  same active-work lifecycle</li>
+<li>Idle-time eviction and proactive sweeps now consult the explicit active-work
+  state instead of only <code>_processing</code></li>
+<li><code>_run_proactive()</code> marks session work active for the full duration of
+  pipeline execution and callback delivery, then clears it in <code>finally</code></li>
+</ul>
+<h3 id="regression-coverage-teststest_agentic_tools_phase8py">Regression coverage (<code>tests/test_agentic_tools_phase8.py</code>)</h3>
+<ul>
+<li>Added a regression test proving <code>_timeout_evict()</code> will not evict a session
+  while proactive execution is in-flight</li>
+</ul>
+<h3 id="tests_9">Tests</h3>
+<ul>
+<li><code>pytest --collect-only -q</code> → <code>1092 tests collected</code></li>
+<li><code>tests/test_agentic_tools_phase8.py</code> → <code>65 passed</code></li>
+</ul>
+<hr>
+<h2 id="v0171-2026-04-02-phase-8-correctness-fixes-callback-wiring-serialization-decay">v0.17.1 — 2026-04-02 (Phase 8 correctness fixes: callback wiring, serialization, decay)</h2>
+<p>Fixes three correctness issues in the Phase 8 proactive behavior implementation.</p>
+<h3 id="fix-1-proactive-delivery-wiring-runtimeapppy">Fix 1: Proactive delivery wiring (<code>runtime/app.py</code>)</h3>
+<ul>
+<li><code>NurApp</code> now passes <code>_deliver_proactive</code> as <code>proactive_callback</code> to <code>SessionManager</code></li>
+<li>Console delivery: prints proactive messages to stdout (same format as normal responses)</li>
+<li>Telegram delivery: sends proactive messages via <code>TelegramClient.send_message</code></li>
+<li>Routes based on platform extracted from session_key (<code>platform:user_id:chat_id</code>)</li>
+<li>Graceful handling of unknown platforms and malformed session keys</li>
+</ul>
+<h3 id="fix-2-proactive-serialization-runtimesessionsmanagerpy">Fix 2: Proactive serialization (<code>runtime/sessions/manager.py</code>)</h3>
+<ul>
+<li><code>_run_proactive()</code> now acquires per-user lock (<code>session._user_lock</code>) before calling <code>pipeline.process_proactive</code></li>
+<li>Same serialization guarantee as <code>UserSession._worker</code> — no concurrent pipeline access</li>
+<li>Proactive execution cannot overlap with normal message processing or another chat context for the same user</li>
+</ul>
+<h3 id="fix-3-elapsed-decay-before-proactive-evaluation-pipelinepy">Fix 3: Elapsed decay before proactive evaluation (<code>pipeline.py</code>)</h3>
+<ul>
+<li><code>process_proactive()</code> now applies <code>engine.decay(elapsed)</code> before trigger evaluation</li>
+<li>Matches Step 0 of <code>process()</code> — modulators decay based on time since last turn</li>
+<li><code>_last_turn_time</code> updated after decay, before evaluation</li>
+<li>No crash when <code>_last_turn_time</code> is None (first proactive check with no prior turns)</li>
+</ul>
+<h3 id="tests_10">Tests</h3>
+<ul>
+<li>12 new tests covering all three fixes: callback wiring (5), serialization (3), elapsed decay (4)</li>
+<li>Full suite: 1091 tests passing</li>
+</ul>
+<hr>
+<h2 id="v0170-2026-04-02-agentic-tools-phase-8-proactive-and-autonomous-behavior">v0.17.0 — 2026-04-02 (Agentic Tools Phase 8: proactive and autonomous behavior)</h2>
+<p>Adds bounded proactive behavior — Nūr can now initiate actions and follow-up messages based on unresolved tension, pending tasks, commitments, and idle-time patterns. All autonomy is explicitly bounded and inspectable.</p>
+<h3 id="proactive-trigger-model-coretypespy">Proactive trigger model (<code>core/types.py</code>)</h3>
+<ul>
+<li><code>ProactiveTriggerSource</code> enum: unresolved_item, pending_task, commitment, temporal, emotional_salience</li>
+<li><code>ProactiveTrigger</code> dataclass: source, description, intensity, optional item reference</li>
+<li><code>ProactiveAction</code> dataclass: action_type (follow_up, continue_task, suggest, autonomous_step, none), trigger, message, rationale</li>
+<li><code>ProactiveTrace</code> dataclass: triggers found, action taken, suppressed reasons, limits applied, idle time, count</li>
+</ul>
+<h3 id="proactive-evaluation-layer-coreproactivepy">Proactive evaluation layer (<code>core/proactive.py</code>)</h3>
+<ul>
+<li><code>evaluate_proactive()</code> — deterministic evaluation (zero LLM calls) of whether Nūr should initiate behavior</li>
+<li>Trigger collection: gathers candidates from unresolved items (intensity ≥ 0.3), pending task plans, commitments, temporal patterns (idle + resolution), emotional salience</li>
+<li>Trigger scoring: intensity adjusted by resolution boost, energy penalty, bonding/trust boost, arousal modulation</li>
+<li>Bound checks: max proactive per session, idle threshold, cooldown between actions, energy floor</li>
+<li>Action selection: pending task → continue_task, commitment → follow_up, unresolved → follow_up, temporal → suggest</li>
+<li>All configuration values exposed as parameters with sensible defaults</li>
+</ul>
+<h3 id="pipeline-integration-pipelinepy">Pipeline integration (<code>pipeline.py</code>)</h3>
+<ul>
+<li><code>process_proactive(user_id)</code> — evaluates proactive triggers and generates response through Nūr (defense + generator)</li>
+<li>Session-scoped tracking: <code>_proactive_count</code>, <code>_last_proactive_at</code> — cleared on <code>end_session()</code></li>
+<li>Proactive responses go through defense filter and generator, same cognitive path as user-initiated responses</li>
+<li>Task continuation support: if proactive action is "continue_task", runs tool loop with active plan</li>
+<li>Self-observation recorded: "proactive" trait after each proactive action</li>
+<li><code>DebugState.proactive_trace</code> field for observability</li>
+</ul>
+<h3 id="runtime-integration">Runtime integration</h3>
+<ul>
+<li><code>RuntimeConfig</code> gains proactive fields: <code>proactive_enabled</code>, <code>proactive_idle_threshold</code>, <code>proactive_max_per_session</code>, <code>proactive_cooldown</code>, <code>proactive_check_interval</code></li>
+<li><code>SessionManager.run_proactive_loop()</code> — periodic async loop that sweeps all sessions for proactive opportunities</li>
+<li><code>_proactive_sweep()</code> / <code>_run_proactive()</code> — per-session evaluation with idle guards and error isolation</li>
+<li>Proactive callback mechanism: <code>proactive_callback(session_key, user_id, message)</code> for channel delivery</li>
+<li><code>NurApp</code> starts proactive loop as background task when <code>proactive_enabled=True</code></li>
+<li>Proactive loop cleanly cancelled on shutdown</li>
+</ul>
+<h3 id="debug-observability-runtimedebugapipy_1">Debug / observability (<code>runtime/debug/api.py</code>)</h3>
+<ul>
+<li>Full proactive trace serialization: triggers (source, description, intensity), action taken, suppressed reasons, limits applied</li>
+<li>Integrated alongside existing tool_trace, task_trace, tool_summary</li>
+<li>Both action and suppression visible — easy to understand why proactive behavior did or did not occur</li>
+</ul>
+<h3 id="constraints">Constraints</h3>
+<ul>
+<li>No open-ended self-directed loops</li>
+<li>Max proactive actions per session (default 3)</li>
+<li>Cooldown between proactive actions (default 5 min)</li>
+<li>Idle threshold before any proactive check (default 5 min)</li>
+<li>Energy floor: too tired to be proactive (energy &lt; 0.15)</li>
+<li>No multi-agent behavior</li>
+<li>All output generated through Nūr cognitive pipeline</li>
+</ul>
+<h3 id="tests_11">Tests</h3>
+<ul>
+<li>52 new tests in <code>tests/test_agentic_tools_phase8.py</code></li>
+<li>Coverage: types, trigger collection, trigger scoring, action selection, full evaluation, bound enforcement, pipeline integration, proactive count tracking, self-observation recording, debug serialization, runtime config, session manager callback, regression</li>
+<li>Full suite: 1079 tests passing</li>
+</ul>
+<hr>
+<h2 id="unreleased">Unreleased</h2>
+<h3 id="runtime-and-web-integration-hardening">Runtime and web integration hardening</h3>
+<ul>
+<li>Web interface now routes <code>/chat</code>, <code>/debug</code>, <code>/session/end</code>, <code>/rest</code>, and <code>/ws</code>
+  through <code>SessionManager</code> by <code>user_id</code> + <code>chat_id</code> instead of a shared global pipeline</li>
+<li>Runtime now wires builtin tool executors on the real app/session path via <code>runtime/tools.py</code></li>
+<li><code>UserSession</code>/<code>SessionManager</code> run synchronous pipeline work on a dedicated thread pool
+  rather than the event loop default executor</li>
+<li>Session engine snapshots now persist unresolved items and restore them correctly</li>
+<li>Spike memories are no longer duplicated on <code>end_session()</code></li>
+<li><code>CognitivePipeline</code> is explicitly single-user/session scoped; evals and tests now use
+  separate pipelines where cross-user isolation is required</li>
+</ul>
+<h3 id="safety-and-test-harness">Safety and test harness</h3>
+<ul>
+<li><code>shell.run_command</code> is categorized as destructive and no longer uses <code>shell=True</code></li>
+<li>Tool summaries no longer leak raw tool output back into generator context</li>
+<li>FastAPI interface/debug tests no longer depend on <code>TestClient</code> under the conda env;
+  they call endpoint functions directly with async fixtures instead</li>
+</ul>
+<h3 id="validation">Validation</h3>
+<ul>
+<li>Full suite passes in <code>conda activate venv</code>: <code>1210 passed</code></li>
+</ul>
+<hr>
+<h2 id="v0160-2026-04-02-agentic-tools-phase-7-multi-step-task-planning">v0.16.0 — 2026-04-02 (Agentic Tools Phase 7: multi-step task planning)</h2>
+<p>Adds bounded multi-step task planning and task memory — Nūr can now decompose compound requests into ordered steps, execute them sequentially, and couple task outcomes back into emotion, memory, and self-model.</p>
+<h3 id="task-data-model-coretypespy">Task data model (<code>core/types.py</code>)</h3>
+<ul>
+<li><code>TaskStatus</code> enum: pending, in_progress, completed, failed, blocked</li>
+<li><code>TaskStep</code> dataclass: single step with tool_name, arguments, result, observation, timing</li>
+<li><code>TaskPlan</code> dataclass: bounded plan (max 5 steps) with goal, progression, persistence_drive</li>
+<li><code>TaskTrace</code> dataclass: debug trace for plan execution (steps executed/succeeded/failed, latency, outcome)</li>
+<li><code>ToolTrace.task_trace</code> field: links task traces to existing tool debug infrastructure</li>
+</ul>
+<h3 id="bounded-planner-coretask_planningpy">Bounded planner (<code>core/task_planning.py</code>)</h3>
+<ul>
+<li><code>detect_multi_step_intent()</code>: heuristic detection of compound requests ("X and then Y", "first X, then Y")</li>
+<li><code>execute_plan()</code>: sequential step execution through existing ToolExecutor, bounded by max_steps_per_turn</li>
+<li>Persistence-driven failure handling: low persistence_drive → plan blocks on first failure; high → continues</li>
+<li><code>is_continue_request()</code> / <code>is_status_request()</code>: detect follow-up queries for active plans</li>
+<li><code>summarize_plan_status()</code>: human-readable plan progress summary</li>
+<li>All detection and planning is deterministic — zero LLM calls</li>
+</ul>
+<h3 id="tool-loop-integration-coredual_processtool_looppy">Tool loop integration (<code>core/dual_process/tool_loop.py</code>)</h3>
+<ul>
+<li><code>run_tool_loop()</code> now accepts optional <code>active_plan</code> for cross-turn plan continuation</li>
+<li>Multi-step detection runs before single-step: compound messages create plans</li>
+<li>Arbiter checks first step's category before approving the plan</li>
+<li>Continue/status requests route to active plan instead of new intent detection</li>
+<li>Plan results collected into ToolTrace for unified memory coupling</li>
+</ul>
+<h3 id="task-memory-coupling-coretool_memorypy">Task memory coupling (<code>core/tool_memory.py</code>)</h3>
+<ul>
+<li><code>create_task_unresolved_item()</code>: blocked/incomplete plans create resolution tension (task_blocked, task_incomplete)</li>
+<li><code>derive_task_self_observations()</code>: multi-step behavior feeds self-model (methodical, persistent, frustrated, hesitant, reckless)</li>
+<li><code>create_task_long_term_entry()</code>: salient plans (failures, blocks, destructive steps) persist to long-term memory</li>
+</ul>
+<h3 id="pipeline-integration-pipelinepy_1">Pipeline integration (<code>pipeline.py</code>)</h3>
+<ul>
+<li><code>_active_task_plan</code>: session-scoped task state, passed to tool loop each turn</li>
+<li>Step 11d: task memory coupling after tool execution — unresolved items, self-observations, long-term writes</li>
+<li>Terminal plans auto-cleared from session state</li>
+<li><code>end_session()</code> clears active task plan alongside conversation history</li>
+<li><code>DebugState.task_trace</code> field for observability</li>
+</ul>
+<h3 id="debug-api-runtimedebugapipy">Debug API (<code>runtime/debug/api.py</code>)</h3>
+<ul>
+<li>Task trace serialization: plan (id, goal, status, steps, progress), execution stats, outcome</li>
+<li>Step-level detail: tool_name, description, status, success/error</li>
+<li>Integrated alongside existing tool_trace and tool_summary</li>
+</ul>
+<h3 id="tests_12">Tests</h3>
+<ul>
+<li>58 new tests in <code>tests/test_agentic_tools_phase7.py</code></li>
+<li>Coverage: task types, multi-step detection, follow-up detection, plan execution, persistence-driven failure handling, emotional deltas, tool loop integration, task memory coupling, resolution coupling, self-model coupling, long-term memory, pipeline integration, debug serialization, regression</li>
+<li>Full suite: 1027 tests passing</li>
+</ul>
+<hr>
+<h2 id="v0150-2026-04-02-agentic-tools-phase-6-richer-tools">v0.15.0 — 2026-04-02 (Agentic Tools Phase 6: richer tools)</h2>
+<p>Expands the tool layer with browser automation, calendar, and richer web retrieval. Total registered builtins: 18 (was 9).</p>
+<h3 id="browser-automation-toolsbuiltinbrowserpy">Browser automation (<code>tools/builtin/browser.py</code>)</h3>
+<ul>
+<li><code>BrowserProvider</code> protocol with <code>NullBrowserProvider</code> default</li>
+<li>5 tools: <code>browser.open_url</code>, <code>browser.get_page_text</code>, <code>browser.click</code>, <code>browser.fill</code>, <code>browser.screenshot</code></li>
+<li>Categories: open/get/screenshot = READ_ONLY, click = EXTERNAL_ACTION, fill = WRITE</li>
+<li>Page text truncated at 10,000 chars to prevent memory bloat</li>
+<li>Pluggable — any Playwright/Selenium backend can implement the protocol</li>
+</ul>
+<h3 id="calendar-toolsbuiltincalendarpy">Calendar (<code>tools/builtin/calendar.py</code>)</h3>
+<ul>
+<li><code>CalendarProvider</code> protocol with <code>NullCalendarProvider</code> default</li>
+<li><code>CalendarEvent</code> dataclass for normalized event representation</li>
+<li>3 tools: <code>calendar.list_events</code> (READ_ONLY), <code>calendar.create_event</code> (WRITE), <code>calendar.delete_event</code> (DESTRUCTIVE)</li>
+<li>Pluggable — any Google Calendar/Outlook/iCal backend can implement the protocol</li>
+</ul>
+<h3 id="richer-web-retrieval-toolsbuiltinweb_searchpy">Richer web retrieval (<code>tools/builtin/web_search.py</code>)</h3>
+<ul>
+<li>Added <code>extract_text</code> method to <code>WebProvider</code> protocol</li>
+<li>New <code>web.extract_text</code> capability — fetches and returns cleaned body text</li>
+<li>Bounded at 5,000 chars with truncation indicator</li>
+<li>Total web tools: search, fetch, extract_text</li>
+</ul>
+<h3 id="tool-loop-patterns-coredual_processtool_looppy">Tool loop patterns (<code>core/dual_process/tool_loop.py</code>)</h3>
+<ul>
+<li>Added heuristic patterns for browser: "browse to", "open in browser", "screenshot of", "take a screenshot"</li>
+<li>Added heuristic patterns for calendar: "show events for", "check calendar", "what's on", "create event"</li>
+<li>Added patterns for web.extract_text: "extract text from", "get readable text of"</li>
+<li>New extractors: <code>date</code>, <code>title_date</code></li>
+</ul>
+<h3 id="registration-tools__init__py">Registration (<code>tools/__init__.py</code>)</h3>
+<ul>
+<li><code>register_builtins()</code> now accepts optional <code>browser_provider</code> and <code>calendar_provider</code></li>
+<li>All 18 tools registered in one call, no special-case paths</li>
+</ul>
+<h3 id="tests_13">Tests</h3>
+<ul>
+<li>51 new tests in <code>tests/test_agentic_tools_phase6.py</code></li>
+<li>Updated Phase 1 test for new tool count (9 → 18)</li>
+<li>Full suite: 969 tests passing</li>
+</ul>
+<hr>
+<h2 id="v0140-2026-04-02-agentic-tools-phase-5-mcp-bridge">v0.14.0 — 2026-04-02 (Agentic Tools Phase 5: MCP bridge)</h2>
+<p>MCP tools are now first-class participants in Nūr cognition — same ToolCapability, same appraisal, same memory coupling as builtins.</p>
+<h3 id="mcp-client-abstraction-toolsmcpclientpy">MCP client abstraction (<code>tools/mcp/client.py</code>)</h3>
+<ul>
+<li><code>MCPClient</code> protocol: <code>discover_tools()</code> → <code>list[MCPToolInfo]</code>, <code>call_tool()</code> → <code>MCPCallResult</code></li>
+<li><code>MCPToolInfo</code> dataclass: name, description, input_schema, server_name</li>
+<li><code>MCPCallResult</code> dataclass: content, is_error, error_message, metadata</li>
+<li><code>NullMCPClient</code>: safe default when no MCP server is configured (returns empty/errors)</li>
+<li>Protocol is <code>runtime_checkable</code> — any transport implementation is pluggable</li>
+</ul>
+<h3 id="mcp-adapter-toolsmcpadapterpy">MCP adapter (<code>tools/mcp/adapter.py</code>)</h3>
+<ul>
+<li><code>MCPAdapter</code>: discovers MCP tools and converts to ToolCapability + handler functions</li>
+<li><code>infer_category()</code>: deterministic category assignment from tool name/description keywords</li>
+<li>READ_ONLY: get, list, read, search, fetch, query, find, show, view...</li>
+<li>WRITE: create, write, update, set, add, put, edit, modify...</li>
+<li>DESTRUCTIVE: delete, remove, drop, destroy, purge, clear...</li>
+<li>EXTERNAL_ACTION: send, post, publish, notify, email, trigger...</li>
+<li>Unknown tools default to EXTERNAL_ACTION (treated cautiously by arbiter)</li>
+<li>Namespaced tool names: <code>mcp.{server_name}.{tool_name}</code> (e.g., <code>mcp.calendar.list_events</code>)</li>
+<li><code>mcp_backed=True</code> and <code>requires_network=True</code> flags set automatically</li>
+<li>Handler functions capture MCPClient via closure; all exceptions normalized to ToolResult</li>
+</ul>
+<h3 id="registration-toolsmcpadapterpy-tools__init__py">Registration (<code>tools/mcp/adapter.py</code> + <code>tools/__init__.py</code>)</h3>
+<ul>
+<li><code>register_mcp_tools(client, registry, executor, server_name)</code> — one-call registration</li>
+<li>Multiple MCP servers can coexist (different namespaces)</li>
+<li>Builtin and MCP tools share the same ToolRegistry and ToolExecutor</li>
+<li><code>MCPClient</code> and <code>register_mcp_tools</code> re-exported from <code>tools</code> package</li>
+</ul>
+<h3 id="cognitive-invariants-preserved">Cognitive invariants preserved</h3>
+<ul>
+<li>MCP tools go through the same arbiter, appraisal, memory coupling, and debug path</li>
+<li>No separate MCP planning path or agent behavior</li>
+<li>Inner dialogue / tool loop treats MCP tools identically to builtins</li>
+</ul>
+<h3 id="tests_14">Tests</h3>
+<ul>
+<li>45 new tests in <code>tests/test_agentic_tools_phase5.py</code></li>
+<li>Full suite: 918 tests passing</li>
+</ul>
+<hr>
+<h2 id="v0130-2026-04-02-agentic-tools-phase-4-runtime-debug-integration">v0.13.0 — 2026-04-02 (Agentic Tools Phase 4: runtime debug integration)</h2>
+<p>Full observability for tool-aware turns through the runtime debug API.</p>
+<h3 id="debug-serialization-fixes-runtimedebugapipy">Debug serialization fixes (<code>runtime/debug/api.py</code>)</h3>
+<ul>
+<li>Intent serialization now includes all fields: <code>expected_outcome</code>, <code>clarification_threshold</code>, <code>persistence_drive</code> (previously missing)</li>
+<li>Observation serialization now includes <code>continue_tool_loop</code> (previously missing)</li>
+<li>API version bumped to 0.9.0</li>
+</ul>
+<h3 id="compact-tool-summary">Compact tool summary</h3>
+<ul>
+<li><code>tool_summary</code> block added to debug output for quick inspection:</li>
+<li><code>tool_used</code>, <code>tools_executed</code>, <code>last_tool_name</code>, <code>last_tool_success</code>, <code>decision</code>, <code>loop_count</code></li>
+<li>Returns <code>null</code> on non-tool turns or when no intents were proposed</li>
+<li><code>_build_tool_summary()</code> helper extracted for testability</li>
+</ul>
+<h3 id="debug-output-structure-tool-turns">Debug output structure (tool turns)</h3>
+<ul>
+<li><code>tool_trace</code> — proposed intents (all 10 fields), final decision, executed results, observations (all 6 fields), loop count</li>
+<li><code>action_variables</code> — all 5 derived variables (risk_tolerance, action_urgency, clarification_threshold, persistence_drive, autonomy_bias)</li>
+<li><code>tool_memory_effects</code> — short-term recorded, long-term written, self-observations, unresolved items, trust delta</li>
+<li><code>tool_summary</code> — compact at-a-glance block</li>
+<li>All fields null/absent on non-tool turns; JSON-serializable</li>
+</ul>
+<h3 id="tests_15">Tests</h3>
+<ul>
+<li>33 new tests in <code>tests/test_agentic_tools_phase4.py</code></li>
+<li>Full suite: 873 tests passing</li>
+</ul>
+<hr>
+<h2 id="v0120-2026-04-02-agentic-tools-phase-3-memory-and-self-model-coupling">v0.12.0 — 2026-04-02 (Agentic Tools Phase 3: memory and self-model coupling)</h2>
+<p>Tool episodes now persist into memory, self-model, and unresolved tension — making tool behavior part of Nūr's ongoing identity and emotional history.</p>
+<h3 id="tool-memory-coupling-coretool_memorypy">Tool memory coupling (<code>core/tool_memory.py</code>)</h3>
+<ul>
+<li><code>create_tool_event()</code> — creates EmotionalEvent for short-term memory from tool results</li>
+<li><code>is_salient_episode()</code> — determines if a tool episode warrants long-term persistence</li>
+<li>Always salient: destructive actions, failures, repeated failures (≥2), strong certainty/valence shifts</li>
+<li><code>create_long_term_entry()</code> — builds LongTermEntry with compact summary (max 200 chars)</li>
+<li>Failures stored with high confidence (0.9) and spike=True (bypass threshold)</li>
+<li>Destructive success gets cautious negative valence (-0.1)</li>
+<li><code>derive_tool_self_observations()</code> — extracts behavioral traits from tool outcomes</li>
+<li>Success: methodical (read/cognitive), decisive (destructive), technically_competent</li>
+<li>High-risk write/destructive: reckless</li>
+<li>Failure: frustrated; repeated failure: persistent</li>
+<li>Clarify decision: hesitant; refuse/defer: avoidant</li>
+<li>Capped at 3 observations per turn</li>
+<li><code>create_tool_unresolved_item()</code> — creates UnresolvedItem from tool failures</li>
+<li>Sources: tool_failure (decay 0.08), blocked_action (decay 0.05), incomplete_task (decay 0.10)</li>
+<li>Intensity scales with failure count</li>
+<li><code>compute_tool_trust_delta()</code> — conservative trust effects</li>
+<li>Successful read/cognitive: +0.01</li>
+<li>Failed destructive or reckless failure: -0.03</li>
+<li>All other outcomes: 0.0 (neutral)</li>
+<li><code>ToolMemoryEffects</code> dataclass for debug visibility</li>
+</ul>
+<h3 id="pipeline-integration-pipelinepy_2">Pipeline integration (<code>pipeline.py</code>)</h3>
+<ul>
+<li>Step 11c: Tool memory coupling runs after tool loop execution</li>
+<li>Short-term memory records for every tool execution</li>
+<li>Salient episodes written to long-term memory (SQLite)</li>
+<li>Self-observations fed to SelfProfileManager after each tool result</li>
+<li>Unresolved items from failures added to resolution modulator</li>
+<li>Trust deltas applied directly to person profile and persisted</li>
+<li><code>tool_memory_effects</code> field added to DebugState</li>
+</ul>
+<h3 id="debug-api-runtimedebugapipy_1">Debug API (<code>runtime/debug/api.py</code>)</h3>
+<ul>
+<li><code>tool_memory_effects</code> serialized in <code>_debug_to_dict()</code> with all fields</li>
+</ul>
+<h3 id="tests_16">Tests</h3>
+<ul>
+<li>55 new tests in <code>tests/test_agentic_tools_phase3.py</code></li>
+<li>Full suite: 840 tests passing</li>
+</ul>
+<hr>
+<h2 id="v0110-2026-04-02-agentic-tools-phase-2-cognitive-tool-loop">v0.11.0 — 2026-04-02 (Agentic Tools Phase 2: cognitive tool loop)</h2>
+<p>Integrates tool use into cognition. The pipeline can now decide between direct response and tool use, execute a bounded tool loop, appraise the result, and continue to generation.</p>
+<h3 id="tool-aware-deliberation-bridge-coredual_processtool_looppy">Tool-aware deliberation bridge (<code>core/dual_process/tool_loop.py</code>)</h3>
+<ul>
+<li><code>detect_tool_intent()</code> — heuristic keyword matching for obvious action requests (filesystem, shell, web)</li>
+<li><code>make_tool_decision()</code> — deterministic action arbiter using ActionVariables + tool category + trust</li>
+<li>Four outcomes: execute, clarify, defer, refuse</li>
+<li>Destructive + low risk tolerance → refuse</li>
+<li>Low autonomy bias → clarify</li>
+<li>Write/destructive + high clarification threshold → clarify</li>
+<li>Very low urgency → defer</li>
+<li><code>run_tool_loop()</code> — full cognitive bridge: derive action vars → detect intent → decide → execute → appraise → apply deltas</li>
+<li>Bounded loop: default max 2 executions, hard cap 3</li>
+<li>Returns <code>ToolLoopResult</code> with trace, action variables, and generator-ready summary</li>
+</ul>
+<h3 id="tool-outcome-appraisal-coretool_appraisalpy">Tool outcome appraisal (<code>core/tool_appraisal.py</code>)</h3>
+<ul>
+<li><code>appraise_tool_result()</code> — maps ToolResult → ToolObservation with emotional deltas</li>
+<li>Success: certainty +0.08, valence +0.02, energy -0.01, resolution -0.05</li>
+<li>Empty output: certainty -0.06, resolution +0.05</li>
+<li>Execution error: arousal +0.08, valence -0.08, certainty -0.10, resolution +0.10</li>
+<li>Environment block (permission denied): arousal +0.05, certainty -0.05, resolution +0.06</li>
+<li>Destructive success: arousal +0.04, energy -0.03, self-observation "decisive"</li>
+<li>Self-observations: "methodical" (read success), "decisive" (destructive), "frustrated" (error), "hesitant" (block)</li>
+</ul>
+<h3 id="pipeline-integration-pipelinepy_3">Pipeline integration (<code>pipeline.py</code>)</h3>
+<ul>
+<li>Optional <code>tool_executor</code> parameter on CognitivePipeline — when None, tool loop is skipped entirely</li>
+<li>Tool loop inserted after contradiction check (step 11), before defense mechanisms (step 12)</li>
+<li>Emotional deltas from tool appraisal applied directly to engine state</li>
+<li>Tool context summarized for generator (never raw output) via <code>tool_context_summary</code></li>
+<li>No full pipeline recursion after tool results — lightweight appraisal loop only</li>
+<li><code>tool_loop</code> timing added to <code>stage_timings_ms</code></li>
+</ul>
+<h3 id="debug-integration">Debug integration</h3>
+<ul>
+<li><code>DebugState.action_variables: ActionVariables | None</code> — derived action variables per turn</li>
+<li><code>DebugState.tool_trace</code> populated on tool-involved turns (proposed intents, decision, results, observations, loop_count)</li>
+<li><code>_debug_to_dict()</code> serializes tool_trace and action_variables for the runtime debug API</li>
+</ul>
+<h3 id="generator-changes">Generator changes</h3>
+<ul>
+<li><code>PipelineContext.tool_context_summary</code> — summarized tool execution context</li>
+<li>Generator builds "Tool Execution Results" section from summary</li>
+<li><code>{tool_context}</code> placeholder added to generator.md prompt template</li>
+<li>Generator instruction: "Do not echo raw output verbatim — summarize and contextualize"</li>
+</ul>
+<h3 id="testing">Testing</h3>
+<ul>
+<li>785 tests total (43 new Phase 2 tests)</li>
+<li><code>TestDetectToolIntent</code> (10): conversational skip, read_file, list_dir, search_text, run_command, web_search, fetch, delete, unavailable tool, cat</li>
+<li><code>TestMakeToolDecision</code> (7): execute read-only, refuse destructive, clarify low autonomy, clarify write+high threshold, defer low urgency, execute write normal, rationale included</li>
+<li><code>TestToolAppraisal</code> (6): success read, empty output, failure, destructive success, permission denied, failure resolution</li>
+<li><code>TestToolLoop</code> (7): no intent, successful execution, failed changes state, action vars populated, non-execute decision, bounded loop, intent gets action vars</li>
+<li><code>TestPipelineToolIntegration</code> (5): no executor, direct response, tool turn trace, timing, failed tool, existing behavior preserved</li>
+<li><code>TestDebugStateSerialization</code> (4): action vars field, with/without tool_trace, full pipeline serializable</li>
+<li><code>TestGeneratorToolContext</code> (2): no tool context, tool context in prompt</li>
+<li>Zero regressions</li>
+</ul>
+<hr>
+<h2 id="v0100-2026-04-02-agentic-tools-phase-1-builtin-execution-layer">v0.10.0 — 2026-04-02 (Agentic Tools Phase 1: builtin execution layer)</h2>
+<p>Builtin tool implementations and execution orchestrator. No pipeline behavioral changes yet.</p>
+<h3 id="tool-executor-toolsexecutorpy">Tool executor (<code>tools/executor.py</code>)</h3>
+<ul>
+<li><code>ToolExecutor</code> class: thin lookup → call → normalize orchestrator</li>
+<li>Accepts a <code>ToolRegistry</code> for capability lookup and per-name handler binding</li>
+<li>All failures (unknown tool, missing handler, handler exception) normalized into structured <code>ToolResult</code></li>
+<li>Latency tracked via <code>time.perf_counter</code> and set on every result</li>
+</ul>
+<h3 id="filesystem-tool-toolsbuiltinfilesystempy">Filesystem tool (<code>tools/builtin/filesystem.py</code>)</h3>
+<ul>
+<li>6 operations: <code>fs.read_file</code>, <code>fs.list_dir</code>, <code>fs.search_text</code>, <code>fs.glob_paths</code>, <code>fs.write_file</code>, <code>fs.delete_path</code></li>
+<li>Read bounded to 1 MB, search bounded to 100 matches</li>
+<li>Regex-based text search across files with line numbers</li>
+<li>Write creates parent directories, delete handles files and directories</li>
+<li>Each operation registered as a <code>ToolCapability</code> with category (READ_ONLY / WRITE / DESTRUCTIVE)</li>
+</ul>
+<h3 id="shell-tool-toolsbuiltinshellpy">Shell tool (<code>tools/builtin/shell.py</code>)</h3>
+<ul>
+<li><code>shell.run_command(cmd, cwd=None, timeout_seconds=30)</code></li>
+<li>Captures stdout, stderr, exit code via <code>subprocess.run</code></li>
+<li>Timeout and OSError normalized into <code>ToolResult</code></li>
+<li>Category: WRITE</li>
+</ul>
+<h3 id="web-searchfetch-tool-toolsbuiltinweb_searchpy">Web search/fetch tool (<code>tools/builtin/web_search.py</code>)</h3>
+<ul>
+<li><code>web.search(query, limit=5)</code> and <code>web.fetch(url)</code></li>
+<li>Pluggable <code>WebProvider</code> protocol for testability</li>
+<li><code>NullWebProvider</code> default (errors until configured)</li>
+<li><code>create_handlers(provider)</code> factory for binding a provider</li>
+<li>Category: READ_ONLY, <code>requires_network=True</code></li>
+</ul>
+<h3 id="registration-helper-tools__init__py">Registration helper (<code>tools/__init__.py</code>)</h3>
+<ul>
+<li><code>register_builtins(registry, executor, web_provider=None)</code> wires all 9 builtin tools</li>
+<li>Single call registers capabilities + handlers for filesystem, shell, and web</li>
+</ul>
+<h3 id="testing_1">Testing</h3>
+<ul>
+<li>742 tests total (45 new Phase 1 tests)</li>
+<li><code>TestExecutor</code> (5): success, unknown tool, no handler, exception normalized, latency</li>
+<li><code>TestFilesystemReadFile</code> (3): existing, missing, directory</li>
+<li><code>TestFilesystemListDir</code> (3): entries, missing, empty</li>
+<li><code>TestFilesystemSearchText</code> (5): matches, no matches, single file, invalid regex, missing path</li>
+<li><code>TestFilesystemGlobPaths</code> (3): match, no match, not a dir</li>
+<li><code>TestFilesystemWriteFile</code> (3): new, parent dirs, overwrite</li>
+<li><code>TestFilesystemDeletePath</code> (3): file, directory, missing</li>
+<li><code>TestShellRunCommand</code> (6): success, non-zero exit, stderr, timeout, cwd, default timeout</li>
+<li><code>TestWebSearch</code> (7): fake provider, limit, no results, fetch, null provider, error normalized, default handlers</li>
+<li><code>TestBuiltinRegistration</code> (5): names, count, categories, end-to-end, custom provider</li>
+<li><code>TestExecutorFilesystemIntegration</code> (2): write-read roundtrip, write-list-delete cycle</li>
+<li>Zero regressions</li>
+</ul>
+<hr>
+<h2 id="v090-2026-04-02-agentic-tools-phase-0-types-traces-registry">v0.9.0 — 2026-04-02 (Agentic Tools Phase 0: types, traces, registry)</h2>
+<p>Foundation for agentic tool use. Types, action-variable derivation, tool registry, and debug trace wiring. No execution, no pipeline behavioral changes.</p>
+<h3 id="tool-data-model-coretypespy">Tool data model (<code>core/types.py</code>)</h3>
+<ul>
+<li><code>ToolCategory</code> enum: READ_ONLY, WRITE, DESTRUCTIVE, EXTERNAL_ACTION, COGNITIVE</li>
+<li><code>ToolCapability</code>: registered tool description (name, category, arg_schema, streaming, network, MCP flags)</li>
+<li><code>ToolIntent</code>: cognitive action object with urgency, risk_tolerance, autonomy_bias, clarification_threshold, persistence_drive, confidence</li>
+<li><code>ToolDecision</code>: arbiter output (execute / clarify / defer / refuse)</li>
+<li><code>ToolResult</code>: structured execution output (success, error, metadata, latency, side effects)</li>
+<li><code>ToolObservation</code>: cognitively appraised tool result (emotional deltas, self-observation, unresolved item, loop continuation)</li>
+<li><code>ToolTrace</code>: full debug trace (proposed intents, final decision, results, observations, loop count)</li>
+<li><code>ActionVariables</code>: turn-level derived values for action shaping</li>
+</ul>
+<h3 id="action-variable-derivation-coreaction_variablespy">Action-variable derivation (<code>core/action_variables.py</code>)</h3>
+<ul>
+<li><code>derive_action_variables(state, trust, defense_active)</code> — pure math, zero LLM calls</li>
+<li>Five derived variables: risk_tolerance, action_urgency, clarification_threshold, persistence_drive, autonomy_bias</li>
+<li>Shaping rules per Section 8: arousal→urgency, certainty→autonomy, energy→persistence, resolution→persistence, trust→risk, defense→caution</li>
+<li>All values clamped to [0, 1]</li>
+</ul>
+<h3 id="tool-registry-toolsregistrypy">Tool registry (<code>tools/registry.py</code>)</h3>
+<ul>
+<li><code>ToolRegistry</code> class: register(), get(), list_tools(category=), names(), len, contains</li>
+<li>Category-filtered listing</li>
+<li>Overwrite-on-duplicate semantics</li>
+</ul>
+<h3 id="debug-integration-pipelinepy">Debug integration (<code>pipeline.py</code>)</h3>
+<ul>
+<li><code>DebugState.tool_trace: ToolTrace | None = None</code> — safe default, no behavioral change</li>
+<li><code>ToolTrace</code> imported in pipeline</li>
+</ul>
+<h3 id="package-structure">Package structure</h3>
+<ul>
+<li><code>tools/__init__.py</code> — package marker</li>
+<li><code>tools/types.py</code> — thin re-export layer (source of truth remains <code>core/types.py</code>)</li>
+</ul>
+<h3 id="testing_2">Testing</h3>
+<ul>
+<li>697 tests total (47 new Phase 0 tests)</li>
+<li><code>TestToolCategory</code> (2): enum values, string enum</li>
+<li><code>TestToolCapability</code> (2): minimal and full construction</li>
+<li><code>TestToolIntent</code> (2): defaults, custom values</li>
+<li><code>TestToolDecision</code> (3): execute, clarify, with intent</li>
+<li><code>TestToolResult</code> (2): success, failure</li>
+<li><code>TestToolObservation</code> (2): defaults, with unresolved item</li>
+<li><code>TestToolTrace</code> (2): empty, populated</li>
+<li><code>TestActionVariables</code> (2): defaults, clamping</li>
+<li><code>TestDeriveActionVariables</code> (16): all shaping rules, both extremes, clamping</li>
+<li><code>TestToolRegistry</code> (9): empty, register/get, contains, list/filter, overwrite, sorted names</li>
+<li><code>TestDebugStateToolTrace</code> (4): default None, v2 fields intact, set trace, pipeline compat</li>
+<li><code>TestToolsTypesReexport</code> (1): re-export identity check</li>
+<li>Zero regressions</li>
+</ul>
+<hr>
+<h2 id="v082-2026-04-02-runtime-backend-session-state-cleanup">v0.8.2 — 2026-04-02 (Runtime backend + session-state cleanup)</h2>
+<p>Closes the remaining runtime gaps after the pre-merge review.</p>
+<h3 id="fix-1-session-specific-hot-state-persistence-runtimeconfigpy-runtimesessionsmanagerpy">Fix 1: Session-specific hot-state persistence (<code>runtime/config.py</code>, <code>runtime/sessions/manager.py</code>)</h3>
+<ul>
+<li>Engine state now persists per <strong>session_key</strong> instead of one shared <code>engine_state.json</code> per user</li>
+<li>Hot state files live under <code>data/{platform}_{user_id}/sessions/{chat_id}.json</code></li>
+<li>Different chat contexts for the same user no longer overwrite one another on shutdown</li>
+<li>Legacy per-user <code>engine_state.json</code> is still restored once as a backward-compatible fallback</li>
+</ul>
+<h3 id="fix-2-real-openai-compatible-runtime-backend-runtimellmbackendpy-runtimeconfigpy-runtime_configyaml">Fix 2: Real OpenAI-compatible runtime backend (<code>runtime/llm/backend.py</code>, <code>runtime/config.py</code>, <code>runtime_config.yaml</code>)</h3>
+<ul>
+<li>Added <code>OpenAICompatibleLLMBackend</code> with sync <code>generate(system_prompt, user_message)</code> semantics</li>
+<li><code>RuntimeConfig</code> now supports <code>llm_backend</code>, <code>llm_base_url</code>, <code>llm_model</code>, and <code>llm_api_key</code></li>
+<li><code>create_llm_backend(config)</code> now supports:</li>
+<li><code>mock</code></li>
+<li><code>minimax</code></li>
+<li><code>openai_compatible</code></li>
+<li><code>auto</code> → prefers local OpenAI-compatible config, otherwise MiniMax, otherwise Mock</li>
+<li><code>runtime_config.yaml</code> now documents local vLLM / OpenAI-compatible settings</li>
+</ul>
+<h3 id="fix-3-debug-api-naming-sync-runtimedebugapipy-testsdocs">Fix 3: Debug API naming sync (<code>runtime/debug/api.py</code>, tests/docs)</h3>
+<ul>
+<li>Debug routes now consistently refer to <code>session_key</code>, not <code>rel_key</code></li>
+<li>Reset responses now return <code>session_key</code></li>
+<li>Runtime docs/tests now match the implemented route contract</li>
+</ul>
+<h3 id="testing_3">Testing</h3>
+<ul>
+<li><code>pytest --collect-only -q</code> → <code>650 tests collected</code></li>
+<li><code>tests/test_runtime_config.py</code> → <code>21 passed</code></li>
+<li>Async runtime-focused pytest slices still behave inconsistently in this runner, so broader verification here is based on code inspection plus updated regression tests</li>
+</ul>
+<hr>
+<h2 id="v081-2026-04-02-runtime-pre-merge-fixes">v0.8.1 — 2026-04-02 (Runtime pre-merge fixes)</h2>
+<p>Five pre-merge fixes closing spec gaps in the Nūr Runtime.</p>
+<h3 id="fix-1-session-identity-semantics-runtimesessionsmanagerpy-user_sessionpy">Fix 1: Session identity semantics (<code>runtime/sessions/manager.py</code>, <code>user_session.py</code>)</h3>
+<ul>
+<li>Sessions now keyed by <strong>session_key</strong> (<code>platform:user_id:chat_id</code>), not rel_key</li>
+<li>DM and group-chat contexts for the same user get separate active sessions</li>
+<li>Relationship state (DB, engine_state.json) still keyed by <strong>rel_key</strong> (<code>platform:user_id</code>)</li>
+<li>Per-user <code>asyncio.Lock</code> serializes pipeline access across chat contexts for the same user</li>
+<li><code>UserSession</code> gains <code>session_key</code>, <code>_user_lock</code>, <code>_processing</code> fields</li>
+<li>Debug API listing now includes both <code>session_key</code> and <code>rel_key</code> fields</li>
+</ul>
+<h3 id="fix-2-config-driven-llm-backend-runtimeconfigpy-runtimellmbackendpy-mainpy">Fix 2: Config-driven LLM backend (<code>runtime/config.py</code>, <code>runtime/llm/backend.py</code>, <code>main.py</code>)</h3>
+<ul>
+<li><code>RuntimeConfig.from_yaml(path)</code> classmethod loads <code>runtime_config.yaml</code> at startup</li>
+<li><code>main.py</code> now loads config from YAML instead of using defaults</li>
+<li><code>RuntimeConfig</code> gains <code>llm_backend</code> ("auto"/"minimax"/"mock") and <code>minimax_api_key</code> fields</li>
+<li><code>create_llm_backend(config)</code> uses config for backend selection, falls back to env var</li>
+<li><code>runtime_config.yaml</code> updated with <code>llm_backend</code>, <code>minimax_api_key</code>, <code>console_enabled</code> fields</li>
+</ul>
+<h3 id="fix-3-config-driven-channel-startup-runtimeapppy-runtimeconfigpy">Fix 3: Config-driven channel startup (<code>runtime/app.py</code>, <code>runtime/config.py</code>)</h3>
+<ul>
+<li><code>RuntimeConfig</code> gains <code>console_enabled: bool = True</code></li>
+<li><code>NurApp.run()</code> starts console only when <code>console_enabled=True</code></li>
+<li>Headless mode: when console disabled, blocks on <code>_shutdown_event.wait()</code></li>
+<li>Signal handler sets <code>_shutdown_event</code> for both console and headless modes</li>
+<li>Telegram-only runtime works without console</li>
+</ul>
+<h3 id="fix-4-inactivity-timeout-semantics-runtimesessionsmanagerpy-user_sessionpy">Fix 4: Inactivity timeout semantics (<code>runtime/sessions/manager.py</code>, <code>user_session.py</code>)</h3>
+<ul>
+<li>Idle timer resets on message <strong>acceptance</strong> (enqueue), not only after processing completes</li>
+<li><code>_timeout_evict</code> checks <code>_processing</code> flag and queue state before evicting</li>
+<li>Sessions with in-flight work or queued messages are never evicted — timer reschedules</li>
+<li><code>UserSession.send()</code> updates <code>last_activity</code> on enqueue</li>
+<li><code>UserSession._processing</code> flag set during pipeline.process()</li>
+</ul>
+<h3 id="fix-5-docs-sync">Fix 5: Docs sync</h3>
+<ul>
+<li>CHANGELOG.md, CLAUDE.md, README.md updated to match final implementation</li>
+<li>Design doc (<code>NUR_RUNTIME_DESIGN_REVISED.md</code>) left as-is — it is a pre-implementation spec; intentional deviations documented in CLAUDE.md</li>
+</ul>
+<h3 id="testing_4">Testing</h3>
+<ul>
+<li>643 tests total (26 new)</li>
+<li><code>TestSessionIdentitySeparation</code> (5): DM/group separation, independent state, shared storage, per-user lock</li>
+<li><code>TestConfigFromYaml</code> (7): full load, missing/empty/partial files, unknown keys, allowlist</li>
+<li><code>TestBackendSelection</code> (5): mock forced, auto fallback, env var, no config</li>
+<li><code>TestChannelConfig</code> (5): console enabled/disabled, headless, from_yaml</li>
+<li><code>TestTimeoutSemantics</code> (4): in-flight guard, queued guard, true inactivity, acceptance reset</li>
+<li>All existing tests updated for session_key keying</li>
+<li>Zero regressions</li>
+</ul>
+<hr>
+<h2 id="v080-2026-04-02-phase-4-runtime-debug-api">v0.8.0 — 2026-04-02 (Phase 4: Runtime debug API)</h2>
+<p>Session-aware debug API replacing the old single-pipeline debug model.</p>
+<h3 id="debug-api-runtimedebugapipy_2">Debug API (<code>runtime/debug/api.py</code>)</h3>
+<ul>
+<li><code>GET /sessions</code> — list active sessions with rel_key, user_id, idle_seconds, queue_size, has_debug</li>
+<li><code>GET /sessions/{rel_key}/debug</code> — per-user debug: live modulators, emotion label, memory counts, unresolved items, full last_turn debug snapshot</li>
+<li><code>POST /sessions/{rel_key}/reset</code> — evict session (digest + persist + close)</li>
+<li>Reads from SessionManager — no separate pipeline, no global state</li>
+<li>404 for non-existent sessions on both debug and reset endpoints</li>
+</ul>
+<h3 id="debug-state-capture-runtimesessionsuser_sessionpy">Debug state capture (<code>runtime/sessions/user_session.py</code>)</h3>
+<ul>
+<li><code>last_debug: DebugState</code> stored on UserSession after each <code>process()</code> call</li>
+<li>Full v1/v2 debug fields preserved in serialization: contagion, event classification, profiles, contradictions, anticipation, inner dialogue trace, defense activation, stage timings</li>
+</ul>
+<h3 id="config-wiring">Config + wiring</h3>
+<ul>
+<li><code>RuntimeConfig</code> gains <code>debug_host</code> (default <code>127.0.0.1</code>) and <code>debug_port</code> (default <code>8077</code>)</li>
+<li><code>runtime_config.yaml</code> updated with debug section</li>
+<li>Debug server runs as background uvicorn task in NurApp</li>
+<li>Graceful shutdown stops debug server alongside channels</li>
+</ul>
+<h3 id="testing_5">Testing</h3>
+<ul>
+<li>617 tests total (15 new debug API tests)</li>
+<li><code>TestSessionListing</code> (4): empty, lists active, field validation, has_debug flag</li>
+<li><code>TestPerUserDebug</code> (5): live state, last_turn, v2 fields, 404, modulator reflection</li>
+<li><code>TestPerUserReset</code> (3): eviction, 404, removed from listing</li>
+<li><code>TestSessionIsolation</code> (3): different states, reset isolation, correct last_turn per user</li>
+<li>Zero regressions</li>
+</ul>
+<hr>
+<h2 id="v070-2026-04-02-phase-3-timeouts-shutdown-db-safety">v0.7.0 — 2026-04-02 (Phase 3: Timeouts, shutdown, DB safety)</h2>
+<p>Timer-driven inactivity, graceful shutdown, and shared DB hardening.</p>
+<h3 id="timer-driven-inactivity-timeout-runtimesessionsmanagerpy">Timer-driven inactivity timeout (<code>runtime/sessions/manager.py</code>)</h3>
+<ul>
+<li>Per-session idle timer via <code>loop.call_later</code> — fires eviction automatically</li>
+<li>No dependence on future incoming messages (spec requirement)</li>
+<li>Timer resets on each message completion</li>
+<li>Each session has its own independent timer</li>
+<li>Eviction on timeout: digest session, save state, close pipeline</li>
+</ul>
+<h3 id="graceful-shutdown">Graceful shutdown</h3>
+<ul>
+<li><code>_accepting</code> flag: set to False on shutdown, rejects new messages immediately</li>
+<li>Shutdown sequence: stop intake → cancel all idle timers → drain active queues → persist state → close</li>
+<li>In-progress pipeline work completes before session close (no data loss)</li>
+</ul>
+<h3 id="backpressure-enforcement">Backpressure enforcement</h3>
+<ul>
+<li><code>max_queue_per_user</code>: raises RuntimeError with "queue full" when exceeded</li>
+<li><code>max_active_sessions</code>: raises RuntimeError with "limit reached" for new users at capacity</li>
+<li>Existing users with active sessions are never blocked by session limit</li>
+<li>Evicting a session frees the slot for new users</li>
+</ul>
+<h3 id="shared-db-wal-mode-busy-timeout-coreprofilesbasepy">Shared DB WAL mode + busy timeout (<code>core/profiles/base.py</code>)</h3>
+<ul>
+<li><code>ProfileStore</code> gains <code>wal_mode: bool = False</code> parameter</li>
+<li>When <code>wal_mode=True</code>: <code>PRAGMA journal_mode=WAL</code> + <code>PRAGMA busy_timeout=5000</code></li>
+<li>Pipeline enables WAL automatically when <code>self_db_path</code> is provided (shared mode)</li>
+<li>Per-user DBs remain on default journal mode (single writer, no contention)</li>
+<li>In-memory DBs ignore WAL flag</li>
+</ul>
+<h3 id="unresolved-items-in-memory-only">Unresolved items — in-memory only</h3>
+<ul>
+<li>Unresolved items are NOT persisted in engine_state.json (by design)</li>
+<li>They reset on session restart — documented explicitly per spec requirement</li>
+</ul>
+<h3 id="testing_6">Testing</h3>
+<ul>
+<li>602 tests total (20 new Phase 3 tests, 1 updated)</li>
+<li><code>TestInactivityTimeout</code> (4): auto-eviction, state persistence, timer reset, independent timers</li>
+<li><code>TestGracefulShutdown</code> (5): persist all, stop intake, evict all, cancel timers, drain in-progress</li>
+<li><code>TestBackpressure</code> (4): queue full, session limit, eviction frees slot, existing user not blocked</li>
+<li><code>TestSharedDBSafety</code> (6): WAL enabled, busy timeout set, no WAL default, memory ignores WAL, pipeline shared WAL, concurrent writes</li>
+<li><code>TestUnresolvedItemsPersistence</code> (1): not in saved state</li>
+<li>Updated <code>test_evict_idle</code> — now verifies timer-driven eviction (not passive sweep)</li>
+<li>Zero regressions</li>
+</ul>
+<hr>
+<h2 id="v060-2026-04-02-phase-2-telegram-channel">v0.6.0 — 2026-04-02 (Phase 2: Telegram channel)</h2>
+<p>Telegram adapter with allowlist, dedupe, typing indicators, and commands.</p>
+<h3 id="telegram-channel-runtimechannelstelegrampy">Telegram channel (<code>runtime/channels/telegram.py</code>)</h3>
+<ul>
+<li>Long-polling loop via httpx (<code>TelegramClient</code>)</li>
+<li>Allowlist by numeric Telegram user ID (empty = allow all)</li>
+<li>Per-update dedupe with TTL cache (<code>DedupeCache</code>) — prevents duplicate state updates</li>
+<li>Typing indicators resent every 4 s while Nūr processes, cancelled on response</li>
+<li>Text messages only — photos/stickers/etc silently ignored</li>
+<li>Commands: <code>/status</code> (show modulators), <code>/reset</code> (digest + evict session), <code>/debug</code> (placeholder), <code>/start</code> (greeting)</li>
+<li>Bot-name suffix stripped from commands (<code>/status@MyBot</code> → <code>/status</code>)</li>
+</ul>
+<h3 id="config-updates">Config updates</h3>
+<ul>
+<li><code>RuntimeConfig</code> gains <code>telegram_token</code>, <code>telegram_allowlist</code>, <code>telegram_poll_timeout</code>, <code>dedupe_ttl</code></li>
+<li><code>TelegramConfig</code> dataclass for channel-specific settings</li>
+<li><code>runtime_config.yaml</code> updated with Telegram section</li>
+</ul>
+<h3 id="app-wiring-runtimeapppy">App wiring (<code>runtime/app.py</code>)</h3>
+<ul>
+<li>Telegram channel starts as background task if <code>telegram_token</code> is set</li>
+<li>Graceful shutdown stops Telegram polling + console + all sessions</li>
+</ul>
+<h3 id="testing_7">Testing</h3>
+<ul>
+<li>582 tests total (26 new Telegram tests)</li>
+<li><code>TestDedupeCache</code> (5): TTL expiry, mark/check, independence</li>
+<li><code>TestMessageNormalization</code> (5): text extraction, non-text ignored, missing fields, user_id as string</li>
+<li><code>TestAllowlist</code> (3): allowed/rejected users, empty allowlist</li>
+<li><code>TestDedupe</code> (3): duplicate dropped, different IDs processed, TTL expiry allows reprocessing</li>
+<li><code>TestCommands</code> (7): /status with/without session, /reset evicts, /debug, unknown, @bot suffix, /start</li>
+<li><code>TestTypingIndicator</code> (3): sent during processing, stops after response, not sent for commands</li>
+<li>Zero regressions</li>
+</ul>
+<hr>
+<h2 id="v050-2026-04-02-phase-1-console-runtime">v0.5.0 — 2026-04-02 (Phase 1: Console runtime)</h2>
+<p>First runtime layer around Nūr. Console-only. Nūr remains synchronous — the runtime wraps it with async lifecycle management.</p>
+<h3 id="session-manager-runtimesessionsmanagerpy">Session manager (<code>runtime/sessions/manager.py</code>)</h3>
+<ul>
+<li>Lazy session creation on first message per relationship key (<code>platform:user_id</code>)</li>
+<li>Backpressure: <code>max_active_sessions=10</code>, <code>max_queue_per_user=3</code></li>
+<li><code>evict_session()</code> — drain queue, end session, save state, close pipeline</li>
+<li><code>evict_idle()</code> — evict sessions past timeout threshold</li>
+<li><code>shutdown()</code> — graceful drain of all active sessions</li>
+</ul>
+<h3 id="per-user-serialization-runtimesessionsuser_sessionpy">Per-user serialization (<code>runtime/sessions/user_session.py</code>)</h3>
+<ul>
+<li>Each user session has an <code>asyncio.Queue</code> and a background worker task</li>
+<li>Worker calls <code>asyncio.to_thread(pipeline.process, ...)</code> — one message at a time</li>
+<li>Different users CAN process concurrently (separate workers, separate threads)</li>
+</ul>
+<h3 id="state-persistence-runtimesessionspersistencepy">State persistence (<code>runtime/sessions/persistence.py</code>)</h3>
+<ul>
+<li><code>save_engine_state()</code> — atomic write (tmp + rename) of modulator snapshot + timestamp</li>
+<li><code>load_engine_state()</code> — read back from JSON</li>
+<li>Saved on session eviction and shutdown</li>
+<li>Restored with elapsed decay on session creation (via <code>pipeline.restore_state()</code>)</li>
+</ul>
+<h3 id="console-channel-runtimechannelsconsolepy">Console channel (<code>runtime/channels/console.py</code>)</h3>
+<ul>
+<li><code>asyncio.to_thread(input, ...)</code> for non-blocking stdin reads</li>
+<li>Routes through session manager with <code>platform=console</code></li>
+<li><code>/quit</code> and <code>/exit</code> commands</li>
+</ul>
+<h3 id="runtime-config-runtimeconfigpy-runtime_configyaml">Runtime config (<code>runtime/config.py</code>, <code>runtime_config.yaml</code>)</h3>
+<ul>
+<li><code>RuntimeConfig</code> dataclass with data_dir, queue/session limits, timeout</li>
+<li>Helper methods for per-user paths and shared DB path</li>
+</ul>
+<h3 id="llm-backend-factory-runtimellmbackendpy">LLM backend factory (<code>runtime/llm/backend.py</code>)</h3>
+<ul>
+<li><code>create_llm_backend()</code> — returns MiniMax client or MockLLMBackend</li>
+<li>One backend per pipeline (thread safety — <code>requests.Session</code> is not thread-safe)</li>
+</ul>
+<h3 id="app-orchestrator-runtimeapppy-mainpy">App orchestrator (<code>runtime/app.py</code>, <code>main.py</code>)</h3>
+<ul>
+<li><code>NurApp</code> wires session manager + console channel</li>
+<li>Signal handler for SIGINT/SIGTERM → graceful shutdown</li>
+<li>Entry point: <code>python main.py</code></li>
+</ul>
+<h3 id="identity-keys-per-spec-section-60">Identity keys (per spec section 6.0)</h3>
+<ul>
+<li>Relationship state key: <code>platform:user_id</code> (e.g., <code>console:user</code>)</li>
+<li>Session state key: <code>platform:user_id:chat_id</code> (e.g., <code>console:user:direct</code>)</li>
+<li>Data directory: <code>data/{platform}_{user_id}/</code> (colon-safe)</li>
+</ul>
+<h3 id="storage-layout">Storage layout</h3>
+<ul>
+<li><code>data/{platform}_{user_id}/nur.db</code> — per-user Nūr database</li>
+<li><code>data/{platform}_{user_id}/engine_state.json</code> — modulator snapshot</li>
+<li><code>data/shared/self_model.db</code> — shared self-model across all users</li>
+</ul>
+<h3 id="testing_8">Testing</h3>
+<ul>
+<li>556 tests total (21 new runtime tests)</li>
+<li>Console end-to-end: message → session manager → pipeline → response</li>
+<li>Per-user serialization: concurrent messages never overlap; different users CAN overlap</li>
+<li>State save/load: JSON round-trip, atomic writes, directory creation</li>
+<li>Restart restore: reload from disk with elapsed decay applied</li>
+<li>Session lifecycle: max sessions enforced, queue backpressure, idle eviction, shutdown</li>
+<li>Identity keys: correct format, filesystem-safe directory names</li>
+<li>Shared self-model: observations visible across user pipelines</li>
+<li>Zero regressions</li>
+</ul>
+<hr>
+<h2 id="v040-2026-04-02-phase-0-runtime-embedding">v0.4.0 — 2026-04-02 (Phase 0: Runtime embedding)</h2>
+<p>Mandatory Nūr-side changes to support the Nūr Runtime. No external behavior changes.</p>
+<h3 id="emotionalenginerestore">EmotionalEngine.restore()</h3>
+<ul>
+<li><code>restore(snapshot, saved_at=None)</code> restores modulators from a dict snapshot</li>
+<li>If <code>saved_at</code> (unix timestamp) is provided, elapsed wall-clock time is computed and decay is applied before use</li>
+<li><code>CognitivePipeline.restore_state()</code> convenience wrapper added</li>
+</ul>
+<h3 id="cognitivepipelineclose">CognitivePipeline.close()</h3>
+<ul>
+<li>Closes all database connections (long-term memory, profile stores, person profiles, topic profiles)</li>
+<li>Safe to call multiple times (idempotent)</li>
+</ul>
+<h3 id="shared-vs-per-user-storage-split">Shared vs per-user storage split</h3>
+<ul>
+<li>New <code>self_db_path</code> parameter on <code>CognitivePipeline.__init__</code></li>
+<li>Per-user storage (<code>db_path</code>): long-term memories, person profiles, person observations, topic profiles</li>
+<li>Shared storage (<code>self_db_path</code>): self-model observations, defense events</li>
+<li>When <code>self_db_path</code> is None, falls back to <code>db_path</code> (backward compatible)</li>
+<li>Two separate <code>ProfileStore</code> instances: <code>_person_profile_store</code> (per-user) and <code>_self_profile_store</code> (shared)</li>
+<li>Two <code>ContradictionDetector</code> instances: <code>_person_contradiction</code> and <code>_self_contradiction</code></li>
+</ul>
+<h3 id="schema-version-support">Schema version support</h3>
+<ul>
+<li><code>core/schema.py</code>: <code>SCHEMA_VERSION = 1</code>, <code>ensure_schema_version(conn)</code>, <code>SchemaVersionError</code></li>
+<li><code>schema_version</code> table added to all SQLite databases (ProfileStore, LongTermMemory, PersonProfileManager, TopicProfileManager)</li>
+<li>Unknown future schema versions fail loudly with <code>SchemaVersionError</code></li>
+<li>Older versions migrate forward (no migrations yet — just version bump)</li>
+</ul>
+<h3 id="testing_9">Testing</h3>
+<ul>
+<li>535 tests total (26 new Phase 0 tests)</li>
+<li><code>test_phase0.py</code>: restore behavior, elapsed decay, close(), shared self-profile isolation, schema version checks</li>
+<li>Zero regressions</li>
+</ul>
+<hr>
+<h2 id="v036-2026-04-02-spike-only-turns-back-to-1-call">v0.3.6 — 2026-04-02 (Spike-only turns back to 1 call)</h2>
+<h3 id="what-changed">What changed</h3>
+<ul>
+<li>Spike-only unresolved tension no longer triggers inner dialogue in <a href="./core/dual_process/inner_dialogue.py"><code>core/dual_process/inner_dialogue.py</code></a></li>
+<li>High-arousal hostile turns like <code>"I hate you"</code> now stay on the generator path instead of paying an extra fast-path call</li>
+<li>LLM self-check no longer escalates just because a defense activated; it now stays reserved for extreme intensity, contradictions, or dialogue deadlock</li>
+<li>Added a new regression test that locks in the exact bug: spike-only hostility should stay at 1 LLM call</li>
+<li>Updated call-budget comments/docs to match the new runtime behavior</li>
+</ul>
+<h3 id="why">Why</h3>
+<ul>
+<li>The previous spike-only fix handled calm follow-up turns, but hostile spike turns still paid extra latency on the same turn</li>
+<li>Defense activation from residual arousal was also still forcing an unnecessary LLM self-check on later calm turns</li>
+<li>In practice this meant the web UI still felt slow exactly when emotionally charged state updates happened</li>
+</ul>
+<h3 id="testing_10">Testing</h3>
+<ul>
+<li>509 tests collected</li>
+<li>489 non-interface tests passed in this runner</li>
+<li><code>tests/test_interface.py</code> remains unchanged but still hangs under this tool's <code>TestClient</code> harness</li>
+</ul>
+<hr>
+<h2 id="v035-2026-04-02-sticky-spike-fix-self-check-tightening-timing">v0.3.5 — 2026-04-02 (Sticky-spike fix + self-check tightening + timing)</h2>
+<h3 id="fix-sticky-inner-dialogue-activation-after-spikes">Fix: sticky inner-dialogue activation after spikes</h3>
+<ul>
+<li><code>InnerDialogue.deliberate()</code> now accepts <code>current_event_intensity</code> parameter</li>
+<li><code>_max_rounds()</code> checks both event intensity and unresolved item sources</li>
+<li>If <code>current_event_intensity &lt; 0.4</code> and all unresolved items are spike-sourced → skip (0 rounds)</li>
+<li>Non-spike unresolved items (contradiction, deadlock, topic) still trigger deliberation</li>
+<li>Prevents calm follow-up turns from paying 3x latency after a hostile spike</li>
+</ul>
+<h3 id="tighter-llm-self-check-gating">Tighter LLM self-check gating</h3>
+<ul>
+<li>New <code>_should_use_llm_self_check()</code> helper in pipeline</li>
+<li>LLM self-check fires only when: <code>intensity &gt; 0.85</code>, contradictions present, deadlock reached, or defense activated</li>
+<li>Previously: any <code>intensity &gt; 0.7</code> triggered LLM self-check</li>
+</ul>
+<h3 id="timing-instrumentation">Timing instrumentation</h3>
+<ul>
+<li><code>stage_timings_ms</code> added to <code>DebugState</code> with per-stage millisecond timings</li>
+<li>Timed stages: anticipation, contagion, event_classification, memory_retrieval, inner_dialogue, generator, self_check, total</li>
+<li>Exposed in <code>/chat</code> debug payload via <code>stage_timings_ms</code> field</li>
+</ul>
+<h3 id="testing_11">Testing</h3>
+<ul>
+<li>508 tests total (5 new regression tests)</li>
+<li><code>test_calm_turn_uses_1_call</code> — calm message = 1 LLM call</li>
+<li><code>test_hostile_turn_may_use_extra_calls</code> — hostile turns may use more</li>
+<li><code>test_calm_after_spike_skips_dialogue_and_llm_self_check</code> — spike residue doesn't trigger dialogue on calm follow-up</li>
+<li><code>test_calm_with_non_spike_unresolved_may_deliberate</code> — contradiction/deadlock unresolved items still trigger dialogue</li>
+<li><code>test_stage_timings_present</code> — all timing keys present and valid</li>
+<li>Zero regressions</li>
+</ul>
+<hr>
+<h2 id="v034-2026-04-02-inner-dialogue-resolution-gated-only">v0.3.4 — 2026-04-02 (Inner dialogue → resolution-gated only)</h2>
+<h3 id="inner-dialogue-fires-only-on-unresolved-tension">Inner dialogue fires only on unresolved tension</h3>
+<ul>
+<li>All messages get 1 LLM call unless <code>resolution &gt; 0.6</code> (real unresolved tension)</li>
+<li>Previously: any charged message (positive or negative) triggered 3 API calls</li>
+<li>Now: only accumulated unresolved items (contradictions, spikes, deadlocks) trigger deliberation</li>
+<li>Consistent fast responses regardless of emotional content</li>
+<li>Inner dialogue code fully preserved — just gated behind resolution threshold</li>
+<li>503 tests, zero regressions</li>
+</ul>
+<hr>
+<h2 id="v033-2026-04-01-thinking-mode-off-for-all-calls">v0.3.3 — 2026-04-01 (Thinking mode off for all calls)</h2>
+<h3 id="all-llm-calls-now-use-thinking-mode-disabled">All LLM calls now use thinking mode disabled</h3>
+<ul>
+<li>Master generator switched from <code>LLMClient</code> (thinking on) to <code>LLMClientFast</code> (thinking off)</li>
+<li>Generator prompt already has full emotional context — chain-of-thought reasoning unnecessary</li>
+<li>Eliminates <code>&lt;think&gt;...&lt;/think&gt;</code> overhead on every API call</li>
+<li><code>api.py</code> now creates a single <code>LLMClientFast</code> instance for all pipeline calls</li>
+<li>503 tests, zero regressions</li>
+</ul>
+<hr>
+<h2 id="v032-2026-04-01-calm-message-1-llm-call">v0.3.2 — 2026-04-01 (Calm message → 1 LLM call)</h2>
+<h3 id="calm-message-bypass-skip-inner-dialogue-entirely">Calm message bypass: skip inner dialogue entirely</h3>
+<ul>
+<li>Calm messages (arousal &lt; 0.55, resolution &lt; 0.3): inner dialogue returns 0 rounds, 0 LLM calls</li>
+<li>Master generator produces response from scratch — 1 total LLM call per calm message</li>
+<li>Previously: fast path (1 call) + master (1 call) = 2. Now: master only = 1</li>
+<li>Charged messages unchanged: fast(1) + slow(1) + master(1) = 3</li>
+<li><code>dominant_path="skip"</code> in trace for calm-bypassed messages</li>
+<li>503 tests, zero regressions</li>
+</ul>
+<hr>
+<h2 id="v031-2026-04-01-connection-retry-fix">v0.3.1 — 2026-04-01 (Connection retry fix)</h2>
+<h3 id="fix-remotedisconnected-crash">Fix: RemoteDisconnected crash</h3>
+<ul>
+<li><code>LLMClient.generate()</code> now retries once on <code>ConnectionError</code> (stale keep-alive)</li>
+<li>MiniMax server closes idle connections; <code>requests.Session</code> reused dead socket on 3rd+ call</li>
+<li>Single retry is sufficient — reconnects on the fresh attempt</li>
+<li>503 tests, zero regressions</li>
+</ul>
+<hr>
+<h2 id="v030-2026-04-01-latency-optimization">v0.3.0 — 2026-04-01 (Latency optimization)</h2>
+<p>Deep latency reduction: fewer LLM calls, no-thinking mode, connection reuse, calm bypass. Typical calls per message: 2 (down from 5 in v0.2.x).</p>
+<h3 id="llm-call-reduction">LLM call reduction</h3>
+<ul>
+<li><strong>Contagion</strong>: always rule-based (50+ keyword patterns, certainty/intensity signals)</li>
+<li><strong>Event classification</strong>: always rule-based (keyword matching with detected emotion)</li>
+<li><strong>Topic detection</strong>: always rule-based (substring matching against known topics)</li>
+<li><strong>Self-check</strong>: rule-based by default; LLM self-check only when turn intensity &gt; 0.7</li>
+</ul>
+<h3 id="calm-message-bypass">Calm message bypass</h3>
+<ul>
+<li>When arousal &lt; 0.55 and resolution &lt; 0.3, slow path is skipped entirely</li>
+<li>Calm messages: fast(1) + master(1) = 2 LLM calls</li>
+<li>Charged messages: fast(1) + slow(1) + master(1) = 3 LLM calls</li>
+</ul>
+<h3 id="thinking-mode-control">Thinking mode control</h3>
+<ul>
+<li><code>LLMClient(thinking=True)</code>: full reasoning — used for master generator</li>
+<li><code>LLMClientFast</code> (thinking disabled): used for inner dialogue fast/slow paths and self-check</li>
+<li>Eliminates <code>&lt;think&gt;</code> chain-of-thought overhead on calls that don't need reasoning</li>
+</ul>
+<h3 id="http-connection-reuse">HTTP connection reuse</h3>
+<ul>
+<li><code>LLMClient</code> now uses <code>requests.Session()</code> with persistent headers</li>
+<li>Reuses TCP + TLS connections across calls, avoiding ~100-300ms handshake per call</li>
+</ul>
+<h3 id="architecture">Architecture</h3>
+<ul>
+<li>Pipeline accepts <code>llm_backend_fast</code> parameter for no-thinking client</li>
+<li><code>interface/api.py</code> wires <code>LLMClient</code> (generator) + <code>LLMClientFast</code> (everything else)</li>
+<li>Inner dialogue constants: <code>CALM_AROUSAL_THRESHOLD=0.55</code>, <code>CALM_RESOLUTION_THRESHOLD=0.3</code></li>
+</ul>
+<h3 id="testing_12">Testing</h3>
+<ul>
+<li>503 tests total (3 new LLMClientFast tests + updated call budget tests)</li>
+<li>Latency test: full pipeline &lt; 50ms with mock LLM (non-LLM overhead is negligible)</li>
+<li>Zero regressions</li>
+</ul>
+<hr>
+<h2 id="v024-2026-04-01-memory-retrieval-optimization">v0.2.4 — 2026-04-01 (Memory retrieval optimization)</h2>
+<h3 id="optimization-long-term-memory-retrieval">Optimization: long-term memory retrieval</h3>
+<ul>
+<li><code>_compute_activation()</code> no longer re-queries <code>access_count</code> — uses value already loaded from the row</li>
+<li><code>_mark_accessed_batch()</code> replaces per-item <code>_mark_accessed()</code> — single <code>executemany</code> + one commit instead of N queries + N commits</li>
+<li>No behavior change: same activation math, same retrieval order, same access tracking</li>
+</ul>
+<hr>
+<h2 id="v023-2026-04-01-final-verification-fixes">v0.2.3 — 2026-04-01 (Final verification fixes)</h2>
+<h3 id="fix-12-self-check-correction_note-propagation">Fix 12: Self-check correction_note propagation</h3>
+<ul>
+<li><code>_llm_check()</code> now returns the LLM's <code>correction_note</code> instead of dropping it</li>
+<li><code>check()</code> prefers the LLM's targeted correction over generic "Please adjust" synthesis</li>
+<li>Retries in pipeline.py now receive the LLM's actual guidance</li>
+</ul>
+<h3 id="fix-13-testclient-hang">Fix 13: TestClient hang</h3>
+<ul>
+<li>TestClient fixture now uses context manager (<code>with TestClient(app) as c:</code>)</li>
+<li>Required for Starlette 1.0.0 / httpx 0.28.1 ASGI lifespan handling</li>
+</ul>
+<h3 id="testing_13">Testing</h3>
+<ul>
+<li>496 tests total (3 new regression tests for correction_note propagation)</li>
+<li>Zero regressions</li>
+</ul>
+<hr>
+<h2 id="v022-2026-04-01-second-pass-fixes-6-11">v0.2.2 — 2026-04-01 (Second-pass fixes 6-11)</h2>
+<p>Second round of fixes from review. Primacy, dedup, labeling, contagion signals.</p>
+<h3 id="fix-6-self-check-retry-preserves-v2-steering">Fix 6: Self-check retry preserves v2 steering</h3>
+<ul>
+<li>Retry path now carries <code>candidate_response</code> and <code>defense_instruction</code> into correction context</li>
+<li>Ensures regeneration after self-check failure still uses inner dialogue output</li>
+</ul>
+<h3 id="fix-7-primacy-weighting-corrected">Fix 7: Primacy weighting corrected</h3>
+<ul>
+<li>Early (primacy) observations get weight 1.0, later ones dampened by <code>primacy_weight</code> (e.g. 0.8)</li>
+<li>Was inverted: primacy observations were being dampened instead</li>
+<li><code>extract_traits()</code> default changed from <code>PRIMACY_DEFAULT</code> (0.8) to 1.0 (no dampening unless explicit)</li>
+<li><code>PRIMACY_DECAY_PER_INTERACTION</code> and <code>PRIMACY_FLOOR</code> now config-driven in person profiles</li>
+</ul>
+<h3 id="fix-8-contradiction-deduplication">Fix 8: Contradiction deduplication</h3>
+<ul>
+<li><code>_check_contradiction_resolution()</code> tracks <code>active_descs</code> set to prevent duplicate unresolved items</li>
+<li>Same contradiction text no longer creates multiple entries</li>
+</ul>
+<h3 id="fix-9-round-1-dominant_path-label">Fix 9: Round-1 dominant_path label</h3>
+<ul>
+<li>Round-1 approval now always returns <code>dominant_path="fast"</code> (the unmodified fast-path output)</li>
+</ul>
+<h3 id="fix-10-rule-based-contagion-signals">Fix 10: Rule-based contagion signals</h3>
+<ul>
+<li><code>_detect_via_rules()</code> now computes meaningful <code>certainty</code> and <code>intensity</code></li>
+<li>Certainty: 0.8 if all keywords agree on direction, 0.4 if mixed, 0.6 single keyword, 0.3 no keywords</li>
+<li>Intensity: <code>avg_extremity * min(match_count, 3) / 3.0</code></li>
+</ul>
+<h3 id="fix-11-generator-output-contract">Fix 11: Generator output contract</h3>
+<ul>
+<li>generator.md: added "Return ONLY the final response text" rule</li>
+<li>v2 prompt templates: added output-shape constraints</li>
+</ul>
+<h3 id="testing_14">Testing</h3>
+<ul>
+<li>493 tests total (8 new regression tests in test_regressions.py)</li>
+<li>Zero regressions</li>
+</ul>
+<hr>
+<h2 id="v021-2026-04-01-second-pass-fixes-1-5">v0.2.1 — 2026-04-01 (Second-pass fixes 1-5)</h2>
+<p>Fixes from SECOND_PASS_REVIEW.md phases 0-5. Makes v2 behaviorally real.</p>
+<h3 id="fix-1-v2-controls-the-response">Fix 1: v2 controls the response</h3>
+<ul>
+<li>Added <code>candidate_response</code> and <code>defense_instruction</code> to PipelineContext</li>
+<li>Generator now receives inner dialogue candidate as draft to refine</li>
+<li>Defense instruction injected directly (not via contradiction_flags hack)</li>
+<li>generator.md updated with <code>{candidate_response}</code> and <code>{defense_instruction}</code> placeholders</li>
+</ul>
+<h3 id="fix-2-time-and-context-semantics">Fix 2: Time and context semantics</h3>
+<ul>
+<li>Pipeline tracks <code>_last_turn_time</code>, calls <code>decay(elapsed)</code> at start of each <code>process()</code></li>
+<li>Context shift is now non-additive: <code>set_context_shift()</code> stores resting target offset</li>
+<li>Decay uses <code>effective_baseline()</code> (baseline + context shift) instead of raw baseline</li>
+<li>Repeated turns with same person no longer ratchet modulators upward</li>
+</ul>
+<h3 id="fix-3-self-model-persistence">Fix 3: Self-model persistence</h3>
+<ul>
+<li>Pipeline records 1-3 self-observations per turn (blunt, empathetic, defensive, avoidant)</li>
+<li>Defense events persisted to SQLite <code>defense_events</code> table via ProfileStore</li>
+<li><code>maturity_score</code> derived from observation count + flaw diversity + defense event count</li>
+<li><code>get_profile()</code> now returns defense_log from persistent storage</li>
+</ul>
+<h3 id="fix-4-trust-and-resolution-accounting">Fix 4: Trust and resolution accounting</h3>
+<ul>
+<li>Removed sign-only session-end trust update (per-turn trust is authoritative)</li>
+<li>Resolution uses item intensity only — removed age-based <code>_time_weight</code> double-decay</li>
+<li>Contradictions now create unresolved items (source="contradiction")</li>
+<li>Charged/avoidance topics now create unresolved items (source="topic")</li>
+<li>Resolution events match items by text overlap before falling back to oldest</li>
+</ul>
+<h3 id="fix-5-prompt-contracts-and-parsing">Fix 5: Prompt contracts and parsing</h3>
+<ul>
+<li>fast_path.md, fast_path_revision.md, arbiter.md: added output-shape constraints</li>
+<li>Unparseable slow-path output triggers retry once, then treated as objection (not auto-approve)</li>
+<li><code>parse_slow_path_response()</code> returns 3-tuple with <code>parsed_successfully</code> flag</li>
+<li>v2 prompts (fast_path, slow_path, revision, arbiter) loaded through config.loader</li>
+<li>Fixed <code>SelfModelConfig.negative_traits</code> AttributeError on partial config</li>
+</ul>
+<h3 id="testing_15">Testing</h3>
+<ul>
+<li>485 tests total (9 new regression tests + updated existing tests)</li>
+<li>Zero regressions from v0.2.0</li>
+</ul>
+<hr>
+<h2 id="v020-2026-04-01-v2-the-inner-life">v0.2.0 — 2026-04-01 (v2: The Inner Life)</h2>
+<p>v2 adds deliberation, dread, and self-protection. Four interconnected features that give the system an inner life.</p>
+<h3 id="resolution-modulator-phase-1">Resolution Modulator (Phase 1)</h3>
+<ul>
+<li>6th modulator tracking unresolved cognitive/emotional tension</li>
+<li>Per-source decay rates: contradictions (0.02/hr), topics (0.05/hr), commitments (0/hr), spikes (0.03/hr), deadlocks (0.10/hr)</li>
+<li>Item-level tracking: add, resolve, recalculate weighted sum</li>
+<li>Integrated into EmotionalEngine snapshot and decay cycles</li>
+</ul>
+<h3 id="anticipation-engine-phase-2">Anticipation Engine (Phase 2)</h3>
+<ul>
+<li>Forward emotional modeling — predicts before processing</li>
+<li>4 pure heuristics (zero LLM calls): topic trajectory, person patterns, unresolved aging, temporal patterns</li>
+<li>30% intensity cap on pre-shifts, 0.3 confidence gate</li>
+<li>Sensitive topic detection from 2+ mentions in last 3 messages</li>
+</ul>
+<h3 id="inner-dialogue-phase-3">Inner Dialogue (Phase 3)</h3>
+<ul>
+<li>Iterative fast/slow path deliberation (2-3 rounds)</li>
+<li>Fast path: gut reaction based on emotional state</li>
+<li>Slow path: reflective evaluation against values, self-profile, unresolved items</li>
+<li>Arbiter on round 3 deadlock (logged as unresolved item)</li>
+<li>Control dynamics: arousal bypass (&gt;0.8), energy bypass (&lt;0.2), resolution insistence (&gt;0.6)</li>
+<li>4 prompt templates: fast_path.md, slow_path.md, fast_path_revision.md, arbiter.md</li>
+</ul>
+<h3 id="defense-mechanisms-phase-4">Defense Mechanisms (Phase 4)</h3>
+<ul>
+<li>4 types: rationalization, deflection, minimization, projection</li>
+<li>Pure logic selection + prompt instruction injection (zero LLM calls)</li>
+<li>Comfort threshold: 0.5 + trust×0.2 + maturity×0.2 + bonding×0.1</li>
+<li>Suppression factor degrades with maturity (never fully gone)</li>
+<li>Defense events logged in self-profile for pattern detection</li>
+</ul>
+<h3 id="pipeline-v2-flow-phase-5">Pipeline v2 Flow (Phase 5)</h3>
+<ul>
+<li>Full v2 processing: anticipation → contagion → event → resolution → inner dialogue → defense → master LLM</li>
+<li>Debug payload includes all v2 layers (anticipation, dialogue_trace, defense_activation, unresolved_count)</li>
+<li>v1 behavior fully preserved</li>
+<li>LLM call budget: 5-9 per message (typical: 6)</li>
+</ul>
+<h3 id="new-types">New Types</h3>
+<ul>
+<li>UnresolvedItem, Anticipation, DialogueRound, InnerDialogueTrace, DefenseActivation, DefenseEvent</li>
+<li>ModulatorName.RESOLUTION, resolution field in ModulatorState</li>
+<li>maturity_score and defense_log in SelfProfile</li>
+</ul>
+<h3 id="debug-dashboard-phase-6">Debug Dashboard (Phase 6)</h3>
+<ul>
+<li>Resolution gauge (6th modulator, orange)</li>
+<li>Anticipation section: predicted topics, tone, confidence, pre-shifts, basis</li>
+<li>Inner Dialogue section: rounds with fast/slow candidates, approval/objection status, tension meter, dominant path, LLM call count</li>
+<li>Defense section: type, raw vs expressed intensity bars, suppression delta, reason</li>
+<li>Unresolved Items section: source tags, descriptions, intensity, decay rate</li>
+<li><code>/debug</code> endpoint extended with resolution, unresolved_count, unresolved_items</li>
+<li><code>/chat</code> debug payload serializes all v2 fields (anticipation, dialogue_trace, defense_activation, unresolved_items)</li>
+</ul>
+<h3 id="calibration-scenarios-phase-7">Calibration Scenarios (Phase 7)</h3>
+<ul>
+<li>test_v2_scenarios.py with 30 scripted calibration tests across 5 scenarios</li>
+<li>Deflection under low trust: arousal + trust thresholds, instruction injection, pipeline integration</li>
+<li>Inner dialogue disagreement: multi-round objection/approval, slow path unresolved references, deadlock → unresolved item, bypass overrides</li>
+<li>Anticipation pre-shift: topic trajectory detection, 30% cap verified, confidence gating, pipeline wiring</li>
+<li>Defense degradation: monotonic suppression decrease across all 4 types at maturity 0.0/0.25/0.5/0.75/1.0, expressed intensity grows, suppression delta shrinks, defense logging</li>
+<li>Full pipeline end-to-end: all debug fields, LLM budget, session arc, defense under pressure, v1 preserved</li>
+</ul>
+<h3 id="testing_16">Testing</h3>
+<ul>
+<li>476 tests total (188 new v2 tests + 288 v1 preserved)</li>
+<li>test_resolution.py (19), test_anticipation.py (27), test_inner_dialogue.py (38), test_defense_mechanisms.py (36), test_pipeline_v2.py (29), test_interface.py v2 (9), test_v2_scenarios.py (30)</li>
+<li>Zero v1 regressions</li>
+</ul>
+<hr>
+<h2 id="v010-2026-04-01-v1-complete">v0.1.0 — 2026-04-01 (v1 Complete)</h2>
+<p>First complete version. All v1 systems built, tested, and wired together.</p>
+<h3 id="core-engine">Core Engine</h3>
+<ul>
+<li>5-modulator PSI state machine (arousal, valence, certainty, bonding, energy)</li>
+<li>Exponential decay with configurable half-lives per modulator</li>
+<li>Energy drain per message + spike events, recovery with rest</li>
+<li>Attachment style support (locked to secure in v1)</li>
+<li>Context switching via per-person baseline_shift</li>
+</ul>
+<h3 id="memory">Memory</h3>
+<ul>
+<li>Short-term: in-memory event buffer with emotional arc tracking</li>
+<li>Long-term: SQLite-backed with ACT-R activation retrieval (recency x frequency x emotional bias)</li>
+<li>Asymmetric trust curves: +0.02 positive, -0.15 negative (7.5x negativity bias)</li>
+<li>Spike bypass: intensity &gt;= 0.8 writes directly to long-term</li>
+<li>Confidence threshold: only write if signal consistency &gt;= 0.6</li>
+<li>Session digestion: LLM summarization with heuristic fallback</li>
+</ul>
+<h3 id="profiles">Profiles</h3>
+<ul>
+<li>Person profiles: trust, reliability, emotional_volatility, stress_response, baseline_shift, primacy_weight</li>
+<li>Self profile: observed_traits, strengths, flaws, triggers, dissonance (same mechanism as person profiles, entity ID <code>__self__</code>)</li>
+<li>Topic profiles: emotional_charge, avoidance flags, conflict_count (asymmetric charge updates)</li>
+<li>Contradiction detection: unified for self and others, divergence threshold from config</li>
+</ul>
+<h3 id="contagion">Contagion</h3>
+<ul>
+<li>Emotional detection from user text (LLM + 50-pattern rule-based fallback)</li>
+<li>Returns arousal, valence, certainty, intensity</li>
+<li>Bounded mirroring: max +/-0.15 shift, weighted by bonding score</li>
+</ul>
+<h3 id="dual-process">Dual Process</h3>
+<ul>
+<li>Response generation: single LLM call with full emotional context (Nūr personality)</li>
+<li>Self-check: rule-based (tone fit, overconfidence, bluntness, energy, contradictions) + optional LLM</li>
+<li>Regeneration with correction note on self-check failure</li>
+</ul>
+<h3 id="pipeline">Pipeline</h3>
+<ul>
+<li>15-step cognitive processing flow</li>
+<li>Event classification: LLM with keyword fallback (10 event types)</li>
+<li>Topic detection: LLM with substring fallback</li>
+<li>Per-message trust updates based on event valence</li>
+<li>Full debug state transparency (DebugState dataclass)</li>
+</ul>
+<h3 id="interface">Interface</h3>
+<ul>
+<li>FastAPI REST API: POST /chat, GET /debug, POST /session/end, POST /rest</li>
+<li>WebSocket /ws for streaming chat</li>
+<li>Web UI: chat panel + debug dashboard (5 modulator gauges, energy meter, profiles, memories, contradictions)</li>
+</ul>
+<h3 id="configuration">Configuration</h3>
+<ul>
+<li>YAML-driven: modulators.yaml, attachment.yaml, profiles_schema.yaml, values_seed.yaml</li>
+<li>6 prompt templates: generator.md, self_check.md, digestion.md, contagion.md, classify_event.md, detect_topics.md</li>
+<li>Singleton config loader with typed dataclasses</li>
+<li>All constants configurable, no hardcoded thresholds in module code</li>
+</ul>
+<h3 id="llm-integration">LLM Integration</h3>
+<ul>
+<li>MiniMax M2.7-highspeed client (OpenAI-compatible API)</li>
+<li><code>&lt;think&gt;...&lt;/think&gt;</code> tag stripping for M2.7 reasoning output</li>
+<li>LLMBackend protocol for swappable backends</li>
+<li>Graceful degradation: all LLM functions fall back to rule-based on failure</li>
+</ul>
+<h3 id="testing_17">Testing</h3>
+<ul>
+<li>288 tests total</li>
+<li>Unit tests for every module</li>
+<li>Calibration scenarios: trust building, betrayal, topic avoidance, contagion, conflict recovery, energy depletion</li>
+<li>End-to-end emotional journey: 10 scenarios testing full pipeline behavior</li>
+<li>All tests work without API key (MockLLMBackend triggers rule-based fallbacks)</li>
+</ul>
+<h3 id="infrastructure">Infrastructure</h3>
+<ul>
+<li>GitHub repo: github.com/balfiky/nur (private)</li>
+<li>pyproject.toml with dev dependencies (pytest, ruff)</li>
+<li>.gitignore for Python, SQLite, caches</li>
+</ul>
+</main>
+</body>
+</html>

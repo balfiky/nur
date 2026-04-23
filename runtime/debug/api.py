@@ -21,7 +21,7 @@ from runtime.sessions.manager import SessionManager
 def create_debug_app(session_manager: SessionManager) -> FastAPI:
     """Build a FastAPI application wired to a live SessionManager."""
 
-    app = FastAPI(title="Jarvis Runtime Debug", version="0.9.0")
+    app = FastAPI(title="Nūr Runtime Debug", version="0.9.0")
 
     # ------------------------------------------------------------------
     # GET /sessions — list active sessions
