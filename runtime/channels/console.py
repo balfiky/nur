@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import select
 import sys
 
 from runtime.sessions.manager import SessionManager
@@ -12,12 +13,20 @@ log = logging.getLogger(__name__)
 
 QUIT_COMMANDS = frozenset(("/quit", "/exit", "exit", "quit"))
 
+# How often the read loop wakes to check ``_running``. Low enough that SIGINT
+# and ``/quit`` feel instant, high enough that idle CPU use is negligible.
+_POLL_INTERVAL = 0.2
+
 
 class ConsoleChannel:
     """Interactive console channel.
 
-    Reads lines from stdin in a worker thread (non-blocking for the event
-    loop) and prints responses to stdout.
+    Reads lines from stdin by polling with ``select`` so the loop can honor
+    the shutdown flag without waiting for a stuck ``input()`` to return.
+    An earlier version used ``asyncio.to_thread(input)``; that left a
+    worker thread blocked on stdin, which in turn blocked
+    ``loop.shutdown_default_executor`` on interpreter exit and delayed
+    shutdown by tens of seconds on SIGINT.
     """
 
     def __init__(
@@ -34,18 +43,17 @@ class ConsoleChannel:
         self._running = False
 
     async def start(self) -> None:
-        """Run the interactive input loop until quit or EOF."""
+        """Run the interactive input loop until /quit, EOF, or stop()."""
         self._running = True
         log.info("Console channel started (type /quit to exit)")
         print("Jarvis console — type /quit to exit", flush=True)
 
         while self._running:
-            try:
-                line = await asyncio.to_thread(self._read_line)
-            except EOFError:
-                break
+            line = await self._next_line()
+            if line is None:
+                break  # EOF or stop requested
 
-            if line is None or line.strip().lower() in QUIT_COMMANDS:
+            if line.strip().lower() in QUIT_COMMANDS:
                 break
 
             text = line.strip()
@@ -66,9 +74,42 @@ class ConsoleChannel:
     async def stop(self) -> None:
         self._running = False
 
+    async def _next_line(self) -> str | None:
+        """Await one line from stdin without blocking shutdown.
+
+        Prints the prompt, then polls stdin via ``select`` on a worker
+        thread with a short timeout so setting ``self._running = False``
+        from anywhere on the loop takes effect within ``_POLL_INTERVAL``.
+        Returns ``None`` on EOF or when stop has been requested.
+        """
+        print("You: ", end="", flush=True)
+        while self._running:
+            ready = await asyncio.to_thread(
+                self._poll_stdin, _POLL_INTERVAL,
+            )
+            if ready:
+                line = sys.stdin.readline()
+                if not line:
+                    return None  # EOF
+                return line.rstrip("\n")
+        return None
+
+    @staticmethod
+    def _poll_stdin(timeout: float) -> bool:
+        """Return True iff stdin has data ready, False on timeout or error."""
+        try:
+            r, _, _ = select.select([sys.stdin], [], [], timeout)
+        except (OSError, ValueError):
+            # Stdin may be closed or not a real fd (e.g. certain test runners).
+            return False
+        return bool(r)
+
     @staticmethod
     def _read_line() -> str | None:
-        """Blocking stdin read — runs in a worker thread."""
+        """Legacy read helper kept for back-compat with any external caller.
+
+        Not used by the main loop anymore — ``_next_line`` handles reads.
+        """
         try:
             return input("You: ")
         except EOFError:

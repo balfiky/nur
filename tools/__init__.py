@@ -20,6 +20,9 @@ def register_builtins(
     web_provider: WebProvider | None = None,
     browser_provider: BrowserProvider | None = None,
     calendar_provider: CalendarProvider | None = None,
+    *,
+    fs_workspace: str | None = None,
+    include_shell: bool = True,
 ) -> None:
     """Register all builtin tool capabilities and handlers.
 
@@ -29,18 +32,25 @@ def register_builtins(
         web_provider: Optional web provider; defaults to NullWebProvider.
         browser_provider: Optional browser provider; defaults to NullBrowserProvider.
         calendar_provider: Optional calendar provider; defaults to NullCalendarProvider.
+        fs_workspace: Optional workspace root; when set, filesystem tools
+            refuse paths that resolve outside this directory.
+        include_shell: Whether to register ``shell.run_command``. Defaults to
+            True to preserve existing test wiring; production callers gate
+            this on an explicit config flag.
     """
     # Filesystem
     for cap in filesystem.CAPABILITIES:
         registry.register(cap)
-    for name, handler in filesystem.HANDLERS.items():
+    fs_handlers = filesystem.create_handlers(workspace=fs_workspace)
+    for name, handler in fs_handlers.items():
         executor.register_handler(name, handler)
 
     # Shell
-    for cap in shell.CAPABILITIES:
-        registry.register(cap)
-    for name, handler in shell.HANDLERS.items():
-        executor.register_handler(name, handler)
+    if include_shell:
+        for cap in shell.CAPABILITIES:
+            registry.register(cap)
+        for name, handler in shell.HANDLERS.items():
+            executor.register_handler(name, handler)
 
     # Web search/fetch/extract
     for cap in web_search.CAPABILITIES:

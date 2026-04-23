@@ -236,3 +236,61 @@ HANDLERS: dict[str, ToolHandler] = {
     "fs.write_file": _write_file,
     "fs.delete_path": _delete_path,
 }
+
+
+# ---------------------------------------------------------------------------
+# Sandboxed handlers
+# ---------------------------------------------------------------------------
+
+def _path_inside(root: str, target: str) -> bool:
+    """True iff ``target`` resolves inside ``root`` (both realpaths)."""
+    root_real = os.path.realpath(root)
+    target_real = os.path.realpath(target)
+    return target_real == root_real or target_real.startswith(root_real + os.sep)
+
+
+def _refuse(tool_name: str, path: str) -> ToolResult:
+    return ToolResult(
+        tool_name=tool_name,
+        success=False,
+        output="",
+        error=f"Path outside sandboxed workspace: {path}",
+        metadata={"path": path},
+    )
+
+
+def create_handlers(workspace: str | None = None) -> dict[str, ToolHandler]:
+    """Return filesystem handlers.
+
+    When ``workspace`` is ``None`` the raw handlers are returned (same as the
+    ``HANDLERS`` export — kept for back-compat with direct test wiring). When
+    ``workspace`` is a directory path, every handler validates that its
+    ``path`` argument resolves inside that root before doing any I/O. The
+    workspace directory is created if missing.
+    """
+    if workspace is None:
+        return dict(HANDLERS)
+
+    root = os.path.realpath(workspace)
+    os.makedirs(root, exist_ok=True)
+
+    def _guarded(name: str, inner: ToolHandler) -> ToolHandler:
+        def handler(args: dict[str, Any]) -> ToolResult:
+            target = args.get("path", "")
+            if not isinstance(target, str) or not target:
+                return ToolResult(
+                    tool_name=name, success=False, output="",
+                    error="path argument required",
+                )
+            # Resolve relative paths against the workspace root so callers
+            # can use either absolute or workspace-relative paths.
+            if not os.path.isabs(target):
+                target = os.path.join(root, target)
+            if not _path_inside(root, target):
+                return _refuse(name, args.get("path", ""))
+            guarded_args = dict(args)
+            guarded_args["path"] = target
+            return inner(guarded_args)
+        return handler
+
+    return {name: _guarded(name, fn) for name, fn in HANDLERS.items()}

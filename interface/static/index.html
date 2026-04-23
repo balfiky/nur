@@ -232,6 +232,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
         <div class="settings-field full"><label for="cfg-llm_api_key">API Key</label><input id="cfg-llm_api_key" type="password" placeholder="Leave blank to keep current"><div class="secret-hint" id="cfg-status-llm_api_key">Not configured</div><label class="settings-inline"><input id="cfg-clear_llm_api_key" type="checkbox"> Clear saved key</label></div>
         <div class="settings-field full"><label for="cfg-minimax_api_key">MiniMax API Key</label><input id="cfg-minimax_api_key" type="password" placeholder="Leave blank to keep current"><div class="secret-hint" id="cfg-status-minimax_api_key">Not configured</div><label class="settings-inline"><input id="cfg-clear_minimax_api_key" type="checkbox"> Clear saved key</label></div>
       </div></div>
+      <div class="settings-section"><h3>Access</h3><div class="settings-grid">
+        <div class="settings-field full"><label for="cfg-api_key">Web/API Bearer Token</label><input id="cfg-api_key" type="password" placeholder="Leave blank to keep current; sets a token that protects /chat, /config, /ws, and /v1/*"><div class="secret-hint" id="cfg-status-api_key">Not configured</div><label class="settings-inline"><input id="cfg-clear_api_key" type="checkbox"> Clear saved token</label></div>
+      </div></div>
       <div class="settings-section"><h3>Telegram</h3><div class="settings-grid">
         <div class="settings-field full"><label for="cfg-telegram_token">Bot Token</label><input id="cfg-telegram_token" type="password" placeholder="Leave blank to keep current"><div class="secret-hint" id="cfg-status-telegram_token">Not configured</div><label class="settings-inline"><input id="cfg-clear_telegram_token" type="checkbox"> Clear saved token</label></div>
         <div class="settings-field"><label for="cfg-telegram_poll_timeout">Poll Timeout (s)</label><input id="cfg-telegram_poll_timeout" type="number" min="1"></div>
@@ -341,6 +344,26 @@ const chatId = getOrCreateId('nur_chat_id', sessionStorage);
 let sending = false;
 let lastEmotion = 'neutral';
 
+// ---- API-bearer token (client-side) --------------------------------------
+// Stored in localStorage so the same browser tab keeps working after a
+// reload. Must match RuntimeConfig.api_key on the server when set.
+function getApiToken() { return localStorage.getItem('nur_api_token') || ''; }
+function setApiToken(tok) {
+  if (tok) localStorage.setItem('nur_api_token', tok);
+  else localStorage.removeItem('nur_api_token');
+}
+function authHeaders(extra) {
+  const h = extra ? Object.assign({}, extra) : {};
+  const t = getApiToken();
+  if (t) h['Authorization'] = 'Bearer ' + t;
+  return h;
+}
+async function authedFetch(url, opts) {
+  const o = Object.assign({}, opts || {});
+  o.headers = authHeaders(o.headers || {});
+  return fetch(url, o);
+}
+
 // Auto-resize textarea
 inputEl.addEventListener('input', () => {
   inputEl.style.height = 'auto';
@@ -367,7 +390,7 @@ async function sendMessage() {
   scrollToBottom();
 
   try {
-    const res = await fetch('/chat', {
+    const res = await authedFetch('/chat', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ message: text, user_id: userId, chat_id: chatId }),
@@ -574,7 +597,7 @@ function toggleDebug() {
 // Session actions
 async function endSession() {
   try {
-    const res = await fetch('/session/end', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({user_id: userId, chat_id: chatId}) });
+    const res = await authedFetch('/session/end', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({user_id: userId, chat_id: chatId}) });
     const data = await res.json();
     addMessage('[Session ended: ' + (data.summary || 'digested') + ']', 'assistant');
   } catch (err) { addMessage('Error: ' + err.message, 'assistant'); }
@@ -582,10 +605,10 @@ async function endSession() {
 
 async function applyRest() {
   try {
-    const res = await fetch('/rest', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({hours: 1.0, user_id: userId, chat_id: chatId}) });
+    const res = await authedFetch('/rest', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({hours: 1.0, user_id: userId, chat_id: chatId}) });
     const data = await res.json();
     addMessage('[Rested 1hr: energy ' + data.energy_before.toFixed(2) + ' \u2192 ' + data.energy_after.toFixed(2) + ']', 'assistant');
-    const dr = await fetch('/debug?' + new URLSearchParams({user_id: userId, chat_id: chatId}));
+    const dr = await authedFetch('/debug?' + new URLSearchParams({user_id: userId, chat_id: chatId}));
     const dd = await dr.json();
     if (dd.modulator_snapshot) updateDebug(dd);
   } catch (err) { addMessage('Error: ' + err.message, 'assistant'); }
@@ -597,7 +620,7 @@ function closeSettings() { settingsOverlay.classList.remove('open'); }
 function closeSettingsIfBackdrop(e) { if (e.target === settingsOverlay) closeSettings(); }
 
 async function loadSettings() {
-  const res = await fetch('/config'); if (!res.ok) throw new Error('HTTP ' + res.status);
+  const res = await authedFetch('/config'); if (!res.ok) throw new Error('HTTP ' + res.status);
   applySettings(await res.json());
 }
 
@@ -613,15 +636,21 @@ async function saveSettings() {
     proactive_max_per_session: gi('cfg-proactive_max_per_session'), proactive_cooldown: gf('cfg-proactive_cooldown'),
     proactive_check_interval: gf('cfg-proactive_check_interval'),
     telegram_token: gv('cfg-telegram_token'), llm_api_key: gv('cfg-llm_api_key'), minimax_api_key: gv('cfg-minimax_api_key'),
+    api_key: gv('cfg-api_key'),
     clear_telegram_token: document.getElementById('cfg-clear_telegram_token').checked,
     clear_llm_api_key: document.getElementById('cfg-clear_llm_api_key').checked,
     clear_minimax_api_key: document.getElementById('cfg-clear_minimax_api_key').checked,
+    clear_api_key: document.getElementById('cfg-clear_api_key').checked,
   };
   try {
     setStatus('Saving...');
-    const res = await fetch('/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(p) });
+    const res = await authedFetch('/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(p) });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
+    // Sync the local copy of the bearer token to whatever the server now
+    // expects, so subsequent fetches do not 401 after a key rotation.
+    if (p.clear_api_key) setApiToken('');
+    else if (p.api_key && p.api_key.trim()) setApiToken(p.api_key.trim());
     applySettings(data);
     setStatus((data.message || 'Saved.') + (data.reloaded_web_manager ? ' Session manager reloaded.' : ''));
   } catch (err) { setStatus('Error: ' + err.message, true); }
@@ -639,11 +668,12 @@ function applySettings(payload) {
   sv('cfg-proactive_max_per_session', c.proactive_max_per_session??3); sv('cfg-proactive_cooldown', c.proactive_cooldown??300);
   sv('cfg-proactive_check_interval', c.proactive_check_interval??60);
   sv('cfg-telegram_allowlist', (c.telegram_allowlist||[]).join('\n'));
-  sv('cfg-telegram_token',''); sv('cfg-llm_api_key',''); sv('cfg-minimax_api_key','');
-  ['cfg-clear_telegram_token','cfg-clear_llm_api_key','cfg-clear_minimax_api_key'].forEach(id => document.getElementById(id).checked = false);
+  sv('cfg-telegram_token',''); sv('cfg-llm_api_key',''); sv('cfg-minimax_api_key',''); sv('cfg-api_key','');
+  ['cfg-clear_telegram_token','cfg-clear_llm_api_key','cfg-clear_minimax_api_key','cfg-clear_api_key'].forEach(id => document.getElementById(id).checked = false);
   const ss = payload.secret_status || {};
-  ['telegram_token','llm_api_key','minimax_api_key'].forEach(k => {
-    document.getElementById('cfg-status-' + k).textContent = ss[k] ? 'Configured. Leave blank to keep.' : 'Not configured.';
+  ['telegram_token','llm_api_key','minimax_api_key','api_key'].forEach(k => {
+    const el = document.getElementById('cfg-status-' + k);
+    if (el) el.textContent = ss[k] ? 'Configured. Leave blank to keep.' : 'Not configured.';
   });
   const notes = (payload.notes||[]).map(n => '<div class="settings-note">' + esc(n) + '</div>').join('');
   setStatus('Config: ' + esc(payload.config_path || 'runtime_config.yaml') + notes);

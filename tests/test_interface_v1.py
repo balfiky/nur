@@ -290,6 +290,77 @@ class TestAuthMiddleware:
         assert resp.status_code == 200
 
 
+class TestLegacyEndpointAuth:
+    """Regression lock: legacy endpoints must respect the same api_key.
+
+    When api_key is set, /chat, /debug, /config, /session/end, /rest, and
+    /ws require the bearer token. Only GET / (the static web shell) and the
+    v1 health/ready probes stay open.
+    """
+
+    def _post(self, client, path, **body):
+        return client.post(path, json=body)
+
+    def test_chat_requires_auth(self, authed_client):
+        resp = self._post(authed_client, "/chat", message="hi", user_id="x")
+        assert resp.status_code == 401
+
+    def test_chat_accepts_valid_token(self, authed_client):
+        resp = authed_client.post(
+            "/chat",
+            json={"message": "hi", "user_id": "x"},
+            headers={"Authorization": "Bearer test-token-abc"},
+        )
+        assert resp.status_code == 200
+
+    def test_debug_requires_auth(self, authed_client):
+        resp = authed_client.get("/debug")
+        assert resp.status_code == 401
+
+    def test_get_config_requires_auth(self, authed_client):
+        resp = authed_client.get("/config")
+        assert resp.status_code == 401
+
+    def test_post_config_requires_auth(self, authed_client):
+        # Crucial: an unauthenticated POST /config must not be able to
+        # clear the api_key and disable auth for subsequent requests.
+        resp = authed_client.post(
+            "/config",
+            json={"clear_api_key": True, "llm_backend": "mock"},
+        )
+        assert resp.status_code == 401
+
+    def test_session_end_requires_auth(self, authed_client):
+        resp = self._post(authed_client, "/session/end", user_id="x")
+        assert resp.status_code == 401
+
+    def test_rest_requires_auth(self, authed_client):
+        resp = self._post(authed_client, "/rest", user_id="x")
+        assert resp.status_code == 401
+
+    def test_index_stays_open(self, authed_client):
+        # The HTML shell itself is static and needs to bootstrap the UI,
+        # which then attaches the user-provided bearer token on fetches.
+        resp = authed_client.get("/")
+        assert resp.status_code == 200
+
+    def test_websocket_rejects_missing_token(self, authed_client):
+        # Starlette raises WebSocketDisconnect when the server closes the
+        # connection before accepting — which is what /ws does for bad
+        # auth. We just need to see that the handshake did not open.
+        from starlette.websockets import WebSocketDisconnect
+
+        with pytest.raises(WebSocketDisconnect):
+            with authed_client.websocket_connect("/ws"):
+                pass
+
+    def test_websocket_accepts_valid_token_via_query(self, authed_client):
+        with authed_client.websocket_connect("/ws?token=test-token-abc") as ws:
+            ws.send_text('{"message":"hi","user_id":"x"}')
+            data = ws.receive_json()
+            assert "response" in data
+
+
 class TestDeleteUser:
     """DELETE /v1/users/{platform}/{user_id} — PRIVACY.md deletion contract."""
 

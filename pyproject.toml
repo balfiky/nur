@@ -4,11 +4,23 @@ version = "0.1.0"
 description = "A hybrid cognitive architecture for human-like AI emotion"
 requires-python = ">=3.10"
 dependencies = [
-    "fastapi>=0.110",
-    "httpx>=0.27",
-    "uvicorn>=0.29",
-    "pyyaml>=6.0",
-    "requests>=2.31",
+    # Lower bounds reflect the oldest version the code base has been tested
+    # against; upper bounds cap below the next breaking major to keep a
+    # fresh public ``pip install`` from resolving to an untested combo.
+    # ``starlette<1.0`` is intentional: independent testers reported that
+    # the Starlette 1.0 / AnyIO 4.13 combination hangs FastAPI TestClient
+    # in a fresh venv. FastAPI 0.135.2 works fine with Starlette 0.47.x.
+    # Known-good combination: fastapi 0.135.2 / starlette 0.47.x /
+    # uvicorn 0.42.0 / httpx 0.28.1 / anyio 4.10.x / pydantic 2.12.x
+    # (1331 tests green on Python 3.10.19).
+    "fastapi>=0.110,<0.140",
+    "starlette>=0.47,<0.48",
+    "httpx>=0.27,<1.0",
+    "uvicorn>=0.29,<1.0",
+    "pyyaml>=6.0,<7.0",
+    "requests>=2.31,<3.0",
+    "anyio>=4.10,<4.11",
+    "pydantic>=2.0,<3.0",
 ]
 
 [project.optional-dependencies]
@@ -21,6 +33,13 @@ dev = [
 [project.scripts]
 nur = "main:main"
 nur-web = "interface.api:main"
+
+[tool.setuptools]
+py-modules = ["main", "pipeline"]
+
+[tool.setuptools.packages.find]
+include = ["core*", "config*", "evals*", "interface*", "runtime*", "tools*"]
+exclude = ["tests*", "data*", "storage*", "reports*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

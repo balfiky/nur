@@ -4,6 +4,101 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.22.0 — 2026-04-23 (Pre-publication launch-blocker fixes)
+
+Fixes three release-acceptance blockers surfaced by a pre-publication audit.
+The cognitive/eval layer was healthy; the runtime packaging and the
+auth/tool security posture were not. This release makes the public launch
+safe.
+
+### Fixed
+- **B1 — packaging.** `python3 -m pip install -e ".[dev]"` no longer fails
+  with `Multiple top-level packages discovered in a flat-layout`. Added
+  `[tool.setuptools] py-modules = ["main", "pipeline"]` and an explicit
+  `[tool.setuptools.packages.find]` include/exclude list in
+  `pyproject.toml:21-29`. The `nur` and `nur-web` console scripts
+  advertised in README's 5-Minute Start are installed again.
+- **B2 — auth coverage on legacy routes.** README previously claimed that
+  setting `api_key` protects every endpoint except `/v1/health` and
+  `/v1/ready`. In fact only the `/v1/*` router enforced it; `/chat`,
+  `/debug`, `/config` (GET + POST), `/session/end`, `/rest`, and `/ws`
+  stayed open — an unauthenticated `POST /config` could even clear the
+  api_key and disable auth entirely. Added a shared `_require_bearer`
+  dependency in `interface/api.py` and attached it to every mutating
+  legacy route. `/ws` does an inline check on a `?token=` query param
+  because FastAPI does not run dependencies for WebSocket handlers. Only
+  `GET /` (the static HTML shell) stays open so the UI can bootstrap.
+- **B2 — bundled UI keeps working under auth.** `interface/static/index.html`
+  now has a `Web/API Bearer Token` field in the Settings drawer plus an
+  `authHeaders()` helper. The token is persisted to `localStorage` and
+  attached to every `fetch` to `/chat`, `/config`, `/debug`, `/session/end`,
+  and `/rest`.
+- **B3 — agentic tool runtime is off by default.** Three new
+  `RuntimeConfig` fields (`tools_enabled`, `tools_workspace`,
+  `shell_tool_enabled`) gate the production factory in
+  `runtime/tools.py`. Default is `tools_enabled=false`, so chat messages
+  that match the regex intents in `core/dual_process/tool_loop.py` no
+  longer trigger `fs.delete_path`, `shell.run_command`, etc. When the
+  operator flips `tools_enabled: true`, filesystem tools are sandboxed
+  to `tools_workspace` (default `<data_dir>/workspace`); paths that
+  resolve outside it are refused. `shell.run_command` is a separate
+  opt-in because subprocess execution has a larger blast radius than
+  bounded file I/O.
+
+### Added
+- `tools/builtin/filesystem.py:create_handlers(workspace)` — returns
+  sandboxed handlers that validate every path against a workspace root
+  before performing I/O. Relative paths are resolved against the
+  workspace so workspace-relative usage works.
+- `tests/test_interface_v1.py::TestLegacyEndpointAuth` — 10 regression
+  tests locking in the B2 fix: `/chat`, `/debug`, `GET /config`,
+  `POST /config`, `/session/end`, `/rest`, and `/ws` all reject
+  unauthenticated requests when `api_key` is set; the static `/` stays
+  open; a valid token is accepted on both HTTP and WS.
+- `SECURITY.md` — new "Agentic Tool Runtime" section documenting the
+  regex-intent layer, the sandbox, and the full auth coverage.
+
+### Documentation
+- README 5-Minute Start, auth-coverage paragraph, and tool-safety
+  callout rewritten against the new behavior.
+- Test counts reconciled to **1331** across `README.md`,
+  `TECHNICAL_NOTE.md`, and `PAPER_DRAFT.md`.
+- README eval example updated to `python3 -m evals --backend mock --tag
+  phase11` (the CLI has required `--backend` since v0.19).
+
+### Also fixed during the same release audit
+- **`nur` console SIGINT/shutdown hang.** The console loop used
+  `asyncio.to_thread(input)`, which left a worker thread blocked on
+  stdin and in turn blocked `loop.shutdown_default_executor` on exit.
+  `runtime/channels/console.py` now polls stdin via `select` with a
+  200 ms timeout so setting `_running = False` (from signal handlers or
+  `/quit`) takes effect within that window. `_signal_shutdown` no longer
+  fire-and-forgets a `ConsoleChannel.stop()` coroutine.
+  `runtime/app.py::_teardown` replaces the old task-cancel scattershot
+  with a single graceful-then-cancel path that sets uvicorn's
+  `should_exit = True`, awaits background tasks with a 5 s timeout,
+  then hard-cancels stragglers. SIGINT now exits in ~250 ms.
+- **`POST /config` silently resetting tool settings.** The web Settings
+  form does not surface `tools_enabled` / `tools_workspace` /
+  `shell_tool_enabled`, so a plain save used to reset them to the safe
+  defaults (False / ""). `ConfigUpdateRequest` now defaults those
+  fields to `None` and the handler treats `None` as "leave the existing
+  YAML value intact"; explicit booleans/strings still take effect. Two
+  new tests in `test_interface.py` lock this in.
+- **Dependency bounds.** Added upper caps on every production
+  dependency (`fastapi<0.140`, `starlette<2.0`, `httpx<1.0`,
+  `uvicorn<1.0`, `pyyaml<7.0`, `requests<3.0`, `anyio<5.0`,
+  `pydantic<3.0`) plus an inline comment recording the exact
+  known-good combination (`fastapi 0.135.2 / starlette 1.0.0 / uvicorn
+  0.42.0 / httpx 0.28.1 / anyio 4.13.0 / pydantic 2.12.x`). Keeps a
+  fresh public `pip install` from resolving to an untested combo.
+
+### Tests
+- Full suite: **1331 passed** (`python -m pytest`) across two clean
+  runs — 12 new tests total, zero regressions.
+
+---
+
 ## v0.21.0 — 2026-04-08 (Versioned integration API + Python client)
 
 Adds a stable `/v1/*` HTTP surface and a thin Python client so Project Nūr can be embedded into dashboards, chatbots, eval harnesses, and orchestrators without depending on the bundled web UI or scraping the legacy endpoints.

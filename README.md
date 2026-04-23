@@ -85,7 +85,7 @@ Keep committed `runtime_config.yaml` secrets blank and inject real values locall
 
 ## Status
 
-**v2 + Jarvis Runtime + Phase 11 complete, plus a stable `/v1` integration API.** All three Phase 11 sub-phases are deployed: deterministic social appraisal, relationship-arc memory, and response strategy selection. The test suite has grown past 1250 tests.
+**v2 + Jarvis Runtime + Phase 11 complete, plus a stable `/v1` integration API.** All three Phase 11 sub-phases are deployed: deterministic social appraisal, relationship-arc memory, and response strategy selection. The test suite has grown past 1330 tests.
 
 v1 gave it a brain that remembers and adapts.
 v2 gives it deliberation, dread, and self-protection.
@@ -108,8 +108,8 @@ nur
 # All tests
 python3 -m pytest
 
-# Phase 11 human-likeness regression pack
-python3 -m evals --tag phase11
+# Phase 11 human-likeness regression pack (pass --backend mock for an offline run)
+python3 -m evals --backend mock --tag phase11
 
 # Detailed Phase 11 trace report
 python3 -m tests.run_phase11_report
@@ -563,13 +563,23 @@ Two surfaces share the same FastAPI app. The **legacy endpoints at the root** ex
 | GET  | `/v1/memory/long_term` | Recent long-term memories for a user (ACT-R ordering) |
 | GET  | `/v1/memory/relationship` | Relationship events and open loops for a user |
 | GET  | `/v1/memory/semantic` | Semantic memories for a user (preferences, decisions, episodes, facts) |
-| GET  | `/v1/tools` | Enumerate registered tool capabilities |
+| GET  | `/v1/tools` | Enumerate registered tool capabilities (empty list when `tools_enabled: false`) |
 | GET  | `/v1/config` | Runtime config with secrets redacted |
 | DELETE | `/v1/users/{platform}/{user_id}` | Wipe all persisted data for a user on that platform (evicts sessions, removes DB + session JSON; shared self-model preserved — see [PRIVACY.md](PRIVACY.md)) |
 
-**Auth is opt-in.** Leave `api_key` empty in `runtime_config.yaml` (or clear it through the settings drawer) and every endpoint is open. Set it and every endpoint *except* `/v1/health` and `/v1/ready` requires `Authorization: Bearer <api_key>`. The token is re-read on every request, so rotating it through `POST /config` takes effect without restarting the app.
+**Auth is opt-in.** Leave `api_key` empty in `runtime_config.yaml` (or clear it through the settings drawer) and every endpoint is open. Set it and every mutating endpoint on the web server requires `Authorization: Bearer <api_key>` — both the versioned surface (`/v1/*` except `/v1/health` and `/v1/ready`) and the legacy surface (`/chat`, `/debug`, `GET /config`, `POST /config`, `/session/end`, `/rest`, `/ws`). The static `GET /` page stays open so the bundled UI can bootstrap; the UI then reads the token from its Settings drawer and attaches it on every fetch. For `/ws`, pass the token as `?token=<api_key>` when the client cannot set custom headers. The token is re-read on every request, so rotating it through `POST /config` takes effect without restarting the app.
 
 **CORS**: `cors_origins` in `runtime_config.yaml` is an allowlist. Empty list = same-origin only (browsers block cross-origin XHR), which is the safe default.
+
+**Agentic tools are off by default.** When a chat message matches one of the regex intents in `core/dual_process/tool_loop.py` (for example, `rm <path>`, `run \`cmd\``, `please read the file <path>`), Nūr can execute filesystem, shell, web, browser, and calendar operations on the host. Because that means user text can trigger destructive actions, `runtime_config.yaml` ships with:
+
+```yaml
+tools_enabled: false        # master switch; /chat/ /v1/chat skip tool execution
+tools_workspace: ''         # workspace root when enabled (default: <data_dir>/workspace)
+shell_tool_enabled: false   # separate opt-in for shell.run_command
+```
+
+When you flip `tools_enabled: true`, filesystem tools are sandboxed to `tools_workspace` and `shell.run_command` stays off until you also set `shell_tool_enabled: true`. Set `api_key` as well before exposing the server to anything beyond your own shell. See [SECURITY.md](SECURITY.md) for the full threat model.
 
 ### Quick curl tour
 
@@ -748,7 +758,7 @@ All magic numbers live in YAML files. No hardcoded thresholds in module code. Th
 | test_phase3 | 20 | Inactivity timeout, graceful shutdown, backpressure, WAL mode |
 | test_debug_api | 15 | Session listing, per-session debug, reset, isolation |
 | test_runtime_config | 21 | Config loading, local/backend selection, channel config |
-| **Total** | **1251** | |
+| **Total** | **1331** | |
 
 ---
 

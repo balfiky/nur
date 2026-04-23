@@ -48,6 +48,33 @@ extra scrutiny:
 - `runtime/channels/telegram.py` — allowlist logic controls who can chat.
   Misconfiguration exposes the system to arbitrary Telegram users.
 
+## Agentic Tool Runtime
+
+Nūr ships with a builtin agentic tool layer (`tools/builtin/`) that can
+match user text to actions like `fs.read_file`, `fs.write_file`,
+`fs.delete_path`, `shell.run_command`, and web/browser/calendar calls via
+regex heuristics in `core/dual_process/tool_loop.py`. **Tools are off by
+default** (`tools_enabled: false`). When you turn them on:
+
+- Filesystem tools are sandboxed to
+  `tools_workspace` — paths that resolve outside that directory are
+  refused. The default workspace is `<data_dir>/workspace`.
+- `shell.run_command` is a **separate** opt-in via `shell_tool_enabled: true`
+  because subprocess execution has a larger blast radius than bounded
+  file I/O.
+- The HTTP surface (`/chat`, `/v1/chat`) routes user messages through the
+  same regex intent parser, so authenticating the endpoint is not a
+  substitute for sandboxing — an authenticated attacker (or the user's
+  own mis-addressed command) can still reach the tool layer. Set
+  `api_key` and keep `shell_tool_enabled: false` unless you trust every
+  caller.
+
+When `api_key` is set, every mutating endpoint on the standalone web
+server requires `Authorization: Bearer <api_key>`: `/chat`, `/debug`,
+`/config` (GET and POST), `/session/end`, `/rest`, `/ws`, and every
+`/v1/*` endpoint except `/v1/health` and `/v1/ready`. Static assets
+(`GET /`) remain open so the bundled UI can bootstrap.
+
 ## Responsible Use
 
 Nūr persists emotional and relational state about its users. Do not deploy it

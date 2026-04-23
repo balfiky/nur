@@ -254,7 +254,7 @@ python3 -m evals.ablation \
     --report-dir reports/ablation
 ```
 
-Full test suite: `python3 -m pytest` (1,319 tests).
+Full test suite: `python3 -m pytest` (1,331 tests).
 
 ---
 

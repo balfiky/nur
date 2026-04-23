@@ -59,6 +59,19 @@ class RuntimeConfig:
     api_key: str = ""                          # bearer token; empty = auth disabled
     cors_origins: list[str] = field(default_factory=list)  # CORS allowlist; empty = same-origin only
 
+    # Agentic tool runtime
+    # Tools are off by default: user-text heuristics can invoke destructive
+    # operations (fs.delete_path, shell.run_command, etc.), and the default
+    # HTTP surface does not authenticate every request. Opt in explicitly.
+    tools_enabled: bool = False
+    # Workspace root for filesystem tools when enabled. Empty string means
+    # "<data_dir>/workspace". Filesystem tool calls that resolve outside this
+    # root are refused.
+    tools_workspace: str = ""
+    # Shell tool is a separate opt-in even when tools_enabled=True: subprocess
+    # execution is a larger blast radius than bounded file I/O.
+    shell_tool_enabled: bool = False
+
     @classmethod
     def from_yaml(cls, path: str) -> RuntimeConfig:
         """Load config from a YAML file.  Missing keys use defaults."""
@@ -123,6 +136,12 @@ class RuntimeConfig:
     @property
     def shared_db_path(self) -> str:
         return os.path.join(self.data_dir, "shared", "self_model.db")
+
+    @property
+    def resolved_tools_workspace(self) -> str:
+        """Absolute path to the filesystem workspace for sandboxed tools."""
+        root = self.tools_workspace.strip() or os.path.join(self.data_dir, "workspace")
+        return os.path.realpath(root)
 
     def user_data_dir(self, rel_key: str) -> str:
         """Per-user data directory.  rel_key is platform:user_id."""

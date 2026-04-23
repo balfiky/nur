@@ -9,7 +9,7 @@ import os
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
@@ -148,6 +148,40 @@ def _current_config_for_middleware() -> RuntimeConfig:
     return RuntimeConfig.from_yaml(RUNTIME_CONFIG_PATH)
 
 
+def _verify_bearer(token: str | None) -> None:
+    """Raise 401 unless ``token`` matches the currently-configured api_key.
+
+    If no api_key is configured, auth is disabled and this is a no-op. The
+    config is re-read on every call so rotating the key through POST /config
+    takes effect immediately.
+    """
+    expected = _current_config_for_middleware().api_key
+    if not expected:
+        return
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing bearer token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if token != expected:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid bearer token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+async def _require_bearer(
+    authorization: str | None = Header(default=None),
+) -> None:
+    """FastAPI dependency that protects legacy endpoints when api_key is set."""
+    token: str | None = None
+    if authorization and authorization.lower().startswith("bearer "):
+        token = authorization.split(" ", 1)[1].strip()
+    _verify_bearer(token)
+
+
 # CORS — origins are read from runtime_config.yaml at startup. Empty list
 # means same-origin only (browsers block cross-origin XHR), which is the
 # safe default. Changes to ``cors_origins`` take effect on app restart.
@@ -216,6 +250,13 @@ class ConfigUpdateRequest(BaseModel):
     minimax_api_key: str = ""
     api_key: str = ""
     cors_origins: list[str] = Field(default_factory=list)
+    # Tool settings. ``None`` means "leave unchanged" — without this, a
+    # save of the web Settings form (which does not surface these fields)
+    # would silently reset ``tools_enabled`` / ``shell_tool_enabled`` /
+    # ``tools_workspace`` to their safe defaults.
+    tools_enabled: bool | None = None
+    tools_workspace: str | None = None
+    shell_tool_enabled: bool | None = None
     clear_telegram_token: bool = False
     clear_llm_api_key: bool = False
     clear_minimax_api_key: bool = False
@@ -230,7 +271,7 @@ def get_session_manager() -> SessionManager:
         _session_manager = SessionManager(
             config=config,
             backend_factory=lambda: create_llm_backend(config),
-            tool_executor_factory=create_tool_executor,
+            tool_executor_factory=lambda: create_tool_executor(config),
         )
     return _session_manager
 
@@ -249,7 +290,7 @@ def set_pipeline(pipeline: CognitivePipeline | None) -> None:
     _session_manager = None
 
 
-@app.post("/chat")
+@app.post("/chat", dependencies=[Depends(_require_bearer)])
 async def chat(req: ChatRequest):
     try:
         if _pipeline_override is not None:
@@ -275,7 +316,7 @@ async def chat(req: ChatRequest):
         )
 
 
-@app.get("/debug")
+@app.get("/debug", dependencies=[Depends(_require_bearer)])
 async def debug(user_id: str = "default", chat_id: str = "default") -> dict:
     if _pipeline_override is not None:
         unresolved = _pipeline_override.engine.active_unresolved()
@@ -294,13 +335,13 @@ async def debug(user_id: str = "default", chat_id: str = "default") -> dict:
     return _session_debug(_session_key(user_id, chat_id), session)
 
 
-@app.get("/config")
+@app.get("/config", dependencies=[Depends(_require_bearer)])
 async def get_config() -> dict:
     config = _load_runtime_config()
     return _config_payload(config, saved=True)
 
 
-@app.post("/config")
+@app.post("/config", dependencies=[Depends(_require_bearer)])
 async def update_config(req: ConfigUpdateRequest) -> dict:
     global _session_manager
 
@@ -333,6 +374,18 @@ async def update_config(req: ConfigUpdateRequest) -> dict:
         proactive_check_interval=req.proactive_check_interval,
         api_key=existing.api_key,
         cors_origins=[o.strip() for o in req.cors_origins if o.strip()],
+        tools_enabled=(
+            existing.tools_enabled if req.tools_enabled is None
+            else bool(req.tools_enabled)
+        ),
+        tools_workspace=(
+            existing.tools_workspace if req.tools_workspace is None
+            else req.tools_workspace.strip()
+        ),
+        shell_tool_enabled=(
+            existing.shell_tool_enabled if req.shell_tool_enabled is None
+            else bool(req.shell_tool_enabled)
+        ),
     )
 
     if req.clear_telegram_token:
@@ -373,7 +426,7 @@ async def update_config(req: ConfigUpdateRequest) -> dict:
     )
 
 
-@app.post("/session/end")
+@app.post("/session/end", dependencies=[Depends(_require_bearer)])
 async def end_session(req: EndSessionRequest) -> dict:
     if _pipeline_override is not None:
         result = _pipeline_override.end_session(user_id=req.user_id)
@@ -385,7 +438,7 @@ async def end_session(req: EndSessionRequest) -> dict:
     return _digested_to_dict(result)
 
 
-@app.post("/rest")
+@app.post("/rest", dependencies=[Depends(_require_bearer)])
 async def rest(req: RestRequest) -> dict:
     if _pipeline_override is not None:
         energy_before = _pipeline_override.engine.state.energy
@@ -409,6 +462,22 @@ async def rest(req: RestRequest) -> dict:
 
 @app.websocket("/ws")
 async def websocket_chat(ws: WebSocket) -> None:
+    # FastAPI does not run route dependencies for WebSocket handlers, so do
+    # the bearer-token check inline. Browser WS clients cannot set custom
+    # headers, so also accept the token as a ?token=... query param.
+    expected = _current_config_for_middleware().api_key
+    if expected:
+        header_token: str | None = None
+        auth_header = ws.headers.get("authorization")
+        if auth_header and auth_header.lower().startswith("bearer "):
+            header_token = auth_header.split(" ", 1)[1].strip()
+        query_token = ws.query_params.get("token")
+        supplied = header_token or query_token
+        if supplied != expected:
+            # Close with a policy-violation code before accepting so
+            # unauthenticated clients cannot hold a connection open.
+            await ws.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
     await ws.accept()
     try:
         while True:

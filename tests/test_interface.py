@@ -320,6 +320,50 @@ class TestConfigEndpoint:
         assert saved.telegram_token == ""
         assert result["secret_status"]["telegram_token"] is False
 
+    async def test_update_config_preserves_tool_settings_when_omitted(self, monkeypatch, tmp_path):
+        """Saving the web Settings form must not silently flip tool flags back.
+
+        The UI form does not surface ``tools_enabled`` /
+        ``shell_tool_enabled`` / ``tools_workspace``. Before the fix, a
+        plain save wiped them to False/"" because Pydantic defaulted the
+        missing fields. Now the handler treats ``None`` as "leave
+        unchanged" and only overrides when the client explicitly sets a
+        value.
+        """
+        path = tmp_path / "runtime_config.yaml"
+        RuntimeConfig(
+            llm_backend="mock",
+            tools_enabled=True,
+            tools_workspace="/tmp/nur_ws",
+            shell_tool_enabled=True,
+        ).write_yaml(str(path))
+        monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(path))
+
+        await update_config(ConfigUpdateRequest(llm_backend="mock"))
+
+        saved = RuntimeConfig.from_yaml(str(path))
+        assert saved.tools_enabled is True
+        assert saved.tools_workspace == "/tmp/nur_ws"
+        assert saved.shell_tool_enabled is True
+
+    async def test_update_config_can_toggle_tool_settings(self, monkeypatch, tmp_path):
+        """An explicit value in the request does take effect."""
+        path = tmp_path / "runtime_config.yaml"
+        RuntimeConfig(llm_backend="mock").write_yaml(str(path))
+        monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(path))
+
+        await update_config(ConfigUpdateRequest(
+            llm_backend="mock",
+            tools_enabled=True,
+            tools_workspace="/tmp/nur_ws2",
+        ))
+
+        saved = RuntimeConfig.from_yaml(str(path))
+        assert saved.tools_enabled is True
+        assert saved.tools_workspace == "/tmp/nur_ws2"
+        # shell_tool_enabled was not specified → remains default False.
+        assert saved.shell_tool_enabled is False
+
     async def test_update_config_reloads_web_session_manager(self, monkeypatch, tmp_path):
         path = tmp_path / "runtime_config.yaml"
         RuntimeConfig(llm_backend="mock").write_yaml(str(path))

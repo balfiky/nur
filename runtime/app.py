@@ -33,7 +33,7 @@ class JarvisApp:
         self.session_manager = SessionManager(
             config=self.config,
             backend_factory=lambda: create_llm_backend(self.config),
-            tool_executor_factory=create_tool_executor,
+            tool_executor_factory=lambda: create_tool_executor(self.config),
             proactive_callback=self._deliver_proactive,
         )
         self._shutdown_event = asyncio.Event()
@@ -56,12 +56,12 @@ class JarvisApp:
         debug_task = asyncio.create_task(self._start_debug_server())
 
         # Start Telegram channel if token is configured
-        telegram_task = None
+        telegram_task: asyncio.Task | None = None
         if self.config.telegram_token:
             telegram_task = asyncio.create_task(self._start_telegram())
 
         # Start proactive behavior loop if enabled
-        proactive_task = None
+        proactive_task: asyncio.Task | None = None
         if self.config.proactive_enabled:
             proactive_task = asyncio.create_task(
                 self.session_manager.run_proactive_loop()
@@ -78,24 +78,52 @@ class JarvisApp:
         except asyncio.CancelledError:
             pass
         finally:
-            if proactive_task is not None:
-                proactive_task.cancel()
-                try:
-                    await proactive_task
-                except asyncio.CancelledError:
-                    pass
-            if telegram_task is not None:
-                telegram_task.cancel()
-                try:
-                    await telegram_task
-                except asyncio.CancelledError:
-                    pass
-            debug_task.cancel()
+            await self._teardown(debug_task, telegram_task, proactive_task)
+
+    async def _teardown(
+        self,
+        debug_task: asyncio.Task,
+        telegram_task: asyncio.Task | None,
+        proactive_task: asyncio.Task | None,
+    ) -> None:
+        """Graceful shutdown of background tasks and session state.
+
+        Uvicorn and the Telegram channel both have a ``should_exit``-style
+        flag; setting it lets their run loops return normally. We only fall
+        back to ``task.cancel()`` for anything that doesn't exit within a
+        bounded window, so we never leak uvicorn's lifespan task or leave
+        a pending ``ConsoleChannel.stop()`` coroutine behind.
+        """
+        # 1. Request graceful stop on all background services
+        if self._debug_server is not None:
+            self._debug_server.should_exit = True
+        if self._telegram is not None:
             try:
-                await debug_task
-            except asyncio.CancelledError:
-                pass
-            await self.shutdown()
+                await self._telegram.stop()
+            except Exception:
+                log.exception("Telegram stop failed")
+        if proactive_task is not None and not proactive_task.done():
+            proactive_task.cancel()
+
+        # 2. Await tasks with a bounded timeout; hard-cancel anything left
+        pending: list[asyncio.Task] = [
+            t for t in (debug_task, telegram_task, proactive_task) if t is not None
+        ]
+        if pending:
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*pending, return_exceptions=True),
+                    timeout=5.0,
+                )
+            except asyncio.TimeoutError:
+                log.warning("Background tasks did not exit gracefully; cancelling")
+                for t in pending:
+                    if not t.done():
+                        t.cancel()
+                await asyncio.gather(*pending, return_exceptions=True)
+
+        # 3. Drain sessions and mark shutdown complete
+        await self.shutdown()
 
     async def _start_debug_server(self) -> None:
         """Start the debug API server (runs as a background task)."""
@@ -113,10 +141,11 @@ class JarvisApp:
             "Debug API at http://%s:%d/sessions",
             self.config.debug_host, self.config.debug_port,
         )
-        try:
-            await self._debug_server.serve()
-        except asyncio.CancelledError:
-            self._debug_server.should_exit = True
+        # No try/except around serve(): the teardown path sets should_exit
+        # and awaits this task, so serve() returns normally. Catching
+        # CancelledError here and returning without letting uvicorn finish
+        # its own cleanup was what leaked the lifespan task.
+        await self._debug_server.serve()
 
     async def _start_telegram(self) -> None:
         """Start the Telegram channel (runs as a background task)."""
@@ -137,13 +166,19 @@ class JarvisApp:
             await self._telegram.stop()
 
     async def shutdown(self) -> None:
-        """Gracefully drain all sessions and clean up."""
+        """Drain sessions and mark shutdown complete.
+
+        Safe to call repeatedly. ``_teardown`` handles stopping channels
+        and the debug server; this method is only responsible for session
+        cleanup. Kept public because existing tests exercise it directly.
+        """
         if self._console is not None:
             await self._console.stop()
-
         if self._telegram is not None:
-            await self._telegram.stop()
-
+            try:
+                await self._telegram.stop()
+            except Exception:
+                log.exception("Telegram stop failed")
         if self._debug_server is not None:
             self._debug_server.should_exit = True
 
@@ -180,12 +215,15 @@ class JarvisApp:
             )
 
     def _signal_shutdown(self) -> None:
-        """Signal handler — triggers graceful shutdown."""
+        """Signal handler — triggers graceful shutdown.
+
+        Runs on the loop thread (installed via ``loop.add_signal_handler``).
+        Just flips the bool the console loop reads each iteration and
+        unblocks the headless wait. The teardown path in ``run()`` owns
+        the actual channel/task cleanup so we never fire-and-forget a
+        ``ConsoleChannel.stop()`` coroutine.
+        """
         log.info("Shutdown signal received")
-        # Unblock headless wait
         self._shutdown_event.set()
-        # Stop console if running
         if self._console is not None:
-            asyncio.get_running_loop().call_soon_threadsafe(
-                lambda: asyncio.ensure_future(self._console.stop())
-            )
+            self._console._running = False
