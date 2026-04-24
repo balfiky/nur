@@ -267,8 +267,9 @@ python3 -m evals --backend mock --tag phase11
 Backend modes:
 
 - `mock` for local/offline testing
-- `minimax` with `MINIMAX_API_KEY`
-- `openai_compatible` with a local or remote compatible server
+- `provider` for a hosted provider or gateway configured by `llm_base_url`, `llm_model`, and `llm_api_key`
+- `openai_compatible` for local or remote OpenAI-compatible endpoints such as Ollama, vLLM, LM Studio, or a hosted compatible gateway
+- `minimax` as a legacy provider-specific path kept for backward compatibility
 
 For operational details, see:
 

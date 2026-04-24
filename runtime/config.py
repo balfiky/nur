@@ -38,11 +38,11 @@ class RuntimeConfig:
     dedupe_ttl: float = 60.0
 
     # LLM backend
-    llm_backend: str = "auto"      # "auto", "minimax", "openai_compatible", "mock"
-    llm_base_url: str = ""         # for OpenAI-compatible backends (e.g. local vLLM)
+    llm_backend: str = "auto"      # "auto", "provider", "openai_compatible", "minimax", "mock"
+    llm_base_url: str = ""         # API endpoint for OpenAI-compatible backends
     llm_model: str = ""            # model name for OpenAI-compatible backends
-    llm_api_key: str = ""          # generic API key (optional for local backends)
-    minimax_api_key: str = ""      # backward-compatible alias / fallback
+    llm_api_key: str = ""          # generic API key (optional for local endpoints)
+    minimax_api_key: str = ""      # provider-specific alias / fallback
 
     # Debug API
     debug_host: str = "127.0.0.1"

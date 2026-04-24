@@ -17,6 +17,11 @@ Usage:
     python -m evals.ablation --backend mock --tag phase11 \\
       --report-dir reports/ablation/
 
+    python -m evals.ablation --backend provider \\
+      --base-url https://provider.example/v1 --model your-model \\
+      --api-key-env LLM_API_KEY --tag phase11 \\
+      --report-dir reports/ablation/
+
     python -m evals.ablation --backend minimax \\
       --api-key-env MINIMAX_API_KEY --tag phase11 \\
       --report-dir reports/ablation/
@@ -309,7 +314,7 @@ def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Run architecture ablations on Nūr's Phase 11 scenario set.",
     )
-    p.add_argument("--backend", choices=["mock", "minimax", "openai_compat"], required=True)
+    p.add_argument("--backend", choices=["mock", "provider", "minimax", "openai_compat"], required=True)
     p.add_argument("--model", default="")
     p.add_argument("--base-url", default="")
     p.add_argument("--api-key", default="")

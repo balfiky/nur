@@ -2,6 +2,7 @@
 
 Usage:
     python -m evals --backend mock
+    python -m evals --backend provider --base-url https://provider.example/v1 --model your-model
     python -m evals --backend minimax --tag phase11
     python -m evals --backend openai_compat --base-url http://localhost:8080/v1 --model qwen2.5
 
@@ -40,15 +41,15 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--backend",
-        choices=["mock", "minimax", "openai_compat"],
+        choices=["mock", "provider", "minimax", "openai_compat"],
         required=False,
         help=(
             "LLM backend to run against. REQUIRED unless --list is set. "
             "No silent fallback to mock."
         ),
     )
-    parser.add_argument("--model", default="", help="Model name (minimax / openai_compat)")
-    parser.add_argument("--base-url", default="", help="Base URL (openai_compat, or override minimax)")
+    parser.add_argument("--model", default="", help="Model name (provider / minimax / openai_compat)")
+    parser.add_argument("--base-url", default="", help="Base URL (provider / openai_compat, or override minimax)")
     parser.add_argument("--api-key", default="", help="API key literal (prefer --api-key-env or env vars)")
     parser.add_argument(
         "--api-key-env",
@@ -107,7 +108,7 @@ def main() -> None:
 
     if not args.backend:
         print(
-            "error: --backend is required (mock | minimax | openai_compat). "
+            "error: --backend is required (mock | provider | minimax | openai_compat). "
             "There is no silent fallback.",
             file=sys.stderr,
         )

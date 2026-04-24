@@ -41,7 +41,7 @@ nur-web
 
 Then open http://localhost:8000
 
-The tracked [runtime_config.yaml](runtime_config.yaml) starts in `mock` mode, so the first run works without a MiniMax key or a local model server. Use the `Settings` button in the web UI when you want to switch to MiniMax, a local OpenAI-compatible backend, or Telegram.
+The tracked [runtime_config.yaml](runtime_config.yaml) starts in `mock` mode, so the first run works without any provider key or local model server. Use the `Settings` button in the web UI when you want to switch to a hosted provider/gateway, an OpenAI-compatible endpoint, or Telegram.
 
 If your shell does not expose installed console scripts yet, the fallback is:
 
@@ -67,8 +67,9 @@ That starts the console chat loop and the debug API at http://127.0.0.1:8077/ses
 
 Use the web UI `Settings` drawer or edit [runtime_config.yaml](runtime_config.yaml):
 
-- MiniMax: set `llm_backend: minimax` and add `minimax_api_key`, or export `MINIMAX_API_KEY`
-- Local model server: set `llm_backend: openai_compatible`, then fill `llm_base_url` and `llm_model`
+- Hosted provider / gateway: set `llm_backend: provider`, then fill `llm_base_url`, `llm_model`, and `llm_api_key`
+- OpenAI-compatible endpoint: set `llm_backend: openai_compatible`, then fill `llm_base_url` and `llm_model`. This works with Ollama's OpenAI API, vLLM, LM Studio, and similar compatible local or remote servers
+- Legacy MiniMax path: set `llm_backend: minimax` and add `minimax_api_key`, or export `MINIMAX_API_KEY`
 - Mock mode: keep `llm_backend: mock` for offline/local testing
 
 Restart `nur` or `nur-web` after changing the backend.
@@ -293,7 +294,7 @@ nur/
 |   |-- emotional_engine.py          # PSI modulator state machine (6 modulators, decay, energy, resolution)
 |   |-- contagion.py                 # Emotional contagion (LLM + rule-based fallback)
 |   |-- appraisal.py                 # Deterministic social appraisal (Phase 11)
-|   |-- llm_client.py                # MiniMax API client (OpenAI-compatible)
+|   |-- llm_client.py                # Legacy MiniMax-specific client
 |   |-- anticipation.py              # Forward emotional modeling (v2, pure heuristics)
 |   |-- defense_mechanisms.py        # Defense filter (v2, pure logic + prompt injection)
 |   |-- memory/
@@ -327,7 +328,7 @@ nur/
 |   |-- test_pipeline.py             # 29 tests — full pipeline, event classification, LLM paths
 |   |-- test_config.py               # 36 tests — YAML loading, defaults, singleton
 |   |-- test_interface.py            # 20 tests — API endpoints + v2 debug fields
-|   |-- test_llm_client.py           # 11 tests — MiniMax client, think-tag stripping
+|   |-- test_llm_client.py           # 11 tests — legacy MiniMax client, think-tag stripping
 |   |-- test_calibration.py          # 27 tests — multi-session calibration scenarios
 |   |-- test_emotional_journey.py    # 12 tests — end-to-end emotional journey scenarios
 |   |-- test_resolution.py           # 19 tests — resolution modulator (v2)
@@ -752,7 +753,7 @@ All magic numbers live in YAML files. No hardcoded thresholds in module code. Th
 | test_config | 36 | YAML loading, defaults, prompt loading, singleton behavior |
 | test_interface | 27 | Legacy REST API endpoints, WebSocket, HTML serving, v2 debug fields, settings drawer |
 | test_interface_v1 | 26 | /v1 endpoints, bearer auth middleware, secret redaction, NurClient errors |
-| test_llm_client | 15 | MiniMax client, auth headers, think-tag stripping, session close |
+| test_llm_client | 15 | Legacy MiniMax client, auth headers, think-tag stripping, session close |
 | test_web_provider | 8 | DDG parsing, fetch cap enforcement, session close, HTML-to-text |
 | test_calibration | 27 | Multi-session calibration scenarios |
 | test_emotional_journey | 12 | End-to-end emotional journey (10 scenarios) |

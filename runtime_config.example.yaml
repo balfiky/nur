@@ -16,9 +16,13 @@ telegram_poll_timeout: 30
 dedupe_ttl: 60.0
 
 # Fastest local start: leave this on "mock".
-# MiniMax: set llm_backend to "minimax" and provide a local key.
-# Local model server: set llm_backend to "openai_compatible", then fill
-# llm_base_url and llm_model.
+# Hosted provider / gateway: set llm_backend to "provider", then fill
+# llm_base_url, llm_model, and llm_api_key.
+# OpenAI-compatible endpoint: set llm_backend to "openai_compatible",
+# then fill llm_base_url and llm_model. This works with Ollama's OpenAI
+# API, vLLM, LM Studio, or a compatible hosted gateway.
+# Legacy MiniMax path: set llm_backend to "minimax" and provide
+# minimax_api_key.
 llm_backend: mock
 llm_base_url: ''
 llm_model: ''

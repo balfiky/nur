@@ -121,6 +121,23 @@ class TestConfigFromYaml:
 # =========================================================================
 
 class TestBackendSelection:
+    def test_provider_backend(self):
+        """Explicit hosted-provider config returns the generic sync backend."""
+        config = RuntimeConfig(
+            llm_backend="provider",
+            llm_base_url="https://provider.example/v1",
+            llm_model="provider-model",
+            llm_api_key="provider-key",
+        )
+        backend = create_llm_backend(config)
+        assert isinstance(backend, OpenAICompatibleLLMBackend)
+
+    def test_provider_requires_base_url_and_model(self):
+        """Explicit hosted-provider backend fails loudly if under-configured."""
+        config = RuntimeConfig(llm_backend="provider")
+        with pytest.raises(ValueError, match="llm_base_url|llm_model"):
+            create_llm_backend(config)
+
     def test_openai_compatible_backend(self):
         """Explicit OpenAI-compatible config returns the generic sync backend."""
         config = RuntimeConfig(
@@ -164,6 +181,14 @@ class TestBackendSelection:
         monkeypatch.delenv("MINIMAX_API_KEY", raising=False)
         monkeypatch.delenv("LLM_API_KEY", raising=False)
         config = RuntimeConfig(llm_backend="auto", minimax_api_key="")
+        backend = create_llm_backend(config)
+        assert isinstance(backend, MockLLMBackend)
+
+    def test_auto_with_generic_key_but_no_endpoint_returns_mock(self, monkeypatch):
+        """A generic key alone is not enough to guess a provider endpoint."""
+        monkeypatch.delenv("MINIMAX_API_KEY", raising=False)
+        monkeypatch.delenv("LLM_API_KEY", raising=False)
+        config = RuntimeConfig(llm_backend="auto", llm_api_key="generic-key")
         backend = create_llm_backend(config)
         assert isinstance(backend, MockLLMBackend)
 

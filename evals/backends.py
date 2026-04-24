@@ -44,7 +44,7 @@ class BackendSpec:
     than silently recorded as fake settings. If/when clients are
     instrumented to accept and transmit them, add back here.
     """
-    type: str                               # "mock" | "minimax" | "openai_compat"
+    type: str                               # "mock" | "provider" | "minimax" | "openai_compat"
     requested_model: str = ""
     base_url: str = ""
     api_key: str = ""                       # resolved from --api-key or env
@@ -54,7 +54,7 @@ class BackendSpec:
         """Model that will actually be sent to the provider."""
         if self.type == "minimax":
             return self.requested_model or DEFAULT_MINIMAX_MODEL
-        if self.type == "openai_compat":
+        if self.type in {"provider", "openai_compat"}:
             return self.requested_model
         return ""                           # mock
 
@@ -62,7 +62,7 @@ class BackendSpec:
     def resolved_base_url(self) -> str:
         if self.type == "minimax":
             return self.base_url or DEFAULT_MINIMAX_BASE_URL
-        if self.type == "openai_compat":
+        if self.type in {"provider", "openai_compat"}:
             return self.base_url
         return ""
 
@@ -89,14 +89,14 @@ def build_backend_factory(spec: BackendSpec) -> Callable[[], LLMBackend]:
         api_key = spec.api_key
         return lambda: LLMClientFast(api_key=api_key, base_url=base_url, model=model)
 
-    if spec.type == "openai_compat":
+    if spec.type in {"provider", "openai_compat"}:
         if not spec.base_url:
             raise MissingBackendConfigError(
-                "--backend openai_compat requires --base-url."
+                f"--backend {spec.type} requires --base-url."
             )
         if not spec.requested_model:
             raise MissingBackendConfigError(
-                "--backend openai_compat requires --model."
+                f"--backend {spec.type} requires --model."
             )
         base_url = spec.base_url
         model = spec.requested_model
@@ -107,7 +107,7 @@ def build_backend_factory(spec: BackendSpec) -> Callable[[], LLMBackend]:
 
     raise MissingBackendConfigError(
         f"Unknown backend type: {spec.type!r}. "
-        f"Expected one of: mock, minimax, openai_compat."
+        f"Expected one of: mock, provider, minimax, openai_compat."
     )
 
 
@@ -121,8 +121,9 @@ def spec_from_args(
 ) -> BackendSpec:
     """Build a BackendSpec from CLI args, resolving the API key from env."""
     resolved_key = api_key or (os.environ.get(api_key_env, "") if api_key_env else "")
-    if not resolved_key and backend in {"minimax", "openai_compat"}:
-        # Last-resort defaults for common env var names.
+    if not resolved_key and backend in {"provider", "openai_compat"}:
+        resolved_key = os.environ.get("LLM_API_KEY", "")
+    if not resolved_key and backend == "minimax":
         resolved_key = (
             os.environ.get("LLM_API_KEY", "")
             or os.environ.get("MINIMAX_API_KEY", "")
