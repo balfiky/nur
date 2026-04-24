@@ -77,6 +77,10 @@ The `/v1` API surfaces what Nūr knows about a user:
 
 ## Deletion
 
+The built-in admin console at `/admin` also exposes guarded user deletion. It
+requires the operator to type `DELETE <platform>:<user_id>` before the request is
+accepted.
+
 ### API (recommended)
 
 `DELETE /v1/users/{platform}/{user_id}` wipes all persisted data for a

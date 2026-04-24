@@ -47,6 +47,9 @@ extra scrutiny:
   without careful thought.
 - `runtime/channels/telegram.py` — allowlist logic controls who can chat.
   Misconfiguration exposes the system to arbitrary Telegram users.
+- `/admin` — operator console for configuration, diagnostics, redacted export,
+  backup, guarded session reset, and guarded user deletion. Set `api_key`
+  before exposing the server beyond localhost.
 
 ## Agentic Tool Runtime
 
@@ -79,4 +82,6 @@ server requires `Authorization: Bearer <api_key>`: `/chat`, `/debug`,
 
 Nūr persists emotional and relational state about its users. Do not deploy it
 against people who have not consented to that persistence. See
-[PRIVACY.md](PRIVACY.md) for retention and deletion guidance.
+[PRIVACY.md](PRIVACY.md) for retention and deletion guidance and
+[docs/DEPLOYMENT_AND_ADMIN.md](docs/DEPLOYMENT_AND_ADMIN.md) for deployment
+hardening.

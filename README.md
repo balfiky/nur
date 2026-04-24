@@ -9,6 +9,7 @@ Nūr maintains a continuous emotional state, a dual memory system, a self-model 
 - 📄 **[TECHNICAL_NOTE.md](TECHNICAL_NOTE.md)** — ~2,000 word public technical note: problem, architecture, one reproducible ablation result, limitations, privacy posture. Best first Markdown read.
 - 📝 **[LINKEDIN_POST.md](LINKEDIN_POST.md)** — short and long drafts for public posting.
 - 📖 **[PAPER_DRAFT.md](PAPER_DRAFT.md)** — long-form 7,600-word version of the technical note with fuller related-work positioning. Framed as a design paper, not an academic submission.
+- 🚀 **[docs/DEPLOYMENT_AND_ADMIN.md](docs/DEPLOYMENT_AND_ADMIN.md)** — install, admin console, hardening checklist, backup/export, and operator runbook.
 - 🛠️ **[docs/ADMIN_CONSOLE_DESIGN.md](docs/ADMIN_CONSOLE_DESIGN.md)** — production plan for first-run setup, permanent admin settings, diagnostics, and safe config management.
 
 **Honest scope note:** this is a research prototype. The evaluation demonstrates *one* architecturally load-bearing component (relationship memory) under a reproducible ablation protocol. It does *not* validate human-likeness — that is deferred future work and requires a blinded user study.
@@ -42,7 +43,7 @@ nur-web
 
 Then open http://localhost:8000
 
-The tracked [runtime_config.yaml](runtime_config.yaml) starts in `mock` mode, so the first run works without any provider key or local model server. Use the `Settings` button in the web UI when you want to switch to a hosted provider/gateway, an OpenAI-compatible endpoint, or Telegram.
+The tracked [runtime_config.yaml](runtime_config.yaml) starts in `mock` mode, so the first run works without any provider key or local model server. Use the `Settings` button or open http://localhost:8000/admin when you want to switch to a hosted provider/gateway, an OpenAI-compatible endpoint, Telegram, auth, tools, backup/export, or diagnostics.
 
 If your shell does not expose installed console scripts yet, the fallback is:
 
@@ -74,6 +75,16 @@ Use the web UI `Settings` drawer or edit [runtime_config.yaml](runtime_config.ya
 - Mock mode: keep `llm_backend: mock` for offline/local testing
 
 Restart `nur` or `nur-web` after changing the backend.
+
+### Running as an operator
+
+For an open-source deployment checklist, use [docs/DEPLOYMENT_AND_ADMIN.md](docs/DEPLOYMENT_AND_ADMIN.md). The short version:
+
+- Set `api_key` before exposing the web server beyond localhost.
+- Keep `tools_enabled: false` and `shell_tool_enabled: false` unless you explicitly need them.
+- Configure Telegram allowlists before enabling a bot.
+- Treat `data/` and admin backups as sensitive user-memory data.
+- Use `/admin` for diagnostics, redacted config export, local backups, guarded session reset, and guarded user deletion.
 
 ### Reset Local Config
 
