@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Nūr</title>
+<link rel="icon" href="data:,">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -1456,6 +1457,11 @@ async function wizardSaveLLM() {
     wizardConfigSnapshot = curJson.config || {};
     const cfg = WIZARD_PRESET_CONFIG[wizardPreset];
     const apiKey = wizardPreset === 'mock' ? '' : gv('wiz-llm_api_key').trim();
+    const clearGenericKey = (
+      wizardPreset === 'mock'
+      || wizardPreset === 'minimax'
+      || (wizardPreset === 'local' && !apiKey)
+    );
     const payload = Object.assign({}, wizardConfigSnapshot, {
       llm_backend: cfg.backend,
       llm_base_url: cfg.base_url === '' ? '' : gv('wiz-llm_base_url'),
@@ -1465,7 +1471,7 @@ async function wizardSaveLLM() {
       telegram_token: '',
       api_key: '',
       clear_telegram_token: false,
-      clear_llm_api_key: wizardPreset === 'mock' || wizardPreset === 'minimax',
+      clear_llm_api_key: clearGenericKey,
       clear_minimax_api_key: wizardPreset !== 'minimax',
       clear_api_key: false,
     });

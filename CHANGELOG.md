@@ -4,6 +4,33 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.26.1 — 2026-04-24 (Production smoke hardening)
+
+Production install and browser smoke testing found two small release issues
+in the v0.26.0 first-run wizard:
+
+- Selecting the **Local** LLM preset with a blank API key now clears any
+  previously-stored generic `llm_api_key`. Without this, a user switching
+  from a hosted provider to a local OpenAI-compatible endpoint could
+  accidentally keep sending the stale hosted provider key as a Bearer token.
+- The bundled single-file UI now declares an empty data-URI favicon so a
+  clean browser session does not emit a `/favicon.ico` 404 console error.
+
+### Tests
+- Added static interface assertions for the favicon and local-preset stale-key
+  clearing guard.
+- Rebuilt the wheel/sdist and validated package data is present.
+- Installed the built wheel into a clean virtualenv and smoke-tested:
+  console scripts, admin config/auth/export/restart, `NUR_CONFIG_DIR`
+  soul persistence, first-run wizard, explicit mock chat, and local-preset
+  stale-key clearing through the browser.
+- Full suite: 1383 passed.
+
+### Bumped
+- `pyproject.toml` version → 0.26.1.
+
+---
+
 ## v0.26.0 — 2026-04-24 (First-run setup wizard)
 
 A new user opening the app for the first time sees a four-step guided

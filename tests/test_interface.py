@@ -275,6 +275,9 @@ class TestIndexPage:
         assert "Maintenance" in html
         assert "Delete User Data" in html
         assert "Mark first-run setup complete" in html
+        assert '<link rel="icon" href="data:,' in html
+        assert "clearGenericKey" in html
+        assert "wizardPreset === 'local' && !apiKey" in html
 
     async def test_admin_route_serves_same_shell(self):
         resp = interface_api.admin_index()
