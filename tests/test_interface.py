@@ -259,6 +259,23 @@ class TestIndexPage:
         assert "Settings" in html
         assert "Save" in html
 
+    async def test_has_admin_console_hooks(self):
+        html = index().body.decode()
+        assert "Admin" in html
+        assert "/admin/config" in html
+        assert "/admin/test/llm" in html
+        assert "/admin/test/telegram" in html
+        assert "/admin/test/storage" in html
+        assert "Agentic Tools" in html
+        assert "Mark first-run setup complete" in html
+
+    async def test_admin_route_serves_same_shell(self):
+        resp = interface_api.admin_index()
+        html = resp.body.decode()
+        assert resp.status_code == 200
+        assert "Nūr" in html
+        assert "Admin" in html
+
 
 class TestConfigEndpoint:
     async def test_get_config_hides_secret_values(self, monkeypatch, tmp_path):

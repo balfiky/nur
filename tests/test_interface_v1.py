@@ -267,6 +267,281 @@ class TestConfigEndpoint:
         assert "secret_status" in data
 
 
+class TestAdminEndpoints:
+    def test_admin_config_redacts_secrets_and_reports_metadata(
+        self, client, temp_config, tmp_path,
+    ):
+        RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            llm_backend="provider",
+            llm_base_url="https://provider.example/v1",
+            llm_model="demo-model",
+            llm_api_key="secret-key",
+        ).write_yaml(str(temp_config))
+
+        resp = client.get("/admin/config")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["config"]["llm_api_key"] == ""
+        assert data["secret_status"]["llm_api_key"] is True
+        field = next(
+            item for item in data["field_metadata"]
+            if item["name"] == "llm_api_key"
+        )
+        assert field["secret"] is True
+        assert field["section"] == "model"
+        assert field["secret_status"]["configured"] is True
+        assert field["secret_status"]["source"] == "yaml"
+
+    def test_admin_status_reports_validation_warnings(
+        self, client, temp_config, tmp_path,
+    ):
+        RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            llm_backend="provider",
+            tools_enabled=True,
+            cors_origins=["https://example.test"],
+        ).write_yaml(str(temp_config))
+
+        resp = client.get("/admin/status")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["auth_enabled"] is False
+        assert data["tools"]["enabled"] is True
+        codes = {warning["code"] for warning in data["warnings"]}
+        assert "missing_provider_base_url" in codes
+        assert "missing_provider_model" in codes
+        assert "tools_without_auth" in codes
+        assert "cors_without_auth" in codes
+
+    def test_admin_config_preserves_secret_when_blank(
+        self, client, temp_config, tmp_path,
+    ):
+        RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            llm_backend="mock",
+            llm_api_key="keep-me",
+        ).write_yaml(str(temp_config))
+
+        resp = client.post(
+            "/admin/config",
+            json={"llm_backend": "mock", "llm_api_key": ""},
+        )
+
+        assert resp.status_code == 200
+        saved = RuntimeConfig.from_yaml(str(temp_config))
+        assert saved.llm_api_key == "keep-me"
+        assert resp.json()["field_metadata"]
+
+    def test_admin_config_clear_secret_removes_stored_value(
+        self, client, temp_config, tmp_path,
+    ):
+        RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            llm_backend="mock",
+            llm_api_key="remove-me",
+        ).write_yaml(str(temp_config))
+
+        resp = client.post(
+            "/admin/config",
+            json={"llm_backend": "mock", "clear_llm_api_key": True},
+        )
+
+        assert resp.status_code == 200
+        saved = RuntimeConfig.from_yaml(str(temp_config))
+        assert saved.llm_api_key == ""
+        field = next(
+            item for item in resp.json()["field_metadata"]
+            if item["name"] == "llm_api_key"
+        )
+        assert field["secret_status"]["configured"] is False
+
+    def test_admin_routes_require_auth_when_key_configured(self, authed_client):
+        assert authed_client.get("/admin/status").status_code == 401
+        assert authed_client.get("/admin/config").status_code == 401
+        assert authed_client.post(
+            "/admin/config", json={"clear_api_key": True},
+        ).status_code == 401
+
+        ok = authed_client.get(
+            "/admin/status",
+            headers={"Authorization": "Bearer test-token-abc"},
+        )
+        assert ok.status_code == 200
+
+    def test_admin_setup_state_can_be_completed(
+        self, client, temp_config, tmp_path,
+    ):
+        RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            llm_backend="mock",
+        ).write_yaml(str(temp_config))
+
+        before = client.get("/admin/status").json()["setup"]
+        assert before["completed"] is False
+        assert "setup_not_completed" in before["reasons"]
+
+        resp = client.post(
+            "/admin/config",
+            json={"llm_backend": "mock", "setup_completed": True},
+        )
+
+        assert resp.status_code == 200
+        setup = resp.json()["setup"]
+        assert setup["completed"] is True
+        assert setup["required"] is False
+        assert setup["completed_at"] is not None
+
+    def test_admin_test_llm_reports_missing_provider_config(
+        self, client, temp_config, tmp_path,
+    ):
+        RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            llm_backend="provider",
+        ).write_yaml(str(temp_config))
+
+        resp = client.post("/admin/test/llm", json={})
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ok"] is False
+        assert data["checked"] == "llm"
+        codes = {warning["code"] for warning in data["warnings"]}
+        assert "missing_provider_base_url" in codes
+        assert "missing_provider_model" in codes
+
+    def test_admin_test_llm_can_validate_draft_openai_config(
+        self, client, temp_config, tmp_path,
+    ):
+        RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            llm_backend="mock",
+        ).write_yaml(str(temp_config))
+
+        resp = client.post(
+            "/admin/test/llm",
+            json={
+                "llm_backend": "openai_compatible",
+                "llm_base_url": "http://localhost:11434/v1",
+                "llm_model": "demo-model",
+            },
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ok"] is True
+        assert data["live"] is False
+        assert data["backend"] == "openai_compatible"
+
+    def test_admin_test_llm_mock_runs_live_sample(
+        self, client, temp_config, tmp_path,
+    ):
+        RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            llm_backend="mock",
+        ).write_yaml(str(temp_config))
+
+        resp = client.post("/admin/test/llm", json={})
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ok"] is True
+        assert data["live"] is True
+        assert "sample_response" in data
+
+    def test_admin_test_telegram_reports_missing_token(
+        self, client, temp_config, tmp_path,
+    ):
+        RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            telegram_token="",
+        ).write_yaml(str(temp_config))
+
+        resp = client.post("/admin/test/telegram", json={})
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ok"] is False
+        assert data["configured"] is False
+        assert data["warnings"][0]["code"] == "missing_telegram_token"
+
+    def test_admin_test_telegram_validates_draft_allowlist(
+        self, client, temp_config, tmp_path,
+    ):
+        RuntimeConfig(data_dir=str(tmp_path / "data")).write_yaml(str(temp_config))
+
+        resp = client.post(
+            "/admin/test/telegram",
+            json={
+                "telegram_token": "123456:abc",
+                "telegram_allowlist": ["42", "not-numeric"],
+            },
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ok"] is True
+        assert data["configured"] is True
+        assert data["allowlist_count"] == 2
+        assert data["warnings"][0]["code"] == "telegram_allowlist_non_numeric"
+
+    def test_admin_test_storage_checks_data_and_workspace(
+        self, client, temp_config, tmp_path,
+    ):
+        data_dir = tmp_path / "custom-data"
+        workspace = tmp_path / "workspace"
+        RuntimeConfig(data_dir=str(data_dir)).write_yaml(str(temp_config))
+
+        resp = client.post(
+            "/admin/test/storage",
+            json={"tools_workspace": str(workspace)},
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ok"] is True
+        assert {check["name"] for check in data["checks"]} == {
+            "data_dir",
+            "tools_workspace",
+        }
+        assert data_dir.is_dir()
+        assert workspace.is_dir()
+
+    def test_admin_test_storage_can_validate_without_creating(
+        self, client, temp_config, tmp_path,
+    ):
+        missing_dir = tmp_path / "missing-data"
+        RuntimeConfig(data_dir=str(missing_dir)).write_yaml(str(temp_config))
+
+        resp = client.post(
+            "/admin/test/storage",
+            json={"create_missing": False},
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ok"] is False
+        codes = {warning["code"] for warning in data["warnings"]}
+        assert "data_dir_missing" in codes
+        assert not missing_dir.exists()
+
+    def test_admin_test_routes_require_auth_when_key_configured(self, authed_client):
+        for path in (
+            "/admin/test/llm",
+            "/admin/test/telegram",
+            "/admin/test/storage",
+        ):
+            assert authed_client.post(path, json={}).status_code == 401
+            ok = authed_client.post(
+                path,
+                json={},
+                headers={"Authorization": "Bearer test-token-abc"},
+            )
+            assert ok.status_code == 200
+
+
 class TestAuthMiddleware:
     def test_missing_token_rejected(self, authed_client):
         resp = authed_client.post(

@@ -9,6 +9,7 @@ Nūr maintains a continuous emotional state, a dual memory system, a self-model 
 - 📄 **[TECHNICAL_NOTE.md](TECHNICAL_NOTE.md)** — ~2,000 word public technical note: problem, architecture, one reproducible ablation result, limitations, privacy posture. Best first Markdown read.
 - 📝 **[LINKEDIN_POST.md](LINKEDIN_POST.md)** — short and long drafts for public posting.
 - 📖 **[PAPER_DRAFT.md](PAPER_DRAFT.md)** — long-form 7,600-word version of the technical note with fuller related-work positioning. Framed as a design paper, not an academic submission.
+- 🛠️ **[docs/ADMIN_CONSOLE_DESIGN.md](docs/ADMIN_CONSOLE_DESIGN.md)** — production plan for first-run setup, permanent admin settings, diagnostics, and safe config management.
 
 **Honest scope note:** this is a research prototype. The evaluation demonstrates *one* architecturally load-bearing component (relationship memory) under a reproducible ablation protocol. It does *not* validate human-likeness — that is deferred future work and requires a blinded user study.
 
