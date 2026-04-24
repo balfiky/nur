@@ -18,7 +18,6 @@ cd nur
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -e ".[dev]"
-cp runtime_config.example.yaml runtime_config.yaml
 nur-web
 ```
 
@@ -28,8 +27,50 @@ Open:
 - Admin console: `http://localhost:8000/admin`
 - API docs: `http://localhost:8000/docs`
 
-The starter config uses `llm_backend: mock`, so no provider key is required for
-first boot.
+A first-run setup wizard opens automatically on first launch. It walks through
+LLM backend selection and agent identity in three steps. You can skip it and
+come back via **Settings → Setup → Launch Setup Wizard**.
+
+## Pip Wheel Install
+
+```bash
+pip install project-nur
+export NUR_CONFIG_DIR=~/.config/nur   # see below — do this before the first run
+mkdir -p "$NUR_CONFIG_DIR"
+nur-web
+```
+
+## NUR_CONFIG_DIR — keeping your identity across upgrades
+
+When installed from the wheel, `config/soul.yaml` lives inside the package
+directory and is **overwritten on `pip install --upgrade`**. Set
+`NUR_CONFIG_DIR` to a directory you control before the first run:
+
+```bash
+export NUR_CONFIG_DIR=~/.config/nur
+mkdir -p "$NUR_CONFIG_DIR"
+```
+
+With the env var set:
+- The admin console writes `soul.yaml` to `$NUR_CONFIG_DIR/soul.yaml` instead
+  of the package-internal path.
+- On `pip install --upgrade`, your customized identity is untouched.
+- The admin console shows a note when the env var is **not** set so operators
+  don't silently lose their identity on the next upgrade.
+
+The env var only governs `soul.yaml`. `runtime_config.yaml` is always written
+to the **current working directory** (wherever you run `nur-web`), so it is
+already upgrade-safe as long as you run from a consistent directory.
+
+For systemd or Docker deployments, pass it as an environment variable:
+
+```bash
+# systemd
+Environment=NUR_CONFIG_DIR=/etc/nur
+
+# Docker
+docker run -e NUR_CONFIG_DIR=/config -v /host/config:/config ...
+```
 
 ## Admin Console
 
@@ -37,7 +78,11 @@ The `/admin` route serves the built-in operator console. It uses the same
 runtime config primitives as `runtime_config.yaml`; it is not a separate config
 system.
 
-Use it to:
+The **Setup Wizard** (accessible from Settings → Setup → Launch Setup Wizard)
+walks through LLM backend, agent identity, and completion in four steps. It is
+the recommended path for first-time configuration.
+
+The full console lets you:
 
 - Configure LLM provider, model, base URL, and API keys
 - Configure Telegram token, allowlist, polling, and dedupe settings
@@ -153,7 +198,7 @@ stop the service and remove `data_dir` manually after taking a backup.
 
 ## Updating
 
-For source installs:
+**Source install:**
 
 ```bash
 git pull
@@ -161,9 +206,19 @@ python3 -m pip install -e ".[dev]"
 python3 -m pytest tests/test_interface.py tests/test_interface_v1.py -q
 ```
 
+**Wheel install:**
+
+```bash
+pip install --upgrade project-nur
+```
+
 Then restart `nur-web`.
 
-If your deployment has real user data, create a backup before pulling changes.
+If `NUR_CONFIG_DIR` is set, your identity file is untouched. If it is not set,
+`pip install --upgrade` will overwrite the bundled `config/soul.yaml` with the
+defaults shipped in the new wheel.
+
+If your deployment has real user data, create a backup before upgrading.
 
 ## Operational Notes
 

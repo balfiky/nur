@@ -27,13 +27,21 @@ For the full reader-facing explanation on GitHub, start with [PROJECT_NUR_OVERVI
 - Python 3.10+ (3.11+ recommended)
 - A browser
 
-### Install
+### Install (source)
 
 ```bash
 git clone https://github.com/balfiky/nur.git
 cd nur
 python3 -m pip install -e ".[dev]"
 ```
+
+### Install (wheel)
+
+```bash
+pip install project-nur
+```
+
+See [Pip install + NUR_CONFIG_DIR](#pip-install--nur_config_dir) below if you install from the wheel — the soul identity file lives inside the package and is overwritten on upgrade unless you set `NUR_CONFIG_DIR`.
 
 ### Start Here: web UI, no API key needed
 
@@ -43,7 +51,7 @@ nur-web
 
 Then open http://localhost:8000
 
-The tracked [runtime_config.yaml](runtime_config.yaml) starts in `mock` mode, so the first run works without any provider key or local model server. Use the `Settings` button or open http://localhost:8000/admin when you want to switch to a hosted provider/gateway, an OpenAI-compatible endpoint, Telegram, auth, tools, backup/export, or diagnostics.
+On first launch a **setup wizard** opens automatically (four steps: Welcome → Connect your LLM → Name your agent → Done). It guides you through picking an LLM backend and giving the agent an identity. You can skip it and come back later via **Settings → Setup → Launch Setup Wizard**.
 
 If your shell does not expose installed console scripts yet, the fallback is:
 
@@ -67,14 +75,35 @@ That starts the console chat loop and the debug API at http://127.0.0.1:8077/ses
 
 ### When You Want a Real Model
 
-Use the web UI `Settings` drawer or edit [runtime_config.yaml](runtime_config.yaml):
+The setup wizard (or **Settings → LLM Backend**) is the easiest path. Or edit [runtime_config.yaml](runtime_config.yaml) directly:
 
 - Hosted provider / gateway: set `llm_backend: provider`, then fill `llm_base_url`, `llm_model`, and `llm_api_key`
 - OpenAI-compatible endpoint: set `llm_backend: openai_compatible`, then fill `llm_base_url` and `llm_model`. This works with Ollama's OpenAI API, vLLM, LM Studio, and similar compatible local or remote servers
 - Legacy MiniMax path: set `llm_backend: minimax` and add `minimax_api_key`, or export `MINIMAX_API_KEY`
 - Mock mode: keep `llm_backend: mock` for offline/local testing
 
-Restart `nur` or `nur-web` after changing the backend.
+Changes made through the admin console take effect immediately — no restart needed.
+
+### Pip install + NUR_CONFIG_DIR
+
+When Nūr is installed from the wheel (not a `pip install -e` source checkout), the
+identity file (`config/soul.yaml`) lives inside the installed package and is silently
+**overwritten on `pip install --upgrade`**. To persist a customized identity across
+upgrades, set `NUR_CONFIG_DIR` to a directory you own before starting the server:
+
+```bash
+export NUR_CONFIG_DIR=~/.config/nur
+mkdir -p "$NUR_CONFIG_DIR"
+nur-web
+```
+
+With `NUR_CONFIG_DIR` set, the admin console writes `soul.yaml` there instead of into
+the wheel. On upgrade, your identity file is untouched. The admin console surfaces a
+note when it detects the env var is not set so you don't miss this.
+
+The env var only affects `soul.yaml`. `runtime_config.yaml` has always been written to
+the **current working directory** (wherever you run `nur-web`), so it already survives
+upgrades as long as you keep running from the same directory.
 
 ### Running as an operator
 
@@ -98,14 +127,16 @@ Keep committed `runtime_config.yaml` secrets blank and inject real values locall
 
 ### Seed Identity And Memory
 
-- Edit [config/soul.yaml](config/soul.yaml) to set Nūr's starting identity, voice, values, likes, dislikes, and boundaries.
+The easiest path is the setup wizard (or **Settings → Identity**). To edit directly:
+
+- `config/soul.yaml` (or `$NUR_CONFIG_DIR/soul.yaml` if the env var is set) — agent name, voice, values, likes, dislikes, and boundaries.
 - Semantic memory is stored explicitly beside the existing emotional and relationship memory layers.
 - [config/semantic_memory.yaml](config/semantic_memory.yaml) controls the semantic-memory backend. The default is local SQLite; `backend: mempalace` is an optional retrieval hook.
 - Use `/v1/soul` to inspect the current seed identity and `/v1/memory/semantic` to inspect semantic memories for a user.
 
 ## Status
 
-**v2 + Nūr Runtime + Phase 11 complete, plus a stable `/v1` integration API.** All three Phase 11 sub-phases are deployed: deterministic social appraisal, relationship-arc memory, and response strategy selection. The test suite has grown past 1330 tests.
+**v0.26.0 — v2 + Nūr Runtime + Phase 11 complete, plus a stable `/v1` integration API and a first-run setup wizard.** The test suite is at 1383 tests.
 
 v1 gave it a brain that remembers and adapts.
 v2 gives it deliberation, dread, and self-protection.
@@ -783,7 +814,7 @@ All magic numbers live in YAML files. No hardcoded thresholds in module code. Th
 | test_phase3 | 20 | Inactivity timeout, graceful shutdown, backpressure, WAL mode |
 | test_debug_api | 15 | Session listing, per-session debug, reset, isolation |
 | test_runtime_config | 21 | Config loading, local/backend selection, channel config |
-| **Total** | **1331** | |
+| **Total** | **1383** | |
 
 ---
 
