@@ -280,6 +280,17 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
           <button class="secondary" onclick="exportConfig()">Export Config</button>
           <button class="secondary" onclick="createBackup()">Create Backup</button>
         </div>
+        <div class="settings-grid">
+          <div class="settings-field full"><label for="admin-reset-session_key">Reset Session Key</label><input id="admin-reset-session_key" type="text" placeholder="web:alice:default"></div>
+          <div class="settings-field full"><label for="admin-reset-confirmation">Reset Confirmation</label><input id="admin-reset-confirmation" type="text" placeholder="RESET web:alice:default"></div>
+          <div class="settings-field"><label for="admin-delete-platform">Delete Platform</label><input id="admin-delete-platform" type="text" placeholder="web"></div>
+          <div class="settings-field"><label for="admin-delete-user_id">Delete User ID</label><input id="admin-delete-user_id" type="text" placeholder="alice"></div>
+          <div class="settings-field full"><label for="admin-delete-confirmation">Delete Confirmation</label><input id="admin-delete-confirmation" type="text" placeholder="DELETE web:alice"></div>
+        </div>
+        <div class="settings-actions">
+          <button class="secondary" onclick="resetAdminSession()">Reset Session</button>
+          <button class="secondary" onclick="deleteAdminUser()">Delete User Data</button>
+        </div>
         <div class="admin-test-result" id="test-maintenance" style="display:none"></div>
       </div>
       <div class="settings-section"><h3>Proactive</h3><div class="settings-grid">
@@ -785,6 +796,21 @@ async function createBackup() {
   await runAdminTest('maintenance', '/admin/backup', { include_data: true });
 }
 
+async function resetAdminSession() {
+  await runAdminTest('maintenance', '/admin/sessions/reset', {
+    session_key: gv('admin-reset-session_key'),
+    confirmation: gv('admin-reset-confirmation'),
+  });
+}
+
+async function deleteAdminUser() {
+  await runAdminTest('maintenance', '/admin/users/delete', {
+    platform: gv('admin-delete-platform'),
+    user_id: gv('admin-delete-user_id'),
+    confirmation: gv('admin-delete-confirmation'),
+  });
+}
+
 async function runAdminTest(name, path, payload) {
   const el = document.getElementById('test-' + name);
   el.style.display = 'block';
@@ -832,6 +858,18 @@ function formatTestResult(data) {
       + '\nSize: ' + data.size_bytes + ' bytes'
       + '\nFiles: ' + data.file_count
       + '\nRedacted config: ' + (data.redacted_config ? 'yes' : 'no');
+  }
+  if (data.action === 'session_reset') {
+    return 'Session reset'
+      + '\nSession: ' + data.session_key
+      + '\nStatus: ' + data.status;
+  }
+  if (data.action === 'user_delete') {
+    return 'User data deleted'
+      + '\nUser: ' + data.rel_key
+      + '\nSessions evicted: ' + (data.sessions_evicted || []).length
+      + '\nSession files removed: ' + data.session_files_removed
+      + '\nShared self-model preserved: ' + (data.shared_self_model_db_preserved ? 'yes' : 'no');
   }
   return JSON.stringify(data, null, 2);
 }

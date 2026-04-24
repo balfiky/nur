@@ -598,6 +598,95 @@ class TestAdminEndpoints:
             assert "secret-key" not in exported
             assert "private memory" == archive.read("data/memory.txt").decode()
 
+    def test_admin_reset_session_requires_typed_confirmation(self, client):
+        client.post(
+            "/v1/chat",
+            json={"message": "hello", "user_id": "alice", "chat_id": "default"},
+        )
+
+        bad = client.post(
+            "/admin/sessions/reset",
+            json={
+                "session_key": "web:alice:default",
+                "confirmation": "reset",
+            },
+        )
+        assert bad.status_code == 400
+
+        ok = client.post(
+            "/admin/sessions/reset",
+            json={
+                "session_key": "web:alice:default",
+                "confirmation": "RESET web:alice:default",
+            },
+        )
+
+        assert ok.status_code == 200
+        data = ok.json()
+        assert data["ok"] is True
+        assert data["action"] == "session_reset"
+        assert data["session_key"] == "web:alice:default"
+        assert client.get("/v1/sessions").json()["count"] == 0
+
+    def test_admin_delete_user_requires_confirmation_and_wipes_data(
+        self, client, temp_config, tmp_path,
+    ):
+        data_dir = tmp_path / "data"
+        RuntimeConfig(data_dir=str(data_dir), llm_backend="mock").write_yaml(
+            str(temp_config)
+        )
+        client.post(
+            "/v1/chat",
+            json={"message": "hello", "user_id": "alice", "chat_id": "default"},
+        )
+        user_dir = data_dir / "web_alice"
+        session_dir = user_dir / "sessions"
+        session_dir.mkdir(parents=True, exist_ok=True)
+        (session_dir / "default.json").write_text("{}")
+        assert user_dir.exists()
+
+        bad = client.post(
+            "/admin/users/delete",
+            json={
+                "platform": "web",
+                "user_id": "alice",
+                "confirmation": "DELETE alice",
+            },
+        )
+        assert bad.status_code == 400
+
+        ok = client.post(
+            "/admin/users/delete",
+            json={
+                "platform": "web",
+                "user_id": "alice",
+                "confirmation": "DELETE web:alice",
+            },
+        )
+
+        assert ok.status_code == 200
+        data = ok.json()
+        assert data["ok"] is True
+        assert data["action"] == "user_delete"
+        assert data["deleted"] is True
+        assert data["rel_key"] == "web:alice"
+        assert data["session_files_removed"] == 1
+        assert data["sessions_evicted"] == ["web:alice:default"]
+        assert data["shared_self_model_db_preserved"] is True
+        assert not user_dir.exists()
+
+    def test_admin_delete_user_rejects_path_traversal(self, client):
+        resp = client.post(
+            "/admin/users/delete",
+            json={
+                "platform": "web",
+                "user_id": "../alice",
+                "confirmation": "DELETE web:../alice",
+            },
+        )
+
+        assert resp.status_code == 400
+
     def test_admin_test_routes_require_auth_when_key_configured(self, authed_client):
         for path in (
             "/admin/test/llm",
@@ -612,6 +701,39 @@ class TestAdminEndpoints:
                 headers={"Authorization": "Bearer test-token-abc"},
             )
             assert ok.status_code == 200
+
+    def test_admin_destructive_routes_require_auth_when_key_configured(
+        self, authed_client,
+    ):
+        reset_payload = {
+            "session_key": "web:alice:default",
+            "confirmation": "RESET web:alice:default",
+        }
+        delete_payload = {
+            "platform": "web",
+            "user_id": "alice",
+            "confirmation": "DELETE web:alice",
+        }
+
+        assert authed_client.post(
+            "/admin/sessions/reset", json=reset_payload,
+        ).status_code == 401
+        assert authed_client.post(
+            "/admin/users/delete", json=delete_payload,
+        ).status_code == 401
+
+        reset_authed = authed_client.post(
+            "/admin/sessions/reset",
+            json=reset_payload,
+            headers={"Authorization": "Bearer test-token-abc"},
+        )
+        delete_authed = authed_client.post(
+            "/admin/users/delete",
+            json=delete_payload,
+            headers={"Authorization": "Bearer test-token-abc"},
+        )
+        assert reset_authed.status_code == 404
+        assert delete_authed.status_code == 404
 
         for path in ("/admin/diagnostics", "/admin/export/config"):
             assert authed_client.get(path).status_code == 401

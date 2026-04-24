@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import platform
+import shutil
 import sys
 import time
 import zipfile
@@ -18,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from interface.v1 import build_v1_router
+from interface.v1 import build_v1_router, _count_user_rows, _validate_path_token
 from pipeline import CognitivePipeline
 from runtime.config import RuntimeConfig
 from runtime.debug.api import _debug_to_dict as _serialize_debug
@@ -308,6 +309,17 @@ class AdminStorageTestRequest(BaseModel):
 
 class AdminBackupRequest(BaseModel):
     include_data: bool = True
+
+
+class AdminSessionResetRequest(BaseModel):
+    session_key: str
+    confirmation: str
+
+
+class AdminUserDeleteRequest(BaseModel):
+    platform: str
+    user_id: str
+    confirmation: str
 
 
 def get_session_manager() -> SessionManager:
@@ -627,6 +639,47 @@ async def admin_create_backup(req: AdminBackupRequest) -> dict:
     """Create a local zip backup under the configured data directory."""
     config = _load_runtime_config()
     return _create_admin_backup(config, include_data=req.include_data)
+
+
+@app.post("/admin/sessions/reset", dependencies=[Depends(_require_bearer)])
+async def admin_reset_session(req: AdminSessionResetRequest) -> dict:
+    """Evict one active session after explicit typed confirmation."""
+    expected = f"RESET {req.session_key}"
+    if req.confirmation != expected:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Confirmation must exactly match: {expected}",
+        )
+    manager = get_session_manager()
+    if req.session_key not in manager.active_sessions:
+        raise HTTPException(status_code=404, detail="Session not found")
+    await manager.evict_session(req.session_key)
+    return {
+        "ok": True,
+        "action": "session_reset",
+        "session_key": req.session_key,
+        "status": "evicted",
+    }
+
+
+@app.post("/admin/users/delete", dependencies=[Depends(_require_bearer)])
+async def admin_delete_user(req: AdminUserDeleteRequest) -> dict:
+    """Delete one user's persisted data after explicit typed confirmation."""
+    rel_key = f"{req.platform}:{req.user_id}"
+    expected = f"DELETE {rel_key}"
+    if req.confirmation != expected:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Confirmation must exactly match: {expected}",
+        )
+    _validate_path_token("platform", req.platform)
+    _validate_path_token("user_id", req.user_id)
+    return await _admin_delete_user_data(
+        _load_runtime_config(),
+        get_session_manager(),
+        req.platform,
+        req.user_id,
+    )
 
 
 @app.post("/session/end", dependencies=[Depends(_require_bearer)])
@@ -1308,6 +1361,64 @@ def _create_admin_backup(config: RuntimeConfig, *, include_data: bool) -> dict:
         "file_count": file_count,
         "included_data": include_data,
         "redacted_config": True,
+    }
+
+
+async def _admin_delete_user_data(
+    config: RuntimeConfig,
+    manager: SessionManager,
+    platform_name: str,
+    user_id: str,
+) -> dict:
+    rel_key = f"{platform_name}:{user_id}"
+    user_dir = config.user_data_dir(rel_key)
+    data_root = os.path.realpath(config.data_dir)
+    resolved = os.path.realpath(user_dir)
+    if not (resolved == data_root or resolved.startswith(data_root + os.sep)):
+        raise HTTPException(
+            status_code=400,
+            detail="Resolved user path is not inside data_dir",
+        )
+
+    rows_deleted = _count_user_rows(config.user_db_path(rel_key), user_id)
+    prefix = f"{rel_key}:"
+    evict_keys = [
+        key for key in list(manager.active_sessions.keys())
+        if key.startswith(prefix)
+    ]
+    for key in evict_keys:
+        await manager.evict_session(key)
+
+    session_files_removed = 0
+    sessions_dir = os.path.join(user_dir, "sessions")
+    if os.path.isdir(sessions_dir):
+        session_files_removed = sum(
+            1 for name in os.listdir(sessions_dir)
+            if name.endswith(".json")
+        )
+
+    existed = os.path.isdir(user_dir)
+    had_rows = any(isinstance(value, int) and value > 0 for value in rows_deleted.values())
+    if not existed and not had_rows and not evict_keys:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No data found for {rel_key}",
+        )
+    if existed:
+        shutil.rmtree(user_dir, ignore_errors=False)
+
+    return {
+        "ok": True,
+        "action": "user_delete",
+        "deleted": True,
+        "rel_key": rel_key,
+        "platform": platform_name,
+        "user_id": user_id,
+        "rows_deleted": rows_deleted,
+        "session_files_removed": session_files_removed,
+        "sessions_evicted": evict_keys,
+        "path_removed": user_dir if existed else None,
+        "shared_self_model_db_preserved": True,
     }
 
 

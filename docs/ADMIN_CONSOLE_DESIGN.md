@@ -263,12 +263,14 @@ The design reserves space for:
   `GET /admin/export/config`
 - backup `data/` safely through `POST /admin/backup`
 - inspect runtime/storage health through `GET /admin/diagnostics`
-- reset one active session
-- delete one user via the existing `/v1/users/{platform}/{user_id}` behavior
+- reset one active session through `POST /admin/sessions/reset` with typed
+  confirmation
+- delete one user through `POST /admin/users/delete` with typed confirmation,
+  preserving the shared self-model database
 - future encrypted export/import
 
-Do not add broad "delete all data" in the first pass unless it has explicit
-confirmation and tests.
+Do not add broad "delete all data" unless it has explicit confirmation and
+tests.
 
 ## Security Requirements
 
@@ -281,6 +283,7 @@ Milestone 1 implementation must preserve these rules:
 - config save never resets hidden tool fields accidentally
 - admin test endpoints do not leak provider keys in errors
 - admin export/backup artifacts do not include raw config secrets
+- admin reset/delete actions require exact typed confirmations
 - startup/local-bootstrap behavior remains usable with `api_key=''`
 
 ## Test Plan
@@ -299,6 +302,9 @@ Add focused tests before broad UI work:
 - admin diagnostics reports runtime and storage status
 - redacted config export contains no raw secret values
 - backup creates a local zip without recursively backing up prior backups
+- session reset requires typed confirmation and evicts one active session
+- user delete requires typed confirmation, rejects path traversal, and wipes
+  only the selected user's data
 - first-run detection handles missing config, default config, and completed
   setup state
 
@@ -326,8 +332,8 @@ Add focused tests before broad UI work:
 
 ### Phase 4: Operator Maintenance
 
-- Add diagnostics, redacted config export, and local backup affordances.
-- Keep reset/delete flows deferred until they have explicit confirmations.
+- Add diagnostics, redacted config export, local backup, guarded session reset,
+  and guarded user delete affordances.
 - Document deployment and admin use.
 
 ## Milestone 1 Acceptance Criteria

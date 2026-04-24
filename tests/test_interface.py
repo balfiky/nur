@@ -269,8 +269,11 @@ class TestIndexPage:
         assert "/admin/diagnostics" in html
         assert "/admin/export/config" in html
         assert "/admin/backup" in html
+        assert "/admin/sessions/reset" in html
+        assert "/admin/users/delete" in html
         assert "Agentic Tools" in html
         assert "Maintenance" in html
+        assert "Delete User Data" in html
         assert "Mark first-run setup complete" in html
 
     async def test_admin_route_serves_same_shell(self):
