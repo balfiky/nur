@@ -1451,11 +1451,52 @@ def _redact_error(message: str, config: RuntimeConfig) -> str:
     return redacted
 
 
+def _web_version() -> str:
+    from importlib.metadata import PackageNotFoundError, version
+
+    try:
+        return version("project-nur")
+    except PackageNotFoundError:
+        return "unknown"
+
+
+def _parse_web_args(argv: list[str] | None = None):
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        prog="nur-web",
+        description=(
+            "Serve the Nūr HTTP API and bundled chat/admin UI via Uvicorn. "
+            "Reads runtime_config.yaml from the current working directory. "
+            "Defaults bind to localhost; see docs/DEPLOYMENT_AND_ADMIN.md "
+            "before exposing beyond the local machine."
+        ),
+    )
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Interface to bind (default: 127.0.0.1).",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="TCP port to bind (default: 8000).",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"project-nur {_web_version()}",
+    )
+    return parser.parse_args(argv)
+
+
 def main() -> None:
-    """Launch the standalone web UI on localhost."""
+    """Launch the standalone web UI on the configured host/port."""
     import uvicorn
 
-    uvicorn.run("interface.api:app", host="127.0.0.1", port=8000)
+    args = _parse_web_args()
+    uvicorn.run("interface.api:app", host=args.host, port=args.port)
 
 
 if __name__ == "__main__":

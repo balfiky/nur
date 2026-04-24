@@ -4,6 +4,32 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.23.2 — 2026-04-24 (CLI: argparse on both console scripts)
+
+### Added
+- **`nur --help` / `nur --version`.** The `nur` console script now has a real
+  argparse front end, so `nur --help` no longer drops into the interactive
+  runtime loop. Adds `--config <path>` (default `runtime_config.yaml`) so the
+  YAML can live anywhere, and `--version` reporting `project-nur <X.Y.Z>` from
+  installed metadata.
+- **`nur-web --help` / `--version` / `--host` / `--port`.** Matching argparse
+  surface on the web entrypoint. Defaults are unchanged (`127.0.0.1:8000`), so
+  existing invocations still work, but operators can now run e.g.
+  `nur-web --host 0.0.0.0 --port 9000` without hand-editing code.
+
+### Changed
+- `tests/test_interface.py::TestEntryPoints::test_main_runs_uvicorn_on_localhost`
+  now monkeypatches `sys.argv` before calling `main()` (needed because `main()`
+  reads `sys.argv` through argparse). Added
+  `test_main_honors_host_and_port_flags` covering the new CLI knobs.
+
+### Verified
+- `pytest tests/test_interface.py tests/test_interface_v1.py -q` → 104 passed.
+- Spot-checked `--help`, `--version`, `--config`, `--host`, `--port` end-to-end
+  through argparse; no subprocess launched.
+
+---
+
 ## v0.23.1 — 2026-04-24 (Packaging: ship runtime data assets in wheel)
 
 ### Fixed

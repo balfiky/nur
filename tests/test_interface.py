@@ -451,6 +451,7 @@ class TestEntryPoints:
             captured["port"] = port
 
         monkeypatch.setattr("uvicorn.run", fake_run)
+        monkeypatch.setattr("sys.argv", ["nur-web"])
 
         interface_api.main()
 
@@ -459,3 +460,17 @@ class TestEntryPoints:
             "host": "127.0.0.1",
             "port": 8000,
         }
+
+    def test_main_honors_host_and_port_flags(self, monkeypatch):
+        captured: dict[str, object] = {}
+
+        def fake_run(app_path: str, *, host: str, port: int) -> None:
+            captured["host"] = host
+            captured["port"] = port
+
+        monkeypatch.setattr("uvicorn.run", fake_run)
+        monkeypatch.setattr("sys.argv", ["nur-web", "--host", "0.0.0.0", "--port", "9001"])
+
+        interface_api.main()
+
+        assert captured == {"host": "0.0.0.0", "port": 9001}
