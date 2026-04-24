@@ -274,6 +274,14 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
         <div class="settings-field"><label for="cfg-shell_tool_enabled">Shell Tool</label><select id="cfg-shell_tool_enabled"><option value="false">Disabled</option><option value="true">Enabled</option></select></div>
         <div class="settings-field full"><label for="cfg-tools_workspace">Tools Workspace</label><input id="cfg-tools_workspace" type="text" placeholder="Blank uses data/workspace"></div>
       </div></div>
+      <div class="settings-section"><h3>Maintenance</h3><div class="settings-mini">Diagnostics, redacted config export, and local data backup for operators.</div>
+        <div class="settings-actions">
+          <button class="secondary" onclick="loadDiagnostics()">Diagnostics</button>
+          <button class="secondary" onclick="exportConfig()">Export Config</button>
+          <button class="secondary" onclick="createBackup()">Create Backup</button>
+        </div>
+        <div class="admin-test-result" id="test-maintenance" style="display:none"></div>
+      </div>
       <div class="settings-section"><h3>Proactive</h3><div class="settings-grid">
         <div class="settings-field"><label for="cfg-proactive_enabled">Enabled</label><select id="cfg-proactive_enabled"><option value="false">No</option><option value="true">Yes</option></select></div>
         <div class="settings-field"><label for="cfg-proactive_idle_threshold">Idle Threshold (s)</label><input id="cfg-proactive_idle_threshold" type="number" min="0"></div>
@@ -751,13 +759,42 @@ async function testStorage() {
   });
 }
 
+async function loadDiagnostics() {
+  await runAdminTest('maintenance', '/admin/diagnostics', null);
+}
+
+async function exportConfig() {
+  const el = document.getElementById('test-maintenance');
+  el.style.display = 'block';
+  el.className = 'admin-test-result';
+  el.textContent = 'Exporting config...';
+  try {
+    const res = await authedFetch('/admin/export/config');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
+    downloadJson('nur-runtime-config-redacted.json', data);
+    el.className = 'admin-test-result ok';
+    el.textContent = 'Redacted config export prepared. Secrets were not included.';
+  } catch (err) {
+    el.className = 'admin-test-result error';
+    el.textContent = 'Error: ' + err.message;
+  }
+}
+
+async function createBackup() {
+  await runAdminTest('maintenance', '/admin/backup', { include_data: true });
+}
+
 async function runAdminTest(name, path, payload) {
   const el = document.getElementById('test-' + name);
   el.style.display = 'block';
   el.className = 'admin-test-result';
   el.textContent = 'Testing...';
   try {
-    const res = await authedFetch(path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const opts = payload === null
+      ? {}
+      : { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) };
+    const res = await authedFetch(path, opts);
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
     el.className = 'admin-test-result ' + (data.ok ? 'ok' : 'error');
@@ -779,6 +816,22 @@ function formatTestResult(data) {
   }
   if (data.checked === 'telegram') {
     return (data.ok ? 'Telegram config ok' : 'Telegram config has issues') + '\nAllowlist entries: ' + (data.allowlist_count || 0) + (warnings ? '\n' + warnings : '');
+  }
+  if (data.server && data.storage) {
+    const storage = data.storage.data_dir;
+    return 'Diagnostics ok'
+      + '\nUptime: ' + Math.round(data.server.uptime_seconds || 0) + 's'
+      + '\nPython: ' + data.server.python
+      + '\nActive sessions: ' + data.runtime.active_sessions + '/' + data.runtime.max_active_sessions
+      + '\nData dir: ' + storage.path + ' · ' + (storage.exists ? 'exists' : 'missing') + ' · files: ' + storage.file_count
+      + (warnings ? '\n' + warnings : '');
+  }
+  if (data.path && data.size_bytes !== undefined) {
+    return 'Backup created'
+      + '\nPath: ' + data.path
+      + '\nSize: ' + data.size_bytes + ' bytes'
+      + '\nFiles: ' + data.file_count
+      + '\nRedacted config: ' + (data.redacted_config ? 'yes' : 'no');
   }
   return JSON.stringify(data, null, 2);
 }
@@ -818,6 +871,17 @@ function gb(id) { return gv(id) === 'true'; }
 function lines(id) { return gv(id).split('\n').map(s=>s.trim()).filter(Boolean); }
 function esc(s) { const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML; }
 function trunc(s, n) { return s && s.length > n ? s.substring(0, n) + '...' : (s || ''); }
+function downloadJson(filename, data) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 function getOrCreateId(key, store) { let v = store.getItem(key); if (!v) { v = crypto.randomUUID ? crypto.randomUUID() : 'id-' + Math.random().toString(36).slice(2); store.setItem(key, v); } return v; }
 </script>
 </body>

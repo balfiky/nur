@@ -257,10 +257,12 @@ admin overview and in save/test responses.
 This belongs in the permanent console but should not block the first admin
 milestone.
 
-The design should reserve space for:
+The design reserves space for:
 
-- export `runtime_config.yaml` with secrets removed
-- backup `data/` safely
+- export `runtime_config.yaml` with secrets removed through
+  `GET /admin/export/config`
+- backup `data/` safely through `POST /admin/backup`
+- inspect runtime/storage health through `GET /admin/diagnostics`
 - reset one active session
 - delete one user via the existing `/v1/users/{platform}/{user_id}` behavior
 - future encrypted export/import
@@ -278,6 +280,7 @@ Milestone 1 implementation must preserve these rules:
 - enabling tools never silently enables shell execution
 - config save never resets hidden tool fields accidentally
 - admin test endpoints do not leak provider keys in errors
+- admin export/backup artifacts do not include raw config secrets
 - startup/local-bootstrap behavior remains usable with `api_key=''`
 
 ## Test Plan
@@ -293,6 +296,9 @@ Add focused tests before broad UI work:
 - clear flags remove stored secrets
 - tool settings are preserved unless explicitly changed
 - admin routes require bearer token when `api_key` is set
+- admin diagnostics reports runtime and storage status
+- redacted config export contains no raw secret values
+- backup creates a local zip without recursively backing up prior backups
 - first-run detection handles missing config, default config, and completed
   setup state
 
@@ -320,8 +326,8 @@ Add focused tests before broad UI work:
 
 ### Phase 4: Operator Maintenance
 
-- Add backup/export/reset affordances.
-- Add diagnostics/log view.
+- Add diagnostics, redacted config export, and local backup affordances.
+- Keep reset/delete flows deferred until they have explicit confirmations.
 - Document deployment and admin use.
 
 ## Milestone 1 Acceptance Criteria
@@ -335,4 +341,3 @@ Milestone 1 is complete when:
 - implementation phases and tests are defined
 - the next work can move from architecture to implementation without changing
   the product direction
-

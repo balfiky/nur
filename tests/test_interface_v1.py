@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+import zipfile
 
 import pytest
 from fastapi.testclient import TestClient
@@ -527,16 +528,95 @@ class TestAdminEndpoints:
         assert "data_dir_missing" in codes
         assert not missing_dir.exists()
 
+    def test_admin_diagnostics_reports_runtime_and_storage(
+        self, client, temp_config, tmp_path,
+    ):
+        data_dir = tmp_path / "data"
+        data_dir.mkdir(exist_ok=True)
+        (data_dir / "note.txt").write_text("hello")
+        RuntimeConfig(data_dir=str(data_dir), llm_backend="mock").write_yaml(
+            str(temp_config)
+        )
+
+        resp = client.get("/admin/diagnostics")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "ok"
+        assert data["config"]["llm_backend"] == "mock"
+        assert data["runtime"]["active_sessions"] >= 0
+        assert data["storage"]["data_dir"]["exists"] is True
+        assert data["storage"]["data_dir"]["file_count"] == 1
+        assert data["storage"]["backup_dir"].endswith("backups")
+
+    def test_admin_export_config_redacts_secrets(
+        self, client, temp_config, tmp_path,
+    ):
+        RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            llm_backend="provider",
+            llm_api_key="secret-key",
+        ).write_yaml(str(temp_config))
+
+        resp = client.get("/admin/export/config")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["format"] == "nur.runtime_config.redacted.v1"
+        assert data["config"]["llm_api_key"] == ""
+        assert data["secret_status"]["llm_api_key"]["configured"] is True
+        assert data["secret_status"]["llm_api_key"]["source"] == "yaml"
+        assert "secret-key" not in resp.text
+
+    def test_admin_backup_creates_redacted_zip(
+        self, client, temp_config, tmp_path,
+    ):
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "memory.txt").write_text("private memory")
+        RuntimeConfig(
+            data_dir=str(data_dir),
+            llm_backend="mock",
+            llm_api_key="secret-key",
+        ).write_yaml(str(temp_config))
+
+        resp = client.post("/admin/backup", json={"include_data": True})
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ok"] is True
+        assert data["redacted_config"] is True
+        assert data["included_data"] is True
+        assert os.path.exists(data["path"])
+        assert data["path"].startswith(str(data_dir / "backups"))
+        with zipfile.ZipFile(data["path"]) as archive:
+            names = set(archive.namelist())
+            assert "runtime_config.redacted.json" in names
+            assert "data/memory.txt" in names
+            assert not any(name.startswith("data/backups/") for name in names)
+            exported = archive.read("runtime_config.redacted.json").decode()
+            assert "secret-key" not in exported
+            assert "private memory" == archive.read("data/memory.txt").decode()
+
     def test_admin_test_routes_require_auth_when_key_configured(self, authed_client):
         for path in (
             "/admin/test/llm",
             "/admin/test/telegram",
             "/admin/test/storage",
+            "/admin/backup",
         ):
             assert authed_client.post(path, json={}).status_code == 401
             ok = authed_client.post(
                 path,
                 json={},
+                headers={"Authorization": "Bearer test-token-abc"},
+            )
+            assert ok.status_code == 200
+
+        for path in ("/admin/diagnostics", "/admin/export/config"):
+            assert authed_client.get(path).status_code == 401
+            ok = authed_client.get(
+                path,
                 headers={"Authorization": "Bearer test-token-abc"},
             )
             assert ok.status_code == 200

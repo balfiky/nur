@@ -6,8 +6,12 @@ import asyncio
 import json
 import logging
 import os
+import platform
+import sys
 import time
+import zipfile
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -300,6 +304,10 @@ class AdminStorageTestRequest(BaseModel):
     data_dir: str | None = None
     tools_workspace: str | None = None
     create_missing: bool = True
+
+
+class AdminBackupRequest(BaseModel):
+    include_data: bool = True
 
 
 def get_session_manager() -> SessionManager:
@@ -597,6 +605,28 @@ async def admin_test_storage(req: AdminStorageTestRequest) -> dict:
         "checks": checks,
         "warnings": warnings,
     }
+
+
+@app.get("/admin/diagnostics", dependencies=[Depends(_require_bearer)])
+async def admin_diagnostics() -> dict:
+    """Operational diagnostics for the admin maintenance panel."""
+    config = _load_runtime_config()
+    manager = get_session_manager()
+    return _admin_diagnostics_payload(config, manager)
+
+
+@app.get("/admin/export/config", dependencies=[Depends(_require_bearer)])
+async def admin_export_config() -> dict:
+    """Return a redacted runtime configuration export."""
+    config = _load_runtime_config()
+    return _admin_redacted_config_export(config)
+
+
+@app.post("/admin/backup", dependencies=[Depends(_require_bearer)])
+async def admin_create_backup(req: AdminBackupRequest) -> dict:
+    """Create a local zip backup under the configured data directory."""
+    config = _load_runtime_config()
+    return _create_admin_backup(config, include_data=req.include_data)
 
 
 @app.post("/session/end", dependencies=[Depends(_require_bearer)])
@@ -1146,6 +1176,155 @@ def _check_writable_directory(
             "writable": False,
             "warnings": warnings,
         }
+
+
+def _admin_diagnostics_payload(
+    config: RuntimeConfig,
+    manager: SessionManager,
+) -> dict:
+    data_summary = _directory_summary("data_dir", config.data_dir)
+    workspace_summary = _directory_summary(
+        "tools_workspace",
+        config.resolved_tools_workspace,
+    )
+    return {
+        "status": "ok",
+        "generated_at": _utc_now_iso(),
+        "server": {
+            "pid": os.getpid(),
+            "python": sys.version.split()[0],
+            "platform": platform.platform(),
+            "uptime_seconds": max(0.0, time.time() - _serve_started_at),
+        },
+        "config": {
+            "path": os.path.abspath(RUNTIME_CONFIG_PATH),
+            "exists": os.path.exists(RUNTIME_CONFIG_PATH),
+            "auth_enabled": bool(config.api_key),
+            "llm_backend": config.llm_backend,
+            "llm_configured": _llm_configured(config),
+            "telegram_configured": bool(config.telegram_token),
+        },
+        "runtime": {
+            "active_sessions": len(manager.active_sessions),
+            "max_active_sessions": config.max_active_sessions,
+            "telegram_running": _telegram_task is not None and not _telegram_task.done(),
+            "pipeline_override": _pipeline_override is not None,
+        },
+        "storage": {
+            "data_dir": data_summary,
+            "tools_workspace": workspace_summary,
+            "backup_dir": os.path.realpath(_admin_backup_dir(config)),
+        },
+        "warnings": _admin_config_warnings(config),
+    }
+
+
+def _directory_summary(name: str, path: str) -> dict:
+    check = _check_writable_directory(name, path, create_missing=False)
+    summary = {
+        "path": check["path"],
+        "exists": check["exists"],
+        "writable": check["writable"],
+        "warnings": check["warnings"],
+        "file_count": 0,
+        "truncated": False,
+    }
+    if not check["exists"]:
+        return summary
+
+    max_files = 2000
+    try:
+        count = 0
+        for _, _, files in os.walk(check["path"]):
+            count += len(files)
+            if count > max_files:
+                summary["file_count"] = max_files
+                summary["truncated"] = True
+                return summary
+        summary["file_count"] = count
+    except OSError as exc:
+        summary["warnings"] = [
+            *summary["warnings"],
+            _warning("warning", name, f"{name}_count_error", str(exc)),
+        ]
+    return summary
+
+
+def _admin_redacted_config_export(config: RuntimeConfig) -> dict:
+    return {
+        "format": "nur.runtime_config.redacted.v1",
+        "exported_at": _utc_now_iso(),
+        "config_path": os.path.abspath(RUNTIME_CONFIG_PATH),
+        "config": config.to_public_dict(),
+        "secret_status": _admin_secret_status(config),
+        "warnings": _admin_config_warnings(config),
+    }
+
+
+def _create_admin_backup(config: RuntimeConfig, *, include_data: bool) -> dict:
+    backup_dir = _admin_backup_dir(config)
+    os.makedirs(backup_dir, exist_ok=True)
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    archive_path = os.path.join(backup_dir, f"nur-backup-{timestamp}.zip")
+
+    file_count = 0
+    data_root = os.path.realpath(config.data_dir)
+    backup_root = os.path.realpath(backup_dir)
+    archive_realpath = os.path.realpath(archive_path)
+    export_payload = _admin_redacted_config_export(config)
+
+    with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr(
+            "runtime_config.redacted.json",
+            json.dumps(export_payload, indent=2, sort_keys=True),
+        )
+        file_count += 1
+
+        if include_data and os.path.isdir(data_root):
+            for root, dirs, files in os.walk(data_root):
+                dirs[:] = [
+                    dirname for dirname in dirs
+                    if not _is_relative_to(
+                        os.path.realpath(os.path.join(root, dirname)),
+                        backup_root,
+                    )
+                ]
+                for filename in files:
+                    file_path = os.path.realpath(os.path.join(root, filename))
+                    if (
+                        file_path == archive_realpath
+                        or _is_relative_to(file_path, backup_root)
+                    ):
+                        continue
+                    arcname = os.path.join("data", os.path.relpath(file_path, data_root))
+                    archive.write(file_path, arcname)
+                    file_count += 1
+
+    return {
+        "ok": True,
+        "created_at": _utc_now_iso(),
+        "path": os.path.realpath(archive_path),
+        "size_bytes": os.path.getsize(archive_path),
+        "file_count": file_count,
+        "included_data": include_data,
+        "redacted_config": True,
+    }
+
+
+def _admin_backup_dir(config: RuntimeConfig) -> str:
+    return os.path.join(config.data_dir, "backups")
+
+
+def _is_relative_to(path: str, parent: str) -> bool:
+    try:
+        common = os.path.commonpath([os.path.realpath(path), os.path.realpath(parent)])
+    except ValueError:
+        return False
+    return common == os.path.realpath(parent)
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _redact_error(message: str, config: RuntimeConfig) -> str:
