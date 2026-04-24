@@ -48,6 +48,18 @@ class TestBackendFactory:
         assert hasattr(backend, "generate")
         backend.close()
 
+    def test_provider_needs_base_url(self):
+        with pytest.raises(MissingBackendConfigError, match="--base-url"):
+            build_backend_factory(
+                BackendSpec(type="provider", requested_model="qwen")
+            )
+
+    def test_provider_needs_model(self):
+        with pytest.raises(MissingBackendConfigError, match="--model"):
+            build_backend_factory(
+                BackendSpec(type="provider", base_url="https://provider.example/v1")
+            )
+
     def test_openai_compat_needs_base_url(self):
         with pytest.raises(MissingBackendConfigError, match="--base-url"):
             build_backend_factory(
@@ -105,6 +117,18 @@ class TestSpecFromArgs:
             api_key_env="",
         )
         assert spec.api_key == "mm-key"
+
+    def test_provider_falls_back_to_llm_api_key(self, monkeypatch):
+        monkeypatch.delenv("MINIMAX_API_KEY", raising=False)
+        monkeypatch.setenv("LLM_API_KEY", "generic-key")
+        spec = spec_from_args(
+            backend="provider",
+            model="demo-model",
+            base_url="https://provider.example/v1",
+            api_key="",
+            api_key_env="",
+        )
+        assert spec.api_key == "generic-key"
 
 
 class TestProvenance:
