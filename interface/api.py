@@ -322,6 +322,20 @@ class AdminUserDeleteRequest(BaseModel):
     confirmation: str
 
 
+class AdminSoulDraftRequest(BaseModel):
+    """LLM-assisted soul drafting from a natural-language description."""
+
+    description: str = Field(..., min_length=8, max_length=2000)
+
+    @field_validator("description")
+    @classmethod
+    def _strip_description(cls, value: str) -> str:
+        stripped = value.strip()
+        if len(stripped) < 8:
+            raise ValueError("description must be at least 8 characters")
+        return stripped
+
+
 class AdminSoulUpdateRequest(BaseModel):
     """Validated soul.yaml replacement.
 
@@ -734,6 +748,57 @@ async def admin_get_soul() -> dict:
     from config.loader import get_config
 
     return _admin_soul_payload(get_config().soul, saved=True)
+
+
+@app.post("/admin/soul/draft", dependencies=[Depends(_require_bearer)])
+async def admin_draft_soul(req: AdminSoulDraftRequest) -> dict:
+    """Draft a soul.yaml from a natural-language description via the LLM.
+
+    Returns a validated draft; does NOT persist. The UI populates the
+    Identity form from the draft so the operator can review and edit
+    before saving.
+    """
+    config = _load_runtime_config()
+    if not _llm_configured_for_draft(config):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "LLM not configured. Set an LLM backend in Settings and run "
+                "the LLM test before using the 'Describe your agent' helper."
+            ),
+        )
+    prompt_template = _load_soul_draft_prompt()
+    if not prompt_template:
+        raise HTTPException(
+            status_code=500,
+            detail="Soul draft prompt template not found in config/prompts/.",
+        )
+    system_prompt = prompt_template.replace("{{description}}", req.description)
+    try:
+        backend = create_llm_backend(config)
+        raw = backend.generate(system_prompt, req.description)
+    except Exception as exc:  # pragma: no cover - depends on provider
+        raise HTTPException(
+            status_code=502,
+            detail=f"LLM call failed: {exc.__class__.__name__}: {exc}",
+        )
+    payload = _parse_soul_draft_json(raw)
+    try:
+        draft = AdminSoulUpdateRequest.model_validate(payload)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"LLM draft did not match the soul schema: {exc}",
+        )
+    return {
+        "ok": True,
+        "draft": draft.model_dump(),
+        "backend": config.llm_backend,
+        "notes": [
+            "This is a draft, not a save. Review the fields and press Save Identity to commit.",
+            "LLM-authored drafts may drift from the description on second reading; edit anything that feels off.",
+        ],
+    }
 
 
 @app.post("/admin/soul", dependencies=[Depends(_require_bearer)])
@@ -1229,12 +1294,19 @@ _DEFAULT_SOUL_NAME = "Nūr"
 def _soul_yaml_path() -> str:
     """Path where /admin/soul writes soul.yaml.
 
-    Matches the loader's read path so a restart is not required to see the
-    edit. Inside site-packages for pip-installed deployments — document this
-    trade-off in the admin UI.
+    If NUR_CONFIG_DIR is set, write there (persists across pip upgrades).
+    Otherwise fall back to the packaged config dir so the loader still
+    finds it without any env setup — at the cost of being overwritten by
+    ``pip install --upgrade``. The admin UI surfaces that trade-off on
+    save.
     """
     from config import loader as _loader  # imported lazily to avoid cycles
 
+    override = os.environ.get("NUR_CONFIG_DIR", "").strip()
+    if override:
+        path = os.path.expanduser(override)
+        os.makedirs(path, exist_ok=True)
+        return str(os.path.join(path, "soul.yaml"))
     return str(os.path.join(os.path.dirname(os.path.abspath(_loader.__file__)), "soul.yaml"))
 
 
@@ -1252,6 +1324,71 @@ def _write_soul_yaml(data: dict, path: str) -> None:
             default_flow_style=False,
         )
     os.replace(tmp_path, path)
+
+
+def _llm_configured_for_draft(config: RuntimeConfig) -> bool:
+    """True when the configured LLM is callable for draft generation.
+
+    Mock is allowed because it's a deterministic path that lets the admin
+    UI be exercised end-to-end in offline mode (mock will not return
+    schema-valid JSON, but the error path is the same and the UI can
+    handle it).
+    """
+    backend = config.llm_backend
+    if backend == "mock":
+        return True
+    if backend in {"provider", "openai_compatible"}:
+        return bool(config.llm_base_url.strip() and config.llm_model.strip())
+    if backend == "minimax":
+        return bool(config.minimax_api_key or os.environ.get("MINIMAX_API_KEY"))
+    if backend == "auto":
+        has_generic = bool(
+            config.llm_base_url.strip()
+            and config.llm_model.strip()
+        )
+        has_minimax = bool(config.minimax_api_key or os.environ.get("MINIMAX_API_KEY"))
+        return has_generic or has_minimax
+    return False
+
+
+def _load_soul_draft_prompt() -> str:
+    """Load the soul-from-description prompt template.
+
+    Honors the same NUR_CONFIG_DIR override as every other prompt.
+    """
+    from config.loader import _load_prompt
+
+    return _load_prompt("soul_from_description.md")
+
+
+def _parse_soul_draft_json(raw: str) -> dict:
+    """Extract a JSON object from an LLM reply.
+
+    Permissive about leading/trailing prose or code fences the LLM may
+    emit despite the 'output only JSON' instruction — grabs the first
+    top-level {...} block. Raises 502 if no JSON object can be found.
+    """
+    text = (raw or "").strip()
+    if not text:
+        raise HTTPException(
+            status_code=502,
+            detail="LLM returned an empty response for the soul draft.",
+        )
+    start = text.find("{")
+    end = text.rfind("}")
+    if start < 0 or end <= start:
+        raise HTTPException(
+            status_code=502,
+            detail="LLM did not return a JSON object for the soul draft.",
+        )
+    candidate = text[start : end + 1]
+    try:
+        return json.loads(candidate)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"LLM draft was not valid JSON: {exc}",
+        )
 
 
 def _soul_looks_default() -> bool:

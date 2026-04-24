@@ -201,6 +201,40 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .settings-actions button.danger { background: transparent; color: #ff8787; border: 1px solid rgba(255,107,107,0.4); }
 .settings-actions button.danger:hover { background: rgba(255,107,107,0.1); color: #ffa5a5; }
 
+.soul-draft-block { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px 10px; margin-bottom: 16px; }
+.soul-draft-label { display: block; font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+.soul-draft-block textarea { width: 100%; min-height: 72px; resize: vertical; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 11px; font-family: var(--font); font-size: 13px; outline: none; box-sizing: border-box; }
+.soul-draft-block textarea:focus { border-color: var(--primary-dim); }
+.soul-draft-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 10px; }
+.soul-draft-actions button { background: var(--primary-dim); color: #fff; border: none; padding: 9px 14px; border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 500; transition: background 0.15s; }
+.soul-draft-actions button.secondary { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+.soul-draft-actions button:disabled { opacity: 0.55; cursor: default; }
+.soul-draft-actions button:not(:disabled):hover { background: var(--primary); }
+.soul-draft-actions button.secondary:not(:disabled):hover { background: var(--surface-2); color: var(--text); }
+.soul-draft-hint { font-size: 11px; color: var(--text-faint); flex: 1; min-width: 180px; }
+.soul-divider { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em; }
+.soul-divider::before, .soul-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+.settings-note-inline { font-size: 10px; color: var(--text-faint); margin-left: 6px; font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+.soul-weights-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 4px 0 12px; }
+.soul-weights-col { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; }
+.soul-weights-title { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; font-weight: 600; display: flex; align-items: center; }
+.soul-weight-row { display: grid; grid-template-columns: 110px 1fr 36px 24px; align-items: center; gap: 8px; margin-bottom: 7px; }
+.soul-weight-row input[type="text"] { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 8px; font-family: var(--font); font-size: 12px; outline: none; }
+.soul-weight-row input[type="text"]:focus { border-color: var(--primary-dim); }
+.soul-weight-row input[type="range"] { width: 100%; accent-color: var(--primary); }
+.soul-weight-row .soul-weight-val { font-family: var(--mono); font-size: 11px; color: var(--text-dim); text-align: right; }
+.soul-weight-row button { background: transparent; color: var(--text-faint); border: 1px solid transparent; border-radius: var(--radius-sm); width: 22px; height: 22px; cursor: pointer; font-size: 13px; line-height: 1; padding: 0; }
+.soul-weight-row button:hover { background: rgba(255,107,107,0.12); color: #ff8787; border-color: rgba(255,107,107,0.2); }
+.soul-weights-add { background: transparent; color: var(--text-dim); border: 1px dashed var(--border); padding: 6px 10px; border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font); font-size: 11px; }
+.soul-weights-add:hover { background: var(--surface-2); color: var(--text); border-style: solid; }
+
+@media (max-width: 720px) {
+  .soul-weights-grid { grid-template-columns: 1fr; }
+  .soul-weight-row { grid-template-columns: 100px 1fr 36px 24px; }
+}
+
 @media (max-width: 860px) {
   .debug-panel { position: fixed; top: 56px; right: 0; bottom: 0; z-index: 10; width: min(380px, 100vw); box-shadow: -8px 0 30px rgba(0,0,0,0.4); }
   .message-inner, .typing-inner { padding: 0 16px; }
@@ -250,19 +284,44 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
         <label class="settings-inline"><input id="cfg-setup_completed" type="checkbox"> Mark first-run setup complete</label>
       </div>
       <div class="settings-section"><h3>Identity</h3>
-        <div class="settings-mini">Seed identity read by the cognitive engine. Fill this in before you let the agent meet users; otherwise it runs with the default name &quot;Nūr&quot;. Weights must be between 0 and 1. Saved soul.yaml lives alongside the installed package, so pip upgrades may overwrite it — commit your file if you want it versioned.</div>
+        <div class="settings-mini">Who your agent is. Fill this in before anyone else meets it — otherwise it runs with the default name &quot;Nūr&quot; and the project author's voice. Two ways to author: describe it in plain English and let the LLM draft everything for you, or fill the form directly.</div>
+
+        <div class="soul-draft-block">
+          <label for="soul-description" class="soul-draft-label">Describe your agent in a sentence or two</label>
+          <textarea id="soul-description" placeholder="e.g. A calm coding mentor who values clarity and patiently pushes me to think one level deeper. Warm but not fluffy. Never pretends certainty."></textarea>
+          <div class="soul-draft-actions">
+            <button class="secondary" onclick="draftSoulFromDescription()">Generate Identity from Description</button>
+            <div class="soul-draft-hint" id="soul-draft-hint">Needs an LLM configured. Uses your current backend + keys.</div>
+          </div>
+          <div class="admin-test-result" id="test-soul-draft" style="display:none"></div>
+        </div>
+
+        <div class="soul-divider"><span>or fill in manually</span></div>
+
         <div class="settings-grid">
           <div class="settings-field"><label for="soul-name">Name</label><input id="soul-name" type="text" placeholder="e.g. Iris, Atlas, your own choice" maxlength="64"></div>
-          <div class="settings-field"><label for="soul-growth_policy">Growth Policy</label><input id="soul-growth_policy" type="text" placeholder="How the identity is allowed to drift over time"></div>
-          <div class="settings-field full"><label for="soul-identity">Identity</label><textarea id="soul-identity" placeholder="One paragraph. Who this agent is and what it's for."></textarea></div>
+          <div class="settings-field"><label for="soul-growth_policy">Growth Policy</label><input id="soul-growth_policy" type="text" placeholder="What can change over time, what stays fixed"></div>
+          <div class="settings-field full"><label for="soul-identity">Identity</label><textarea id="soul-identity" placeholder="One to three sentences. Who this agent is and what it is for."></textarea></div>
           <div class="settings-field full"><label for="soul-voice">Voice</label><textarea id="soul-voice" placeholder="How it should sound. Tone, register, what it avoids."></textarea></div>
-          <div class="settings-field full"><label for="soul-relational_stance">Relational Stance</label><textarea id="soul-relational_stance" placeholder="How it treats the user. Loyalty, repair, trust posture."></textarea></div>
-          <div class="settings-field"><label for="soul-likes">Likes (one per line)</label><textarea id="soul-likes" placeholder="clarity&#10;steady collaboration"></textarea></div>
-          <div class="settings-field"><label for="soul-dislikes">Dislikes (one per line)</label><textarea id="soul-dislikes" placeholder="manipulation&#10;empty flattery"></textarea></div>
-          <div class="settings-field full"><label for="soul-boundaries">Boundaries (one per line)</label><textarea id="soul-boundaries" placeholder="Do not pretend certainty when uncertain.&#10;Do not abandon loyalty for convenience."></textarea></div>
-          <div class="settings-field"><label for="soul-core_values">Core Values (key: weight per line, 0-1)</label><textarea id="soul-core_values" placeholder="loyalty: 0.9&#10;honesty: 0.85"></textarea></div>
-          <div class="settings-field"><label for="soul-initial_traits">Initial Traits (key: weight per line, 0-1)</label><textarea id="soul-initial_traits" placeholder="calm: 0.8&#10;curious: 0.75"></textarea></div>
+          <div class="settings-field full"><label for="soul-relational_stance">Relational Stance</label><textarea id="soul-relational_stance" placeholder="How it treats the user. Trust posture, repair over escalation."></textarea></div>
+          <div class="settings-field"><label for="soul-likes">Likes <span class="settings-note-inline">(one per line)</span></label><textarea id="soul-likes" placeholder="clarity&#10;steady collaboration&#10;honesty"></textarea></div>
+          <div class="settings-field"><label for="soul-dislikes">Dislikes <span class="settings-note-inline">(one per line)</span></label><textarea id="soul-dislikes" placeholder="manipulation&#10;empty flattery"></textarea></div>
+          <div class="settings-field full"><label for="soul-boundaries">Boundaries <span class="settings-note-inline">(one per line, short imperative sentences)</span></label><textarea id="soul-boundaries" placeholder="Do not pretend certainty when uncertain.&#10;Do not abandon loyalty for convenience."></textarea></div>
         </div>
+
+        <div class="soul-weights-grid">
+          <div class="soul-weights-col">
+            <div class="soul-weights-title">Core Values<span class="settings-note-inline">how strongly this value matters</span></div>
+            <div id="soul-core_values-rows"></div>
+            <button type="button" class="soul-weights-add" onclick="addSoulWeightRow('core_values')">+ add value</button>
+          </div>
+          <div class="soul-weights-col">
+            <div class="soul-weights-title">Initial Traits<span class="settings-note-inline">starting personality weights</span></div>
+            <div id="soul-initial_traits-rows"></div>
+            <button type="button" class="soul-weights-add" onclick="addSoulWeightRow('initial_traits')">+ add trait</button>
+          </div>
+        </div>
+
         <div class="settings-actions">
           <button onclick="saveSoul()">Save Identity</button>
           <button class="secondary" onclick="loadSoul()">Reload</button>
@@ -461,6 +520,10 @@ inputEl.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
+['cfg-llm_backend','cfg-llm_base_url','cfg-llm_model'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('change', () => { try { updateSoulDraftAvailability(); } catch (_) {} });
+});
 if (location.pathname === '/admin') openSettings();
 else loadSettings().catch(() => {});
 
@@ -778,6 +841,7 @@ function applySettings(payload) {
   renderAdminOverview(payload);
   renderAdminWarnings(payload.warnings || []);
   renderSetup(payload.setup || {});
+  updateSoulDraftAvailability();
   const notes = (payload.notes||[]).map(n => '<div class="settings-note">' + esc(n) + '</div>').join('');
   setStatusHtml('Config: ' + esc(payload.config_path || 'runtime_config.yaml') + notes);
 }
@@ -869,30 +933,50 @@ async function deleteAdminUser() {
   });
 }
 
-function parseWeightLines(text) {
+function parseLines(text) {
+  return (text || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+}
+
+function readSoulWeights(key) {
+  const rows = document.querySelectorAll('#soul-' + key + '-rows .soul-weight-row');
   const out = {};
-  for (const raw of (text || '').split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line) continue;
-    const idx = line.indexOf(':');
-    if (idx < 0) throw new Error('Each line must be "key: weight" (got: ' + line + ')');
-    const key = line.slice(0, idx).trim();
-    const valStr = line.slice(idx + 1).trim();
-    if (!key) throw new Error('Missing key on: ' + line);
-    const val = Number(valStr);
-    if (!Number.isFinite(val)) throw new Error('Invalid number on: ' + line);
-    if (val < 0 || val > 1) throw new Error('Weight for "' + key + '" must be between 0 and 1');
-    out[key] = val;
-  }
+  rows.forEach(row => {
+    const name = row.querySelector('input[type="text"]').value.trim();
+    if (!name) return;
+    const weight = Number(row.querySelector('input[type="range"]').value) / 100;
+    out[name] = Math.round(weight * 100) / 100;
+  });
   return out;
 }
 
-function formatWeightLines(obj) {
-  return Object.entries(obj || {}).map(([k, v]) => k + ': ' + v).join('\n');
+function clearSoulWeights(key) {
+  document.getElementById('soul-' + key + '-rows').innerHTML = '';
 }
 
-function parseLines(text) {
-  return (text || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+function addSoulWeightRow(key, name, value) {
+  const container = document.getElementById('soul-' + key + '-rows');
+  const row = document.createElement('div');
+  row.className = 'soul-weight-row';
+  const safeName = (name || '').replace(/"/g, '&quot;');
+  const pct = Math.round(((value ?? 0.5) * 100));
+  row.innerHTML = '' +
+    '<input type="text" placeholder="name" value="' + safeName + '" maxlength="64">' +
+    '<input type="range" min="0" max="100" step="5" value="' + pct + '">' +
+    '<div class="soul-weight-val">' + (pct / 100).toFixed(2) + '</div>' +
+    '<button type="button" title="remove">×</button>';
+  const [, range, valEl, removeBtn] = row.querySelectorAll('input, div.soul-weight-val, button');
+  range.addEventListener('input', () => {
+    valEl.textContent = (Number(range.value) / 100).toFixed(2);
+  });
+  removeBtn.addEventListener('click', () => row.remove());
+  container.appendChild(row);
+}
+
+function populateSoulWeights(key, obj) {
+  clearSoulWeights(key);
+  const entries = Object.entries(obj || {});
+  if (entries.length === 0) return;
+  entries.forEach(([k, v]) => addSoulWeightRow(key, k, Number(v)));
 }
 
 async function loadSoul() {
@@ -901,18 +985,9 @@ async function loadSoul() {
     const res = await authedFetch('/admin/soul');
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    const s = data.soul || {};
-    document.getElementById('soul-name').value = s.name || '';
-    document.getElementById('soul-identity').value = s.identity || '';
-    document.getElementById('soul-voice').value = s.voice || '';
-    document.getElementById('soul-relational_stance').value = s.relational_stance || '';
-    document.getElementById('soul-growth_policy').value = s.growth_policy || '';
-    document.getElementById('soul-likes').value = (s.likes || []).join('\n');
-    document.getElementById('soul-dislikes').value = (s.dislikes || []).join('\n');
-    document.getElementById('soul-boundaries').value = (s.boundaries || []).join('\n');
-    document.getElementById('soul-core_values').value = formatWeightLines(s.core_values);
-    document.getElementById('soul-initial_traits').value = formatWeightLines(s.initial_traits);
+    applySoulToForm(data.soul || {});
     if (el) { el.style.display = 'none'; el.textContent = ''; }
+    updateSoulDraftAvailability();
   } catch (err) {
     if (el) {
       el.style.display = 'block';
@@ -922,6 +997,36 @@ async function loadSoul() {
   }
 }
 
+function applySoulToForm(s) {
+  document.getElementById('soul-name').value = s.name || '';
+  document.getElementById('soul-identity').value = s.identity || '';
+  document.getElementById('soul-voice').value = s.voice || '';
+  document.getElementById('soul-relational_stance').value = s.relational_stance || '';
+  document.getElementById('soul-growth_policy').value = s.growth_policy || '';
+  document.getElementById('soul-likes').value = (s.likes || []).join('\n');
+  document.getElementById('soul-dislikes').value = (s.dislikes || []).join('\n');
+  document.getElementById('soul-boundaries').value = (s.boundaries || []).join('\n');
+  populateSoulWeights('core_values', s.core_values || {});
+  populateSoulWeights('initial_traits', s.initial_traits || {});
+}
+
+function collectSoulPayload() {
+  const payload = {
+    name: gv('soul-name').trim(),
+    identity: gv('soul-identity'),
+    voice: gv('soul-voice'),
+    relational_stance: gv('soul-relational_stance'),
+    growth_policy: gv('soul-growth_policy'),
+    likes: parseLines(gv('soul-likes')),
+    dislikes: parseLines(gv('soul-dislikes')),
+    boundaries: parseLines(gv('soul-boundaries')),
+    core_values: readSoulWeights('core_values'),
+    initial_traits: readSoulWeights('initial_traits'),
+  };
+  if (!payload.name) throw new Error('Name is required');
+  return payload;
+}
+
 async function saveSoul() {
   const el = document.getElementById('test-soul');
   el.style.display = 'block';
@@ -929,19 +1034,7 @@ async function saveSoul() {
   el.textContent = 'Saving identity...';
   let payload;
   try {
-    payload = {
-      name: gv('soul-name').trim(),
-      identity: gv('soul-identity'),
-      voice: gv('soul-voice'),
-      relational_stance: gv('soul-relational_stance'),
-      growth_policy: gv('soul-growth_policy'),
-      likes: parseLines(gv('soul-likes')),
-      dislikes: parseLines(gv('soul-dislikes')),
-      boundaries: parseLines(gv('soul-boundaries')),
-      core_values: parseWeightLines(gv('soul-core_values')),
-      initial_traits: parseWeightLines(gv('soul-initial_traits')),
-    };
-    if (!payload.name) throw new Error('Name is required');
+    payload = collectSoulPayload();
   } catch (err) {
     el.className = 'admin-test-result error';
     el.textContent = err.message;
@@ -956,12 +1049,56 @@ async function saveSoul() {
     const data = await res.json();
     if (!res.ok) throw new Error((data && data.detail) || 'HTTP ' + res.status);
     el.className = 'admin-test-result ok';
-    el.textContent = 'Identity saved to ' + data.path + (data.is_default_name ? ' (still the default name)' : '') +
+    el.textContent = 'Identity saved to ' + data.path + (data.is_default_name ? ' (still the default name — pick something for your deployment)' : '') +
       '\nSome modules cache soul constants at import time — a full server restart ensures every consumer picks up the change.';
     await loadAdminOverview();
   } catch (err) {
     el.className = 'admin-test-result error';
     el.textContent = 'Save failed: ' + err.message;
+  }
+}
+
+async function draftSoulFromDescription() {
+  const resultEl = document.getElementById('test-soul-draft');
+  const description = gv('soul-description').trim();
+  resultEl.style.display = 'block';
+  resultEl.className = 'admin-test-result';
+  if (description.length < 8) {
+    resultEl.className = 'admin-test-result error';
+    resultEl.textContent = 'Please write at least a sentence describing the agent.';
+    return;
+  }
+  resultEl.textContent = 'Asking the LLM to draft a seed identity... (this can take several seconds)';
+  try {
+    const res = await authedFetch('/admin/soul/draft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error((data && data.detail) || 'HTTP ' + res.status);
+    applySoulToForm(data.draft || {});
+    resultEl.className = 'admin-test-result ok';
+    resultEl.textContent = 'Draft applied to the form below. Review it, edit anything that feels off, then press Save Identity.';
+  } catch (err) {
+    resultEl.className = 'admin-test-result error';
+    resultEl.textContent = 'Draft failed: ' + err.message;
+  }
+}
+
+function updateSoulDraftAvailability() {
+  const btn = document.querySelector('.soul-draft-actions button');
+  const hint = document.getElementById('soul-draft-hint');
+  if (!btn || !hint) return;
+  const backend = gv('cfg-llm_backend');
+  const hasConfig = !!(gv('cfg-llm_base_url') && gv('cfg-llm_model')) ||
+    backend === 'mock' ||
+    backend === 'minimax';
+  btn.disabled = !hasConfig;
+  if (hasConfig) {
+    hint.textContent = 'Uses your current LLM backend (' + (backend || 'auto') + '). Review the draft before saving.';
+  } else {
+    hint.textContent = 'Configure the LLM section above (backend, base URL, model) to enable this.';
   }
 }
 
@@ -1047,10 +1184,28 @@ function renderAdminWarnings(warnings) {
   el.innerHTML = warnings.map(w => '<div class="admin-warning ' + (w.severity === 'error' ? 'error' : '') + '">' + esc(w.message) + '<div class="code">' + esc(w.code) + '</div></div>').join('');
 }
 
+const SETUP_REASON_LABELS = {
+  missing_config: 'Save your runtime config',
+  default_or_minimal_config: 'Configure an LLM backend (or confirm mock is intended)',
+  default_soul: 'Set your agent’s identity',
+  setup_not_completed: 'Mark setup complete when done',
+};
+
 function renderSetup(setup) {
   document.getElementById('cfg-setup_completed').checked = !!setup.completed;
-  const reasons = (setup.reasons || []).join(', ') || 'none';
-  document.getElementById('setupSummary').textContent = setup.completed ? 'Setup complete.' : 'Setup pending: ' + reasons;
+  const reasons = (setup.reasons || []).map(code => SETUP_REASON_LABELS[code] || code);
+  const el = document.getElementById('setupSummary');
+  if (setup.completed) {
+    el.textContent = 'Setup complete.';
+    return;
+  }
+  if (reasons.length === 0) {
+    el.textContent = 'Setup pending.';
+    return;
+  }
+  el.innerHTML = 'Setup pending:<ul style="margin:6px 0 0 18px; padding:0;">' +
+    reasons.map(r => '<li>' + esc(r) + '</li>').join('') +
+    '</ul>';
 }
 
 function setStatus(msg, err, ok) { setStatusHtml(esc(msg), err, ok); }

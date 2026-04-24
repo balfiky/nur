@@ -21,10 +21,42 @@ import yaml
 _DEFAULT_CONFIG_DIR = Path(__file__).parent
 
 
+def _user_override_dir() -> Path | None:
+    """Optional operator-owned config dir that overrides packaged defaults.
+
+    Set ``NUR_CONFIG_DIR`` to a writable directory to keep operator edits
+    (typically soul.yaml) out of site-packages so ``pip install --upgrade``
+    does not clobber them. Files present here override the packaged
+    defaults one-for-one; missing files fall through to the packaged copy.
+    """
+    env = os.environ.get("NUR_CONFIG_DIR", "").strip()
+    if not env:
+        return None
+    path = Path(env).expanduser()
+    return path if path.is_dir() else None
+
+
+def _resolve_yaml_path(filename: str, config_dir: Path | None) -> Path:
+    if config_dir is not None:
+        return config_dir / filename
+    override = _user_override_dir()
+    if override is not None and (override / filename).exists():
+        return override / filename
+    return _DEFAULT_CONFIG_DIR / filename
+
+
+def _resolve_prompt_path(filename: str, config_dir: Path | None) -> Path:
+    if config_dir is not None:
+        return config_dir / "prompts" / filename
+    override = _user_override_dir()
+    if override is not None and (override / "prompts" / filename).exists():
+        return override / "prompts" / filename
+    return _DEFAULT_CONFIG_DIR / "prompts" / filename
+
+
 def _load_yaml(filename: str, config_dir: Path | None = None) -> dict[str, Any]:
     """Load a YAML file from the config directory. Returns {} on failure."""
-    base = config_dir or _DEFAULT_CONFIG_DIR
-    path = base / filename
+    path = _resolve_yaml_path(filename, config_dir)
     if not path.exists():
         return {}
     with open(path) as f:
@@ -33,8 +65,7 @@ def _load_yaml(filename: str, config_dir: Path | None = None) -> dict[str, Any]:
 
 def _load_prompt(filename: str, config_dir: Path | None = None) -> str:
     """Load a markdown prompt template from config/prompts/."""
-    base = config_dir or _DEFAULT_CONFIG_DIR
-    path = base / "prompts" / filename
+    path = _resolve_prompt_path(filename, config_dir)
     if not path.exists():
         return ""
     return path.read_text()

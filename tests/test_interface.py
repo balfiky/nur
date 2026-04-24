@@ -535,6 +535,168 @@ class TestAdminSetupDefaultSoul:
         assert "default_soul" not in data["setup"]["reasons"]
 
 
+class TestAdminSoulDraft:
+    async def test_draft_requires_llm_configured(self, monkeypatch, tmp_path):
+        """With backend=auto and no keys, draft endpoint refuses with 400."""
+        from fastapi import HTTPException
+        from interface.api import AdminSoulDraftRequest, admin_draft_soul
+
+        runtime_cfg_path = tmp_path / "runtime_config.yaml"
+        monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(runtime_cfg_path))
+        RuntimeConfig(llm_backend="auto").write_yaml(str(runtime_cfg_path))
+        # No LLM_API_KEY / MINIMAX_API_KEY env either.
+        monkeypatch.delenv("LLM_API_KEY", raising=False)
+        monkeypatch.delenv("MINIMAX_API_KEY", raising=False)
+
+        with pytest.raises(HTTPException) as exc:
+            await admin_draft_soul(
+                AdminSoulDraftRequest(description="a calm assistant that values clarity")
+            )
+        assert exc.value.status_code == 400
+        assert "LLM not configured" in exc.value.detail
+
+    async def test_draft_parses_llm_json_through_schema(self, monkeypatch, tmp_path):
+        """Mock LLM that returns schema-valid JSON → validated draft."""
+        from interface.api import AdminSoulDraftRequest, admin_draft_soul
+
+        runtime_cfg_path = tmp_path / "runtime_config.yaml"
+        monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(runtime_cfg_path))
+        RuntimeConfig(llm_backend="mock").write_yaml(str(runtime_cfg_path))
+
+        import json as _json
+        fake_json = _json.dumps({
+            "name": "Iris",
+            "identity": "A calm research assistant.",
+            "voice": "Direct, warm, concise.",
+            "relational_stance": "Supportive, honest, repair-first.",
+            "growth_policy": "Stable core, drifting voice.",
+            "likes": ["clarity", "curiosity", "honesty"],
+            "dislikes": ["performative chaos", "empty flattery", "cruelty"],
+            "boundaries": [
+                "Do not pretend certainty when uncertain.",
+                "Do not abandon loyalty for convenience.",
+                "Do not invent citations.",
+            ],
+            "core_values": {"honesty": 0.9, "kindness": 0.8, "loyalty": 0.85},
+            "initial_traits": {"calm": 0.8, "curious": 0.85, "direct": 0.7},
+        })
+
+        class _FakeBackend:
+            def generate(self, system, user):
+                return "Here is your identity:\n" + fake_json + "\nDone."
+
+        monkeypatch.setattr(interface_api, "create_llm_backend", lambda _cfg: _FakeBackend())
+
+        result = await admin_draft_soul(
+            AdminSoulDraftRequest(description="a calm research assistant who values clarity")
+        )
+        assert result["ok"] is True
+        assert result["draft"]["name"] == "Iris"
+        assert result["draft"]["core_values"]["honesty"] == 0.9
+        assert len(result["draft"]["boundaries"]) == 3
+
+    async def test_draft_rejects_non_json_llm_reply(self, monkeypatch, tmp_path):
+        from fastapi import HTTPException
+        from interface.api import AdminSoulDraftRequest, admin_draft_soul
+
+        runtime_cfg_path = tmp_path / "runtime_config.yaml"
+        monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(runtime_cfg_path))
+        RuntimeConfig(llm_backend="mock").write_yaml(str(runtime_cfg_path))
+
+        class _JunkBackend:
+            def generate(self, system, user):
+                return "I cannot do that."
+
+        monkeypatch.setattr(interface_api, "create_llm_backend", lambda _cfg: _JunkBackend())
+
+        with pytest.raises(HTTPException) as exc:
+            await admin_draft_soul(
+                AdminSoulDraftRequest(description="a warm coding mentor")
+            )
+        assert exc.value.status_code == 502
+        assert "JSON" in exc.value.detail
+
+    async def test_draft_rejects_schema_violation(self, monkeypatch, tmp_path):
+        from fastapi import HTTPException
+        from interface.api import AdminSoulDraftRequest, admin_draft_soul
+
+        runtime_cfg_path = tmp_path / "runtime_config.yaml"
+        monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(runtime_cfg_path))
+        RuntimeConfig(llm_backend="mock").write_yaml(str(runtime_cfg_path))
+
+        class _OutOfRangeBackend:
+            def generate(self, system, user):
+                return '{"name": "X", "core_values": {"honesty": 2.5}}'
+
+        monkeypatch.setattr(interface_api, "create_llm_backend", lambda _cfg: _OutOfRangeBackend())
+
+        with pytest.raises(HTTPException) as exc:
+            await admin_draft_soul(
+                AdminSoulDraftRequest(description="something reasonable")
+            )
+        assert exc.value.status_code == 502
+        assert "schema" in exc.value.detail.lower()
+
+    def test_draft_request_rejects_too_short(self):
+        from pydantic import ValidationError
+        from interface.api import AdminSoulDraftRequest
+
+        with pytest.raises(ValidationError):
+            AdminSoulDraftRequest(description="short")
+        with pytest.raises(ValidationError):
+            AdminSoulDraftRequest(description="       ")
+
+
+class TestConfigLoaderOverride:
+    def test_override_dir_replaces_packaged_soul(self, monkeypatch, tmp_path):
+        """NUR_CONFIG_DIR points at a user dir; soul.yaml there wins."""
+        import importlib
+        import config.loader as _loader
+
+        monkeypatch.setenv("NUR_CONFIG_DIR", str(tmp_path))
+        (tmp_path / "soul.yaml").write_text(
+            "soul:\n  name: Atlas\n  identity: Override identity.\n",
+            encoding="utf-8",
+        )
+        importlib.reload(_loader)
+        try:
+            cfg = _loader.load_config()
+            assert cfg.soul.name == "Atlas"
+            assert "Override" in cfg.soul.identity
+        finally:
+            monkeypatch.delenv("NUR_CONFIG_DIR", raising=False)
+            importlib.reload(_loader)
+
+    def test_override_dir_falls_through_when_file_missing(self, monkeypatch, tmp_path):
+        """Empty override dir → loader uses packaged defaults."""
+        import importlib
+        import config.loader as _loader
+
+        monkeypatch.setenv("NUR_CONFIG_DIR", str(tmp_path))
+        # No soul.yaml written — should fall through to packaged "Nūr"
+        importlib.reload(_loader)
+        try:
+            cfg = _loader.load_config()
+            assert cfg.soul.name == "Nūr"
+        finally:
+            monkeypatch.delenv("NUR_CONFIG_DIR", raising=False)
+            importlib.reload(_loader)
+
+    def test_override_nonexistent_dir_ignored(self, monkeypatch, tmp_path):
+        """NUR_CONFIG_DIR pointing at a missing directory is ignored, not fatal."""
+        import importlib
+        import config.loader as _loader
+
+        monkeypatch.setenv("NUR_CONFIG_DIR", str(tmp_path / "does-not-exist"))
+        importlib.reload(_loader)
+        try:
+            cfg = _loader.load_config()
+            assert cfg.soul.name == "Nūr"
+        finally:
+            monkeypatch.delenv("NUR_CONFIG_DIR", raising=False)
+            importlib.reload(_loader)
+
+
 class TestEntryPoints:
     def test_main_runs_uvicorn_on_localhost(self, monkeypatch):
         captured: dict[str, object] = {}

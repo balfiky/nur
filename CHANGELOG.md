@@ -4,6 +4,76 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.25.0 — 2026-04-24 (Identity authoring for non-coders)
+
+Phase 2 of the seed-identity work. v0.24.0 gave the admin GUI a
+functional but coder-centric soul form (key:weight textareas,
+site-packages write path, opaque reason codes). This release makes
+identity authoring usable by anyone who runs the server.
+
+### Added
+- **LLM-assisted "Describe your agent"** — primary path at the top of
+  the Identity section. Operator writes one or two sentences in plain
+  English; the configured LLM drafts a complete soul.yaml; the form
+  populates so the operator can review, tweak, and save. Implemented
+  as `POST /admin/soul/draft` → strict prompt template in
+  `config/prompts/soul_from_description.md` → permissive JSON
+  extraction (tolerates prose before/after) → validation through the
+  same `AdminSoulUpdateRequest` schema as manual saves. Does **not**
+  persist — review-and-save only.
+- **Sliders for weight fields** — `core_values` and `initial_traits`
+  are now dynamic rows with text input + range slider + per-row
+  delete + "add" button. Weights read as 0.00-1.00 at 0.05 precision.
+  Replaces the v0.24.0 `key: weight` per-line textareas, which were
+  fine for developers but friction for anyone else.
+- **`NUR_CONFIG_DIR` override layer in the loader** — set to any
+  writable directory and every `config/*.yaml` or `config/prompts/*.md`
+  found there takes precedence over the packaged default. Missing files
+  fall through transparently. `/admin/soul` POST writes into
+  `NUR_CONFIG_DIR` when set, so operator edits to soul.yaml survive
+  `pip install --upgrade`.
+- **Human-readable setup reasons** in the admin drawer. Codes like
+  `default_soul`, `missing_config` are mapped to labels like "Set your
+  agent's identity", "Save your runtime config"; unknown codes still
+  fall through to the raw string.
+
+### Refined
+- Identity section rewritten for a non-technical reader. New intro
+  copy frames the two-path choice (describe vs. fill). Manual form uses
+  inline hint spans instead of terse column headers. Likes/dislikes/
+  boundaries textareas explicitly labeled "one per line" and
+  "short imperative sentences".
+- Draft availability hint updates live as the operator edits the LLM
+  section — the Generate button disables (with a clear reason string)
+  until a backend + base URL + model is in place, or mock/minimax is
+  selected.
+
+### Safety / review posture
+- The LLM draft is **never auto-saved**. The response is validated
+  against the same schema as a manual save, including weight bounds
+  and field lengths. If the LLM drifts or returns prose, the endpoint
+  returns `502` with a specific error the UI surfaces. The operator
+  always has the final edit before hitting Save Identity.
+- The draft endpoint runs through whatever LLM the operator already
+  configured; no separate model selection or separate key handling.
+
+### Tests
+- 8 new cases:
+  - `TestAdminSoulDraft`: refuses when LLM not configured; parses
+    well-formed JSON through the schema; rejects non-JSON replies;
+    rejects schema violations (out-of-range weights); rejects too-short
+    descriptions.
+  - `TestConfigLoaderOverride`: override dir replaces packaged soul;
+    falls through when file missing; nonexistent dir is silently
+    ignored, not fatal.
+- `pytest tests/test_interface.py tests/test_interface_v1.py -q`
+  → 119 passed.
+
+### Bumped
+- `pyproject.toml` version → 0.25.0.
+
+---
+
 ## v0.24.0 — 2026-04-24 (Admin: GUI for seed identity / soul.yaml)
 
 Closes the install-UX gap where every fresh deployment ran under the
