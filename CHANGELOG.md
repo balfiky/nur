@@ -4,6 +4,69 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.24.0 — 2026-04-24 (Admin: GUI for seed identity / soul.yaml)
+
+Closes the install-UX gap where every fresh deployment ran under the
+default name "Nūr" with the project author's voice and values, because
+the only way to change seed identity was hand-editing
+`config/soul.yaml`. This release adds a first-class admin-console path
+for authoring the identity through the GUI.
+
+### Added
+- **`GET /admin/soul`** — returns the current seed identity (name,
+  identity, voice, relational stance, likes, dislikes, boundaries,
+  growth policy, core values, initial traits) plus an `is_default_name`
+  flag and write-path notes. Bearer-guarded like every other
+  `/admin/*` JSON endpoint.
+- **`POST /admin/soul`** — writes a validated `soul.yaml` atomically
+  (temp file + `os.replace`), resets the config singleton, and returns
+  the freshly reloaded state. Validates via `AdminSoulUpdateRequest`:
+  name required and non-blank, text fields bounded, lists of strings
+  trimmed to non-empty items (max 32 each), core_values and
+  initial_traits are `{key: float ∈ [0.0, 1.0]}` dicts (max 32 entries).
+- **Admin drawer "Identity" section** — placed right after "Setup" so
+  operators see it on first open. Manual form with name/identity/voice/
+  relational stance/growth policy text fields, newline-separated likes/
+  dislikes/boundaries, and `key: weight` one-per-line editors for
+  core_values and initial_traits. Local validation of weights before
+  POST; inline result panel. Identity loads automatically when the
+  drawer opens.
+- **`default_soul` setup reason** — `/admin/status` now reports
+  `default_soul` in `setup.reasons` when `soul.name` is still the
+  built-in "Nūr", so the existing first-run prompt highlights this
+  alongside `missing_config` / `default_or_minimal_config`.
+
+### Caveats (documented in the API response `notes` and the UI)
+- `soul.yaml` is written to `<installed config/>/soul.yaml` — inside
+  site-packages for a pip install — and will be overwritten by
+  `pip install --upgrade`. A data-dir layer is phase 2.
+- Some cognitive modules cache soul-derived constants at import time
+  (e.g. `SPIKE_INTENSITY_THRESHOLD = get_config().spike_threshold`), so
+  a full server restart may be required before every consumer picks up
+  a new identity. The admin UI surfaces this note on every save.
+- Phase 2 (LLM-assisted authoring: "describe your agent" → schema-validated
+  soul draft) is deliberately not in this release so manual form-based
+  authoring always works, including in mock mode without any LLM
+  configured.
+
+### Tests
+- 7 new tests in `tests/test_interface.py::TestAdminSoul` and
+  `::TestAdminSetupDefaultSoul`:
+  - `GET` returns non-empty identity with expected shape.
+  - `POST` writes the YAML file and round-trips the values.
+  - Out-of-range weights rejected; negative rejected.
+  - Empty / whitespace-only name rejected.
+  - List entries trimmed; empty entries dropped.
+  - `default_soul` reason surfaces when name is "Nūr".
+  - `default_soul` reason clears when name is changed.
+- `pytest tests/test_interface.py tests/test_interface_v1.py -q`
+  → 111 passed.
+
+### Bumped
+- `pyproject.toml` version → 0.24.0.
+
+---
+
 ## v0.23.2 — 2026-04-24 (CLI: argparse on both console scripts)
 
 ### Added

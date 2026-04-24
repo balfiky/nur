@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from interface.v1 import build_v1_router, _count_user_rows, _validate_path_token
 from pipeline import CognitivePipeline
@@ -320,6 +320,72 @@ class AdminUserDeleteRequest(BaseModel):
     platform: str
     user_id: str
     confirmation: str
+
+
+class AdminSoulUpdateRequest(BaseModel):
+    """Validated soul.yaml replacement.
+
+    Weights must be in [0.0, 1.0]; free-text fields are bounded so a pasted
+    book cannot become the identity prompt; lists are trimmed to non-empty
+    entries.
+    """
+
+    name: str = Field(..., max_length=64)
+    identity: str = Field(default="", max_length=2000)
+    voice: str = Field(default="", max_length=2000)
+    relational_stance: str = Field(default="", max_length=2000)
+    growth_policy: str = Field(default="", max_length=2000)
+    likes: list[str] = Field(default_factory=list, max_length=32)
+    dislikes: list[str] = Field(default_factory=list, max_length=32)
+    boundaries: list[str] = Field(default_factory=list, max_length=32)
+    core_values: dict[str, float] = Field(default_factory=dict)
+    initial_traits: dict[str, float] = Field(default_factory=dict)
+
+    @field_validator("name")
+    @classmethod
+    def _strip_name(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("name is required and cannot be blank")
+        return stripped
+
+    @field_validator("identity", "voice", "relational_stance", "growth_policy")
+    @classmethod
+    def _strip_text(cls, value: str) -> str:
+        return value.strip()
+
+    @field_validator("likes", "dislikes", "boundaries")
+    @classmethod
+    def _strip_items(cls, values: list[str]) -> list[str]:
+        cleaned = [item.strip() for item in values]
+        cleaned = [item for item in cleaned if item]
+        for item in cleaned:
+            if len(item) > 200:
+                raise ValueError(f"item too long (max 200 chars): {item[:40]}...")
+        return cleaned
+
+    @field_validator("core_values", "initial_traits")
+    @classmethod
+    def _validate_weights(cls, values: dict[str, float]) -> dict[str, float]:
+        if len(values) > 32:
+            raise ValueError("too many entries (max 32)")
+        cleaned: dict[str, float] = {}
+        for key, raw in values.items():
+            key = (key or "").strip()
+            if not key:
+                raise ValueError("weight key cannot be empty")
+            if len(key) > 64:
+                raise ValueError(f"weight key too long (max 64 chars): {key[:40]}...")
+            try:
+                weight = float(raw)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"weight for {key!r} must be numeric") from exc
+            if not 0.0 <= weight <= 1.0:
+                raise ValueError(
+                    f"weight for {key!r} must be in [0.0, 1.0], got {weight}"
+                )
+            cleaned[key] = weight
+        return cleaned
 
 
 def get_session_manager() -> SessionManager:
@@ -660,6 +726,39 @@ async def admin_reset_session(req: AdminSessionResetRequest) -> dict:
         "session_key": req.session_key,
         "status": "evicted",
     }
+
+
+@app.get("/admin/soul", dependencies=[Depends(_require_bearer)])
+async def admin_get_soul() -> dict:
+    """Return current seed identity for the admin Identity section."""
+    from config.loader import get_config
+
+    return _admin_soul_payload(get_config().soul, saved=True)
+
+
+@app.post("/admin/soul", dependencies=[Depends(_require_bearer)])
+async def admin_update_soul(req: AdminSoulUpdateRequest) -> dict:
+    """Write a new soul.yaml and reload the config singleton."""
+    from config.loader import get_config, reset_config
+
+    payload = {
+        "soul": {
+            "name": req.name,
+            "identity": req.identity,
+            "voice": req.voice,
+            "relational_stance": req.relational_stance,
+            "likes": req.likes,
+            "dislikes": req.dislikes,
+            "boundaries": req.boundaries,
+            "growth_policy": req.growth_policy,
+            "core_values": req.core_values,
+            "initial_traits": req.initial_traits,
+        }
+    }
+    path = _soul_yaml_path()
+    _write_soul_yaml(payload, path)
+    reset_config()
+    return _admin_soul_payload(get_config().soul, saved=True, path=path)
 
 
 @app.post("/admin/users/delete", dependencies=[Depends(_require_bearer)])
@@ -1109,6 +1208,8 @@ def _admin_setup_status(config: RuntimeConfig) -> dict:
         reasons.append("missing_config")
     if _looks_unconfigured(config):
         reasons.append("default_or_minimal_config")
+    if _soul_looks_default():
+        reasons.append("default_soul")
     if not completed:
         reasons.append("setup_not_completed")
     required = not completed and bool(reasons)
@@ -1119,6 +1220,75 @@ def _admin_setup_status(config: RuntimeConfig) -> dict:
         "reasons": reasons,
         "completed_at": state.get("completed_at"),
         "last_config_save_at": state.get("last_config_save_at"),
+    }
+
+
+_DEFAULT_SOUL_NAME = "Nūr"
+
+
+def _soul_yaml_path() -> str:
+    """Path where /admin/soul writes soul.yaml.
+
+    Matches the loader's read path so a restart is not required to see the
+    edit. Inside site-packages for pip-installed deployments — document this
+    trade-off in the admin UI.
+    """
+    from config import loader as _loader  # imported lazily to avoid cycles
+
+    return str(os.path.join(os.path.dirname(os.path.abspath(_loader.__file__)), "soul.yaml"))
+
+
+def _write_soul_yaml(data: dict, path: str) -> None:
+    """Atomic YAML write: temp file in the same dir, then os.replace."""
+    import yaml as _yaml
+
+    tmp_path = path + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as handle:
+        _yaml.safe_dump(
+            data,
+            handle,
+            sort_keys=False,
+            allow_unicode=True,
+            default_flow_style=False,
+        )
+    os.replace(tmp_path, path)
+
+
+def _soul_looks_default() -> bool:
+    """True when soul.name is still the built-in placeholder."""
+    try:
+        from config.loader import get_config
+
+        return get_config().soul.name.strip() == _DEFAULT_SOUL_NAME
+    except Exception:  # pragma: no cover - defensive
+        return False
+
+
+def _admin_soul_payload(soul, *, saved: bool = True, path: str | None = None) -> dict:
+    return {
+        "soul": {
+            "name": soul.name,
+            "identity": soul.identity,
+            "voice": soul.voice,
+            "relational_stance": soul.relational_stance,
+            "likes": list(soul.likes),
+            "dislikes": list(soul.dislikes),
+            "boundaries": list(soul.boundaries),
+            "growth_policy": soul.growth_policy,
+            "core_values": dict(soul.core_values),
+            "initial_traits": dict(soul.initial_traits),
+        },
+        "is_default_name": soul.name.strip() == _DEFAULT_SOUL_NAME,
+        "saved": saved,
+        "path": path or _soul_yaml_path(),
+        "notes": [
+            "Saved soul.yaml is read by the cognitive engine. For pip-installed "
+            "deployments this file lives inside the installed package and will "
+            "be overwritten on `pip install --upgrade`.",
+            "Some modules cache soul-derived constants at import time; a full "
+            "server restart may be required for every consumer to pick up the "
+            "new identity.",
+        ],
     }
 
 

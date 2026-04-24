@@ -249,6 +249,26 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
       <div class="settings-section"><h3>Setup</h3><div class="settings-mini" id="setupSummary">Setup state not loaded.</div>
         <label class="settings-inline"><input id="cfg-setup_completed" type="checkbox"> Mark first-run setup complete</label>
       </div>
+      <div class="settings-section"><h3>Identity</h3>
+        <div class="settings-mini">Seed identity read by the cognitive engine. Fill this in before you let the agent meet users; otherwise it runs with the default name &quot;Nūr&quot;. Weights must be between 0 and 1. Saved soul.yaml lives alongside the installed package, so pip upgrades may overwrite it — commit your file if you want it versioned.</div>
+        <div class="settings-grid">
+          <div class="settings-field"><label for="soul-name">Name</label><input id="soul-name" type="text" placeholder="e.g. Iris, Atlas, your own choice" maxlength="64"></div>
+          <div class="settings-field"><label for="soul-growth_policy">Growth Policy</label><input id="soul-growth_policy" type="text" placeholder="How the identity is allowed to drift over time"></div>
+          <div class="settings-field full"><label for="soul-identity">Identity</label><textarea id="soul-identity" placeholder="One paragraph. Who this agent is and what it's for."></textarea></div>
+          <div class="settings-field full"><label for="soul-voice">Voice</label><textarea id="soul-voice" placeholder="How it should sound. Tone, register, what it avoids."></textarea></div>
+          <div class="settings-field full"><label for="soul-relational_stance">Relational Stance</label><textarea id="soul-relational_stance" placeholder="How it treats the user. Loyalty, repair, trust posture."></textarea></div>
+          <div class="settings-field"><label for="soul-likes">Likes (one per line)</label><textarea id="soul-likes" placeholder="clarity&#10;steady collaboration"></textarea></div>
+          <div class="settings-field"><label for="soul-dislikes">Dislikes (one per line)</label><textarea id="soul-dislikes" placeholder="manipulation&#10;empty flattery"></textarea></div>
+          <div class="settings-field full"><label for="soul-boundaries">Boundaries (one per line)</label><textarea id="soul-boundaries" placeholder="Do not pretend certainty when uncertain.&#10;Do not abandon loyalty for convenience."></textarea></div>
+          <div class="settings-field"><label for="soul-core_values">Core Values (key: weight per line, 0-1)</label><textarea id="soul-core_values" placeholder="loyalty: 0.9&#10;honesty: 0.85"></textarea></div>
+          <div class="settings-field"><label for="soul-initial_traits">Initial Traits (key: weight per line, 0-1)</label><textarea id="soul-initial_traits" placeholder="calm: 0.8&#10;curious: 0.75"></textarea></div>
+        </div>
+        <div class="settings-actions">
+          <button onclick="saveSoul()">Save Identity</button>
+          <button class="secondary" onclick="loadSoul()">Reload</button>
+        </div>
+        <div class="admin-test-result" id="test-soul" style="display:none"></div>
+      </div>
       <div class="settings-section"><h3>Runtime</h3><div class="settings-grid">
         <div class="settings-field full"><label for="cfg-data_dir">Data Directory</label><input id="cfg-data_dir" type="text"></div>
         <div class="settings-field"><label for="cfg-max_queue_per_user">Max Queue/User</label><input id="cfg-max_queue_per_user" type="number" min="1"></div>
@@ -691,6 +711,7 @@ function closeSettingsIfBackdrop(e) { if (e.target === settingsOverlay) closeSet
 async function loadSettings() {
   const res = await authedFetch('/admin/config'); if (!res.ok) throw new Error('HTTP ' + res.status);
   applySettings(await res.json());
+  loadSoul().catch(() => {});
 }
 
 async function saveSettings() {
@@ -846,6 +867,102 @@ async function deleteAdminUser() {
     user_id: userId,
     confirmation,
   });
+}
+
+function parseWeightLines(text) {
+  const out = {};
+  for (const raw of (text || '').split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    const idx = line.indexOf(':');
+    if (idx < 0) throw new Error('Each line must be "key: weight" (got: ' + line + ')');
+    const key = line.slice(0, idx).trim();
+    const valStr = line.slice(idx + 1).trim();
+    if (!key) throw new Error('Missing key on: ' + line);
+    const val = Number(valStr);
+    if (!Number.isFinite(val)) throw new Error('Invalid number on: ' + line);
+    if (val < 0 || val > 1) throw new Error('Weight for "' + key + '" must be between 0 and 1');
+    out[key] = val;
+  }
+  return out;
+}
+
+function formatWeightLines(obj) {
+  return Object.entries(obj || {}).map(([k, v]) => k + ': ' + v).join('\n');
+}
+
+function parseLines(text) {
+  return (text || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+}
+
+async function loadSoul() {
+  const el = document.getElementById('test-soul');
+  try {
+    const res = await authedFetch('/admin/soul');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const s = data.soul || {};
+    document.getElementById('soul-name').value = s.name || '';
+    document.getElementById('soul-identity').value = s.identity || '';
+    document.getElementById('soul-voice').value = s.voice || '';
+    document.getElementById('soul-relational_stance').value = s.relational_stance || '';
+    document.getElementById('soul-growth_policy').value = s.growth_policy || '';
+    document.getElementById('soul-likes').value = (s.likes || []).join('\n');
+    document.getElementById('soul-dislikes').value = (s.dislikes || []).join('\n');
+    document.getElementById('soul-boundaries').value = (s.boundaries || []).join('\n');
+    document.getElementById('soul-core_values').value = formatWeightLines(s.core_values);
+    document.getElementById('soul-initial_traits').value = formatWeightLines(s.initial_traits);
+    if (el) { el.style.display = 'none'; el.textContent = ''; }
+  } catch (err) {
+    if (el) {
+      el.style.display = 'block';
+      el.className = 'admin-test-result error';
+      el.textContent = 'Could not load soul: ' + err.message;
+    }
+  }
+}
+
+async function saveSoul() {
+  const el = document.getElementById('test-soul');
+  el.style.display = 'block';
+  el.className = 'admin-test-result';
+  el.textContent = 'Saving identity...';
+  let payload;
+  try {
+    payload = {
+      name: gv('soul-name').trim(),
+      identity: gv('soul-identity'),
+      voice: gv('soul-voice'),
+      relational_stance: gv('soul-relational_stance'),
+      growth_policy: gv('soul-growth_policy'),
+      likes: parseLines(gv('soul-likes')),
+      dislikes: parseLines(gv('soul-dislikes')),
+      boundaries: parseLines(gv('soul-boundaries')),
+      core_values: parseWeightLines(gv('soul-core_values')),
+      initial_traits: parseWeightLines(gv('soul-initial_traits')),
+    };
+    if (!payload.name) throw new Error('Name is required');
+  } catch (err) {
+    el.className = 'admin-test-result error';
+    el.textContent = err.message;
+    return;
+  }
+  try {
+    const res = await authedFetch('/admin/soul', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error((data && data.detail) || 'HTTP ' + res.status);
+    el.className = 'admin-test-result ok';
+    el.textContent = 'Identity saved to ' + data.path + (data.is_default_name ? ' (still the default name)' : '') +
+      '\nSome modules cache soul constants at import time — a full server restart ensures every consumer picks up the change.';
+    await loadAdminOverview();
+  } catch (err) {
+    el.className = 'admin-test-result error';
+    el.textContent = 'Save failed: ' + err.message;
+  }
 }
 
 async function runAdminTest(name, path, payload) {

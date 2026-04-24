@@ -441,6 +441,100 @@ class TestConfigEndpoint:
         assert captured[0].telegram_allowlist == {"456", "789"}
 
 
+class TestAdminSoul:
+    async def test_get_admin_soul_returns_current_identity(self):
+        data = await interface_api.admin_get_soul()
+        assert "soul" in data
+        assert data["soul"]["name"]  # non-empty
+        assert isinstance(data["soul"]["core_values"], dict)
+        assert isinstance(data["soul"]["likes"], list)
+        assert "is_default_name" in data
+        assert "notes" in data and data["notes"]
+
+    async def test_post_admin_soul_writes_yaml(self, monkeypatch, tmp_path):
+        import yaml as _yaml
+        from interface.api import AdminSoulUpdateRequest
+
+        target = tmp_path / "soul.yaml"
+        monkeypatch.setattr(interface_api, "_soul_yaml_path", lambda: str(target))
+
+        req = AdminSoulUpdateRequest(
+            name="Iris",
+            identity="A precise research companion.",
+            voice="calm, direct",
+            relational_stance="supportive",
+            growth_policy="stable core, drifting voice",
+            likes=["clarity", "  ", "honesty"],
+            dislikes=["noise"],
+            boundaries=["Never fabricate citations."],
+            core_values={"honesty": 0.95, "kindness": 0.8},
+            initial_traits={"calm": 0.8},
+        )
+        result = await interface_api.admin_update_soul(req)
+
+        assert result["saved"] is True
+        assert result["path"] == str(target)
+        assert target.exists()
+
+        loaded = _yaml.safe_load(target.read_text())
+        assert loaded["soul"]["name"] == "Iris"
+        assert loaded["soul"]["likes"] == ["clarity", "honesty"]
+        assert loaded["soul"]["core_values"]["honesty"] == 0.95
+        assert loaded["soul"]["initial_traits"]["calm"] == 0.8
+
+    def test_admin_soul_request_rejects_out_of_range_weight(self):
+        from pydantic import ValidationError
+        from interface.api import AdminSoulUpdateRequest
+
+        with pytest.raises(ValidationError):
+            AdminSoulUpdateRequest(name="x", core_values={"k": 1.5})
+        with pytest.raises(ValidationError):
+            AdminSoulUpdateRequest(name="x", initial_traits={"k": -0.1})
+
+    def test_admin_soul_request_rejects_empty_name(self):
+        from pydantic import ValidationError
+        from interface.api import AdminSoulUpdateRequest
+
+        with pytest.raises(ValidationError):
+            AdminSoulUpdateRequest(name="")
+        with pytest.raises(ValidationError):
+            AdminSoulUpdateRequest(name="   ")  # stripped to empty
+
+    def test_admin_soul_request_trims_list_entries(self):
+        from interface.api import AdminSoulUpdateRequest
+
+        req = AdminSoulUpdateRequest(
+            name="x",
+            likes=["clarity", "  ", "", " honesty "],
+            boundaries=["  Do not pretend certainty when uncertain.  "],
+        )
+        assert req.likes == ["clarity", "honesty"]
+        assert req.boundaries == ["Do not pretend certainty when uncertain."]
+
+
+class TestAdminSetupDefaultSoul:
+    async def test_default_soul_reason_surfaces_when_name_is_nur(
+        self, monkeypatch, tmp_path
+    ):
+        """Setup flagged default_soul when soul.name is still the built-in 'Nūr'."""
+        runtime_cfg_path = tmp_path / "runtime_config.yaml"
+        monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(runtime_cfg_path))
+        RuntimeConfig(data_dir=str(tmp_path / "data")).write_yaml(str(runtime_cfg_path))
+        # The real config/soul.yaml ships with name "Nūr", so default_soul should fire.
+        data = await interface_api.admin_status()
+        assert "default_soul" in data["setup"]["reasons"]
+
+    async def test_default_soul_reason_clears_when_name_changed(
+        self, monkeypatch, tmp_path
+    ):
+        runtime_cfg_path = tmp_path / "runtime_config.yaml"
+        monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(runtime_cfg_path))
+        RuntimeConfig(data_dir=str(tmp_path / "data")).write_yaml(str(runtime_cfg_path))
+        monkeypatch.setattr(interface_api, "_soul_looks_default", lambda: False)
+        data = await interface_api.admin_status()
+        assert "default_soul" not in data["setup"]["reasons"]
+
+
 class TestEntryPoints:
     def test_main_runs_uvicorn_on_localhost(self, monkeypatch):
         captured: dict[str, object] = {}
