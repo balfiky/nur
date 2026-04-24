@@ -65,11 +65,12 @@ class TestInnerDialogueCandidateAffectsResponse:
             created_at=datetime.now(timezone.utc), intensity=0.8, decay_rate=0.02,
         ))
         pipe.process("hello", user_id="test_user")
-        # The mock returns "I understand." which becomes the dialogue candidate.
+        # The mock returns a canned response which becomes the dialogue candidate.
         # After defense filtering, it flows into the generator's system prompt.
         system_prompt = backend.last_system_prompt
         # The candidate (or filtered version) must appear in the prompt
-        assert "I understand." in system_prompt or "Draft response" in system_prompt
+        mock_response = MockLLMBackend().generate("", "")
+        assert mock_response in system_prompt or "Draft response" in system_prompt
 
 
 # ---------------------------------------------------------------------------

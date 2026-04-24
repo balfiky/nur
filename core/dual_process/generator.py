@@ -30,7 +30,7 @@ class LLMBackend(Protocol):
 class MockLLMBackend:
     """Returns a canned response. For testing only."""
 
-    def __init__(self, response: str = "I understand.") -> None:
+    def __init__(self, response: str = "[Mock mode] No LLM is connected. Open Settings to configure one.") -> None:
         self._response = response
         self.last_system_prompt: str = ""
         self.last_user_message: str = ""

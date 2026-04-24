@@ -223,7 +223,7 @@ class TestResponseGenerator:
     def test_default_mock_backend(self):
         gen = ResponseGenerator()
         result = gen.generate(PipelineContext(), "test")
-        assert result.response == "I understand."
+        assert "Mock mode" in result.response
 
 
 # =========================================================================

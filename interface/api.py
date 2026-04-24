@@ -1105,6 +1105,7 @@ def _admin_config_payload(
         "field_metadata": _admin_field_metadata(config),
         "warnings": _admin_config_warnings(config),
         "setup": _admin_setup_status(config),
+        "mock_mode": config.llm_backend == "auto" and not _llm_configured(config),
     }
 
 

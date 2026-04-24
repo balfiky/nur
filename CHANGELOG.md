@@ -4,6 +4,49 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.25.2 — 2026-04-24 (Chat UI respects soul name; mock mode banner)
+
+### P1 — Chat UI now reflects the configured agent name
+The chat UI hardcoded "Nūr" in six places (browser tab, header logo,
+empty-state title, input placeholder, message sender label, typing avatar).
+After saving a different name in Settings → Identity, those spots stayed
+"Nūr". Fixed: the frontend fetches the soul on every page load (via
+`loadSettings` → `loadSoul`) and applies the name to all six spots.
+Name updates again after every successful soul save.
+
+- `interface/static/index.html`: added `applyAgentName(name)` that updates
+  `document.title`, `#headerLogo`, `#emptyTitle`, `#msgInput` placeholder,
+  and all `.nur-av` avatar initials.
+- `addMessage()` now uses the dynamic `agentName` variable for the
+  sender label and avatar initial instead of hardcoded literals.
+- `loadSoul()` calls `applyAgentName(data.soul.name)` on success.
+- `saveSoul()` calls `applyAgentName(payload.name)` on success; also
+  fixed a silent `ReferenceError` — `loadAdminOverview` was called but
+  never defined; replaced with `loadSettings()`.
+
+### P2 — Mock mode banner
+Users who have not configured an LLM see "I understand." on every message
+with no explanation why. Fixed two ways:
+
+- **Banner**: a non-intrusive amber bar appears at the top of the chat area
+  when the server is running in auto-mock mode (no LLM key/URL configured).
+  It links to Settings and disappears once a real LLM is configured and saved.
+- **MockLLMBackend default response**: changed from `"I understand."` to
+  `"[Mock mode] No LLM is connected. Open Settings to configure one."` —
+  self-explanatory even without the banner.
+- `interface/api.py`: `_admin_config_payload` now includes `mock_mode: bool`
+  (`true` when `llm_backend == "auto"` and no LLM is configured). Frontend
+  reads this field in `applySettings()`.
+
+### Tests
+- `test_dual_process.py`: updated `test_default_mock_backend` assertion for
+  new mock response text.
+- `test_regressions.py`: updated candidate-propagation test to derive the
+  expected string from `MockLLMBackend().generate()` rather than hardcoding
+  `"I understand."`.
+
+---
+
 ## v0.25.1 — 2026-04-24 (Identity propagation: name actually changes)
 
 v0.25.0 gave the admin UI a beautiful identity-authoring flow — and

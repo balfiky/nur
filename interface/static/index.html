@@ -41,6 +41,11 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .messages::-webkit-scrollbar-track { background: transparent; }
 .messages::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 3px; }
 
+/* Mock-mode banner */
+.mock-banner { background: #1e1608; border-bottom: 1px solid #4a3200; color: #c8820a; padding: 8px 20px; font-size: 13px; text-align: center; flex-shrink: 0; }
+.mock-banner a { color: #f0c040; text-decoration: none; }
+.mock-banner a:hover { text-decoration: underline; }
+
 /* Empty state */
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 20px; padding: 40px; }
 .empty-orb { width: 72px; height: 72px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, hsl(260, 55%, 78%), hsl(260, 50%, 58%), hsl(260, 40%, 35%)); animation: pulse 4s ease-in-out infinite; box-shadow: 0 0 50px hsla(260, 55%, 55%, 0.2); }
@@ -248,7 +253,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 
 <div class="header">
   <div class="header-left">
-    <span class="logo">Nūr</span>
+    <span class="logo" id="headerLogo">Nūr</span>
     <div class="mood-indicator">
       <div class="mood-orb" id="moodOrb"></div>
       <span class="mood-label" id="moodLabel">neutral</span>
@@ -406,10 +411,11 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 
 <div class="main">
   <div class="chat-area">
+    <div class="mock-banner" id="mockBanner" style="display:none">Running in mock mode — no LLM is connected. <a href="#" onclick="openSettings(); return false;">Configure one in Settings</a> to chat for real.</div>
     <div class="messages" id="messages">
       <div class="empty-state" id="emptyState">
         <div class="empty-orb"></div>
-        <div class="empty-title">Nūr</div>
+        <div class="empty-title" id="emptyTitle">Nūr</div>
         <div class="empty-sub">An AI that feels. Send a message to begin a conversation.</div>
       </div>
     </div>
@@ -490,6 +496,20 @@ const userId = getOrCreateId('nur_user_id', localStorage);
 const chatId = getOrCreateId('nur_chat_id', sessionStorage);
 let sending = false;
 let lastEmotion = 'neutral';
+let agentName = 'Nūr';
+
+function applyAgentName(name) {
+  if (!name || !name.trim()) return;
+  agentName = name.trim();
+  const initial = agentName.charAt(0).toUpperCase();
+  document.title = agentName;
+  const logo = document.getElementById('headerLogo');
+  if (logo) logo.textContent = agentName;
+  const emptyTitle = document.getElementById('emptyTitle');
+  if (emptyTitle) emptyTitle.textContent = agentName;
+  document.getElementById('msgInput').placeholder = 'Message ' + agentName + '...';
+  document.querySelectorAll('.nur-av').forEach(el => { el.textContent = initial; });
+}
 
 // ---- API-bearer token (client-side) --------------------------------------
 // Stored in localStorage so the same browser tab keeps working after a
@@ -574,9 +594,9 @@ function addMessage(text, role, emotion) {
   }
   row.innerHTML =
     '<div class="message-inner">' +
-      '<div class="msg-avatar ' + (isUser ? 'user-av' : 'nur-av') + '">' + (isUser ? 'Y' : 'N') + '</div>' +
+      '<div class="msg-avatar ' + (isUser ? 'user-av' : 'nur-av') + '">' + (isUser ? 'Y' : esc(agentName.charAt(0).toUpperCase())) + '</div>' +
       '<div class="msg-content">' +
-        '<div class="msg-header"><span class="msg-name">' + (isUser ? 'You' : 'Nūr') + '</span>' + headerExtra + '</div>' +
+        '<div class="msg-header"><span class="msg-name">' + (isUser ? 'You' : esc(agentName)) + '</span>' + headerExtra + '</div>' +
         '<div class="msg-body">' + (isUser ? esc(text) : renderMarkdown(text)) + '</div>' +
       '</div>' +
     '</div>';
@@ -842,6 +862,8 @@ function applySettings(payload) {
   renderAdminWarnings(payload.warnings || []);
   renderSetup(payload.setup || {});
   updateSoulDraftAvailability();
+  const mockBanner = document.getElementById('mockBanner');
+  if (mockBanner) mockBanner.style.display = payload.mock_mode ? '' : 'none';
   const notes = (payload.notes||[]).map(n => '<div class="settings-note">' + esc(n) + '</div>').join('');
   setStatusHtml('Config: ' + esc(payload.config_path || 'runtime_config.yaml') + notes);
 }
@@ -986,6 +1008,7 @@ async function loadSoul() {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     applySoulToForm(data.soul || {});
+    if ((data.soul || {}).name) applyAgentName(data.soul.name);
     if (el) { el.style.display = 'none'; el.textContent = ''; }
     updateSoulDraftAvailability();
   } catch (err) {
@@ -1052,7 +1075,8 @@ async function saveSoul() {
     const lines = ['Identity saved to ' + data.path + (data.is_default_name ? ' (still the default name — pick something for your deployment)' : '')];
     (data.notes || []).forEach(n => lines.push(n));
     el.textContent = lines.join('\n');
-    await loadAdminOverview();
+    applyAgentName(payload.name);
+    loadSettings().catch(() => {});
   } catch (err) {
     el.className = 'admin-test-result error';
     el.textContent = 'Save failed: ' + err.message;
