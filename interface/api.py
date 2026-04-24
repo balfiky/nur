@@ -803,7 +803,11 @@ async def admin_draft_soul(req: AdminSoulDraftRequest) -> dict:
 
 @app.post("/admin/soul", dependencies=[Depends(_require_bearer)])
 async def admin_update_soul(req: AdminSoulUpdateRequest) -> dict:
-    """Write a new soul.yaml and reload the config singleton."""
+    """Write a new soul.yaml, reload the config singleton, and evict the
+    cached session manager so the next chat turn builds a fresh pipeline
+    that reads the new identity. No process restart required.
+    """
+    global _session_manager
     from config.loader import get_config, reset_config
 
     payload = {
@@ -823,7 +827,17 @@ async def admin_update_soul(req: AdminSoulUpdateRequest) -> dict:
     path = _soul_yaml_path()
     _write_soul_yaml(payload, path)
     reset_config()
-    return _admin_soul_payload(get_config().soul, saved=True, path=path)
+    reloaded_manager = False
+    if _session_manager is not None:
+        await _session_manager.shutdown()
+        _session_manager = None
+        reloaded_manager = True
+    return _admin_soul_payload(
+        get_config().soul,
+        saved=True,
+        path=path,
+        reloaded_session_manager=reloaded_manager,
+    )
 
 
 @app.post("/admin/users/delete", dependencies=[Depends(_require_bearer)])
@@ -1401,7 +1415,31 @@ def _soul_looks_default() -> bool:
         return False
 
 
-def _admin_soul_payload(soul, *, saved: bool = True, path: str | None = None) -> dict:
+def _admin_soul_payload(
+    soul,
+    *,
+    saved: bool = True,
+    path: str | None = None,
+    reloaded_session_manager: bool = False,
+) -> dict:
+    notes: list[str] = []
+    if saved:
+        notes.append(
+            "Identity saved. The next chat turn will reflect the new "
+            "identity across the whole prompt stack (generator, self-check, "
+            "memory digestion, role labels)."
+        )
+        if reloaded_session_manager:
+            notes.append(
+                "Active chat sessions were rebuilt so they use the new "
+                "identity immediately; no server restart needed."
+            )
+    if not os.environ.get("NUR_CONFIG_DIR", "").strip():
+        notes.append(
+            "To make this identity survive `pip install --upgrade`, set "
+            "NUR_CONFIG_DIR to a writable directory outside site-packages "
+            "and save again — future writes and reads will use that dir."
+        )
     return {
         "soul": {
             "name": soul.name,
@@ -1418,14 +1456,8 @@ def _admin_soul_payload(soul, *, saved: bool = True, path: str | None = None) ->
         "is_default_name": soul.name.strip() == _DEFAULT_SOUL_NAME,
         "saved": saved,
         "path": path or _soul_yaml_path(),
-        "notes": [
-            "Saved soul.yaml is read by the cognitive engine. For pip-installed "
-            "deployments this file lives inside the installed package and will "
-            "be overwritten on `pip install --upgrade`.",
-            "Some modules cache soul-derived constants at import time; a full "
-            "server restart may be required for every consumer to pick up the "
-            "new identity.",
-        ],
+        "reloaded_session_manager": reloaded_session_manager,
+        "notes": notes,
     }
 
 

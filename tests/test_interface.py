@@ -647,6 +647,98 @@ class TestAdminSoulDraft:
             AdminSoulDraftRequest(description="       ")
 
 
+class TestAgentNamePropagation:
+    def test_generator_prompt_uses_soul_name_not_hardcoded(self):
+        """Changing soul.name changes the 'You are X' directive in the generator."""
+        from dataclasses import replace
+        from config.loader import get_config, reset_config
+        from core.dual_process.generator import build_system_prompt
+        from core.types import PipelineContext
+
+        reset_config()
+        base_soul = get_config().soul
+        default_prompt = build_system_prompt(PipelineContext(soul_profile=base_soul))
+        assert "You are Nūr" in default_prompt
+        assert "{agent_name}" not in default_prompt
+
+        iris_soul = replace(base_soul, name="Iris")
+        iris_prompt = build_system_prompt(PipelineContext(soul_profile=iris_soul))
+        assert "You are Iris" in iris_prompt
+        assert "You are Nūr" not in iris_prompt
+        assert "{agent_name}" not in iris_prompt
+
+    def test_generator_template_has_no_hardcoded_nur_directive(self):
+        """Guard the generator template itself: first line must use a placeholder."""
+        from config.loader import get_config, reset_config
+
+        reset_config()
+        template = get_config().generator_prompt
+        first_line = template.splitlines()[0]
+        assert "{agent_name}" in first_line, (
+            "generator.md first line must use {agent_name} placeholder, not hardcode the name"
+        )
+
+    def test_self_check_prompt_uses_placeholder(self):
+        from config.loader import get_config, reset_config
+
+        reset_config()
+        template = get_config().self_check_prompt
+        assert "{agent_name}" in template
+        # And must not hardcode "Nūr" next to "quality checker"
+        assert "quality checker for Nūr" not in template
+
+    def test_digestion_prompt_uses_placeholder(self):
+        from config.loader import get_config, reset_config
+
+        reset_config()
+        template = get_config().digestion_prompt
+        assert "{agent_name}" in template
+        assert "consolidation system for Nūr" not in template
+
+
+class TestSoulSaveReloadsSessionManager:
+    async def test_soul_save_shuts_down_active_session_manager(
+        self, monkeypatch, tmp_path
+    ):
+        """POST /admin/soul must evict the cached session manager so the next
+        chat turn picks up the new identity without a process restart."""
+        from interface.api import AdminSoulUpdateRequest, admin_update_soul
+
+        # Redirect soul writes to tmp; use NUR_CONFIG_DIR so the loader reads it
+        monkeypatch.setenv("NUR_CONFIG_DIR", str(tmp_path))
+        monkeypatch.setattr(interface_api, "_soul_yaml_path", lambda: str(tmp_path / "soul.yaml"))
+
+        # Install a sentinel session manager
+        shutdown_called = {"count": 0}
+
+        class _SentinelManager:
+            active_sessions = {}
+
+            async def shutdown(self):
+                shutdown_called["count"] += 1
+
+        interface_api._session_manager = _SentinelManager()
+        interface_api._pipeline_override = None
+
+        req = AdminSoulUpdateRequest(
+            name="Iris",
+            identity="Research companion.",
+            voice="calm",
+            relational_stance="supportive",
+            growth_policy="stable core",
+            likes=["clarity"],
+            dislikes=["noise"],
+            boundaries=["Do not pretend certainty when uncertain."],
+            core_values={"honesty": 0.9},
+            initial_traits={"calm": 0.8},
+        )
+        result = await admin_update_soul(req)
+
+        assert shutdown_called["count"] == 1
+        assert interface_api._session_manager is None
+        assert result["reloaded_session_manager"] is True
+
+
 class TestConfigLoaderOverride:
     def test_override_dir_replaces_packaged_soul(self, monkeypatch, tmp_path):
         """NUR_CONFIG_DIR points at a user dir; soul.yaml there wins."""

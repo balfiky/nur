@@ -4,6 +4,86 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.25.1 — 2026-04-24 (Identity propagation: name actually changes)
+
+v0.25.0 gave the admin UI a beautiful identity-authoring flow — and
+then lied to the user about what it did. The generator prompt template
+hardcoded `"You are Nūr."` in its first line, so even after saving a
+different name the LLM was told it is still Nūr. The self-check and
+memory-digestion prompts had the same problem. The admin UI warned
+"full server restart may be required" as a workaround, but no restart
+would have fixed it: the hardcoded string survives restarts too.
+
+### Fixed
+- **Hardcoded agent name in prompt templates.** Replaced with
+  `{agent_name}` placeholders and runtime substitution from
+  `soul.name`:
+  - `config/prompts/generator.md` — `"You are Nūr."` →
+    `"You are {agent_name}."`
+  - `config/prompts/self_check.md` — `"for Nūr"` →
+    `"for {agent_name}"`
+  - `config/prompts/digestion.md` — `"for Nūr"` →
+    `"for {agent_name}"`
+  - `core/dual_process/generator.py:build_system_prompt` resolves
+    `agent_name` from `ctx.soul_profile.name` (falling back to
+    `get_config().soul.name` if unset) and substitutes it into both
+    the template path and the legacy fallback path.
+  - `core/dual_process/self_check.py` substitutes `{agent_name}` on
+    every self-check call.
+  - `core/memory/digestion.py` substitutes `{agent_name}` and also
+    uses `soul.name` for the role label in formatted conversation
+    history (previously hardcoded `"Nūr"`).
+- **`POST /admin/soul` now evicts the active session manager.** Matches
+  the same pattern `POST /admin/config` already uses. After a save,
+  `_session_manager.shutdown()` is called and the singleton cleared so
+  the next chat turn builds a fresh pipeline that reads the new
+  `soul.yaml` — **no process restart needed**. Response includes
+  `reloaded_session_manager: true` so clients can show an accurate
+  status.
+
+### UX
+- Admin UI no longer tells the operator to restart the server. The
+  save toast now surfaces the honest contract: "The next chat turn
+  will reflect the new identity across the whole prompt stack", and
+  "Active chat sessions were rebuilt so they use the new identity
+  immediately".
+- When `NUR_CONFIG_DIR` is not set, the save toast adds a note
+  suggesting it, so operators who care about surviving
+  `pip install --upgrade` see the path to do it.
+
+### Tests
+- 5 new cases:
+  - `TestAgentNamePropagation::test_generator_prompt_uses_soul_name_not_hardcoded` —
+    constructs a `PipelineContext` with a non-default soul name,
+    verifies the rendered first line is `"You are Iris"` and contains
+    neither `"Nūr"` nor the raw `{agent_name}` placeholder.
+  - `TestAgentNamePropagation::test_generator_template_has_no_hardcoded_nur_directive` —
+    guards the template file itself (so a future edit can't reintroduce
+    a hardcoded name and silently defeat the feature).
+  - `TestAgentNamePropagation::test_self_check_prompt_uses_placeholder`
+    and `test_digestion_prompt_uses_placeholder` — same guard for the
+    other two templates.
+  - `TestSoulSaveReloadsSessionManager::test_soul_save_shuts_down_active_session_manager` —
+    installs a sentinel session manager, calls `admin_update_soul`,
+    verifies `shutdown()` was called and `_session_manager` was
+    cleared.
+- Updated two existing tests in `test_config.py` that asserted the
+  old hardcoded-`"Nūr"` contract to assert the new `{agent_name}`
+  placeholder contract instead.
+- **Full suite: 1383 passed.**
+
+### Why this is the important fix
+This release is small in line count but large in honesty. v0.25.0
+built the non-coder identity-authoring UX, but the feature itself
+didn't actually change the agent's name in practice — the operator
+would pick "Iris", hit Save, and the assistant would still answer
+"I'm Nūr." This release makes the UI tell the truth.
+
+### Bumped
+- `pyproject.toml` version → 0.25.1.
+
+---
+
 ## v0.25.0 — 2026-04-24 (Identity authoring for non-coders)
 
 Phase 2 of the seed-identity work. v0.24.0 gave the admin GUI a

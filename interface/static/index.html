@@ -1049,8 +1049,9 @@ async function saveSoul() {
     const data = await res.json();
     if (!res.ok) throw new Error((data && data.detail) || 'HTTP ' + res.status);
     el.className = 'admin-test-result ok';
-    el.textContent = 'Identity saved to ' + data.path + (data.is_default_name ? ' (still the default name — pick something for your deployment)' : '') +
-      '\nSome modules cache soul constants at import time — a full server restart ensures every consumer picks up the change.';
+    const lines = ['Identity saved to ' + data.path + (data.is_default_name ? ' (still the default name — pick something for your deployment)' : '')];
+    (data.notes || []).forEach(n => lines.push(n));
+    el.textContent = lines.join('\n');
     await loadAdminOverview();
   } catch (err) {
     el.className = 'admin-test-result error';

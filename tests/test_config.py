@@ -155,7 +155,10 @@ class TestLoadConfig:
 
     def test_loads_prompts(self):
         cfg = load_config()
-        assert "Nūr" in cfg.generator_prompt
+        # Agent name is now a placeholder filled from soul.name at request time,
+        # not a hardcoded "Nūr" string. Tests in test_interface.py cover the
+        # full substitution path.
+        assert "{agent_name}" in cfg.generator_prompt
         assert "Tone Fit" in cfg.self_check_prompt
         assert "Digestion" in cfg.digestion_prompt
 
@@ -320,7 +323,9 @@ class TestPromptTemplates:
     def test_generator_prompt_exists(self):
         cfg = load_config()
         assert len(cfg.generator_prompt) > 50
-        assert "Nūr" in cfg.generator_prompt
+        # The template uses {agent_name} now; the actual name is filled from
+        # soul.name at request time via build_system_prompt.
+        assert "{agent_name}" in cfg.generator_prompt
 
     def test_self_check_prompt_exists(self):
         cfg = load_config()

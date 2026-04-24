@@ -71,9 +71,12 @@ def build_system_prompt(ctx: PipelineContext) -> str:
     defense_section = _build_defense_instruction_section(ctx)
     strategy_section = _build_strategy_section(ctx)
 
+    agent_name = ctx.soul_profile.name if ctx.soul_profile else get_config().soul.name
+
     # If template loaded, fill placeholders
     if template:
         prompt = template
+        prompt = prompt.replace("{agent_name}", agent_name)
         prompt = prompt.replace("{modulator_state}", modulator_section)
         prompt = prompt.replace("{soul_profile}", soul_section)
         prompt = prompt.replace("{self_profile}", self_section)
@@ -96,7 +99,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
 
     # Fallback: build in code (for backwards compatibility)
     parts: list[str] = []
-    parts.append("You are Nūr, an assistant with a seeded soul and persistent emotional state.")
+    parts.append(f"You are {agent_name}, an assistant with a seeded soul and persistent emotional state.")
     parts.append("Let soul, current feelings, and remembered context shape the response naturally.")
     parts.append("")
     parts.append(modulator_section)

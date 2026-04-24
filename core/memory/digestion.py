@@ -130,16 +130,19 @@ def _llm_summarizer(
         event_strs.append(f"- {e.event_type.value} (intensity={e.intensity:.2f})")
     events_str = "\n".join(event_strs) if event_strs else "No events"
 
+    agent_name = get_config().soul.name or "Assistant"
+
     # Format conversation
     conv_str = "No conversation history"
     if conversation_history:
         conv_lines = []
         for msg in conversation_history[-20:]:
-            role = "User" if msg["role"] == "user" else "Nūr"
+            role = "User" if msg["role"] == "user" else agent_name
             conv_lines.append(f"{role}: {msg['content']}")
         conv_str = "\n".join(conv_lines)
 
     prompt = template
+    prompt = prompt.replace("{agent_name}", agent_name)
     prompt = prompt.replace("{emotional_arc}", arc_str)
     prompt = prompt.replace("{events}", events_str)
     prompt = prompt.replace("{conversation_history}", conv_str)

@@ -113,6 +113,8 @@ class SelfChecker:
             self_profile_str = "; ".join(parts) if parts else "No profile data"
 
         prompt = template
+        agent_name = ctx.soul_profile.name if ctx.soul_profile else get_config().soul.name
+        prompt = prompt.replace("{agent_name}", agent_name)
         prompt = prompt.replace("{response}", response)
         prompt = prompt.replace("{modulator_snapshot}", json.dumps(snap, indent=2))
         prompt = prompt.replace("{self_profile}", self_profile_str)
