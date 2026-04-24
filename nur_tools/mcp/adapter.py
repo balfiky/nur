@@ -14,9 +14,9 @@ from __future__ import annotations
 from typing import Any
 
 from core.types import ToolCapability, ToolCategory, ToolResult
-from tools.mcp.client import MCPClient, MCPToolInfo
-from tools.registry import ToolRegistry
-from tools.executor import ToolExecutor
+from nur_tools.mcp.client import MCPClient, MCPToolInfo
+from nur_tools.registry import ToolRegistry
+from nur_tools.executor import ToolExecutor
 
 
 # ---------------------------------------------------------------------------

@@ -43,7 +43,7 @@ from core.types import (
     ToolResult,
     ToolTrace,
 )
-from tools.executor import ToolExecutor
+from nur_tools.executor import ToolExecutor
 
 # ---------------------------------------------------------------------------
 # Constants

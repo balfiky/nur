@@ -30,7 +30,7 @@ from core.types import (
     ToolResult,
 )
 from core.tool_appraisal import appraise_tool_result
-from tools.executor import ToolExecutor
+from nur_tools.executor import ToolExecutor
 
 # ---------------------------------------------------------------------------
 # Constants

@@ -25,7 +25,7 @@ import cairosvg
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from tools.build_diagrams import BUILDERS  # noqa: E402
+from nur_tools.build_diagrams import BUILDERS  # noqa: E402
 
 
 OUT_DIR = ROOT / "docs" / "diagrams"

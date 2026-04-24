@@ -40,9 +40,9 @@ from core.tool_memory import (
     derive_task_self_observations,
 )
 from core.dual_process.tool_loop import run_tool_loop, ToolLoopResult
-from tools.registry import ToolRegistry
-from tools.executor import ToolExecutor
-from tools import register_builtins
+from nur_tools.registry import ToolRegistry
+from nur_tools.executor import ToolExecutor
+from nur_tools import register_builtins
 
 
 # ===================================================================
@@ -723,9 +723,9 @@ class TestPipelineTaskIntegration:
     def test_multi_step_sets_debug_task_trace(self, tmp_path):
         """Full pipeline run with multi-step message populates task_trace."""
         from pipeline import CognitivePipeline
-        from tools.registry import ToolRegistry
-        from tools.executor import ToolExecutor
-        from tools import register_builtins
+        from nur_tools.registry import ToolRegistry
+        from nur_tools.executor import ToolExecutor
+        from nur_tools import register_builtins
 
         reg = ToolRegistry()
         exe = ToolExecutor(reg)

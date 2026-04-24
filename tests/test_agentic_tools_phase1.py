@@ -9,17 +9,17 @@ import textwrap
 import pytest
 
 from core.types import ToolCapability, ToolCategory, ToolResult
-from tools.registry import ToolRegistry
-from tools.executor import ToolExecutor
-from tools.builtin.filesystem import CAPABILITIES as FS_CAPS, HANDLERS as FS_HANDLERS
-from tools.builtin.shell import CAPABILITIES as SHELL_CAPS, HANDLERS as SHELL_HANDLERS
-from tools.builtin.web_search import (
+from nur_tools.registry import ToolRegistry
+from nur_tools.executor import ToolExecutor
+from nur_tools.builtin.filesystem import CAPABILITIES as FS_CAPS, HANDLERS as FS_HANDLERS
+from nur_tools.builtin.shell import CAPABILITIES as SHELL_CAPS, HANDLERS as SHELL_HANDLERS
+from nur_tools.builtin.web_search import (
     CAPABILITIES as WEB_CAPS,
     WebProvider,
     NullWebProvider,
     create_handlers,
 )
-from tools import register_builtins
+from nur_tools import register_builtins
 
 
 # ===================================================================
@@ -365,7 +365,7 @@ class TestWebSearch:
 
     def test_default_handlers_error(self):
         """Default HANDLERS use NullWebProvider — errors when called."""
-        from tools.builtin.web_search import HANDLERS
+        from nur_tools.builtin.web_search import HANDLERS
         # Direct call raises; the executor would normalize this
         with pytest.raises(RuntimeError):
             HANDLERS["web.search"]({"query": "test"})

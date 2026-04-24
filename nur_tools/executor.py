@@ -10,7 +10,7 @@ import time
 from typing import Any, Callable
 
 from core.types import ToolResult
-from tools.registry import ToolRegistry
+from nur_tools.registry import ToolRegistry
 
 # Handler signature: takes arguments dict, returns ToolResult
 ToolHandler = Callable[[dict[str, Any]], ToolResult]

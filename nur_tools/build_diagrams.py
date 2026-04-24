@@ -26,7 +26,7 @@ Regenerate with ``python3 tools/render_diagram_pngs.py``.
 
 from __future__ import annotations
 
-from tools.diagram_toolkit import Canvas, THEME
+from nur_tools.diagram_toolkit import Canvas, THEME
 
 INK_SOFT = THEME["ink_soft"]
 THEME_INK_SOFT = INK_SOFT  # alias used below

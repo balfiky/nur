@@ -18,7 +18,7 @@ from core.types import (
     UnresolvedItem,
 )
 from core.action_variables import derive_action_variables
-from tools.registry import ToolRegistry
+from nur_tools.registry import ToolRegistry
 from pipeline import DebugState
 
 
@@ -427,7 +427,7 @@ class TestDebugStateToolTrace:
 
 class TestToolsTypesReexport:
     def test_imports(self):
-        from tools.types import (
+        from nur_tools.types import (
             ActionVariables,
             ToolCapability,
             ToolCategory,

@@ -28,9 +28,9 @@ from core.dual_process.tool_loop import (
     ToolLoopResult,
 )
 from core.emotional_engine import EmotionalEngine
-from tools.registry import ToolRegistry
-from tools.executor import ToolExecutor
-from tools import register_builtins
+from nur_tools.registry import ToolRegistry
+from nur_tools.executor import ToolExecutor
+from nur_tools import register_builtins
 from pipeline import CognitivePipeline, DebugState
 
 

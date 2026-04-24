@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-from tools.registry import ToolRegistry
-from tools.executor import ToolExecutor
-from tools.builtin import filesystem, shell, web_search
-from tools.builtin import browser as browser_mod
-from tools.builtin import calendar as calendar_mod
-from tools.builtin.web_search import WebProvider
-from tools.builtin.browser import BrowserProvider
-from tools.builtin.calendar import CalendarProvider
-from tools.mcp.adapter import register_mcp_tools
-from tools.mcp.client import MCPClient
+from nur_tools.registry import ToolRegistry
+from nur_tools.executor import ToolExecutor
+from nur_tools.builtin import filesystem, shell, web_search
+from nur_tools.builtin import browser as browser_mod
+from nur_tools.builtin import calendar as calendar_mod
+from nur_tools.builtin.web_search import WebProvider
+from nur_tools.builtin.browser import BrowserProvider
+from nur_tools.builtin.calendar import CalendarProvider
+from nur_tools.mcp.adapter import register_mcp_tools
+from nur_tools.mcp.client import MCPClient
 
 
 def register_builtins(

@@ -23,24 +23,24 @@ from core.types import (
 )
 from core.tool_appraisal import appraise_tool_result
 from core.dual_process.tool_loop import detect_tool_intent
-from tools.registry import ToolRegistry
-from tools.executor import ToolExecutor
-from tools import register_builtins
-from tools.builtin.browser import (
+from nur_tools.registry import ToolRegistry
+from nur_tools.executor import ToolExecutor
+from nur_tools import register_builtins
+from nur_tools.builtin.browser import (
     BrowserProvider,
     NullBrowserProvider,
     CAPABILITIES as BROWSER_CAPS,
     create_handlers as create_browser_handlers,
     _MAX_PAGE_TEXT,
 )
-from tools.builtin.calendar import (
+from nur_tools.builtin.calendar import (
     CalendarEvent,
     CalendarProvider,
     NullCalendarProvider,
     CAPABILITIES as CALENDAR_CAPS,
     create_handlers as create_calendar_handlers,
 )
-from tools.builtin.web_search import (
+from nur_tools.builtin.web_search import (
     WebProvider,
     NullWebProvider,
     CAPABILITIES as WEB_CAPS,

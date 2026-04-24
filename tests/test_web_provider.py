@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from tools.builtin.web_provider import (
+from nur_tools.builtin.web_provider import (
     RequestsWebProvider,
     _MAX_FETCH_BYTES,
     _html_to_text,

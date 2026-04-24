@@ -72,7 +72,7 @@ nur-web = "interface.api:main"
 py-modules = ["main", "pipeline"]
 
 [tool.setuptools.packages.find]
-include = ["core*", "config*", "evals*", "interface*", "runtime*", "tools*"]
+include = ["core*", "config*", "evals*", "interface*", "runtime*", "nur_tools*"]
 exclude = ["tests*", "data*", "storage*", "reports*"]
 
 [tool.setuptools.package-data]

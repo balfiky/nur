@@ -13,10 +13,10 @@ from __future__ import annotations
 from typing import Optional
 
 from runtime.config import RuntimeConfig
-from tools import register_builtins
-from tools.executor import ToolExecutor
-from tools.registry import ToolRegistry
-from tools.builtin.web_provider import RequestsWebProvider
+from nur_tools import register_builtins
+from nur_tools.executor import ToolExecutor
+from nur_tools.registry import ToolRegistry
+from nur_tools.builtin.web_provider import RequestsWebProvider
 
 
 def create_tool_executor(

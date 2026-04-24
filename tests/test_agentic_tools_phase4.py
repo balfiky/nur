@@ -33,9 +33,9 @@ from core.types import (
 from core.tool_memory import ToolMemoryEffects
 from pipeline import CognitivePipeline, DebugState
 from runtime.debug.api import _debug_to_dict, _build_tool_summary
-from tools.registry import ToolRegistry
-from tools.executor import ToolExecutor
-from tools import register_builtins
+from nur_tools.registry import ToolRegistry
+from nur_tools.executor import ToolExecutor
+from nur_tools import register_builtins
 
 
 # ===================================================================

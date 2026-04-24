@@ -715,9 +715,9 @@ class TestPhase8Regression:
     def test_tool_trace_still_works(self, tmp_path):
         """Tool loop still works correctly with proactive additions."""
         from pipeline import CognitivePipeline
-        from tools.registry import ToolRegistry
-        from tools.executor import ToolExecutor
-        from tools import register_builtins
+        from nur_tools.registry import ToolRegistry
+        from nur_tools.executor import ToolExecutor
+        from nur_tools import register_builtins
 
         reg = ToolRegistry()
         exe = ToolExecutor(reg)
@@ -730,9 +730,9 @@ class TestPhase8Regression:
         assert result.debug.tool_trace is not None
 
     def test_builtin_count_unchanged(self):
-        from tools.registry import ToolRegistry
-        from tools.executor import ToolExecutor
-        from tools import register_builtins
+        from nur_tools.registry import ToolRegistry
+        from nur_tools.executor import ToolExecutor
+        from nur_tools import register_builtins
         reg = ToolRegistry()
         exe = ToolExecutor(reg)
         register_builtins(reg, exe)
