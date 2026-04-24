@@ -4,6 +4,31 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.23.1 — 2026-04-24 (Packaging: ship runtime data assets in wheel)
+
+### Fixed
+- **Release blocker: wheel was Python-only.** The v0.23.0 wheel excluded
+  every non-`.py` file the runtime loads via `__file__`-relative paths:
+  `interface/static/index.html` (the UI + admin console shell),
+  `config/*.yaml` (modulators, attachment, profiles, values seed, soul,
+  semantic memory), and `config/prompts/*.md` (10 prompt templates).
+  A user doing `pip install project-nur && nur-web` would have hit a
+  `FileNotFoundError` on the first `/` request and again inside the
+  config loader. Added `[tool.setuptools.package-data]` in
+  `pyproject.toml` mapping `interface → static/*` and
+  `config → *.yaml, prompts/*.md`. The built wheel now ships 17 data
+  assets; size 227 KB → 253 KB.
+
+### Verified
+- Built wheel with `python3 -m pip wheel --no-deps`, extracted, and
+  confirmed all 17 expected assets are present and non-empty.
+- `python3 -m pip install -e .` followed by resolving asset paths via
+  the package `__file__` attributes: all present.
+- `python3 -m pytest tests/test_interface.py tests/test_interface_v1.py -q`
+  → 103 passed.
+
+---
+
 ## v0.23.0 — 2026-04-24 (Release hygiene: metadata, docs, admin UX)
 
 Release-preparation pass: packaging metadata for public distribution, admin

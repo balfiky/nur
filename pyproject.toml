@@ -75,6 +75,14 @@ py-modules = ["main", "pipeline"]
 include = ["core*", "config*", "evals*", "interface*", "runtime*", "tools*"]
 exclude = ["tests*", "data*", "storage*", "reports*"]
 
+[tool.setuptools.package-data]
+# Non-.py assets loaded at runtime via __file__-relative paths. Without
+# these, a pip-installed wheel ships Python but no UI shell, no modulator
+# configs, and no prompt templates — so the server would crash on first
+# request.
+interface = ["static/*"]
+config = ["*.yaml", "prompts/*.md"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
