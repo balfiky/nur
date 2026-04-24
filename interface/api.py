@@ -429,6 +429,12 @@ def set_pipeline(pipeline: CognitivePipeline | None) -> None:
     _session_manager = None
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    from fastapi.responses import Response
+    return Response(status_code=204)
+
+
 @app.post("/chat", dependencies=[Depends(_require_bearer)])
 async def chat(req: ChatRequest):
     try:

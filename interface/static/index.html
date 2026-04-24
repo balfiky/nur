@@ -338,6 +338,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
       <div class="wizard-presets" id="wizPresets">
         <button type="button" class="wizard-preset" data-preset="local" onclick="wizardSelectPreset('local')">Local<span class="preset-sub">Ollama, LM Studio, vLLM</span></button>
         <button type="button" class="wizard-preset" data-preset="hosted" onclick="wizardSelectPreset('hosted')">Hosted<span class="preset-sub">OpenAI-compatible gateway</span></button>
+        <button type="button" class="wizard-preset" data-preset="openrouter" onclick="wizardSelectPreset('openrouter')">OpenRouter<span class="preset-sub">800+ models, one key</span></button>
         <button type="button" class="wizard-preset" data-preset="mock" onclick="wizardSelectPreset('mock')">Mock<span class="preset-sub">Explore without a real LLM</span></button>
       </div>
       <div class="wizard-fields" id="wizLLMFields" style="display:none">
@@ -1368,9 +1369,10 @@ function renderSetup(setup) {
 // ---- Setup wizard --------------------------------------------------------
 const wizardOverlay = document.getElementById('wizardOverlay');
 const WIZARD_PRESET_CONFIG = {
-  local:  { backend: 'openai_compatible', base_url: 'http://localhost:11434/v1', model: 'llama3.2',    label: 'Local (Ollama / LM Studio)', key_label: 'API Key (usually blank for local)', key_placeholder: 'Often blank' },
-  hosted: { backend: 'provider',          base_url: 'https://api.openai.com/v1', model: 'gpt-4o-mini', label: 'Hosted provider',            key_label: 'API Key (required)',                key_placeholder: 'sk-...' },
-  mock:   { backend: 'mock',              base_url: '',                          model: '',             label: 'Mock (no LLM)',              key_label: '',                                   key_placeholder: '' },
+  local:       { backend: 'openai_compatible', base_url: 'http://localhost:11434/v1',    model: 'llama3.2',           model_placeholder: 'e.g. llama3.2',              label: 'Local (Ollama / LM Studio)', key_label: 'API Key (usually blank for local)', key_placeholder: 'Often blank' },
+  hosted:      { backend: 'provider',          base_url: 'https://api.openai.com/v1',    model: 'gpt-4o-mini',        model_placeholder: 'e.g. gpt-4o-mini',           label: 'Hosted provider',            key_label: 'API Key (required)',                key_placeholder: 'sk-...' },
+  openrouter:  { backend: 'provider',          base_url: 'https://openrouter.ai/api/v1', model: 'openai/gpt-4o-mini', model_placeholder: 'e.g. openai/gpt-4o-mini',    label: 'OpenRouter',                 key_label: 'OpenRouter API Key (required)',     key_placeholder: 'sk-or-v1-...' },
+  mock:        { backend: 'mock',              base_url: '',                             model: '',                   model_placeholder: '',                            label: 'Mock (no LLM)',              key_label: '',                                   key_placeholder: '' },
 };
 let wizardStep = 1;
 let wizardPreset = null;
@@ -1427,6 +1429,7 @@ function wizardSelectPreset(preset) {
   if (testBtn) testBtn.style.display = '';
   document.getElementById('wiz-llm_base_url').value = cfg.base_url;
   document.getElementById('wiz-llm_model').value = cfg.model;
+  document.getElementById('wiz-llm_model').placeholder = cfg.model_placeholder || '';
   document.getElementById('wiz-llm_api_key').value = '';
   document.getElementById('wiz-llm_api_key').placeholder = cfg.key_placeholder;
   document.getElementById('wiz-llm_api_key_label').textContent = cfg.key_label;
