@@ -338,7 +338,6 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
       <div class="wizard-presets" id="wizPresets">
         <button type="button" class="wizard-preset" data-preset="local" onclick="wizardSelectPreset('local')">Local<span class="preset-sub">Ollama, LM Studio, vLLM</span></button>
         <button type="button" class="wizard-preset" data-preset="hosted" onclick="wizardSelectPreset('hosted')">Hosted<span class="preset-sub">OpenAI-compatible gateway</span></button>
-        <button type="button" class="wizard-preset" data-preset="minimax" onclick="wizardSelectPreset('minimax')">MiniMax<span class="preset-sub">Legacy provider</span></button>
         <button type="button" class="wizard-preset" data-preset="mock" onclick="wizardSelectPreset('mock')">Mock<span class="preset-sub">Explore without a real LLM</span></button>
       </div>
       <div class="wizard-fields" id="wizLLMFields" style="display:none">
@@ -349,6 +348,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
       <div class="admin-test-result" id="wiz-llm-result" style="display:none"></div>
       <div class="wizard-actions">
         <button class="secondary" onclick="wizardGoto(1)">← Back</button>
+        <button type="button" class="secondary" id="wiz-test-llm-btn" style="display:none" onclick="wizardTestLLM()">Test connection</button>
         <button class="primary" onclick="wizardSaveLLM()">Save & Continue</button>
       </div>
     </div>
@@ -1233,7 +1233,7 @@ async function draftSoulFromDescription() {
       body: JSON.stringify({ description }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error((data && data.detail) || 'HTTP ' + res.status);
+    if (!res.ok) throw new Error(typeof (data && data.detail) === 'string' ? data.detail : JSON.stringify(data && data.detail) || 'HTTP ' + res.status);
     applySoulToForm(data.draft || {});
     resultEl.className = 'admin-test-result ok';
     resultEl.textContent = 'Draft applied to the form below. Review it, edit anything that feels off, then press Save Identity.';
@@ -1368,10 +1368,9 @@ function renderSetup(setup) {
 // ---- Setup wizard --------------------------------------------------------
 const wizardOverlay = document.getElementById('wizardOverlay');
 const WIZARD_PRESET_CONFIG = {
-  local:   { backend: 'openai_compatible', base_url: 'http://localhost:11434/v1', model: 'llama3.2',              label: 'Local (Ollama / LM Studio)', key_label: 'API Key (usually blank for local)', key_placeholder: 'Often blank' },
-  hosted:  { backend: 'provider',          base_url: 'https://api.openai.com/v1', model: 'gpt-4o-mini',           label: 'Hosted provider',            key_label: 'API Key (required)',                key_placeholder: 'sk-...' },
-  minimax: { backend: 'minimax',           base_url: 'https://api.minimax.io/v1', model: 'MiniMax-M2.7-highspeed', label: 'MiniMax (legacy)',           key_label: 'MiniMax API Key (required)',        key_placeholder: 'Paste MiniMax key' },
-  mock:    { backend: 'mock',              base_url: '',                          model: '',                       label: 'Mock (no LLM)',              key_label: '',                                   key_placeholder: '' },
+  local:  { backend: 'openai_compatible', base_url: 'http://localhost:11434/v1', model: 'llama3.2',    label: 'Local (Ollama / LM Studio)', key_label: 'API Key (usually blank for local)', key_placeholder: 'Often blank' },
+  hosted: { backend: 'provider',          base_url: 'https://api.openai.com/v1', model: 'gpt-4o-mini', label: 'Hosted provider',            key_label: 'API Key (required)',                key_placeholder: 'sk-...' },
+  mock:   { backend: 'mock',              base_url: '',                          model: '',             label: 'Mock (no LLM)',              key_label: '',                                   key_placeholder: '' },
 };
 let wizardStep = 1;
 let wizardPreset = null;
@@ -1418,16 +1417,48 @@ function wizardSelectPreset(preset) {
   });
   const cfg = WIZARD_PRESET_CONFIG[preset];
   const fields = document.getElementById('wizLLMFields');
+  const testBtn = document.getElementById('wiz-test-llm-btn');
   if (!cfg || preset === 'mock') {
     fields.style.display = 'none';
+    if (testBtn) testBtn.style.display = 'none';
     return;
   }
   fields.style.display = '';
+  if (testBtn) testBtn.style.display = '';
   document.getElementById('wiz-llm_base_url').value = cfg.base_url;
   document.getElementById('wiz-llm_model').value = cfg.model;
   document.getElementById('wiz-llm_api_key').value = '';
   document.getElementById('wiz-llm_api_key').placeholder = cfg.key_placeholder;
   document.getElementById('wiz-llm_api_key_label').textContent = cfg.key_label;
+}
+
+async function wizardTestLLM() {
+  if (!wizardPreset || wizardPreset === 'mock') {
+    wizardShowResult('wiz-llm-result', 'error', 'Select a non-mock preset first.');
+    return;
+  }
+  const cfg = WIZARD_PRESET_CONFIG[wizardPreset];
+  wizardShowResult('wiz-llm-result', '', 'Testing LLM connection...');
+  try {
+    const res = await authedFetch('/admin/test/llm', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        llm_backend: cfg.backend,
+        llm_base_url: gv('wiz-llm_base_url'),
+        llm_model: gv('wiz-llm_model'),
+        llm_api_key: gv('wiz-llm_api_key'),
+        minimax_api_key: '',
+        clear_llm_api_key: false,
+        clear_minimax_api_key: false,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail) || 'HTTP ' + res.status);
+    wizardShowResult('wiz-llm-result', data.ok ? 'ok' : 'error', formatTestResult(data));
+  } catch (err) {
+    wizardShowResult('wiz-llm-result', 'error', 'Test failed: ' + err.message);
+  }
 }
 
 function wizardSelectTab(tab) {
@@ -1457,22 +1488,18 @@ async function wizardSaveLLM() {
     wizardConfigSnapshot = curJson.config || {};
     const cfg = WIZARD_PRESET_CONFIG[wizardPreset];
     const apiKey = wizardPreset === 'mock' ? '' : gv('wiz-llm_api_key').trim();
-    const clearGenericKey = (
-      wizardPreset === 'mock'
-      || wizardPreset === 'minimax'
-      || (wizardPreset === 'local' && !apiKey)
-    );
+    const clearGenericKey = wizardPreset === 'mock' || (wizardPreset === 'local' && !apiKey);
     const payload = Object.assign({}, wizardConfigSnapshot, {
       llm_backend: cfg.backend,
       llm_base_url: cfg.base_url === '' ? '' : gv('wiz-llm_base_url'),
       llm_model: cfg.model === '' ? '' : gv('wiz-llm_model'),
-      llm_api_key: wizardPreset === 'minimax' ? '' : apiKey,
-      minimax_api_key: wizardPreset === 'minimax' ? apiKey : '',
+      llm_api_key: apiKey,
+      minimax_api_key: '',
       telegram_token: '',
       api_key: '',
       clear_telegram_token: false,
       clear_llm_api_key: clearGenericKey,
-      clear_minimax_api_key: wizardPreset !== 'minimax',
+      clear_minimax_api_key: true,
       clear_api_key: false,
     });
     const res = await authedFetch('/admin/config', {
@@ -1500,7 +1527,7 @@ async function wizardDraftSoul() {
       method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ description }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error((data && data.detail) || 'HTTP ' + res.status);
+    if (!res.ok) throw new Error(typeof (data && data.detail) === 'string' ? data.detail : JSON.stringify(data && data.detail) || 'HTTP ' + res.status);
     wizardSoulDraft = data.draft || {};
     const name = wizardSoulDraft.name || '(no name)';
     const identity = wizardSoulDraft.identity || '';

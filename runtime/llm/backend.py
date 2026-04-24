@@ -31,7 +31,7 @@ class OpenAICompatibleLLMBackend:
             raise ValueError("OpenAI-compatible backend requires llm_base_url")
         if not model:
             raise ValueError("OpenAI-compatible backend requires llm_model")
-        self._base_url = base_url.rstrip("/")
+        self._base_url = base_url.rstrip("/").removesuffix("/chat/completions")
         self._model = model
         self._timeout = timeout
         self._session = requests.Session()

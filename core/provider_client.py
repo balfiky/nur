@@ -31,7 +31,7 @@ class ChatCompletionsClient:
             or os.environ.get("LLM_API_KEY", "")
             or os.environ.get("MINIMAX_API_KEY", "")
         )
-        self._base_url = base_url.rstrip("/")
+        self._base_url = base_url.rstrip("/").removesuffix("/chat/completions")
         self._model = model
         self._thinking = thinking
         self._session = requests.Session()
