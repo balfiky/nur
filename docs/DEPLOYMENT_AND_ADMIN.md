@@ -26,8 +26,9 @@ Open:
 - API docs: `http://localhost:8000/docs`
 
 A first-run setup wizard opens automatically on first launch. It walks through
-LLM backend selection and agent identity in three steps. You can skip it and
-come back via **Settings → Setup → Launch Setup Wizard**.
+LLM backend selection and agent identity in four steps (Welcome → Connect LLM →
+Name your agent → Done). You can skip it and come back via
+**Settings → Setup → Launch Setup Wizard**.
 
 ## Pip Wheel Install
 
