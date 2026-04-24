@@ -56,10 +56,8 @@ learned implicit/explicit coordination) is not.
 > Full diagram set, including runtime architecture, memory/persistence
 > model, auth/tool-safety boundary, and the evaluation harness:
 > [docs/ARCHITECTURE_DIAGRAMS.md](docs/ARCHITECTURE_DIAGRAMS.md).
-> For the GitHub-friendly overview, use
+> For the overview, use
 > [PROJECT_NUR_OVERVIEW.md](PROJECT_NUR_OVERVIEW.md).
-> For a single shareable file, use
-> [PROJECT_NUR_OVERVIEW.html](PROJECT_NUR_OVERVIEW.html).
 
 ### Single-turn flow
 
