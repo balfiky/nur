@@ -12,11 +12,14 @@ import markdown
 
 
 ROOT = Path(__file__).resolve().parent.parent
-DOC_PATHS = [
-    path
-    for path in sorted(ROOT.glob("*.md"))
-    if path.name not in {".pytest_cache/README.md", "PROJECT_NUR_OVERVIEW.md"}
-] + sorted((ROOT / "docs").glob("*.md"))
+DOC_PATHS = (
+    sorted(ROOT.glob("*.md"))
+    + [
+        path
+        for path in sorted((ROOT / "docs").rglob("*.md"))
+        if "internal" not in path.relative_to(ROOT / "docs").parts
+    ]
+)
 
 
 CSS = """

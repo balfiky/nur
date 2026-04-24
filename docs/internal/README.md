@@ -1,15 +1,15 @@
 # Internal Documents
 
-These files are kept for implementation history and deeper internal context.
-They are not part of the public reader path for the project.
+These files are retained for implementation context. They are not part of the public reader path; public readers should start with `README.md`, `docs/OVERVIEW.md`, and `docs/ARCHITECTURE.md`.
 
 Contents:
 
-- `AGENTIC_TOOLS_DESIGN.md` — agentic/tooling design notes and risk model
-- `BUILD_ALL.md` — phase-by-phase build instructions
-- `CALIBRATION_NOTES.md` — tuning notes and rationale
-- `CLAUDE.md` — agent handoff notes and implementation audit trail
-- `NUR_RUNTIME_DESIGN_REVISED.md` — revised runtime design spec
-- `PAPER_OUTLINE.md` — outline that preceded `PAPER_DRAFT.md`
-- `PROJECT_NUR_BUILD_PLAN.md` — staged build roadmap
-- `SECOND_PASS_REVIEW.md` — historical review and fix checklist
+- `ADMIN_CONSOLE_DESIGN.md` — original design spec for the admin console
+  and first-run setup wizard. The shipped implementation follows this spec;
+  kept here for design rationale.
+- `AGENTIC_TOOLS_DESIGN.md` — agentic/tooling design notes and risk model.
+- `CALIBRATION_NOTES.md` — tuning notes and rationale.
+- `EXPERT_BRIEF.md` — expert-consultation briefing from an earlier stage of
+  the project; retained for implementation context, superseded as a public
+  read by `docs/OVERVIEW.md` and `docs/ARCHITECTURE.md`.
+- `NUR_RUNTIME_DESIGN_REVISED.md` — historical runtime design spec retained for implementation context.

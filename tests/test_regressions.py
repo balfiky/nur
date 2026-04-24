@@ -1,4 +1,4 @@
-"""Regression tests from docs/internal/SECOND_PASS_REVIEW.md.
+"""Regression tests from the historical second-pass review.
 
 These tests verify the fixes for confirmed implementation issues:
 1. Inner dialogue candidate affects final response

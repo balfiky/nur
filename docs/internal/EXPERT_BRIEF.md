@@ -220,7 +220,7 @@ That distinction matters when consulting psychologists.
 > Visual reference: static SVG diagrams for the runtime shape, single-turn
 > cognitive flow, persistence model, auth and tool-safety boundary,
 > evaluation harness, and component claim map are in
-> [`docs/ARCHITECTURE_DIAGRAMS.md`](docs/ARCHITECTURE_DIAGRAMS.md).
+> [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md).
 
 At the highest level, the project has two layers:
 
@@ -770,7 +770,7 @@ For existing narrative docs:
 
 - `README.md`
 - `CHANGELOG.md`
-- `PROJECT_NUR_ARCHITECTURE.md`
+- `docs/ARCHITECTURE.md`
 
 ---
 

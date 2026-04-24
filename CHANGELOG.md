@@ -4,6 +4,59 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## Unreleased
+
+### Documentation
+- Consolidated public documentation around canonical reader paths:
+  `README.md`, `docs/OVERVIEW.md`, `docs/ARCHITECTURE.md`,
+  `docs/DEPLOYMENT_AND_ADMIN.md`, `SECURITY.md`, and `PRIVACY.md`.
+- Removed duplicate root-level architecture/design drafts, generated HTML,
+  marketing draft copy, and stale agent handoff/review notes from the public
+  docs tree.
+- **Second-pass consolidation (2026-04-25).** Deleted
+  `docs/TECHNICAL_NOTE.md` (content was a near-duplicate of
+  `docs/OVERVIEW.md`). Rewrote `docs/OVERVIEW.md` as the canonical
+  narrative (thesis + evidence + honest framing) with structural detail
+  delegated to `docs/ARCHITECTURE.md`; rewrote `docs/ARCHITECTURE.md` as
+  a structural reference (diagrams + module map + maintenance matrix)
+  with narrative delegated to `docs/OVERVIEW.md`. Moved
+  `docs/background/EXPERT_BRIEF.md` and `docs/design/ADMIN_CONSOLE.md`
+  to `docs/internal/` and removed the empty parent directories. Fleshed
+  out `CONTRIBUTING.md` with a "what goes where" matrix, diagram
+  regeneration workflow, eval-scenario authoring flow, and
+  regression-test conventions.
+
+### Diagrams
+- **Recreated all six architecture diagrams from scratch.** Old layouts
+  had crossed arrows, overflowing text, and inconsistent styling driven
+  by a custom Pillow-based SVG renderer. New design language: flat,
+  grid-based, orthogonal arrow routing, monotonic fan-out for
+  multi-target edges, no drop shadows, semantic color roles (process /
+  storage / client / external / danger / attention / neutral).
+- New build pipeline: `tools/diagram_toolkit.py` (primitives: Canvas,
+  tile, pill, diamond, cylinder, group, arrow, connector, legend, note)
+  + `tools/build_diagrams.py` (one builder per diagram) +
+  `tools/render_diagram_pngs.py` (cairosvg wrapper, 2× PNG scale).
+  `cairosvg` is now the rasterizer; the previous custom renderer is gone.
+- Structural changes per diagram:
+  - **Runtime architecture**: 4-column layout (clients → hosts →
+    session + cognition core → external & persistence). External column
+    is a single vertical stack so the fan-out from CognitivePipeline
+    has monotonic y-ordering and the lines do not cross.
+  - **Single-turn cognitive flow**: 5-column swimlane (State update →
+    Deliberation → Generation → Self-check → Post-processing) with a
+    horizontal progress bar at the top. No branching/merging spaghetti.
+  - **Memory and persistence**: filesystem tree on the left, deletion
+    boundary callout on the right, orthogonal connectors for the
+    wipes/untouched arrows.
+  - **Auth and tool safety**: two parallel gate columns. No crossing
+    between them.
+  - **Evaluation and ablation harness**: 4-column left-to-right
+    pipeline.
+  - **Component claim map**: 2×3 tile grid with status badges.
+
+---
+
 ## v0.26.1 — 2026-04-24 (Production smoke hardening)
 
 Production install and browser smoke testing found two small release issues

@@ -1,7 +1,7 @@
 # Paper Draft
 
 This file accumulates prose drafts as outline sections become stable.
-`docs/internal/PAPER_OUTLINE.md` remains the navigable skeleton; this file is the
+`PAPER_OUTLINE.md` remains the navigable skeleton; this file is the
 running text. Sections were drafted §6 first (to lock scope language
 before other sections lean on it), then §4, then §1 + §2 together
 while §4 and §6 were fresh.
@@ -237,11 +237,11 @@ individually has precedent in parts; the synthesis is what we offer.
 > Diagrams (runtime shape, single-turn flow, persistence model,
 > auth/tool boundary, eval harness, component claim map) are
 > consolidated in
-> [`docs/ARCHITECTURE_DIAGRAMS.md`](docs/ARCHITECTURE_DIAGRAMS.md) and
+> [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and
 > rendered in Markdown as PNG previews, with SVG source assets kept
-> under `docs/diagrams/`.
+> under `../diagrams/`.
 
-![Single-turn cognitive flow](docs/diagrams/single-turn-cognitive-flow.png)
+![Single-turn cognitive flow](../diagrams/single-turn-cognitive-flow.png)
 
 Each turn through the cognitive layer runs a consistent sequence: the
 emotional state updates from the user's message, memory and profile
@@ -461,7 +461,7 @@ between provider updates. The split is also why the ablation protocol
 in §6 can isolate architectural contributions cleanly: changing the
 LLM backend does not change what the deterministic layers compute.
 
-![Runtime architecture](docs/diagrams/runtime-architecture.png)
+![Runtime architecture](../diagrams/runtime-architecture.png)
 
 ### 5.2 Runtime and cognitive layer separation
 
@@ -491,7 +491,7 @@ SQLite database at `data/shared/self_model.db`, keyed by the literal
 entity id `__self__`, deliberately separated from any user's data so
 "delete this user" has a clean definition.
 
-![Memory and persistence model](docs/diagrams/memory-persistence-model.png)
+![Memory and persistence model](../diagrams/memory-persistence-model.png)
 
 ### 5.3 Host surfaces
 
@@ -512,7 +512,7 @@ by design does not touch the shared self-model database. Best-effort
 row counts are reported in the response so the caller can verify what
 was wiped.
 
-![Auth and tool-safety boundary](docs/diagrams/auth-tool-safety-boundary.png)
+![Auth and tool-safety boundary](../diagrams/auth-tool-safety-boundary.png)
 
 ### 5.4 Provenance-first evaluation harness
 
@@ -553,7 +553,7 @@ is §6.
 
 The cognitive-layer source is roughly ten thousand lines of Python
 across thirty modules, plus a smaller runtime and interface layer. The
-test suite contains 1,331 passing tests organized into focused suites
+test suite contains 1383 passing tests organized into focused suites
 covering the modulator engine, the dual memory, profiles, contagion,
 appraisal, dual-process deliberation, defense mechanisms, the pipeline
 integration, the runtime and session manager, channels, the `/v1` API,
@@ -672,7 +672,7 @@ commit, a single backend, and a single set of config fingerprints
 in the run's provenance block so a reader can verify that no variant
 was run against a different code state or configuration.
 
-![Evaluation and ablation harness](docs/diagrams/evaluation-ablation-harness.png)
+![Evaluation and ablation harness](../diagrams/evaluation-ablation-harness.png)
 
 ### 6.4 Results
 
@@ -732,7 +732,7 @@ fails if the hardcoded heuristic returns. Latency varies by about 10%
 across variants; this is within the bounds of provider jitter and does
 not reflect systematic differences between variants.
 
-![Component claim map](docs/diagrams/component-claim-map.png)
+![Component claim map](../diagrams/component-claim-map.png)
 
 ### 6.6 Reproducibility
 
@@ -942,8 +942,8 @@ relationship-memory state materially shapes a response.
 
 *Consent.* Because the system persists relational and semantic memory
 about its users, deployers must obtain informed consent from those
-users. The project's `PRIVACY.md` documents what is stored, where, and
-how to inspect or remove it. Deployments to users who have not
+users. The project's [`PRIVACY.md`](../../PRIVACY.md) documents what is
+stored, where, and how to inspect or remove it. Deployments to users who have not
 consented — for example, a third-party chatbot repurposed as a
 journaling assistant without notice — would be inappropriate.
 
@@ -968,7 +968,7 @@ beyond the deployment intent. The inspectable `/v1` surfaces expose
 those states; what operator response is appropriate is a deployment-
 level question beyond this paper.
 
-*Security.* The project's `SECURITY.md` describes the private-
+*Security.* The project's [`SECURITY.md`](../../SECURITY.md) describes the private-
 disclosure flow for vulnerabilities and enumerates the
 sensitive surfaces (session JSON, per-user SQLite, API keys).
 
@@ -1049,15 +1049,16 @@ summary at any commit from `a978477` onward produces the
 provenance-enriched format, and §6.6 describes the cross-reference
 readers should use until the tracked summary is re-run.
 
-Test coverage for the paper's infrastructure claims is 1,331 passing
+Test coverage for the paper's infrastructure claims is 1383 passing
 tests, run with `python -m pytest`. Specific invariants — accurate
 LLM-call counting across self-check regeneration, strict feature-
 toggle no-injection contracts, and null-serialization of unmeasured
 provenance fields — are regression-locked.
 
 Project policies relevant to the paper's ethics and release posture
-are tracked in `PRIVACY.md`, `SECURITY.md`, `CONTRIBUTING.md`, and
-`CITATION.cff`.
+are tracked in [`PRIVACY.md`](../../PRIVACY.md),
+[`SECURITY.md`](../../SECURITY.md), [`CONTRIBUTING.md`](../../CONTRIBUTING.md),
+and `CITATION.cff`.
 
 Pass/fail outcomes should hold under the same provider and model;
 live-backend results can drift over time as cloud providers change

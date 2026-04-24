@@ -1,102 +1,62 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1650" height="1040" viewBox="0 0 1650 1040" role="img" aria-labelledby="title desc">
-<title id="title">Memory and Persistence Model</title>
-<desc id="desc">Per-user data is separable and deletable; shared self-model data is deliberately preserved.</desc>
-<defs>
-  <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
-    <path d="M2,2 L10,6 L2,10 Z" fill="#334155"/>
-  </marker>
-  <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
-    <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.16"/>
-  </filter>
-  <style>
-    .title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 30px; font-weight: 800; fill: #0f172a; }
-    .subtitle { font-family: 'Segoe UI', Arial, sans-serif; font-size: 15px; fill: #475569; }
-    .group-title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 18px; font-weight: 800; fill: #0f172a; }
-    .box-title { font-family: 'Segoe UI', Arial, sans-serif; font-weight: 800; fill: #0f172a; }
-    .box-body { font-family: 'Segoe UI', Arial, sans-serif; fill: #334155; }
-    .edge-label { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; font-weight: 700; fill: #334155; }
-    .plain { font-family: 'Segoe UI', Arial, sans-serif; }
-  </style>
-</defs>
-<rect width="100%" height="100%" fill="#f8fafc"/>
-<text x="40" y="50" class="title">Memory and Persistence Model</text>
-<text x="40" y="78" class="subtitle">Per-user data is separable and deletable; shared self-model data is deliberately preserved.</text>
-<rect x="55" y="125" width="290" height="270" rx="24" fill="#eff6ff" stroke="#93c5fd" stroke-width="2" stroke-dasharray="8 8"/>
-<text x="75" y="159" class="group-title">Key derivation</text>
-<rect x="405" y="125" width="440" height="480" rx="24" fill="#f0fdf4" stroke="#86efac" stroke-width="2" stroke-dasharray="8 8"/>
-<text x="425" y="159" class="group-title">Per-user directory</text>
-<rect x="930" y="125" width="310" height="480" rx="24" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="2" stroke-dasharray="8 8"/>
-<text x="950" y="159" class="group-title">Shared assistant self-model</text>
-<rect x="1320" y="125" width="270" height="480" rx="24" fill="#fff7ed" stroke="#fdba74" stroke-width="2" stroke-dasharray="8 8"/>
-<text x="1340" y="159" class="group-title">Deletion boundary</text>
-<path d="M200,255 L200,300" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="120.0" y="252.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="200.0" y="269.5" text-anchor="middle" class="edge-label">drops chat_id</text>
-<path d="M315,335 L445,257" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="300.0" y="271.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="380.0" y="288.0" text-anchor="middle" class="edge-label">rel_key</text>
-<path d="M315,220 L635,257" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="395.0" y="213.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="475.0" y="230.5" text-anchor="middle" class="edge-label">session_key</text>
-<path d="M615,294 L555,455" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="505.0" y="349.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="585.0" y="366.5" text-anchor="middle" class="edge-label">tables</text>
-<path d="M720,294 L705,330" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="632.5" y="287.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="712.5" y="304.0" text-anchor="middle" class="edge-label">snapshot</text>
-<path d="M1360,420 C1210,420 1000,420 845,365" fill="none" stroke="#dc2626" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="1022.5" y="367.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="1102.5" y="384.5" text-anchor="middle" class="edge-label">rmtree</text>
-<path d="M1455,505 L1240,505" fill="none" stroke="#7c3aed" stroke-width="2.2" marker-end="url(#arrow)" stroke-dasharray="7 6"/>
-<rect x="1267.5" y="480.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="1347.5" y="497.0" text-anchor="middle" class="edge-label">untouched</text>
-<rect x="85" y="185" width="230" height="70" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="2" filter="url(#shadow)"/>
-<text x="200.0" y="211" text-anchor="middle" class="box-title" style="font-size:16px">session_key</text>
-<text x="200.0" y="240" text-anchor="middle" class="box-body" style="font-size:13px">platform:user_id:chat_id</text>
-<rect x="85" y="300" width="230" height="70" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="2" filter="url(#shadow)"/>
-<text x="200.0" y="326" text-anchor="middle" class="box-title" style="font-size:16px">rel_key</text>
-<text x="200.0" y="355" text-anchor="middle" class="box-body" style="font-size:13px">platform:user_id</text>
-<rect x="445" y="220" width="170" height="74" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
-<text x="530.0" y="246" text-anchor="middle" class="box-title" style="font-size:16px">nur.db</text>
-<text x="530.0" y="275" text-anchor="middle" class="box-body" style="font-size:13px">per-user SQLite</text>
-<rect x="635" y="220" width="170" height="74" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
-<text x="720.0" y="246" text-anchor="middle" class="box-title" style="font-size:16px">sessions/&lt;chat_id&gt;.json</text>
-<text x="720.0" y="275" text-anchor="middle" class="box-body" style="font-size:13px">engine snapshot</text>
-<rect x="535" y="330" width="170" height="74" rx="16" fill="#e2e8f0" stroke="#64748b" stroke-width="2" filter="url(#shadow)"/>
-<text x="620.0" y="356" text-anchor="middle" class="box-title" style="font-size:16px">engine_state.json</text>
-<text x="620.0" y="385" text-anchor="middle" class="box-body" style="font-size:13px">legacy fallback</text>
-<rect x="445" y="455" width="360" height="104" rx="16" fill="#ffffff" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
-<text x="625.0" y="481" text-anchor="middle" class="box-title" style="font-size:15px">Primary logical tables</text>
-<text x="625.0" y="510" text-anchor="middle" class="box-body" style="font-size:12px">memories, relationship_events, open_loops,</text>
-<text x="625.0" y="526" text-anchor="middle" class="box-body" style="font-size:12px">semantic_memories, observations,</text>
-<text x="625.0" y="542" text-anchor="middle" class="box-body" style="font-size:12px">extracted_traits, person_profiles,</text>
-<text x="625.0" y="558" text-anchor="middle" class="box-body" style="font-size:12px">topic_profiles, defense_events,</text>
-<text x="625.0" y="574" text-anchor="middle" class="box-body" style="font-size:12px">schema_version</text>
-<rect x="980" y="230" width="210" height="78" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#shadow)"/>
-<text x="1085.0" y="256" text-anchor="middle" class="box-title" style="font-size:16px">Self observations</text>
-<text x="1085.0" y="285" text-anchor="middle" class="box-body" style="font-size:13px">entity_id = __self__</text>
-<rect x="980" y="345" width="210" height="78" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#shadow)"/>
-<text x="1085.0" y="371" text-anchor="middle" class="box-title" style="font-size:16px">Extracted self traits</text>
-<text x="1085.0" y="400" text-anchor="middle" class="box-body" style="font-size:13px">strengths, flaws, triggers</text>
-<rect x="980" y="460" width="210" height="78" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#shadow)"/>
-<text x="1085.0" y="486" text-anchor="middle" class="box-title" style="font-size:16px">Defense events</text>
-<text x="1085.0" y="515" text-anchor="middle" class="box-body" style="font-size:13px">assistant defense history</text>
-<rect x="1360" y="220" width="190" height="86" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#shadow)"/>
-<text x="1455.0" y="246" text-anchor="middle" class="box-title" style="font-size:16px">DELETE</text>
-<text x="1455.0" y="265" text-anchor="middle" class="box-title" style="font-size:16px">/v1/users/{platform}/{user_id}</text>
-<text x="1455.0" y="294" text-anchor="middle" class="box-body" style="font-size:13px">evict live sessions</text>
-<text x="1455.0" y="310" text-anchor="middle" class="box-body" style="font-size:13px">first</text>
-<rect x="1360" y="380" width="190" height="74" rx="16" fill="#fee2e2" stroke="#dc2626" stroke-width="2" filter="url(#shadow)"/>
-<text x="1455.0" y="406" text-anchor="middle" class="box-title" style="font-size:16px">Wipes</text>
-<text x="1455.0" y="435" text-anchor="middle" class="box-body" style="font-size:13px">per-user directory and</text>
-<text x="1455.0" y="451" text-anchor="middle" class="box-body" style="font-size:13px">sessions</text>
-<rect x="1360" y="505" width="190" height="62" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#shadow)"/>
-<text x="1455.0" y="531" text-anchor="middle" class="box-title" style="font-size:16px">Preserves</text>
-<text x="1455.0" y="560" text-anchor="middle" class="box-body" style="font-size:13px">shared self_model.db</text>
-<text x="430" y="175" text-anchor="start" fill="#0f172a" font-size="17" font-weight="800" class="plain">data/&lt;platform&gt;_&lt;user_id&gt;/</text>
-<text x="955" y="175" text-anchor="start" fill="#0f172a" font-size="17" font-weight="800" class="plain">data/shared/self_model.db</text>
-<text x="75" y="740" text-anchor="start" fill="#0f172a" font-size="17" font-weight="700" class="plain">Deletion semantics: remove the user directory, count rows best-effort before deletion, and leave the assistant self-model intact. This is</text>
-<text x="75" y="762" text-anchor="start" fill="#0f172a" font-size="17" font-weight="700" class="plain">why shared self-memory must not contain user-scoped private state unless explicitly intended.</text>
-<text x="75" y="850" text-anchor="start" fill="#475569" font-size="15" font-weight="400" class="plain">SQLite internal tables such as sqlite_sequence are intentionally omitted from the drawing. The listed tables are the product-relevant persistence</text>
-<text x="75" y="870" text-anchor="start" fill="#475569" font-size="15" font-weight="400" class="plain">surface.</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc"><title id="title">Memory and Persistence</title><desc id="desc">Per-user data is isolated and deletable. The shared assistant self-model is preserved by design.</desc><defs><marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M1,1 L9,5 L1,9 Z" fill="#57606a"/></marker></defs><rect width="100%" height="100%" fill="#fafbfc"/><text x="48" y="52" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="28" font-weight="800" fill="#1f2328">Memory and Persistence</text><text x="48" y="78" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="400" fill="#57606a">Per-user data is isolated and deletable. The shared assistant self-model is preserved by design.</text><rect x="40" y="120" width="1040" height="680" rx="18" fill="none" stroke="#8250df" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
+<text x="56" y="142" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#5931ad">data/   (configured via data_dir)</text>
+<rect x="1100" y="120" width="460" height="680" rx="18" fill="none" stroke="#cf222e" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
+<text x="1116" y="142" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#a40e26">Deletion boundary</text>
+<path d="M90,180 C90,164.0 470,164.0 470,180 L470,300 C470,316.0 90,316.0 90,300 Z" fill="#eae6ff" stroke="#8250df" stroke-width="1.5"/>
+<ellipse cx="280.0" cy="180" rx="190.0" ry="10" fill="none" stroke="#8250df" stroke-width="1.5" opacity="0.6"/>
+<text x="280.0" y="200" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#5931ad">data/shared/self_model.db</text>
+<text x="280.0" y="220" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">observations (entity_id = '__self__')</text>
+<text x="280.0" y="236" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">extracted_traits</text>
+<text x="280.0" y="252" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">defense_events</text>
+<text x="290" y="330" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="700" fill="#1a7f37">preserved across user deletions</text>
+<rect x="80" y="360" width="980" height="420" rx="18" fill="none" stroke="#218bff" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
+<text x="96" y="382" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#0550ae">data/&lt;platform&gt;_&lt;user_id&gt;/   (removed on user deletion)</text>
+<path d="M120,420 C120,404.0 540,404.0 540,420 L540,600 C540,616.0 120,616.0 120,600 Z" fill="#eae6ff" stroke="#8250df" stroke-width="1.5"/>
+<ellipse cx="330.0" cy="420" rx="210.0" ry="10" fill="none" stroke="#8250df" stroke-width="1.5" opacity="0.6"/>
+<text x="330.0" y="440" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#5931ad">nur.db   (per-user SQLite)</text>
+<text x="330.0" y="460" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">memories</text>
+<text x="330.0" y="476" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">relationship_events</text>
+<text x="330.0" y="492" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">open_loops</text>
+<text x="330.0" y="508" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">observations   (person + topic)</text>
+<text x="330.0" y="524" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">extracted_traits</text>
+<text x="330.0" y="540" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">semantic_memories</text>
+<rect x="580" y="410" width="440" height="80" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+<text x="800.0" y="433" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#1f2328">sessions/&lt;chat_id&gt;.json</text>
+<text x="800.0" y="455" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">engine_state snapshot per chat</text>
+<rect x="580" y="510" width="440" height="60" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
+<text x="800.0" y="533" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#1f2328">engine_state.json</text>
+<text x="800.0" y="555" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">legacy per-user snapshot (backward-compat)</text>
+<rect x="120" y="640" width="900" height="60" rx="10" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.5"/>
+<text x="570.0" y="663" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#1f2328">Key derivation</text>
+<text x="570.0" y="685" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">rel_key = platform:user_id   ·   session_key = platform:user_id:chat_id</text>
+<rect x="120" y="710" width="900" height="50" rx="10" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.5"/>
+<text x="570.0" y="733" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#1f2328">Config (read at startup; writes via /admin)</text>
+<text x="570.0" y="755" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">runtime_config.yaml in cwd   ·   config/soul.yaml or $NUR_CONFIG_DIR/soul.yaml</text>
+<rect x="1130" y="170" width="400" height="70" rx="10" fill="#ffebe9" stroke="#cf222e" stroke-width="1.5"/>
+<text x="1330.0" y="193" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#a40e26">DELETE /v1/users/{platform}/{user_id}</text>
+<text x="1330.0" y="215" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">wipes per-user dir, evicts sessions</text>
+<rect x="1130" y="260" width="400" height="70" rx="10" fill="#ffebe9" stroke="#cf222e" stroke-width="1.5"/>
+<text x="1330.0" y="283" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#a40e26">Admin: typed DELETE confirmation</text>
+<text x="1330.0" y="305" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">DELETE &lt;platform&gt;:&lt;user_id&gt;</text>
+<rect x="1130" y="370" width="400" height="110" rx="10" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
+<text x="1330.0" y="393" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#0550ae">Removed</text>
+<text x="1330.0" y="415" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">per-user nur.db</text>
+<text x="1330.0" y="432" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">sessions/ and engine_state.json</text>
+<text x="1330.0" y="449" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">the per-user directory itself</text>
+<rect x="1130" y="510" width="400" height="110" rx="10" fill="#eae6ff" stroke="#8250df" stroke-width="1.5"/>
+<text x="1330.0" y="533" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#5931ad">Preserved</text>
+<text x="1330.0" y="555" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">data/shared/self_model.db</text>
+<text x="1330.0" y="572" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">(entity_id = '__self__' only)</text>
+<text x="1330.0" y="589" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">intentional: assistant keeps its own history</text>
+<rect x="1130" y="650" width="400" height="120" rx="10" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.5"/>
+<text x="1330.0" y="673" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#1f2328">Row-count reporting</text>
+<text x="1330.0" y="695" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">DELETE endpoint returns best-effort</text>
+<text x="1330.0" y="712" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">row counts per table; missing counts</text>
+<text x="1330.0" y="729" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">report as null but the wipe still</text>
+<text x="1330.0" y="746" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">proceeds.</text>
+<path d="M1130,425 L1090,425 L1090,570 L1060,570" fill="none" stroke="#cf222e" stroke-width="1.75" marker-end="url(#arrowhead)" stroke-dasharray="6 4"/>
+<rect x="1068.5" y="487.5" width="43" height="16" rx="4" fill="#fafbfc" opacity="0.95"/>
+<text x="1090.0" y="499.5" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="600" fill="#57606a">wipes</text>
+<path d="M1130,565 L1090,565 L1090,240 L470,240" fill="none" stroke="#1a7f37" stroke-width="1.75" marker-end="url(#arrowhead)" stroke-dasharray="6 4"/>
+<rect x="1054.5" y="392.5" width="71" height="16" rx="4" fill="#fafbfc" opacity="0.95"/>
+<text x="1090.0" y="404.5" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="600" fill="#57606a">untouched</text></svg>

@@ -7,8 +7,6 @@ Use it together with:
 
 - [SECURITY.md](../SECURITY.md) for threat model and sensitive surfaces
 - [PRIVACY.md](../PRIVACY.md) for retention, inspection, and deletion
-- [ADMIN_CONSOLE_DESIGN.md](ADMIN_CONSOLE_DESIGN.md) for the admin-console
-  product direction
 
 ## Recommended Local Install
 

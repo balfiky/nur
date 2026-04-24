@@ -1,184 +1,111 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="1360" viewBox="0 0 1700 1360" role="img" aria-labelledby="title desc">
-<title id="title">Single-Turn Cognitive Flow</title>
-<desc id="desc">Actual CognitivePipeline.process order with gates and honest LLM-call accounting.</desc>
-<defs>
-  <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
-    <path d="M2,2 L10,6 L2,10 Z" fill="#334155"/>
-  </marker>
-  <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
-    <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.16"/>
-  </filter>
-  <style>
-    .title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 30px; font-weight: 800; fill: #0f172a; }
-    .subtitle { font-family: 'Segoe UI', Arial, sans-serif; font-size: 15px; fill: #475569; }
-    .group-title { font-family: 'Segoe UI', Arial, sans-serif; font-size: 18px; font-weight: 800; fill: #0f172a; }
-    .box-title { font-family: 'Segoe UI', Arial, sans-serif; font-weight: 800; fill: #0f172a; }
-    .box-body { font-family: 'Segoe UI', Arial, sans-serif; fill: #334155; }
-    .edge-label { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; font-weight: 700; fill: #334155; }
-    .plain { font-family: 'Segoe UI', Arial, sans-serif; }
-  </style>
-</defs>
-<rect width="100%" height="100%" fill="#f8fafc"/>
-<text x="40" y="50" class="title">Single-Turn Cognitive Flow</text>
-<text x="40" y="78" class="subtitle">Actual CognitivePipeline.process order with gates and honest LLM-call accounting.</text>
-<path d="M205.0,188 L205.0,208" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<path d="M205.0,266 L205.0,286" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<path d="M205.0,344 L205.0,364" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<path d="M205.0,422 L205.0,442" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<path d="M205.0,500 L205.0,520" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<path d="M205.0,578 L205.0,598" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<path d="M205.0,656 L205.0,676" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<path d="M205.0,734 L485,215" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="265.0" y="449.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="345.0" y="466.5" text-anchor="middle" class="edge-label">state</text>
-<path d="M595,261 L595,320" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="515.0" y="265.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="595.0" y="282.5" text-anchor="middle" class="edge-label">yes</text>
-<path d="M595,261 C830,270 830,395 595,425" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="515.0" y="318.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="595.0" y="335.0" text-anchor="middle" class="edge-label">no</text>
-<path d="M595,382 L595,425" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<path d="M595,497 L595,540" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<path d="M595,628 L595,680" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<path d="M720,712 L840,150" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="700.0" y="406.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="780.0" y="423.0" text-anchor="middle" class="edge-label">context</text>
-<path d="M975,200 L975,275" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="895.0" y="212.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="975.0" y="229.5" text-anchor="middle" class="edge-label">yes</text>
-<path d="M975,200 C1270,220 1270,380 975,430" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="895.0" y="290.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="975.0" y="307.0" text-anchor="middle" class="edge-label">no</text>
-<path d="M975,363 L975,430" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<path d="M975,478 L975,555" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="895.0" y="491.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="975.0" y="508.5" text-anchor="middle" class="edge-label">yes</text>
-<path d="M975,478 C1270,500 1270,660 975,710" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="895.0" y="569.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="975.0" y="586.0" text-anchor="middle" class="edge-label">no</text>
-<path d="M975,643 L975,710" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<path d="M975,758 L975,835" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="895.0" y="771.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="975.0" y="788.5" text-anchor="middle" class="edge-label">yes</text>
-<path d="M975,758 C1270,775 1270,940 975,970" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="895.0" y="839.0" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="975.0" y="856.0" text-anchor="middle" class="edge-label">no</text>
-<path d="M975,917 L975,970" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<path d="M1110,1005 L1240,314" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="1095.0" y="634.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="1175.0" y="651.5" text-anchor="middle" class="edge-label">prompt inputs</text>
-<path d="M1380,353 L1380,380" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<path d="M1380,480 L1380,575" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="1300.0" y="502.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="1380.0" y="519.5" text-anchor="middle" class="edge-label">no</text>
-<path d="M1380,480 C1690,505 1690,670 1380,695" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="1300.0" y="562.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="1380.0" y="579.5" text-anchor="middle" class="edge-label">yes</text>
-<path d="M1380,643 L1380,804" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<path d="M1380,763 L1380,804" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<path d="M1380,896 L1380,975" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="1300.0" y="910.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="1380.0" y="927.5" text-anchor="middle" class="edge-label">no</text>
-<path d="M1380,896 C1690,915 1690,1065 1380,1095" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="1300.0" y="970.5" width="160" height="22" rx="8" fill="#f8fafc" opacity="0.92"/>
-<text x="1380.0" y="987.5" text-anchor="middle" class="edge-label">yes</text>
-<path d="M1380,1043 L1380,1095" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<path d="M1380,1181 L1380,1255" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#arrow)"/>
-<rect x="80" y="130" width="250" height="58" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="2" filter="url(#shadow)"/>
-<text x="205.0" y="156" text-anchor="middle" class="box-title" style="font-size:14px">User message arrives</text>
-<rect x="80" y="208" width="250" height="58" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
-<text x="205.0" y="234" text-anchor="middle" class="box-title" style="font-size:14px">Auto-decay + anticipation</text>
-<text x="205.0" y="263" text-anchor="middle" class="box-body" style="font-size:12px">predict forward emotional</text>
-<text x="205.0" y="279" text-anchor="middle" class="box-body" style="font-size:12px">pressure · 0 LLM</text>
-<rect x="80" y="286" width="250" height="58" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
-<text x="205.0" y="312" text-anchor="middle" class="box-title" style="font-size:14px">Contagion</text>
-<text x="205.0" y="341" text-anchor="middle" class="box-body" style="font-size:12px">detect user arousal/valence · 0</text>
-<text x="205.0" y="357" text-anchor="middle" class="box-body" style="font-size:12px">LLM</text>
-<rect x="80" y="364" width="250" height="58" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
-<text x="205.0" y="390" text-anchor="middle" class="box-title" style="font-size:14px">Social appraisal</text>
-<text x="205.0" y="419" text-anchor="middle" class="box-body" style="font-size:12px">target, intent, vulnerability ·</text>
-<text x="205.0" y="435" text-anchor="middle" class="box-body" style="font-size:12px">0 LLM</text>
-<rect x="80" y="442" width="250" height="58" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
-<text x="205.0" y="468" text-anchor="middle" class="box-title" style="font-size:14px">Baseline shift</text>
-<text x="205.0" y="497" text-anchor="middle" class="box-body" style="font-size:12px">person-specific adjustment · 0</text>
-<text x="205.0" y="513" text-anchor="middle" class="box-body" style="font-size:12px">LLM</text>
-<rect x="80" y="520" width="250" height="58" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
-<text x="205.0" y="546" text-anchor="middle" class="box-title" style="font-size:14px">Event classification + PSI</text>
-<text x="205.0" y="565" text-anchor="middle" class="box-title" style="font-size:14px">update</text>
-<text x="205.0" y="594" text-anchor="middle" class="box-body" style="font-size:12px">deterministic modulator impulse</text>
-<text x="205.0" y="610" text-anchor="middle" class="box-body" style="font-size:12px">· 0 LLM</text>
-<rect x="80" y="598" width="250" height="58" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
-<text x="205.0" y="624" text-anchor="middle" class="box-title" style="font-size:14px">Resolution update</text>
-<text x="205.0" y="653" text-anchor="middle" class="box-body" style="font-size:12px">create/close unresolved items ·</text>
-<text x="205.0" y="669" text-anchor="middle" class="box-body" style="font-size:12px">0 LLM</text>
-<rect x="80" y="676" width="250" height="58" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
-<text x="205.0" y="702" text-anchor="middle" class="box-title" style="font-size:14px">Short-term memory</text>
-<text x="205.0" y="731" text-anchor="middle" class="box-body" style="font-size:12px">record turn context · 0 LLM</text>
-<polygon points="595,169.0 710.0,215 595,261.0 480.0,215" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#shadow)"/>
-<text x="595" y="215" text-anchor="middle" class="box-title" style="font-size:14px">Intensity &gt;= 0.8?</text>
-<rect x="470" y="320" width="250" height="62" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#shadow)"/>
-<text x="595.0" y="346" text-anchor="middle" class="box-title" style="font-size:16px">Force-write LTM</text>
-<text x="595.0" y="375" text-anchor="middle" class="box-body" style="font-size:13px">spike branch · 0 LLM</text>
-<rect x="470" y="425" width="250" height="72" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
-<text x="595.0" y="451" text-anchor="middle" class="box-title" style="font-size:16px">Long-term retrieval</text>
-<text x="595.0" y="480" text-anchor="middle" class="box-body" style="font-size:13px">recency + frequency + context ·</text>
-<text x="595.0" y="496" text-anchor="middle" class="box-body" style="font-size:13px">0 LLM</text>
-<rect x="470" y="540" width="250" height="88" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
-<text x="595.0" y="566" text-anchor="middle" class="box-title" style="font-size:16px">Profile + relationship +</text>
-<text x="595.0" y="585" text-anchor="middle" class="box-title" style="font-size:16px">semantic lookup</text>
-<text x="595.0" y="614" text-anchor="middle" class="box-body" style="font-size:13px">person, self, topic, open</text>
-<text x="595.0" y="630" text-anchor="middle" class="box-body" style="font-size:13px">loops, memories · 0 LLM</text>
-<rect x="470" y="680" width="250" height="64" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
-<text x="595.0" y="706" text-anchor="middle" class="box-title" style="font-size:16px">Contradiction check</text>
-<text x="595.0" y="735" text-anchor="middle" class="box-body" style="font-size:13px">detect unresolved pressure · 0</text>
-<text x="595.0" y="751" text-anchor="middle" class="box-body" style="font-size:13px">LLM</text>
-<polygon points="975,100.0 1105.0,150 975,200.0 845.0,150" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#shadow)"/>
-<text x="975" y="142" text-anchor="middle" class="box-title" style="font-size:14px">Inner dialogue enabled and</text>
-<text x="975" y="159" text-anchor="middle" class="box-title" style="font-size:14px">worth it?</text>
-<rect x="840" y="275" width="270" height="88" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#shadow)"/>
-<text x="975.0" y="301" text-anchor="middle" class="box-title" style="font-size:16px">Inner dialogue</text>
-<text x="975.0" y="330" text-anchor="middle" class="box-body" style="font-size:13px">fast/slow rounds · 0 to 5+ LLM</text>
-<text x="975.0" y="346" text-anchor="middle" class="box-body" style="font-size:13px">depending on retries</text>
-<polygon points="975,382.0 1105.0,430 975,478.0 845.0,430" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#shadow)"/>
-<text x="975" y="430" text-anchor="middle" class="box-title" style="font-size:14px">Tool executor configured?</text>
-<rect x="840" y="555" width="270" height="88" rx="16" fill="#fee2e2" stroke="#dc2626" stroke-width="2" filter="url(#shadow)"/>
-<text x="975.0" y="581" text-anchor="middle" class="box-title" style="font-size:16px">Tool loop</text>
-<text x="975.0" y="610" text-anchor="middle" class="box-body" style="font-size:13px">intent -&gt; arbiter -&gt; execute -&gt;</text>
-<text x="975.0" y="626" text-anchor="middle" class="box-body" style="font-size:13px">observe · no LLM in current</text>
-<text x="975.0" y="642" text-anchor="middle" class="box-body" style="font-size:13px">implementation</text>
-<polygon points="975,662.0 1105.0,710 975,758.0 845.0,710" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#shadow)"/>
-<text x="975" y="710" text-anchor="middle" class="box-title" style="font-size:14px">Defense feature active?</text>
-<rect x="840" y="835" width="270" height="82" rx="16" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#shadow)"/>
-<text x="975.0" y="861" text-anchor="middle" class="box-title" style="font-size:16px">Defense instruction</text>
-<text x="975.0" y="890" text-anchor="middle" class="box-body" style="font-size:13px">shapes generator inputs, not</text>
-<text x="975.0" y="906" text-anchor="middle" class="box-body" style="font-size:13px">post-output filtering</text>
-<rect x="840" y="970" width="270" height="70" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
-<text x="975.0" y="996" text-anchor="middle" class="box-title" style="font-size:16px">Response strategy</text>
-<text x="975.0" y="1025" text-anchor="middle" class="box-body" style="font-size:13px">8 deterministic stances · 0 LLM</text>
-<rect x="1240" y="275" width="280" height="78" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#shadow)"/>
-<text x="1380.0" y="301" text-anchor="middle" class="box-title" style="font-size:16px">Master LLM generation</text>
-<text x="1380.0" y="330" text-anchor="middle" class="box-body" style="font-size:13px">primary response call · 1 LLM</text>
-<polygon points="1380,380.0 1515.0,430 1380,480.0 1245.0,430" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#shadow)"/>
-<text x="1380" y="430" text-anchor="middle" class="box-title" style="font-size:14px">Self-check needs LLM?</text>
-<rect x="1240" y="575" width="280" height="68" rx="16" fill="#dcfce7" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
-<text x="1380.0" y="601" text-anchor="middle" class="box-title" style="font-size:16px">Rule self-check</text>
-<text x="1380.0" y="630" text-anchor="middle" class="box-body" style="font-size:13px">common path · 0 LLM</text>
-<rect x="1240" y="695" width="280" height="68" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#shadow)"/>
-<text x="1380.0" y="721" text-anchor="middle" class="box-title" style="font-size:16px">LLM self-check</text>
-<text x="1380.0" y="750" text-anchor="middle" class="box-body" style="font-size:13px">intensity / contradiction /</text>
-<text x="1380.0" y="766" text-anchor="middle" class="box-body" style="font-size:13px">deadlock · 1 LLM</text>
-<polygon points="1380,804.0 1505.0,850 1380,896.0 1255.0,850" fill="#fef3c7" stroke="#d97706" stroke-width="2" filter="url(#shadow)"/>
-<text x="1380" y="850" text-anchor="middle" class="box-title" style="font-size:14px">Passed?</text>
-<rect x="1240" y="975" width="280" height="68" rx="16" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" filter="url(#shadow)"/>
-<text x="1380.0" y="1001" text-anchor="middle" class="box-title" style="font-size:16px">Optional regenerate</text>
-<text x="1380.0" y="1030" text-anchor="middle" class="box-body" style="font-size:13px">first failed check only · +1 LLM</text>
-<rect x="1240" y="1095" width="280" height="86" rx="16" fill="#e2e8f0" stroke="#64748b" stroke-width="2" filter="url(#shadow)"/>
-<text x="1380.0" y="1121" text-anchor="middle" class="box-title" style="font-size:16px">Post-processing</text>
-<text x="1380.0" y="1150" text-anchor="middle" class="box-body" style="font-size:13px">response delivered, memory writes,</text>
-<text x="1380.0" y="1166" text-anchor="middle" class="box-body" style="font-size:13px">energy drain, self-observation</text>
-<rect x="1240" y="1255" width="280" height="68" rx="16" fill="#dbeafe" stroke="#2563eb" stroke-width="2" filter="url(#shadow)"/>
-<text x="1380.0" y="1281" text-anchor="middle" class="box-title" style="font-size:16px">Response + DebugState</text>
-<text x="1380.0" y="1310" text-anchor="middle" class="box-body" style="font-size:13px">returned to host</text>
-<text x="60" y="1245" text-anchor="start" fill="#0f172a" font-size="16" font-weight="700" class="plain">LLM-call accounting: common case = 1 call. Optional paths add inner dialogue (0 to 5+ calls depending on parse retries), LLM self-check (+1), and one</text>
-<text x="60" y="1266" text-anchor="start" fill="#0f172a" font-size="16" font-weight="700" class="plain">regeneration (+1). Do not treat this as a fixed upper bound.</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc"><title id="title">Single-Turn Cognitive Flow</title><desc id="desc">pipeline.process in 5 sections, left to right. Typical LLM budget: 1 call. Max with all gates firing: ~8.</desc><defs><marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M1,1 L9,5 L1,9 Z" fill="#57606a"/></marker></defs><rect width="100%" height="100%" fill="#fafbfc"/><text x="48" y="52" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="28" font-weight="800" fill="#1f2328">Single-Turn Cognitive Flow</text><text x="48" y="78" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="400" fill="#57606a">pipeline.process in 5 sections, left to right. Typical LLM budget: 1 call. Max with all gates firing: ~8.</text><rect x="40" y="120" width="290" height="42" rx="21.0" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
+<text x="185.0" y="145.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#0550ae">State update</text>
+<text x="185.0" y="180" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">always · 0 LLM</text>
+<rect x="350" y="120" width="290" height="42" rx="21.0" fill="#fff8c5" stroke="#bf8700" stroke-width="1.5"/>
+<text x="495.0" y="145.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#633c01">Deliberation</text>
+<text x="495.0" y="180" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">gated · 0–5 LLM</text>
+<rect x="660" y="120" width="220" height="42" rx="21.0" fill="#fff1e5" stroke="#fb8f44" stroke-width="1.5"/>
+<text x="770.0" y="145.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#9a5700">Generation</text>
+<text x="770.0" y="180" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">always · +1 LLM</text>
+<rect x="900" y="120" width="330" height="42" rx="21.0" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
+<text x="1065.0" y="145.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#0550ae">Self-check</text>
+<text x="1065.0" y="180" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">always + gated · 0–2</text>
+<rect x="1250" y="120" width="310" height="42" rx="21.0" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.5"/>
+<text x="1405.0" y="145.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#1f2328">Post-processing</text>
+<text x="1405.0" y="180" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">always · 0 LLM</text>
+<path d="M332,141 L348,141" fill="none" stroke="#57606a" stroke-width="1.75" marker-end="url(#arrowhead)"/>
+<path d="M642,141 L658,141" fill="none" stroke="#57606a" stroke-width="1.75" marker-end="url(#arrowhead)"/>
+<path d="M882,141 L898,141" fill="none" stroke="#57606a" stroke-width="1.75" marker-end="url(#arrowhead)"/>
+<path d="M1232,141 L1248,141" fill="none" stroke="#57606a" stroke-width="1.75" marker-end="url(#arrowhead)"/>
+<rect x="40" y="210" width="290" height="640" rx="18" fill="none" stroke="#218bff" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
+<text x="56" y="232" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#0550ae">Deterministic pre-pass</text>
+<rect x="55" y="250" width="260" height="64" rx="10" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
+<text x="185.0" y="273" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#0550ae">Prepare</text>
+<text x="185.0" y="295" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">elapsed decay</text>
+<text x="185.0" y="311" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">anticipation (pre-shift)</text>
+<rect x="55" y="326" width="260" height="81" rx="10" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
+<text x="185.0" y="349" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#0550ae">Interpret</text>
+<text x="185.0" y="371" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">contagion detect</text>
+<text x="185.0" y="387" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">social appraisal</text>
+<text x="185.0" y="403" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">person baseline shift</text>
+<rect x="55" y="419" width="260" height="98" rx="10" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
+<text x="185.0" y="442" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#0550ae">Update state</text>
+<text x="185.0" y="464" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">event classify + PSI</text>
+<text x="185.0" y="480" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">resolution update</text>
+<text x="185.0" y="496" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">short-term memory write</text>
+<text x="185.0" y="512" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">spike-write → LTM</text>
+<rect x="55" y="529" width="260" height="98" rx="10" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
+<text x="185.0" y="552" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#0550ae">Retrieve context</text>
+<text x="185.0" y="574" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">long-term retrieval</text>
+<text x="185.0" y="590" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">profiles (person / self / topic)</text>
+<text x="185.0" y="606" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">relationship + open loops</text>
+<text x="185.0" y="622" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">contradiction check</text>
+<rect x="350" y="210" width="290" height="640" rx="18" fill="none" stroke="#bf8700" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
+<text x="366" y="232" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#633c01">Gated deliberation</text>
+<rect x="365" y="250" width="260" height="81" rx="10" fill="#fff1e5" stroke="#fb8f44" stroke-width="1.5"/>
+<text x="495.0" y="273" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#9a5700">Inner dialogue</text>
+<text x="495.0" y="295" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">fast/slow negotiation</text>
+<text x="495.0" y="311" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">2–5 LLM calls depending on rounds</text>
+<text x="495.0" y="327" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">bypassed when arousal &gt; 0.8</text>
+<rect x="365" y="347" width="260" height="81" rx="10" fill="#ffebe9" stroke="#cf222e" stroke-width="1.5"/>
+<text x="495.0" y="370" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#a40e26">Tool loop</text>
+<text x="495.0" y="392" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">intent regex → execute → observe</text>
+<text x="495.0" y="408" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">only when tools_enabled: true</text>
+<text x="495.0" y="424" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">0–N LLM calls</text>
+<rect x="365" y="444" width="260" height="81" rx="10" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
+<text x="495.0" y="467" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#0550ae">Defense shaping</text>
+<text x="495.0" y="489" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">rationalize / deflect / minimize / project</text>
+<text x="495.0" y="505" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">injects prompt instruction</text>
+<text x="495.0" y="521" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">0 LLM</text>
+<rect x="660" y="210" width="220" height="640" rx="18" fill="none" stroke="#fb8f44" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
+<text x="676" y="232" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#9a5700">Generation</text>
+<rect x="675" y="310" width="190" height="160" rx="10" fill="#fff1e5" stroke="#fb8f44" stroke-width="1.5"/>
+<text x="770.0" y="333" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="15" font-weight="700" fill="#9a5700">Master LLM generation</text>
+<text x="770.0" y="355" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">builds prompt from current</text>
+<text x="770.0" y="372" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">state, memory, profiles,</text>
+<text x="770.0" y="389" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">relationship context,</text>
+<text x="770.0" y="406" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">and deliberation candidate</text>
+<text x="770.0" y="423" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a"></text>
+<text x="770.0" y="440" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">+1 LLM call</text>
+<rect x="900" y="210" width="330" height="640" rx="18" fill="none" stroke="#218bff" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
+<text x="916" y="232" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#0550ae">Self-check</text>
+<rect x="915" y="250" width="300" height="81" rx="10" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
+<text x="1065.0" y="273" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#0550ae">Rule self-check</text>
+<text x="1065.0" y="295" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">tone fit / overconfidence /</text>
+<text x="1065.0" y="311" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">bluntness / energy fit</text>
+<text x="1065.0" y="327" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">always runs · 0 LLM</text>
+<rect x="915" y="347" width="300" height="64" rx="10" fill="#fff1e5" stroke="#fb8f44" stroke-width="1.5"/>
+<text x="1065.0" y="370" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#9a5700">LLM self-check</text>
+<text x="1065.0" y="392" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">gated on rule issues</text>
+<text x="1065.0" y="408" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">optional +1 LLM</text>
+<rect x="915" y="427" width="300" height="64" rx="10" fill="#fff1e5" stroke="#fb8f44" stroke-width="1.5"/>
+<text x="1065.0" y="450" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#9a5700">Regenerate</text>
+<text x="1065.0" y="472" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">gated on self-check failure</text>
+<text x="1065.0" y="488" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">fail-closed, +1 LLM</text>
+<rect x="1250" y="210" width="310" height="640" rx="18" fill="none" stroke="#8c959f" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
+<text x="1266" y="232" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#1f2328">Post-processing</text>
+<rect x="1265" y="250" width="280" height="81" rx="10" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.5"/>
+<text x="1405.0" y="273" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#1f2328">Update memory + state</text>
+<text x="1405.0" y="295" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">short-term → long-term digest</text>
+<text x="1405.0" y="311" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">relationship open-loop updates</text>
+<text x="1405.0" y="327" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">trust / bonding / maturity deltas</text>
+<rect x="1265" y="345" width="280" height="47" rx="10" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.5"/>
+<text x="1405.0" y="368" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#1f2328">Drain energy</text>
+<text x="1405.0" y="390" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">per-message and spike drain</text>
+<rect x="1265" y="406" width="280" height="81" rx="10" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.5"/>
+<text x="1405.0" y="429" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#1f2328">Capture debug trace</text>
+<text x="1405.0" y="451" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">DebugState assembled</text>
+<text x="1405.0" y="467" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">(modulators, dialogue, defense,</text>
+<text x="1405.0" y="483" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a"> unresolved items, memories)</text>
+<rect x="1265" y="501" width="280" height="64" rx="10" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.5"/>
+<text x="1405.0" y="524" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#1f2328">Return</text>
+<text x="1405.0" y="546" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">Response + DebugState</text>
+<text x="1405.0" y="562" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">back to channel / caller</text>
+<rect x="60" y="862" width="16" height="12" rx="3" fill="#ddf4ff" stroke="#218bff" stroke-width="1.25"/>
+<text x="84" y="872" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">deterministic, 0 LLM</text>
+<rect x="60" y="880" width="16" height="12" rx="3" fill="#fff8c5" stroke="#bf8700" stroke-width="1.25"/>
+<text x="84" y="890" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">gated (condition-dependent)</text>
+<rect x="60" y="898" width="16" height="12" rx="3" fill="#fff1e5" stroke="#fb8f44" stroke-width="1.25"/>
+<text x="84" y="908" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">LLM call (+N)</text>
+<rect x="60" y="916" width="16" height="12" rx="3" fill="#ffebe9" stroke="#cf222e" stroke-width="1.25"/>
+<text x="84" y="926" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">side-effect path, gated by tools_enabled</text></svg>
