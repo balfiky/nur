@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import os
+import re
 from typing import Any
 
 import requests
+
+_THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 
 from core.provider_client import FastChatCompletionsClient
 from core.dual_process.generator import LLMBackend, MockLLMBackend
@@ -25,7 +28,7 @@ class OpenAICompatibleLLMBackend:
         base_url: str,
         model: str,
         api_key: str = "",
-        timeout: float = 60.0,
+        timeout: float = 120.0,
     ) -> None:
         if not base_url:
             raise ValueError("OpenAI-compatible backend requires llm_base_url")
@@ -48,11 +51,14 @@ class OpenAICompatibleLLMBackend:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_message},
             ],
+            "max_tokens": 2048,
         }
         response = self._session.post(url, json=payload, timeout=self._timeout)
         response.raise_for_status()
         data: dict[str, Any] = response.json()
-        return data["choices"][0]["message"]["content"].strip()
+        content = data["choices"][0]["message"]["content"] or ""
+        content = _THINK_RE.sub("", content).strip()
+        return content
 
 
 def create_llm_backend(config=None) -> LLMBackend:

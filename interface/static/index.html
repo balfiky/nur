@@ -916,8 +916,10 @@ function closeSettings() { settingsOverlay.classList.remove('open'); }
 function closeSettingsIfBackdrop(e) { if (e.target === settingsOverlay) closeSettings(); }
 
 async function loadSettings() {
+  setStatus('Loading...');
   const res = await authedFetch('/admin/config'); if (!res.ok) throw new Error('HTTP ' + res.status);
   applySettings(await res.json());
+  setStatus('');
   loadSoul().catch(() => {});
 }
 
@@ -1140,6 +1142,7 @@ function populateSoulWeights(key, obj) {
 
 async function loadSoul() {
   const el = document.getElementById('test-soul');
+  if (el) { el.style.display = 'block'; el.className = 'admin-test-result'; el.textContent = 'Loading identity...'; }
   try {
     const res = await authedFetch('/admin/soul');
     if (!res.ok) throw new Error('HTTP ' + res.status);
