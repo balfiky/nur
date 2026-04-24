@@ -194,6 +194,12 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .admin-test-result.ok { border-color: rgba(81,207,102,0.2); color: #8ce99a; background: rgba(81,207,102,0.06); }
 .admin-test-result.error { border-color: rgba(255,107,107,0.24); color: #ff8787; background: rgba(255,107,107,0.06); }
 .settings-mini { color: var(--text-faint); font-size: 11px; line-height: 1.5; margin: -6px 0 12px; }
+.settings-section.danger { border-color: rgba(255,107,107,0.35); background: rgba(255,107,107,0.03); }
+.settings-section.danger h3 { color: #ff8787; }
+.settings-danger-banner { font-size: 11px; line-height: 1.5; padding: 9px 11px; border-radius: var(--radius-sm); border: 1px solid rgba(255,107,107,0.3); background: rgba(255,107,107,0.07); color: #ff8787; margin-bottom: 12px; }
+.settings-danger-banner .code { font-family: var(--mono); color: #ffb3b3; }
+.settings-actions button.danger { background: transparent; color: #ff8787; border: 1px solid rgba(255,107,107,0.4); }
+.settings-actions button.danger:hover { background: rgba(255,107,107,0.1); color: #ffa5a5; }
 
 @media (max-width: 860px) {
   .debug-panel { position: fixed; top: 56px; right: 0; bottom: 0; z-index: 10; width: min(380px, 100vw); box-shadow: -8px 0 30px rgba(0,0,0,0.4); }
@@ -274,24 +280,34 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
         <div class="settings-field"><label for="cfg-shell_tool_enabled">Shell Tool</label><select id="cfg-shell_tool_enabled"><option value="false">Disabled</option><option value="true">Enabled</option></select></div>
         <div class="settings-field full"><label for="cfg-tools_workspace">Tools Workspace</label><input id="cfg-tools_workspace" type="text" placeholder="Blank uses data/workspace"></div>
       </div></div>
-      <div class="settings-section"><h3>Maintenance</h3><div class="settings-mini">Diagnostics, redacted config export, and local data backup for operators.</div>
+      <div class="settings-section"><h3>Maintenance</h3><div class="settings-mini">Read-only diagnostics, redacted config export, and local data backup for operators.</div>
         <div class="settings-actions">
           <button class="secondary" onclick="loadDiagnostics()">Diagnostics</button>
           <button class="secondary" onclick="exportConfig()">Export Config</button>
           <button class="secondary" onclick="createBackup()">Create Backup</button>
         </div>
+        <div class="admin-test-result" id="test-maintenance" style="display:none"></div>
+      </div>
+      <div class="settings-section danger"><h3>Danger Zone</h3><div class="settings-mini">Destructive operator actions. Each requires an exact typed confirmation string — see hints below every input.</div>
+        <div class="settings-danger-banner">
+          Reset Session drains and clears one active session. Delete User Data removes all persisted memory and sessions for a <span class="code">platform:user_id</span>; the shared self-model DB is preserved by design.
+        </div>
         <div class="settings-grid">
-          <div class="settings-field full"><label for="admin-reset-session_key">Reset Session Key</label><input id="admin-reset-session_key" type="text" placeholder="web:alice:default"></div>
-          <div class="settings-field full"><label for="admin-reset-confirmation">Reset Confirmation</label><input id="admin-reset-confirmation" type="text" placeholder="RESET web:alice:default"></div>
-          <div class="settings-field"><label for="admin-delete-platform">Delete Platform</label><input id="admin-delete-platform" type="text" placeholder="web"></div>
-          <div class="settings-field"><label for="admin-delete-user_id">Delete User ID</label><input id="admin-delete-user_id" type="text" placeholder="alice"></div>
-          <div class="settings-field full"><label for="admin-delete-confirmation">Delete Confirmation</label><input id="admin-delete-confirmation" type="text" placeholder="DELETE web:alice"></div>
+          <div class="settings-field full"><label for="admin-reset-session_key">Reset Session Key</label><input id="admin-reset-session_key" type="text" placeholder="web:alice:default"><div class="settings-note">Format: <span class="secret-hint">platform:user_id:chat_id</span></div></div>
+          <div class="settings-field full"><label for="admin-reset-confirmation">Reset Confirmation</label><input id="admin-reset-confirmation" type="text" placeholder="RESET web:alice:default"><div class="settings-note">Must be exactly: <span class="secret-hint">RESET &lt;session_key&gt;</span></div></div>
         </div>
         <div class="settings-actions">
-          <button class="secondary" onclick="resetAdminSession()">Reset Session</button>
-          <button class="secondary" onclick="deleteAdminUser()">Delete User Data</button>
+          <button class="danger" onclick="resetAdminSession()">Reset Session</button>
         </div>
-        <div class="admin-test-result" id="test-maintenance" style="display:none"></div>
+        <div class="settings-grid">
+          <div class="settings-field"><label for="admin-delete-platform">Delete Platform</label><input id="admin-delete-platform" type="text" placeholder="web"></div>
+          <div class="settings-field"><label for="admin-delete-user_id">Delete User ID</label><input id="admin-delete-user_id" type="text" placeholder="alice"></div>
+          <div class="settings-field full"><label for="admin-delete-confirmation">Delete Confirmation</label><input id="admin-delete-confirmation" type="text" placeholder="DELETE web:alice"><div class="settings-note">Must be exactly: <span class="secret-hint">DELETE &lt;platform&gt;:&lt;user_id&gt;</span></div></div>
+        </div>
+        <div class="settings-actions">
+          <button class="danger" onclick="deleteAdminUser()">Delete User Data</button>
+        </div>
+        <div class="admin-test-result" id="test-danger" style="display:none"></div>
       </div>
       <div class="settings-section"><h3>Proactive</h3><div class="settings-grid">
         <div class="settings-field"><label for="cfg-proactive_enabled">Enabled</label><select id="cfg-proactive_enabled"><option value="false">No</option><option value="true">Yes</option></select></div>
@@ -797,17 +813,38 @@ async function createBackup() {
 }
 
 async function resetAdminSession() {
-  await runAdminTest('maintenance', '/admin/sessions/reset', {
-    session_key: gv('admin-reset-session_key'),
-    confirmation: gv('admin-reset-confirmation'),
+  const key = gv('admin-reset-session_key');
+  const confirmation = gv('admin-reset-confirmation');
+  const expected = key ? 'RESET ' + key : '';
+  if (!key || confirmation !== expected) {
+    const el = document.getElementById('test-danger');
+    el.style.display = 'block';
+    el.className = 'admin-test-result error';
+    el.textContent = 'Confirmation must be exactly: ' + (expected || 'RESET <session_key>');
+    return;
+  }
+  await runAdminTest('danger', '/admin/sessions/reset', {
+    session_key: key,
+    confirmation,
   });
 }
 
 async function deleteAdminUser() {
-  await runAdminTest('maintenance', '/admin/users/delete', {
-    platform: gv('admin-delete-platform'),
-    user_id: gv('admin-delete-user_id'),
-    confirmation: gv('admin-delete-confirmation'),
+  const platform = gv('admin-delete-platform');
+  const userId = gv('admin-delete-user_id');
+  const confirmation = gv('admin-delete-confirmation');
+  const expected = (platform && userId) ? 'DELETE ' + platform + ':' + userId : '';
+  if (!platform || !userId || confirmation !== expected) {
+    const el = document.getElementById('test-danger');
+    el.style.display = 'block';
+    el.className = 'admin-test-result error';
+    el.textContent = 'Confirmation must be exactly: ' + (expected || 'DELETE <platform>:<user_id>');
+    return;
+  }
+  await runAdminTest('danger', '/admin/users/delete', {
+    platform,
+    user_id: userId,
+    confirmation,
   });
 }
 

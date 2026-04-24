@@ -72,11 +72,14 @@ default** (`tools_enabled: false`). When you turn them on:
   `api_key` and keep `shell_tool_enabled: false` unless you trust every
   caller.
 
-When `api_key` is set, every mutating endpoint on the standalone web
-server requires `Authorization: Bearer <api_key>`: `/chat`, `/debug`,
-`/config` (GET and POST), `/session/end`, `/rest`, `/ws`, and every
-`/v1/*` endpoint except `/v1/health` and `/v1/ready`. Static assets
-(`GET /`) remain open so the bundled UI can bootstrap.
+When `api_key` is set, every mutating and data-bearing endpoint on the
+standalone web server requires `Authorization: Bearer <api_key>`:
+`/chat`, `/debug`, `/config` (GET and POST), `/session/end`, `/rest`,
+`/ws`, every `/admin/*` JSON endpoint (status, config, test, diagnostics,
+export, backup, sessions/reset, users/delete), and every `/v1/*`
+endpoint except `/v1/health` and `/v1/ready`. Static assets (`GET /`,
+`GET /admin` HTML shell) remain open so the bundled UI can bootstrap and
+prompt for the bearer token client-side.
 
 ## Responsible Use
 

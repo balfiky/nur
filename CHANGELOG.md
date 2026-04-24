@@ -4,6 +4,45 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.23.0 — 2026-04-24 (Release hygiene: metadata, docs, admin UX)
+
+Release-preparation pass: packaging metadata for public distribution, admin
+console visual split between safe and destructive controls, and
+documentation consistency between SECURITY.md and the live bearer-gated
+route set. No runtime behavior change.
+
+### Added
+- **Packaging metadata.** `pyproject.toml` gains `readme`, `license`,
+  `authors`, `keywords`, PyPI `classifiers`, and `project.urls`
+  (Homepage, Repository, Issues, Documentation) pointing at
+  `github.com/balfiky/nur`. MIT license is declared via the existing
+  `LICENSE` file rather than an inline string.
+- **Admin Danger Zone.** Reset-session and delete-user controls are split
+  out of the general Maintenance section into a visually distinct
+  `Danger Zone` with a red-tinted border, explicit confirmation format
+  hints, and a separate result panel. The client now rejects an empty or
+  mismatched confirmation string locally before touching the network,
+  matching the server-side `RESET <session_key>` /
+  `DELETE <platform>:<user_id>` contract.
+- **Eval runner tests.** Added three provider-backend cases covering
+  missing `--base-url`, missing `--model`, and the
+  `LLM_API_KEY` fallback when `MINIMAX_API_KEY` is unset
+  (`tests/test_evals_runner.py`).
+
+### Fixed
+- **SECURITY.md bearer-gated route list.** The explicit enumeration of
+  routes requiring `Authorization: Bearer <api_key>` omitted `/admin/*`
+  even though every admin JSON endpoint is in fact guarded by
+  `_require_bearer`. Corrected the list and clarified that `GET /admin`
+  (the HTML shell) stays open so the bundled UI can bootstrap and prompt
+  for the token client-side.
+
+### Tests
+- `python3 -m pytest tests/test_interface.py tests/test_interface_v1.py tests/test_evals_runner.py -q`
+  → 120 passed, 1 warning.
+
+---
+
 ## v0.22.0 — 2026-04-23 (Pre-publication launch-blocker fixes)
 
 Fixes three release-acceptance blockers surfaced by a pre-publication audit.

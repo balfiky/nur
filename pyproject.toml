@@ -1,8 +1,35 @@
 [project]
 name = "project-nur"
 version = "0.1.0"
-description = "A hybrid cognitive architecture for human-like AI emotion"
+description = "A hybrid cognitive architecture for AI assistants treating emotion as persistent internal state"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Bassem Alfiky", email = "balfiky@yahoo.com" },
+]
 requires-python = ">=3.10"
+keywords = [
+    "cognitive-architecture",
+    "affective-computing",
+    "large-language-models",
+    "agent-memory",
+    "relational-continuity",
+    "human-ai-interaction",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
 dependencies = [
     # Lower bounds reflect the oldest version the code base has been tested
     # against; upper bounds cap below the next breaking major to keep a
@@ -30,6 +57,12 @@ dev = [
     "pytest-asyncio>=0.23",
     "ruff>=0.4",
 ]
+
+[project.urls]
+Homepage = "https://github.com/balfiky/nur"
+Repository = "https://github.com/balfiky/nur"
+Issues = "https://github.com/balfiky/nur/issues"
+Documentation = "https://github.com/balfiky/nur#readme"
 
 [project.scripts]
 nur = "main:main"
