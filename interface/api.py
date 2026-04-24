@@ -325,7 +325,7 @@ class AdminUserDeleteRequest(BaseModel):
 class AdminSoulDraftRequest(BaseModel):
     """LLM-assisted soul drafting from a natural-language description."""
 
-    description: str = Field(..., min_length=8, max_length=2000)
+    description: str = Field(..., min_length=8, max_length=16000)
 
     @field_validator("description")
     @classmethod

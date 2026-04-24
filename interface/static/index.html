@@ -360,15 +360,19 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
       <div class="wizard-tabs">
         <button type="button" class="wizard-tab active" data-tab="describe" onclick="wizardSelectTab('describe')">Describe in plain English</button>
         <button type="button" class="wizard-tab" data-tab="manual" onclick="wizardSelectTab('manual')">Fill manually</button>
+        <button type="button" class="wizard-tab" data-tab="raw" onclick="wizardSelectTab('raw')">Paste soul.yaml</button>
       </div>
       <div class="wizard-fields" id="wiz-tab-describe">
-        <div><label for="wiz-soul-description">Describe your agent</label><textarea id="wiz-soul-description" rows="4" placeholder="e.g., A warm, thoughtful companion who values honesty and curiosity. Helps me think through hard problems without jumping to conclusions."></textarea></div>
+        <div><label for="wiz-soul-description">Describe your agent</label><textarea id="wiz-soul-description" rows="6" placeholder="e.g., A warm, thoughtful companion who values honesty and curiosity. Helps me think through hard problems without jumping to conclusions."></textarea></div>
         <div><button type="button" class="wizard-preset" style="grid-column: span 2" onclick="wizardDraftSoul()">Generate identity from description</button></div>
         <div class="admin-test-result" id="wiz-soul-draft-result" style="display:none"></div>
       </div>
       <div class="wizard-fields" id="wiz-tab-manual" style="display:none">
         <div><label for="wiz-soul-name">Name</label><input id="wiz-soul-name" type="text" placeholder="Iris" maxlength="64"></div>
         <div><label for="wiz-soul-identity">Identity (one or two sentences)</label><textarea id="wiz-soul-identity" rows="3" placeholder="A steady, honest collaborator who listens first."></textarea></div>
+      </div>
+      <div class="wizard-fields" id="wiz-tab-raw" style="display:none">
+        <div style="grid-column: span 2"><label for="wiz-soul-raw">Paste your soul.yaml or full identity document</label><textarea id="wiz-soul-raw" rows="10" placeholder="name: Jarvis&#10;identity: Sharp, opinionated collaborator...&#10;voice: Sarcastic but warm underneath..."></textarea><small style="color:var(--text-dim);margin-top:4px;display:block">The LLM will extract name, identity, voice, and other fields from whatever you paste.</small></div>
       </div>
       <div class="admin-test-result" id="wiz-soul-result" style="display:none"></div>
       <div class="wizard-actions">
@@ -1386,7 +1390,7 @@ function openWizard() {
   // Reset form state so reopening feels fresh, but keep captured config snapshot.
   document.querySelectorAll('.wizard-preset').forEach(el => el.classList.remove('selected'));
   document.getElementById('wizLLMFields').style.display = 'none';
-  ['wiz-llm_base_url','wiz-llm_model','wiz-llm_api_key','wiz-soul-description','wiz-soul-name','wiz-soul-identity'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  ['wiz-llm_base_url','wiz-llm_model','wiz-llm_api_key','wiz-soul-description','wiz-soul-name','wiz-soul-identity','wiz-soul-raw'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
   ['wiz-llm-result','wiz-soul-draft-result','wiz-soul-result'].forEach(id => { const e = document.getElementById(id); if (e) { e.style.display = 'none'; e.textContent = ''; } });
   wizardSelectTab('describe');
   wizardGoto(1);
@@ -1468,6 +1472,7 @@ function wizardSelectTab(tab) {
   document.querySelectorAll('.wizard-tab').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
   document.getElementById('wiz-tab-describe').style.display = tab === 'describe' ? '' : 'none';
   document.getElementById('wiz-tab-manual').style.display = tab === 'manual' ? '' : 'none';
+  document.getElementById('wiz-tab-raw').style.display = tab === 'raw' ? '' : 'none';
 }
 
 function wizardShowResult(id, cls, msg) {
@@ -1548,7 +1553,25 @@ async function wizardDraftSoul() {
 async function wizardSaveSoul() {
   const activeTab = document.querySelector('.wizard-tab.active')?.dataset.tab || 'describe';
   let payload;
-  if (activeTab === 'describe') {
+  if (activeTab === 'raw') {
+    const raw = (document.getElementById('wiz-soul-raw')?.value || '').trim();
+    if (raw.length < 8) {
+      wizardShowResult('wiz-soul-result', 'error', 'Paste your soul.yaml or identity document first.');
+      return;
+    }
+    wizardShowResult('wiz-soul-result', '', 'Parsing identity document...');
+    try {
+      const draftRes = await authedFetch('/admin/soul/draft', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ description: raw }),
+      });
+      const draftData = await draftRes.json();
+      if (!draftRes.ok) throw new Error(typeof (draftData && draftData.detail) === 'string' ? draftData.detail : JSON.stringify(draftData && draftData.detail) || 'HTTP ' + draftRes.status);
+      payload = draftData.draft || {};
+    } catch (err) {
+      wizardShowResult('wiz-soul-result', 'error', 'Parse failed: ' + err.message);
+      return;
+    }
+  } else if (activeTab === 'describe') {
     if (!wizardSoulDraft || !wizardSoulDraft.name) {
       wizardShowResult('wiz-soul-result', 'error', 'Generate a draft first, or switch to manual.');
       return;
