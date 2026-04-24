@@ -4,6 +4,57 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.26.0 — 2026-04-24 (First-run setup wizard)
+
+A new user opening the app for the first time sees a four-step guided
+wizard instead of a confused-looking chat with mock responses and a
+buried admin drawer. The steps:
+
+1. **Welcome** — brief intro, "Skip for now" option (sessionStorage flag)
+2. **Connect your LLM** — four preset tiles (Local / Hosted / MiniMax / Mock)
+   that auto-fill base URL and model suggestions, plus an API-key field
+   whose label and placeholder change per preset.
+3. **Name your agent** — tabbed UI; default tab "Describe in plain
+   English" uses the existing `/admin/soul/draft` LLM endpoint to generate
+   a full soul from a sentence; fallback tab "Fill manually" takes just a
+   name + short identity.
+4. **Done** — summary of agent name + LLM backend + endpoint + model, then
+   "Start chatting" marks `setup_completed=true` and closes.
+
+### Trigger logic
+The wizard auto-opens when `applySettings()` sees `setup.required === true`
+AND the user hasn't dismissed it this session AND the admin drawer isn't
+open AND the current path isn't `/admin`. The dismiss flag lives in
+sessionStorage so a reload reopens the wizard; a permanent dismissal
+happens when the user clicks "Start chatting" (which also flips
+`setup_completed`). A "Launch Setup Wizard" button in the Setup section
+of the admin drawer lets users rerun it manually anytime.
+
+### Safe config merging
+`POST /admin/config` overwrites unspecified non-secret fields with
+Pydantic defaults (destructive). The wizard works around this by
+fetching the current config via `GET /admin/config`, merging wizard
+fields on top, then POSTing the full payload. Secrets stay empty unless
+the user typed a new value (the server preserves them). `clear_llm_api_key`
+and `clear_minimax_api_key` are set appropriately when switching presets
+so stale keys from the opposite backend don't linger.
+
+### Files
+- `interface/static/index.html`: added wizard CSS, HTML (new
+  `#wizardOverlay` with four panels and a stepper), JS state machine
+  (~200 lines: `openWizard`, `wizardGoto`, `wizardSelectPreset`,
+  `wizardSelectTab`, `wizardSaveLLM`, `wizardDraftSoul`, `wizardSaveSoul`,
+  `wizardRenderSummary`, `wizardFinish`, `wizardDismiss`), and the
+  auto-open hook in `applySettings()`. Added "Launch Setup Wizard"
+  button in the drawer's Setup section.
+
+### Not included
+- No new backend routes — reuses `/admin/config`, `/admin/soul`,
+  `/admin/soul/draft`. No test added (wizard is pure UI; existing
+  backend integration is covered by admin-soul and admin-config tests).
+
+---
+
 ## v0.25.2 — 2026-04-24 (Chat UI respects soul name; mock mode banner)
 
 ### P1 — Chat UI now reflects the configured agent name

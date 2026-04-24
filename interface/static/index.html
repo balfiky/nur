@@ -41,6 +41,43 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .messages::-webkit-scrollbar-track { background: transparent; }
 .messages::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 3px; }
 
+/* Setup wizard */
+.wizard-overlay { position: fixed; inset: 0; background: rgba(6,8,14,0.88); display: none; z-index: 30; backdrop-filter: blur(6px); align-items: center; justify-content: center; padding: 20px; }
+.wizard-overlay.open { display: flex; }
+.wizard-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: min(560px, 100%); max-height: 90vh; overflow-y: auto; padding: 28px; box-shadow: 0 12px 60px rgba(0,0,0,0.5); }
+.wizard-progress { margin-bottom: 22px; }
+.wizard-steps { display: flex; align-items: center; gap: 6px; justify-content: center; }
+.wizard-step { width: 28px; height: 28px; border-radius: 50%; background: var(--surface-3); color: var(--text-faint); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; border: 1px solid var(--border); flex-shrink: 0; }
+.wizard-step.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.wizard-step.done { background: var(--surface-2); color: var(--accent); border-color: var(--primary); }
+.wizard-divider { flex: 0 0 24px; height: 1px; background: var(--border); }
+.wizard-title { font-size: 22px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.wizard-sub { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; line-height: 1.5; }
+.wizard-body { font-size: 13px; color: var(--text-dim); margin-bottom: 18px; line-height: 1.6; }
+.wizard-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; }
+.wizard-actions button { padding: 9px 18px; border-radius: var(--radius-sm); font-family: var(--font); font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
+.wizard-actions button.primary { background: var(--primary); color: #fff; }
+.wizard-actions button.primary:hover:not(:disabled) { background: var(--primary-dim); }
+.wizard-actions button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.wizard-actions button.secondary { background: transparent; color: var(--text-dim); border-color: var(--border); }
+.wizard-actions button.secondary:hover { background: var(--surface-2); color: var(--text); }
+.wizard-presets { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.wizard-preset { padding: 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); cursor: pointer; text-align: left; font-size: 13px; font-family: var(--font); font-weight: 500; }
+.wizard-preset:hover { background: var(--surface-3); border-color: var(--primary); }
+.wizard-preset.selected { background: rgba(124,106,239,0.12); border-color: var(--primary); color: var(--accent); }
+.wizard-preset .preset-sub { display: block; font-size: 11px; color: var(--text-faint); font-weight: 400; margin-top: 3px; }
+.wizard-preset.selected .preset-sub { color: var(--text-dim); }
+.wizard-fields { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+.wizard-fields label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; display: block; }
+.wizard-fields input, .wizard-fields textarea { width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 9px 11px; border-radius: var(--radius-sm); font-family: var(--font); font-size: 13px; }
+.wizard-fields textarea { resize: vertical; min-height: 80px; font-family: var(--font); }
+.wizard-tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
+.wizard-tab { padding: 10px 14px; background: transparent; color: var(--text-dim); border: none; border-bottom: 2px solid transparent; cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 500; }
+.wizard-tab:hover { color: var(--text); }
+.wizard-tab.active { color: var(--accent); border-bottom-color: var(--primary); }
+.wizard-summary { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; font-size: 13px; color: var(--text-dim); line-height: 1.9; }
+.wizard-summary strong { color: var(--text); }
+
 /* Mock-mode banner */
 .mock-banner { background: #1e1608; border-bottom: 1px solid #4a3200; color: #c8820a; padding: 8px 20px; font-size: 13px; text-align: center; flex-shrink: 0; }
 .mock-banner a { color: #f0c040; text-decoration: none; }
@@ -269,6 +306,87 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
   </div>
 </div>
 
+<!-- First-run setup wizard -->
+<div class="wizard-overlay" id="wizardOverlay">
+  <div class="wizard-card">
+    <div class="wizard-progress">
+      <div class="wizard-steps" id="wizSteps">
+        <span class="wizard-step active" data-step="1">1</span>
+        <span class="wizard-divider"></span>
+        <span class="wizard-step" data-step="2">2</span>
+        <span class="wizard-divider"></span>
+        <span class="wizard-step" data-step="3">3</span>
+        <span class="wizard-divider"></span>
+        <span class="wizard-step" data-step="4">4</span>
+      </div>
+    </div>
+
+    <div class="wizard-panel" id="wizPanel-1">
+      <h2 class="wizard-title">Welcome</h2>
+      <p class="wizard-sub">You're about to run an AI with persistent emotional state.</p>
+      <p class="wizard-body">Before your first conversation, two things need setting: an LLM to generate responses, and an identity for your agent (name + voice). This takes about two minutes. You can skip and configure later from the settings drawer.</p>
+      <div class="wizard-actions">
+        <button class="secondary" onclick="wizardDismiss()">Skip for now</button>
+        <button class="primary" onclick="wizardGoto(2)">Get Started</button>
+      </div>
+    </div>
+
+    <div class="wizard-panel" id="wizPanel-2" style="display:none">
+      <h2 class="wizard-title">Connect your LLM</h2>
+      <p class="wizard-sub">Pick how you want to generate responses. You can change this anytime.</p>
+      <div class="wizard-presets" id="wizPresets">
+        <button type="button" class="wizard-preset" data-preset="local" onclick="wizardSelectPreset('local')">Local<span class="preset-sub">Ollama, LM Studio, vLLM</span></button>
+        <button type="button" class="wizard-preset" data-preset="hosted" onclick="wizardSelectPreset('hosted')">Hosted<span class="preset-sub">OpenAI-compatible gateway</span></button>
+        <button type="button" class="wizard-preset" data-preset="minimax" onclick="wizardSelectPreset('minimax')">MiniMax<span class="preset-sub">Legacy provider</span></button>
+        <button type="button" class="wizard-preset" data-preset="mock" onclick="wizardSelectPreset('mock')">Mock<span class="preset-sub">Explore without a real LLM</span></button>
+      </div>
+      <div class="wizard-fields" id="wizLLMFields" style="display:none">
+        <div><label for="wiz-llm_base_url">Base URL</label><input id="wiz-llm_base_url" type="text"></div>
+        <div><label for="wiz-llm_model">Model</label><input id="wiz-llm_model" type="text"></div>
+        <div><label for="wiz-llm_api_key" id="wiz-llm_api_key_label">API Key (optional)</label><input id="wiz-llm_api_key" type="password" placeholder="Leave blank if your endpoint needs none"></div>
+      </div>
+      <div class="admin-test-result" id="wiz-llm-result" style="display:none"></div>
+      <div class="wizard-actions">
+        <button class="secondary" onclick="wizardGoto(1)">← Back</button>
+        <button class="primary" onclick="wizardSaveLLM()">Save & Continue</button>
+      </div>
+    </div>
+
+    <div class="wizard-panel" id="wizPanel-3" style="display:none">
+      <h2 class="wizard-title">Give it a name</h2>
+      <p class="wizard-sub">Your agent's identity shapes how it speaks and what it cares about.</p>
+      <div class="wizard-tabs">
+        <button type="button" class="wizard-tab active" data-tab="describe" onclick="wizardSelectTab('describe')">Describe in plain English</button>
+        <button type="button" class="wizard-tab" data-tab="manual" onclick="wizardSelectTab('manual')">Fill manually</button>
+      </div>
+      <div class="wizard-fields" id="wiz-tab-describe">
+        <div><label for="wiz-soul-description">Describe your agent</label><textarea id="wiz-soul-description" rows="4" placeholder="e.g., A warm, thoughtful companion who values honesty and curiosity. Helps me think through hard problems without jumping to conclusions."></textarea></div>
+        <div><button type="button" class="wizard-preset" style="grid-column: span 2" onclick="wizardDraftSoul()">Generate identity from description</button></div>
+        <div class="admin-test-result" id="wiz-soul-draft-result" style="display:none"></div>
+      </div>
+      <div class="wizard-fields" id="wiz-tab-manual" style="display:none">
+        <div><label for="wiz-soul-name">Name</label><input id="wiz-soul-name" type="text" placeholder="Iris" maxlength="64"></div>
+        <div><label for="wiz-soul-identity">Identity (one or two sentences)</label><textarea id="wiz-soul-identity" rows="3" placeholder="A steady, honest collaborator who listens first."></textarea></div>
+      </div>
+      <div class="admin-test-result" id="wiz-soul-result" style="display:none"></div>
+      <div class="wizard-actions">
+        <button class="secondary" onclick="wizardGoto(2)">← Back</button>
+        <button class="primary" onclick="wizardSaveSoul()">Save & Continue</button>
+      </div>
+    </div>
+
+    <div class="wizard-panel" id="wizPanel-4" style="display:none">
+      <h2 class="wizard-title">You're all set</h2>
+      <p class="wizard-sub">Here's what's configured:</p>
+      <div class="wizard-summary" id="wiz-summary"></div>
+      <div class="wizard-actions">
+        <button class="secondary" onclick="wizardGoto(3)">← Back</button>
+        <button class="primary" onclick="wizardFinish()">Start chatting</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Admin/settings panel -->
 <div class="settings-overlay" id="settingsOverlay" onclick="closeSettingsIfBackdrop(event)">
   <aside class="settings-drawer">
@@ -285,7 +403,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
         <div class="admin-stat"><div class="k">Tools</div><div class="v" id="adminTools">—</div></div>
       </div>
       <div id="adminWarnings"></div>
-      <div class="settings-section"><h3>Setup</h3><div class="settings-mini" id="setupSummary">Setup state not loaded.</div>
+      <div class="settings-section"><h3>Setup <button class="secondary" onclick="openWizard()">Launch Setup Wizard</button></h3><div class="settings-mini" id="setupSummary">Setup state not loaded.</div>
         <label class="settings-inline"><input id="cfg-setup_completed" type="checkbox"> Mark first-run setup complete</label>
       </div>
       <div class="settings-section"><h3>Identity</h3>
@@ -864,6 +982,19 @@ function applySettings(payload) {
   updateSoulDraftAvailability();
   const mockBanner = document.getElementById('mockBanner');
   if (mockBanner) mockBanner.style.display = payload.mock_mode ? '' : 'none';
+  // Auto-open the first-run wizard when setup is incomplete, the user hasn't
+  // dismissed it this session, and the admin drawer isn't already open (the
+  // /admin route or a manual "Settings" click means they know where to go).
+  const setup = payload.setup || {};
+  if (
+    setup.required
+    && !sessionStorage.getItem('nur_wizard_dismissed')
+    && !wizardOverlay.classList.contains('open')
+    && !settingsOverlay.classList.contains('open')
+    && location.pathname !== '/admin'
+  ) {
+    openWizard();
+  }
   const notes = (payload.notes||[]).map(n => '<div class="settings-note">' + esc(n) + '</div>').join('');
   setStatusHtml('Config: ' + esc(payload.config_path || 'runtime_config.yaml') + notes);
 }
@@ -1231,6 +1362,217 @@ function renderSetup(setup) {
   el.innerHTML = 'Setup pending:<ul style="margin:6px 0 0 18px; padding:0;">' +
     reasons.map(r => '<li>' + esc(r) + '</li>').join('') +
     '</ul>';
+}
+
+// ---- Setup wizard --------------------------------------------------------
+const wizardOverlay = document.getElementById('wizardOverlay');
+const WIZARD_PRESET_CONFIG = {
+  local:   { backend: 'openai_compatible', base_url: 'http://localhost:11434/v1', model: 'llama3.2',              label: 'Local (Ollama / LM Studio)', key_label: 'API Key (usually blank for local)', key_placeholder: 'Often blank' },
+  hosted:  { backend: 'provider',          base_url: 'https://api.openai.com/v1', model: 'gpt-4o-mini',           label: 'Hosted provider',            key_label: 'API Key (required)',                key_placeholder: 'sk-...' },
+  minimax: { backend: 'minimax',           base_url: 'https://api.minimax.io/v1', model: 'MiniMax-M2.7-highspeed', label: 'MiniMax (legacy)',           key_label: 'MiniMax API Key (required)',        key_placeholder: 'Paste MiniMax key' },
+  mock:    { backend: 'mock',              base_url: '',                          model: '',                       label: 'Mock (no LLM)',              key_label: '',                                   key_placeholder: '' },
+};
+let wizardStep = 1;
+let wizardPreset = null;
+let wizardSoulDraft = null;
+let wizardConfigSnapshot = null;
+
+function openWizard() {
+  wizardStep = 1;
+  wizardPreset = null;
+  wizardSoulDraft = null;
+  // Reset form state so reopening feels fresh, but keep captured config snapshot.
+  document.querySelectorAll('.wizard-preset').forEach(el => el.classList.remove('selected'));
+  document.getElementById('wizLLMFields').style.display = 'none';
+  ['wiz-llm_base_url','wiz-llm_model','wiz-llm_api_key','wiz-soul-description','wiz-soul-name','wiz-soul-identity'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  ['wiz-llm-result','wiz-soul-draft-result','wiz-soul-result'].forEach(id => { const e = document.getElementById(id); if (e) { e.style.display = 'none'; e.textContent = ''; } });
+  wizardSelectTab('describe');
+  wizardGoto(1);
+  wizardOverlay.classList.add('open');
+}
+
+function wizardDismiss() {
+  sessionStorage.setItem('nur_wizard_dismissed', '1');
+  wizardOverlay.classList.remove('open');
+}
+
+function wizardGoto(n) {
+  wizardStep = n;
+  for (let i = 1; i <= 4; i++) {
+    const p = document.getElementById('wizPanel-' + i);
+    if (p) p.style.display = (i === n) ? '' : 'none';
+    const stepEl = document.querySelector('.wizard-step[data-step="' + i + '"]');
+    if (stepEl) {
+      stepEl.classList.toggle('active', i === n);
+      stepEl.classList.toggle('done', i < n);
+    }
+  }
+  if (n === 4) wizardRenderSummary();
+}
+
+function wizardSelectPreset(preset) {
+  wizardPreset = preset;
+  document.querySelectorAll('.wizard-preset[data-preset]').forEach(el => {
+    el.classList.toggle('selected', el.dataset.preset === preset);
+  });
+  const cfg = WIZARD_PRESET_CONFIG[preset];
+  const fields = document.getElementById('wizLLMFields');
+  if (!cfg || preset === 'mock') {
+    fields.style.display = 'none';
+    return;
+  }
+  fields.style.display = '';
+  document.getElementById('wiz-llm_base_url').value = cfg.base_url;
+  document.getElementById('wiz-llm_model').value = cfg.model;
+  document.getElementById('wiz-llm_api_key').value = '';
+  document.getElementById('wiz-llm_api_key').placeholder = cfg.key_placeholder;
+  document.getElementById('wiz-llm_api_key_label').textContent = cfg.key_label;
+}
+
+function wizardSelectTab(tab) {
+  document.querySelectorAll('.wizard-tab').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
+  document.getElementById('wiz-tab-describe').style.display = tab === 'describe' ? '' : 'none';
+  document.getElementById('wiz-tab-manual').style.display = tab === 'manual' ? '' : 'none';
+}
+
+function wizardShowResult(id, cls, msg) {
+  const el = document.getElementById(id);
+  el.style.display = 'block';
+  el.className = 'admin-test-result' + (cls ? ' ' + cls : '');
+  el.textContent = msg;
+}
+
+async function wizardSaveLLM() {
+  if (!wizardPreset) {
+    wizardShowResult('wiz-llm-result', 'error', 'Pick a preset first.');
+    return;
+  }
+  wizardShowResult('wiz-llm-result', '', 'Saving configuration...');
+  try {
+    // Fetch current config so we can merge (POST /admin/config overwrites unspecified fields).
+    const cur = await authedFetch('/admin/config');
+    const curJson = await cur.json();
+    if (!cur.ok) throw new Error(curJson.detail || 'HTTP ' + cur.status);
+    wizardConfigSnapshot = curJson.config || {};
+    const cfg = WIZARD_PRESET_CONFIG[wizardPreset];
+    const apiKey = wizardPreset === 'mock' ? '' : gv('wiz-llm_api_key').trim();
+    const payload = Object.assign({}, wizardConfigSnapshot, {
+      llm_backend: cfg.backend,
+      llm_base_url: cfg.base_url === '' ? '' : gv('wiz-llm_base_url'),
+      llm_model: cfg.model === '' ? '' : gv('wiz-llm_model'),
+      llm_api_key: wizardPreset === 'minimax' ? '' : apiKey,
+      minimax_api_key: wizardPreset === 'minimax' ? apiKey : '',
+      telegram_token: '',
+      api_key: '',
+      clear_telegram_token: false,
+      clear_llm_api_key: wizardPreset === 'mock' || wizardPreset === 'minimax',
+      clear_minimax_api_key: wizardPreset !== 'minimax',
+      clear_api_key: false,
+    });
+    const res = await authedFetch('/admin/config', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
+    applySettings(data);
+    wizardShowResult('wiz-llm-result', 'ok', 'Saved. Continuing to identity...');
+    setTimeout(() => wizardGoto(3), 400);
+  } catch (err) {
+    wizardShowResult('wiz-llm-result', 'error', 'Save failed: ' + err.message);
+  }
+}
+
+async function wizardDraftSoul() {
+  const description = gv('wiz-soul-description').trim();
+  if (description.length < 8) {
+    wizardShowResult('wiz-soul-draft-result', 'error', 'Write at least a sentence describing the agent.');
+    return;
+  }
+  wizardShowResult('wiz-soul-draft-result', '', 'Asking the LLM to draft an identity... (may take several seconds)');
+  try {
+    const res = await authedFetch('/admin/soul/draft', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ description }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error((data && data.detail) || 'HTTP ' + res.status);
+    wizardSoulDraft = data.draft || {};
+    const name = wizardSoulDraft.name || '(no name)';
+    const identity = wizardSoulDraft.identity || '';
+    const voice = wizardSoulDraft.voice || '';
+    wizardShowResult('wiz-soul-draft-result', 'ok',
+      'Draft ready. Review and continue:\n\n' +
+      'Name: ' + name + '\n' +
+      (identity ? 'Identity: ' + identity + '\n' : '') +
+      (voice ? 'Voice: ' + voice : ''));
+  } catch (err) {
+    wizardShowResult('wiz-soul-draft-result', 'error', 'Draft failed: ' + err.message);
+  }
+}
+
+async function wizardSaveSoul() {
+  const activeTab = document.querySelector('.wizard-tab.active')?.dataset.tab || 'describe';
+  let payload;
+  if (activeTab === 'describe') {
+    if (!wizardSoulDraft || !wizardSoulDraft.name) {
+      wizardShowResult('wiz-soul-result', 'error', 'Generate a draft first, or switch to manual.');
+      return;
+    }
+    payload = wizardSoulDraft;
+  } else {
+    const name = gv('wiz-soul-name').trim();
+    if (!name) {
+      wizardShowResult('wiz-soul-result', 'error', 'Name is required.');
+      return;
+    }
+    payload = { name: name, identity: gv('wiz-soul-identity').trim() };
+  }
+  wizardShowResult('wiz-soul-result', '', 'Saving identity...');
+  try {
+    const res = await authedFetch('/admin/soul', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error((data && data.detail) || 'HTTP ' + res.status);
+    applyAgentName(payload.name);
+    wizardGoto(4);
+  } catch (err) {
+    wizardShowResult('wiz-soul-result', 'error', 'Save failed: ' + err.message);
+  }
+}
+
+function wizardRenderSummary() {
+  const el = document.getElementById('wiz-summary');
+  const preset = wizardPreset ? WIZARD_PRESET_CONFIG[wizardPreset] : null;
+  const llmLine = preset ? preset.label : 'Not configured';
+  el.innerHTML =
+    '<div>Agent name: <strong>' + esc(agentName) + '</strong></div>' +
+    '<div>LLM backend: <strong>' + esc(llmLine) + '</strong></div>' +
+    (preset && preset.base_url ? '<div>Endpoint: <strong>' + esc(gv('wiz-llm_base_url') || preset.base_url) + '</strong></div>' : '') +
+    (preset && preset.model ? '<div>Model: <strong>' + esc(gv('wiz-llm_model') || preset.model) + '</strong></div>' : '');
+}
+
+async function wizardFinish() {
+  // Mark setup complete. Merge with current snapshot so we don't reset other fields.
+  try {
+    const cur = await authedFetch('/admin/config');
+    const curJson = await cur.json();
+    if (!cur.ok) throw new Error(curJson.detail || 'HTTP ' + cur.status);
+    const payload = Object.assign({}, curJson.config || {}, {
+      setup_completed: true,
+      telegram_token: '', llm_api_key: '', minimax_api_key: '', api_key: '',
+      clear_telegram_token: false, clear_llm_api_key: false,
+      clear_minimax_api_key: false, clear_api_key: false,
+    });
+    const res = await authedFetch('/admin/config', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
+    applySettings(data);
+    wizardOverlay.classList.remove('open');
+  } catch (err) {
+    wizardShowResult('wiz-llm-result', 'error', 'Could not mark setup complete: ' + err.message);
+  }
 }
 
 function setStatus(msg, err, ok) { setStatusHtml(esc(msg), err, ok); }
