@@ -7,7 +7,7 @@ from typing import Any
 
 import requests
 
-from core.llm_client import LLMClientFast
+from core.provider_client import FastChatCompletionsClient
 from core.dual_process.generator import LLMBackend, MockLLMBackend
 
 
@@ -95,7 +95,7 @@ def create_llm_backend(config=None) -> LLMBackend:
         )
 
     if backend_type == "minimax":
-        return LLMClientFast(
+        return FastChatCompletionsClient(
             api_key=effective_key or None,
             base_url=base_url or "https://api.minimax.io/v1",
             model=model or "MiniMax-M2.7-highspeed",
@@ -109,6 +109,6 @@ def create_llm_backend(config=None) -> LLMBackend:
         )
 
     if backend_type == "auto" and minimax_key:
-        return LLMClientFast(api_key=minimax_key or None)
+        return FastChatCompletionsClient(api_key=minimax_key or None)
 
     return MockLLMBackend()

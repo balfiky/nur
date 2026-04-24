@@ -15,7 +15,7 @@ import pytest
 
 from core.dual_process.generator import MockLLMBackend
 from runtime.config import RuntimeConfig
-from core.llm_client import LLMClientFast
+from core.provider_client import FastChatCompletionsClient
 from runtime.llm.backend import OpenAICompatibleLLMBackend, create_llm_backend
 
 
@@ -196,7 +196,7 @@ class TestBackendSelection:
         """Explicit MiniMax config returns the fast MiniMax client."""
         config = RuntimeConfig(llm_backend="minimax", minimax_api_key="sk-test")
         backend = create_llm_backend(config)
-        assert isinstance(backend, LLMClientFast)
+        assert isinstance(backend, FastChatCompletionsClient)
 
     def test_no_config_falls_back_to_env(self, monkeypatch):
         """Without config, uses MINIMAX_API_KEY env var."""

@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from core.dual_process.generator import LLMBackend, MockLLMBackend
-from core.llm_client import LLMClientFast
+from core.provider_client import FastChatCompletionsClient
 from runtime.llm.backend import OpenAICompatibleLLMBackend
 
 
@@ -87,7 +87,7 @@ def build_backend_factory(spec: BackendSpec) -> Callable[[], LLMBackend]:
         model = spec.resolved_model
         base_url = spec.resolved_base_url
         api_key = spec.api_key
-        return lambda: LLMClientFast(api_key=api_key, base_url=base_url, model=model)
+        return lambda: FastChatCompletionsClient(api_key=api_key, base_url=base_url, model=model)
 
     if spec.type in {"provider", "openai_compat"}:
         if not spec.base_url:

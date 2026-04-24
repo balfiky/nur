@@ -134,10 +134,10 @@ python3 -m tests.run_journey_report
 
 ```python
 from pipeline import CognitivePipeline
-from core.llm_client import LLMClient
+from core.provider_client import ChatCompletionsClient
 
 # With real LLM
-client = LLMClient(api_key="your-key")
+client = ChatCompletionsClient(api_key="your-key")
 pipe = CognitivePipeline(llm_backend=client, db_path="nur.db")
 
 # Process messages
@@ -294,7 +294,8 @@ nur/
 |   |-- emotional_engine.py          # PSI modulator state machine (6 modulators, decay, energy, resolution)
 |   |-- contagion.py                 # Emotional contagion (LLM + rule-based fallback)
 |   |-- appraisal.py                 # Deterministic social appraisal (Phase 11)
-|   |-- llm_client.py                # Legacy MiniMax-specific client
+|   |-- provider_client.py           # Provider-neutral chat-completions client
+|   |-- llm_client.py                # Backward-compatible alias for older imports
 |   |-- anticipation.py              # Forward emotional modeling (v2, pure heuristics)
 |   |-- defense_mechanisms.py        # Defense filter (v2, pure logic + prompt injection)
 |   |-- memory/
@@ -328,7 +329,7 @@ nur/
 |   |-- test_pipeline.py             # 29 tests — full pipeline, event classification, LLM paths
 |   |-- test_config.py               # 36 tests — YAML loading, defaults, singleton
 |   |-- test_interface.py            # 20 tests — API endpoints + v2 debug fields
-|   |-- test_llm_client.py           # 11 tests — legacy MiniMax client, think-tag stripping
+|   |-- test_llm_client.py           # 11 tests — client compatibility aliases, think-tag stripping
 |   |-- test_calibration.py          # 27 tests — multi-session calibration scenarios
 |   |-- test_emotional_journey.py    # 12 tests — end-to-end emotional journey scenarios
 |   |-- test_resolution.py           # 19 tests — resolution modulator (v2)
@@ -753,7 +754,7 @@ All magic numbers live in YAML files. No hardcoded thresholds in module code. Th
 | test_config | 36 | YAML loading, defaults, prompt loading, singleton behavior |
 | test_interface | 27 | Legacy REST API endpoints, WebSocket, HTML serving, v2 debug fields, settings drawer |
 | test_interface_v1 | 26 | /v1 endpoints, bearer auth middleware, secret redaction, NurClient errors |
-| test_llm_client | 15 | Legacy MiniMax client, auth headers, think-tag stripping, session close |
+| test_llm_client | 15 | Client aliases, auth headers, think-tag stripping, session close |
 | test_web_provider | 8 | DDG parsing, fetch cap enforcement, session close, HTML-to-text |
 | test_calibration | 27 | Multi-session calibration scenarios |
 | test_emotional_journey | 12 | End-to-end emotional journey (10 scenarios) |
