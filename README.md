@@ -2,16 +2,18 @@
 
 ![Persistent cognitive state across turns](docs/diagrams/hero-banner.png)
 
-**An AI assistant that remembers how you made it feel.**
+**Nūr is an AI assistant with emotions that persist across conversations.**
 
-Nūr is a Python cognitive runtime that treats emotion, memory, and relationship context as *persistent state* — not a prompt-level style layer. Mood, uncertainty, bonding, unresolved loops, and self-observation carry across turns, decay over time, and shape later responses.
+Most LLM assistants can sound warm, hurt, careful, or attached for one reply, but the feeling resets on the next turn. Nūr experiments with a different idea: emotional state, memory, and relationship context should persist, decay, and shape future replies.
+
+Under the hood, Nūr is a Python cognitive runtime that treats emotion, memory, and relationship context as *persistent state* — not a prompt-level style layer. Mood, uncertainty, bonding, unresolved loops, and self-observation carry across turns, decay over time, and shape later responses.
 
 [![tests](https://img.shields.io/badge/tests-1383%20passing-brightgreen)](tests/)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
 [![version](https://img.shields.io/badge/version-0.26.1-informational)](CHANGELOG.md)
 
-> Open-source research/product prototype. Not a therapist, diagnosis tool, or claim of machine consciousness.
+> Open-source research/product prototype. It does not claim consciousness, real feelings, therapy, diagnosis, or psychological validity.
 
 ## What That Feels Like
 

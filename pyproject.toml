@@ -1,7 +1,7 @@
 [project]
 name = "project-nur"
 version = "0.26.1"
-description = "A hybrid cognitive architecture for AI assistants treating emotion as persistent internal state"
+description = "An AI assistant with emotions that persist across conversations"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [
