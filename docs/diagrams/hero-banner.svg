@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="520" viewBox="0 0 1600 520" role="img" aria-labelledby="title desc"><title id="title">State that persists between your turns</title><desc id="desc">Every turn reads and writes the same cognitive state. The assistant's stance toward you accumulates instead of resetting.</desc><defs><marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M1,1 L9,5 L1,9 Z" fill="#57606a"/></marker></defs><rect width="100%" height="100%" fill="#fafbfc"/><text x="48" y="52" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="28" font-weight="800" fill="#1f2328">State that persists between your turns</text><text x="48" y="78" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="400" fill="#57606a">Every turn reads and writes the same cognitive state. The assistant's stance toward you accumulates instead of resetting.</text><rect x="60" y="130" width="470" height="170" rx="10" fill="#dafbe1" stroke="#2da44e" stroke-width="1.5"/>
+<text x="295.0" y="153" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#116329">Mon</text>
+<text x="295.0" y="175" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="400" fill="#57606a">You: I shipped the feature!</text>
+<text x="295.0" y="193" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="400" fill="#57606a"></text>
+<text x="295.0" y="211" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="400" fill="#57606a">Nūr: That's great — how did it land?</text>
+<text x="295.0" y="229" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="400" fill="#57606a"></text>
+<text x="295.0" y="247" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="400" fill="#57606a">write memory</text>
+<rect x="560" y="130" width="470" height="170" rx="10" fill="#fff8c5" stroke="#bf8700" stroke-width="1.5"/>
+<text x="795.0" y="153" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#633c01">Wed</text>
+<text x="795.0" y="175" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="400" fill="#57606a">You: Rollback was rough.</text>
+<text x="795.0" y="193" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="400" fill="#57606a"></text>
+<text x="795.0" y="211" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="400" fill="#57606a">Nūr: I remember Monday went well — what flipped?</text>
+<text x="795.0" y="229" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="400" fill="#57606a"></text>
+<text x="795.0" y="247" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="400" fill="#57606a">retrieves Mon · opens loop</text>
+<rect x="1060" y="130" width="470" height="170" rx="10" fill="#dafbe1" stroke="#2da44e" stroke-width="1.5"/>
+<text x="1295.0" y="153" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#116329">Fri</text>
+<text x="1295.0" y="175" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="400" fill="#57606a">You: Fixed it, feeling better.</text>
+<text x="1295.0" y="193" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="400" fill="#57606a"></text>
+<text x="1295.0" y="211" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="400" fill="#57606a">Nūr: Good. Want to unpack what broke?</text>
+<text x="1295.0" y="229" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="400" fill="#57606a"></text>
+<text x="1295.0" y="247" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="400" fill="#57606a">closes loop · trust += repair</text>
+<rect x="40" y="340" width="1520" height="110" rx="18" fill="none" stroke="#218bff" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
+<text x="56" y="362" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#0550ae">Persistent cognitive state</text>
+<rect x="40.0" y="390" width="160" height="34" rx="17.0" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
+<text x="120.0" y="411.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#0550ae">arousal</text>
+<rect x="210.0" y="390" width="160" height="34" rx="17.0" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
+<text x="290.0" y="411.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#0550ae">valence</text>
+<rect x="380.0" y="390" width="160" height="34" rx="17.0" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
+<text x="460.0" y="411.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#0550ae">certainty</text>
+<rect x="550.0" y="390" width="160" height="34" rx="17.0" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
+<text x="630.0" y="411.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#0550ae">bonding</text>
+<rect x="720.0" y="390" width="160" height="34" rx="17.0" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
+<text x="800.0" y="411.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#0550ae">energy</text>
+<rect x="890.0" y="390" width="160" height="34" rx="17.0" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
+<text x="970.0" y="411.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#0550ae">resolution</text>
+<rect x="1060.0" y="390" width="160" height="34" rx="17.0" fill="#eae6ff" stroke="#8250df" stroke-width="1.5"/>
+<text x="1140.0" y="411.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#5931ad">memory</text>
+<rect x="1230.0" y="390" width="160" height="34" rx="17.0" fill="#eae6ff" stroke="#8250df" stroke-width="1.5"/>
+<text x="1310.0" y="411.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#5931ad">relationship arc</text>
+<rect x="1400.0" y="390" width="160" height="34" rx="17.0" fill="#eae6ff" stroke="#8250df" stroke-width="1.5"/>
+<text x="1480.0" y="411.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#5931ad">self-model</text>
+<path d="M295.0,300 L295.0,338" fill="none" stroke="#57606a" stroke-width="1.75" marker-end="url(#arrowhead)"/>
+<path d="M795.0,300 L795.0,338" fill="none" stroke="#57606a" stroke-width="1.75" marker-end="url(#arrowhead)"/>
+<path d="M1295.0,300 L1295.0,338" fill="none" stroke="#57606a" stroke-width="1.75" marker-end="url(#arrowhead)"/></svg>

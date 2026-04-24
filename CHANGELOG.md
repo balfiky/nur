@@ -55,6 +55,25 @@ All notable changes to Project Nur are documented here.
     pipeline.
   - **Component claim map**: 2×3 tile grid with status badges.
 
+### Landing Page
+- Rewrote `README.md` hero: hero banner diagram
+  (`docs/diagrams/hero-banner.png`) + visceral one-line hook ("An AI
+  assistant that remembers how you made it feel.") + status shields
+  (tests / MIT / Python 3.10+ / version) + concrete three-turn transcript
+  showing how state accumulates across Mon/Wed/Fri. Surfaced the
+  `pip install project-nur && nur-web` one-liner above the source-install
+  path. Kept the full architecture diagram under "Architecture at a
+  glance" for readers who scroll.
+- New `hero-banner` diagram: three turn cards (Mon/Wed/Fri) flowing into
+  a persistent cognitive-state band (arousal, valence, certainty,
+  bonding, energy, resolution, memory, relationship arc, self-model).
+  Registered in `tools/build_diagrams.py::BUILDERS` so it regenerates
+  alongside the architecture set.
+- Set GitHub repo description and topic tags (`ai`, `llm`, `ai-agent`,
+  `conversational-ai`, `cognitive-architecture`, `emotional-ai`,
+  `python`, `fastapi`, `chatbot`, `memory`, `open-source`, `psychology`)
+  so the project surfaces in relevant searches and topic pages.
+
 ---
 
 ## v0.26.1 — 2026-04-24 (Production smoke hardening)

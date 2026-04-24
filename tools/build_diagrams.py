@@ -742,6 +742,72 @@ def build_component_claim_map() -> Canvas:
 
 
 # ---------------------------------------------------------------------------
+# 7. Hero banner — "state that persists between your turns"
+# ---------------------------------------------------------------------------
+
+
+def build_hero_banner() -> Canvas:
+    c = Canvas(
+        width=1600, height=520,
+        title="State that persists between your turns",
+        subtitle=(
+            "Every turn reads and writes the same cognitive state. "
+            "The assistant's stance toward you accumulates instead of "
+            "resetting."
+        ),
+    )
+
+    # Three turn cards across the top row.
+    turns = [
+        ("Mon", "You: I shipped the feature!",
+         "Nūr: That's great — how did it land?",
+         "write memory", "client"),
+        ("Wed", "You: Rollback was rough.",
+         "Nūr: I remember Monday went well — what flipped?",
+         "retrieves Mon · opens loop", "attention"),
+        ("Fri", "You: Fixed it, feeling better.",
+         "Nūr: Good. Want to unpack what broke?",
+         "closes loop · trust += repair", "client"),
+    ]
+    card_w, card_h = 470, 170
+    for i, (day, u, n, tag, color) in enumerate(turns):
+        x = 60 + i * (card_w + 30)
+        y = 130
+        c.tile(x, y, card_w, card_h, day, body=[u, "", n, "", tag],
+               color=color, title_size=14, body_size=13)
+
+    # The persistent-state band beneath.
+    band_y = 340
+    c.group(40, band_y, 1520, 110, "Persistent cognitive state",
+            color="process")
+    pills = [
+        ("arousal", "process"),
+        ("valence", "process"),
+        ("certainty", "process"),
+        ("bonding", "process"),
+        ("energy", "process"),
+        ("resolution", "process"),
+        ("memory", "storage"),
+        ("relationship arc", "storage"),
+        ("self-model", "storage"),
+    ]
+    pill_w, pill_h = 160, 34
+    gap = 10
+    total_w = len(pills) * pill_w + (len(pills) - 1) * gap
+    start_x = 40 + (1520 - total_w) / 2
+    for i, (label, color) in enumerate(pills):
+        c.pill(start_x + i * (pill_w + gap), band_y + 50, pill_w, pill_h,
+               label, color=color)
+
+    # Descending arrows from each card into the state band.
+    for i in range(3):
+        cx = 60 + i * (card_w + 30) + card_w / 2
+        c.arrow((cx, 300), (cx, band_y - 2))
+
+    return c
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
@@ -752,4 +818,5 @@ BUILDERS = {
     "auth-tool-safety-boundary": build_auth_tool_safety,
     "evaluation-ablation-harness": build_evaluation_harness,
     "component-claim-map": build_component_claim_map,
+    "hero-banner": build_hero_banner,
 }
