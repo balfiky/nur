@@ -1018,8 +1018,11 @@ def _config_payload(
     reloaded_web_manager: bool = False,
 ) -> dict:
     """Serialize runtime config for the settings UI."""
+    public = config.to_public_dict()
+    state = _read_admin_state(config)
+    public["setup_completed"] = bool(state.get("setup_completed"))
     return {
-        "config": config.to_public_dict(),
+        "config": public,
         "secret_status": config.secret_status(),
         "config_path": os.path.abspath(RUNTIME_CONFIG_PATH),
         "saved": saved,
@@ -1115,12 +1118,25 @@ def _admin_config_payload(
     }
 
 
+def _read_soul_name() -> str:
+    """Return the agent name from soul.yaml without going through the async config."""
+    try:
+        import yaml as _yaml
+        path = _soul_yaml_path()
+        with open(path, encoding="utf-8") as f:
+            data = _yaml.safe_load(f) or {}
+        return (data.get("soul") or {}).get("name") or "Nūr"
+    except Exception:
+        return "Nūr"
+
+
 def _admin_status_payload(config: RuntimeConfig, manager: SessionManager) -> dict:
     """Operator-facing status summary used by the admin overview."""
     return {
         "status": "ok",
         "config_path": os.path.abspath(RUNTIME_CONFIG_PATH),
         "auth_enabled": bool(config.api_key),
+        "soul_name": _read_soul_name(),
         "llm_backend": config.llm_backend,
         "llm_configured": _llm_configured(config),
         "telegram_configured": bool(config.telegram_token),
@@ -1350,14 +1366,13 @@ def _write_soul_yaml(data: dict, path: str) -> None:
 def _llm_configured_for_draft(config: RuntimeConfig) -> bool:
     """True when the configured LLM is callable for draft generation.
 
-    Mock is allowed because it's a deterministic path that lets the admin
-    UI be exercised end-to-end in offline mode (mock will not return
-    schema-valid JSON, but the error path is the same and the UI can
-    handle it).
+    Mock backend cannot produce a valid soul draft — MockLLMBackend
+    returns a static string, not JSON. Return False so the endpoint
+    gives a clean 400 instead of a confusing 502.
     """
     backend = config.llm_backend
     if backend == "mock":
-        return True
+        return False
     if backend in {"provider", "openai_compatible"}:
         return bool(config.llm_base_url.strip() and config.llm_model.strip())
     if backend == "minimax":

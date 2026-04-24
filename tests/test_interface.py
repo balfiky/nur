@@ -564,7 +564,7 @@ class TestAdminSoulDraft:
 
         runtime_cfg_path = tmp_path / "runtime_config.yaml"
         monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(runtime_cfg_path))
-        RuntimeConfig(llm_backend="mock").write_yaml(str(runtime_cfg_path))
+        RuntimeConfig(llm_backend="provider", llm_base_url="http://fake.local/v1", llm_model="test-model").write_yaml(str(runtime_cfg_path))
 
         import json as _json
         fake_json = _json.dumps({
@@ -604,7 +604,7 @@ class TestAdminSoulDraft:
 
         runtime_cfg_path = tmp_path / "runtime_config.yaml"
         monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(runtime_cfg_path))
-        RuntimeConfig(llm_backend="mock").write_yaml(str(runtime_cfg_path))
+        RuntimeConfig(llm_backend="provider", llm_base_url="http://fake.local/v1", llm_model="test-model").write_yaml(str(runtime_cfg_path))
 
         class _JunkBackend:
             def generate(self, system, user):
@@ -625,7 +625,7 @@ class TestAdminSoulDraft:
 
         runtime_cfg_path = tmp_path / "runtime_config.yaml"
         monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(runtime_cfg_path))
-        RuntimeConfig(llm_backend="mock").write_yaml(str(runtime_cfg_path))
+        RuntimeConfig(llm_backend="provider", llm_base_url="http://fake.local/v1", llm_model="test-model").write_yaml(str(runtime_cfg_path))
 
         class _OutOfRangeBackend:
             def generate(self, system, user):
