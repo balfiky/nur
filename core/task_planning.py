@@ -83,17 +83,7 @@ _STEP_PATTERNS: list[tuple[re.Pattern, str, str]] = [
     (re.compile(r"\b(?:run|execute|issue|check|show)\s+(?:the\s+)?(?:command\s+)?(hostname|uname(?:\s+-a)?)\b", re.I), "shell.run_command", "cmd_capture"),
     (re.compile(r"^\s*(uname(?:\s+-a)?)\s*$", re.I), "shell.run_command", "cmd_capture"),
     (re.compile(r"\bcat\s+(/etc/hostname)\b", re.I), "shell.run_command", "cmd_cat_path"),
-    (
-        re.compile(
-            r"\b(?:how\s+much|what(?:'s|\s+is)|show|check|get|give|tell(?:\s+me)?)"
-            r"\b.{0,100}\b(?:hard\s*disk|hard\s*drive|disk|drive|filesystem|storage)"
-            r"\b.{0,100}\b(?:space|usage|utili[sz]ation|utilzation|used|free|left|"
-            r"available|capacity)\b",
-            re.I,
-        ),
-        "shell.run_command",
-        "cmd_disk_root",
-    ),
+    (re.compile(r"\b(?:how\s+much|what(?:'s|\s+is)|show|check|get|tell(?:\s+me)?)\b.{0,80}\b(?:disk|drive|filesystem|storage)\b.{0,80}\b(?:space|usage|free|left|available)\b", re.I), "shell.run_command", "cmd_disk_root"),
     (re.compile(r"^\s*(df(?:\s+-h)?(?:\s+/)?)\s*$", re.I), "shell.run_command", "cmd_capture"),
     (re.compile(r"\brun\s+(?:the\s+)?(?:command\s+)?[`\"']([^`\"']+)[`\"']", re.I), "shell.run_command", "cmd"),
     (re.compile(r"\bexecute\s+[`\"']([^`\"']+)[`\"']", re.I), "shell.run_command", "cmd"),

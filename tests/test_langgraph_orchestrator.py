@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
 from langchain_core.messages import AIMessage
 
@@ -131,6 +133,89 @@ def test_hybrid_falls_back_to_heuristic_when_model_skips_tool() -> None:
     assert result.trace.loop_count == 1
     assert result.trace.executed_results[0].metadata["cmd"] == "df -h /"
     assert "Filesystem" in result.tool_context_summary
+
+
+def test_structured_router_handles_unseen_disk_phrasing() -> None:
+    model = FakeMessagesListChatModel(
+        responses=[
+            AIMessage(content="No tool needed."),
+            AIMessage(
+                content=json.dumps(
+                    {
+                        "tool_name": "shell.run_command",
+                        "arguments": {"cmd": "df -h /"},
+                        "confidence": 0.91,
+                        "rationale": "The user asks for live disk pressure.",
+                    }
+                )
+            ),
+        ]
+    )
+    runner = LangGraphToolRunner(
+        executor=_fake_shell_executor(),
+        base_url="http://localhost:8000/v1",
+        model="test",
+        fallback_to_heuristic=True,
+        chat_model=model,
+    )
+    engine = EmotionalEngine()
+
+    result = runner.run_tool_loop(
+        user_message="what is the root partition pressure on this box?",
+        state=engine.state,
+        person=None,
+        defense_active=False,
+        engine=engine,
+        autonomy_level="high_risk",
+    )
+
+    assert result.trace.loop_count == 1
+    assert result.trace.proposed_intents[0].reason == "The user asks for live disk pressure."
+    assert result.trace.executed_results[0].metadata["cmd"] == "df -h /"
+    assert "ran df -h /" in result.tool_context_summary
+
+
+def test_structured_router_uses_history_for_followup_reference() -> None:
+    model = FakeMessagesListChatModel(
+        responses=[
+            AIMessage(content="No tool needed."),
+            AIMessage(
+                content=json.dumps(
+                    {
+                        "tool_name": "shell.run_command",
+                        "arguments": {"cmd": "df -h /"},
+                        "confidence": 0.88,
+                        "rationale": "The current message refers to the prior disk request.",
+                    }
+                )
+            ),
+        ]
+    )
+    runner = LangGraphToolRunner(
+        executor=_fake_shell_executor(),
+        base_url="http://localhost:8000/v1",
+        model="test",
+        fallback_to_heuristic=True,
+        chat_model=model,
+    )
+    engine = EmotionalEngine()
+
+    result = runner.run_tool_loop(
+        user_message=(
+            "Recent conversation for tool routing:\n"
+            "User: what is the harddisk utilzation?\n"
+            "Assistant: Run df -h.\n"
+            "Current user message: no, execute it on your pc"
+        ),
+        state=engine.state,
+        person=None,
+        defense_active=False,
+        engine=engine,
+        autonomy_level="high_risk",
+    )
+
+    assert result.trace.loop_count == 1
+    assert result.trace.executed_results[0].metadata["cmd"] == "df -h /"
 
 
 def test_hybrid_falls_back_for_explicit_unquoted_shell_command() -> None:

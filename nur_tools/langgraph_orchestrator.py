@@ -7,6 +7,7 @@ LangGraph tool-calling graph when configured.
 
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
 
@@ -62,6 +63,34 @@ as hostname, df -h /, uname -a, or other precise read-only inspection commands.
 Do not claim cleanup, deletion, or state changes unless a tool call actually
 performed that action.
 """
+
+_STRUCTURED_ROUTER_SYSTEM_PROMPT = """You are Nūr's structured tool router.
+
+Return ONLY one JSON object:
+{"tool_name": string|null, "arguments": object, "confidence": number, "rationale": string}
+
+Choose a tool when the user is asking for external state, live/runtime facts,
+machine inspection, web results, filesystem inspection, browser/calendar work,
+or command execution. Do not answer those requests from memory.
+
+The user_message field may include recent conversation. Use that history only
+to resolve references like "it" or "that"; route the current user request.
+
+If a first-class tool can satisfy the request, choose it. Use shell.run_command
+for explicit shell commands or machine inspection that has no safer first-class
+tool. For shell.run_command, provide the exact command in {"cmd": "..."}.
+Use precise read-only commands for inspection unless the user explicitly asks
+for a state-changing command.
+
+Examples:
+- disk usage, storage fullness, drive capacity -> shell.run_command {"cmd": "df -h /"}
+- hostname, machine name, node name -> shell.run_command {"cmd": "hostname"}
+- current/latest web facts -> web.search {"query": "..."}
+
+If no tool is needed, return {"tool_name": null, "arguments": {}, "confidence": 0, "rationale": "no tool needed"}.
+"""
+
+_ROUTER_PARSE_FAILED = object()
 
 
 class LangGraphToolRunner:
@@ -201,6 +230,16 @@ class LangGraphToolRunner:
         proposed = self._extract_proposed_intents(output, action_vars)
         executed_results = list(self._last_results)
         if not executed_results and self._fallback_to_heuristic:
+            routed = self._run_structured_router(
+                user_message=user_message,
+                action_vars=action_vars,
+                trust=trust,
+                agency_decision=agency_decision,
+                autonomy_level=autonomy_level,
+                engine=engine,
+            )
+            if routed is not None:
+                return routed
             return self._run_heuristic(
                 user_message=user_message,
                 state=state,
@@ -269,12 +308,30 @@ class LangGraphToolRunner:
         agency_decision: AgencyDecision | None,
         autonomy_level: str,
     ) -> list[StructuredTool]:
-        tools: list[StructuredTool] = []
+        return [
+            self._to_langchain_tool(capability.name)
+            for capability in self._capabilities_allowed_by_policy(
+                action_vars=action_vars,
+                trust=trust,
+                agency_decision=agency_decision,
+                autonomy_level=autonomy_level,
+            )
+        ]
+
+    def _capabilities_allowed_by_policy(
+        self,
+        *,
+        action_vars: ActionVariables,
+        trust: float,
+        agency_decision: AgencyDecision | None,
+        autonomy_level: str,
+    ) -> list[Any]:
+        capabilities: list[Any] = []
         for capability in self._executor._registry.list_tools():
             intent = ToolIntent(
                 tool_name=capability.name,
                 arguments={},
-                reason="LangGraph tool availability policy",
+                reason="Tool availability policy",
                 expected_outcome="Allow model-native tool selection",
                 urgency=action_vars.action_urgency,
                 risk_tolerance=action_vars.risk_tolerance,
@@ -291,8 +348,8 @@ class LangGraphToolRunner:
                 autonomy_level=autonomy_level,
             )
             if decision.decision == "execute":
-                tools.append(self._to_langchain_tool(capability.name))
-        return tools
+                capabilities.append(capability)
+        return capabilities
 
     def _to_langchain_tool(self, original_name: str) -> StructuredTool:
         capability = self._executor._registry.get(original_name)
@@ -361,6 +418,140 @@ class LangGraphToolRunner:
                 )
         return intents
 
+    def _run_structured_router(
+        self,
+        *,
+        user_message: str,
+        action_vars: ActionVariables,
+        trust: float,
+        agency_decision: AgencyDecision | None,
+        autonomy_level: str,
+        engine: Any,
+    ) -> ToolLoopResult | None:
+        capabilities = self._capabilities_allowed_by_policy(
+            action_vars=action_vars,
+            trust=trust,
+            agency_decision=agency_decision,
+            autonomy_level=autonomy_level,
+        )
+        if not capabilities:
+            return ToolLoopResult(
+                trace=ToolTrace(),
+                action_variables=action_vars,
+                tool_context_summary="",
+            )
+
+        route = self._ask_structured_router(user_message, capabilities)
+        if route is _ROUTER_PARSE_FAILED:
+            return None
+        if route is None:
+            return ToolLoopResult(
+                trace=ToolTrace(),
+                action_variables=action_vars,
+                tool_context_summary="",
+            )
+
+        tool_name, arguments, confidence, rationale = route
+        capability = self._executor._registry.get(tool_name)
+        if capability is None:
+            return None
+
+        intent = ToolIntent(
+            tool_name=tool_name,
+            arguments=arguments,
+            reason=rationale or "Structured router selected tool",
+            expected_outcome=f"Execute {tool_name}",
+            urgency=action_vars.action_urgency,
+            risk_tolerance=action_vars.risk_tolerance,
+            autonomy_bias=action_vars.autonomy_bias,
+            clarification_threshold=action_vars.clarification_threshold,
+            persistence_drive=action_vars.persistence_drive,
+            confidence=confidence,
+        )
+        decision = make_tool_decision(
+            intent,
+            action_vars,
+            capability.category,
+            trust,
+            agency_decision=agency_decision,
+            autonomy_level=autonomy_level,
+        )
+        if decision.decision != "execute":
+            return ToolLoopResult(
+                trace=ToolTrace(
+                    proposed_intents=[intent],
+                    final_decision=decision,
+                    loop_count=0,
+                ),
+                action_variables=action_vars,
+                tool_context_summary="",
+            )
+
+        result = self._executor.execute(tool_name, arguments)
+        observation = self._appraise_and_apply(result, engine)
+        return ToolLoopResult(
+            trace=ToolTrace(
+                proposed_intents=[intent],
+                final_decision=decision,
+                executed_results=[result],
+                observations=[observation],
+                loop_count=1,
+            ),
+            action_variables=action_vars,
+            tool_context_summary=_summarize_for_generator([observation], [result]),
+        )
+
+    def _ask_structured_router(
+        self,
+        user_message: str,
+        capabilities: list[Any],
+    ) -> (
+        tuple[str, dict[str, Any], float, str]
+        | None
+        | object
+    ):
+        tools_payload = [
+            {
+                "name": capability.name,
+                "description": capability.description,
+                "category": capability.category.value,
+                "arguments": capability.arg_schema,
+            }
+            for capability in capabilities
+        ]
+        payload = {
+            "user_message": user_message,
+            "available_tools": tools_payload,
+        }
+        try:
+            response = self._base_model.invoke(
+                [
+                    SystemMessage(content=_STRUCTURED_ROUTER_SYSTEM_PROMPT),
+                    HumanMessage(content=json.dumps(payload, ensure_ascii=False)),
+                ]
+            )
+        except Exception:
+            return _ROUTER_PARSE_FAILED
+
+        data = _parse_router_json(_message_text(response))
+        if data is None:
+            return _ROUTER_PARSE_FAILED
+
+        tool_name_raw = data.get("tool_name")
+        if tool_name_raw is None:
+            return None
+        tool_name = str(tool_name_raw).strip()
+        allowed = {capability.name for capability in capabilities}
+        if tool_name not in allowed:
+            return _ROUTER_PARSE_FAILED
+
+        arguments_raw = data.get("arguments", {})
+        if not isinstance(arguments_raw, dict):
+            return _ROUTER_PARSE_FAILED
+        confidence = _coerce_confidence(data.get("confidence"))
+        rationale = str(data.get("rationale") or "Structured router selected tool")
+        return tool_name, dict(arguments_raw), confidence, rationale
+
     def _appraise_and_apply(self, result: ToolResult, engine: Any) -> ToolObservation:
         capability = self._executor._registry.get(result.tool_name)
         category = capability.category if capability else ToolCategory.READ_ONLY
@@ -399,3 +590,44 @@ def _schema_type(value: str | None) -> type[Any]:
     if value == "array":
         return list
     return str
+
+
+def _message_text(message: Any) -> str:
+    content = getattr(message, "content", message)
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict) and isinstance(item.get("text"), str):
+                parts.append(item["text"])
+            elif isinstance(item, dict) and isinstance(item.get("content"), str):
+                parts.append(item["content"])
+        return "\n".join(parts)
+    return str(content or "")
+
+
+def _parse_router_json(text: str) -> dict[str, Any] | None:
+    candidate = text.strip()
+    if candidate.startswith("```"):
+        candidate = re.sub(r"^```(?:json)?\s*", "", candidate, flags=re.I)
+        candidate = re.sub(r"\s*```$", "", candidate)
+    if not candidate.startswith("{"):
+        match = re.search(r"\{.*\}", candidate, flags=re.S)
+        if match:
+            candidate = match.group(0)
+    try:
+        data = json.loads(candidate)
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _coerce_confidence(value: Any) -> float:
+    try:
+        confidence = float(value)
+    except (TypeError, ValueError):
+        return 0.5
+    return max(0.0, min(1.0, confidence))

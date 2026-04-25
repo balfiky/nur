@@ -114,10 +114,8 @@ _TOOL_FOLLOWUP_COMMAND_RE = re.compile(
     r"\b(?:issue|run|execute|use)\s+(?:the\s+)?"
     r"(?:needed|required|necessary|right)\s+command\b"
     r"|^\s*(?:go|do\s+it|run\s+it|check\s+again|try\s+again|"
-    r"execute\s+it(?:\s+on\s+(?:your|the)\s+(?:pc|machine|linux\s+machine|server))?|"
     r"now\s+check\s+again|give\s+me\s+(?:the\s+)?output(?:\s+not\s+the\s+command)?|"
     r"give\s+me\s+(?:the\s+)?raw\s+output(?:\s+not\s+the\s+command)?|"
-    r"give\s+me\s+(?:your|the)\s+(?:hard\s*)?(?:disk\s+)?(?:utili[sz]ation|utilzation|usage)|"
     r"show\s+me\s+(?:the\s+)?output)\s*[.!?]*\s*$"
     r")",
     re.IGNORECASE,
@@ -125,8 +123,7 @@ _TOOL_FOLLOWUP_COMMAND_RE = re.compile(
 
 _TOOL_HISTORY_ACTION_HINT_RE = re.compile(
     r"\b(?:hostname|host\s*name|machine\s+name|uname|/etc/hostname|"
-    r"disk|hard\s*disk|hard\s*drive|drive|filesystem|storage|space|"
-    r"usage|utili[sz]ation|utilzation|df\s+-h|"
+    r"disk|drive|filesystem|storage|space|df\s+-h|"
     r"search|web|internet|fetch|read\s+file|list\s+files|"
     r"cat\s+/|grep|calendar|events?|"
     r"(?:run|execute|issue)\s+(?:the\s+)?(?:command\s+)?[A-Za-z0-9_./~+-]|"
@@ -234,6 +231,23 @@ def _message_for_tool_detection(
             if _TOOL_HISTORY_ACTION_HINT_RE.search(content):
                 return f"{content}\n{user_message}"
     return user_message
+
+
+def _message_for_model_tool_routing(
+    user_message: str,
+    conversation_history: list[dict[str, str]],
+) -> str:
+    """Attach recent turns so model-native routers can resolve follow-ups."""
+    if not conversation_history:
+        return user_message
+    lines = ["Recent conversation for tool routing:"]
+    for message in conversation_history[-8:]:
+        role = "User" if message.get("role") == "user" else "Assistant"
+        content = str(message.get("content") or "").strip()
+        if content:
+            lines.append(f"{role}: {content}")
+    lines.append(f"Current user message: {user_message}")
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -594,11 +608,11 @@ class CognitivePipeline:
         tool_context_summary = ""
         if self._tool_executor is not None:
             _ts_tool = time.perf_counter()
-            tool_user_message = _message_for_tool_detection(
-                user_message,
-                self._conversation_history,
-            )
             if self._tool_runner is not None:
+                tool_user_message = _message_for_model_tool_routing(
+                    user_message,
+                    self._conversation_history,
+                )
                 tool_loop_result = self._tool_runner.run_tool_loop(
                     user_message=tool_user_message,
                     state=self.engine.state,
@@ -610,6 +624,10 @@ class CognitivePipeline:
                     autonomy_level=self._autonomy_level,
                 )
             else:
+                tool_user_message = _message_for_tool_detection(
+                    user_message,
+                    self._conversation_history,
+                )
                 tool_loop_result = run_tool_loop(
                     user_message=tool_user_message,
                     state=self.engine.state,
