@@ -2,18 +2,19 @@
 
 ![Persistent cognitive state across turns](docs/diagrams/hero-banner.png)
 
-**Nūr is an AI assistant with emotions that persist across conversations.**
+**Nūr is an experimental AI assistant runtime with persistent emotional memory.**
 
 Most LLM assistants can sound warm, hurt, careful, or attached for one reply, but the feeling resets on the next turn. Nūr experiments with a different idea: emotional state, memory, and relationship context should persist, decay, and shape future replies.
 
-Under the hood, Nūr is a Python cognitive runtime that treats emotion, memory, and relationship context as *persistent state* — not a prompt-level style layer. Mood, uncertainty, bonding, unresolved loops, and self-observation carry across turns, decay over time, and shape later responses.
+Under the hood, Nūr is a Python cognitive runtime that treats emotion, memory, and relationship context as *persistent state* — not a prompt-level style layer. It does not give an AI real feelings; it gives an LLM a structured state layer for mood, trust, tension, repair, commitments, and relationship continuity.
 
-[![tests](https://img.shields.io/badge/tests-1383%20passing-brightgreen)](tests/)
+[![CI](https://github.com/balfiky/nur/actions/workflows/ci.yml/badge.svg)](https://github.com/balfiky/nur/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
 [![version](https://img.shields.io/badge/version-0.26.1-informational)](CHANGELOG.md)
 
 > Open-source research/product prototype. It does not claim consciousness, real feelings, therapy, diagnosis, or psychological validity.
+> Nūr persists relational and semantic memory under `data/`. Use it with consent when other people are involved, and see [PRIVACY.md](PRIVACY.md) for inspection, export, and deletion.
 
 ## What That Feels Like
 
@@ -129,7 +130,7 @@ Before exposing Nūr beyond localhost:
 ## Common Commands
 
 ```bash
-python3 -m pytest                                # full suite (1383 tests, ~45s)
+python3 -m pytest                                # full suite (1432 tests, ~50s)
 python3 -m pytest tests/test_interface.py -q     # focused interface tests
 python3 -m evals --backend mock --tag phase11    # offline behavioral eval pack
 python3 -m build --sdist --wheel                 # build wheel and sdist
@@ -149,4 +150,4 @@ docs/       Public docs, design docs, diagrams, research notes
 
 ## Current Status
 
-Version `0.26.1`. 1383 tests. Reproducible eval evidence is intentionally narrow: relationship memory is load-bearing under the current Phase 11 scenarios. The project does not yet claim human-likeness, therapeutic value, or psychological validity.
+Version `0.26.1`. 1432 tests. Reproducible eval evidence is intentionally narrow: relationship memory is load-bearing under the current Phase 11 scenarios. The project does not yet claim human-likeness, therapeutic value, or psychological validity.

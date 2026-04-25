@@ -553,7 +553,7 @@ is §6.
 
 The cognitive-layer source is roughly ten thousand lines of Python
 across thirty modules, plus a smaller runtime and interface layer. The
-test suite contains 1383 passing tests organized into focused suites
+test suite contains 1432 passing tests organized into focused suites
 covering the modulator engine, the dual memory, profiles, contagion,
 appraisal, dual-process deliberation, defense mechanisms, the pipeline
 integration, the runtime and session manager, channels, the `/v1` API,
@@ -1049,7 +1049,7 @@ summary at any commit from `a978477` onward produces the
 provenance-enriched format, and §6.6 describes the cross-reference
 readers should use until the tracked summary is re-run.
 
-Test coverage for the paper's infrastructure claims is 1383 passing
+Test coverage for the paper's infrastructure claims is 1432 passing
 tests, run with `python -m pytest`. Specific invariants — accurate
 LLM-call counting across self-check regeneration, strict feature-
 toggle no-injection contracts, and null-serialization of unmeasured

@@ -12,6 +12,9 @@ build/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.claude/
+output/
+qa-report/
 
 # Persisted user/session data — NEVER commit
 data/
