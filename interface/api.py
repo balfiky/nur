@@ -1011,14 +1011,42 @@ def index() -> HTMLResponse:
 
 @app.get("/admin")
 def admin_index() -> HTMLResponse:
-    return _index_response()
+    return _admin_response()
+
+
+@app.get("/admin/assets/{asset_name}", include_in_schema=False)
+def admin_asset(asset_name: str):
+    media_types = {
+        "admin.css": "text/css",
+        "admin.js": "application/javascript",
+    }
+    media_type = media_types.get(asset_name)
+    if media_type is None:
+        raise HTTPException(status_code=404, detail="Admin asset not found")
+    return _static_asset_response(asset_name, media_type)
 
 
 def _index_response() -> HTMLResponse:
     static_dir = os.path.join(os.path.dirname(__file__), "static")
     index_path = os.path.join(static_dir, "index.html")
-    with open(index_path) as f:
+    with open(index_path, encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
+
+
+def _admin_response() -> HTMLResponse:
+    static_dir = os.path.join(os.path.dirname(__file__), "static")
+    admin_path = os.path.join(static_dir, "admin.html")
+    with open(admin_path, encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+
+def _static_asset_response(filename: str, media_type: str):
+    from fastapi.responses import Response
+
+    static_dir = os.path.join(os.path.dirname(__file__), "static")
+    path = os.path.join(static_dir, filename)
+    with open(path, "rb") as f:
+        return Response(content=f.read(), media_type=media_type)
 
 
 def _session_key(user_id: str, chat_id: str) -> str:

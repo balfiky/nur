@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Project Nur full-page admin console for runtime, tools, memory, channels, and security operations.">
+<title>Nūr Admin</title>
+<link rel="stylesheet" href="/admin/assets/admin.css">
+</head>
+<body>
+<div class="admin-shell">
+  <aside class="sidebar" aria-label="Admin navigation">
+    <a class="brand" href="/">
+      <span class="brand-mark">N</span>
+      <span>
+        <strong>Nūr</strong>
+        <small>Admin Console</small>
+      </span>
+    </a>
+    <nav class="nav-list">
+      <button class="nav-item active" data-page="overview">Overview</button>
+      <button class="nav-item" data-page="runtime">Runtime</button>
+      <button class="nav-item" data-page="models">Models</button>
+      <button class="nav-item" data-page="tools">Tools</button>
+      <button class="nav-item" data-page="skills">Skills</button>
+      <button class="nav-item" data-page="identity">Identity</button>
+      <button class="nav-item" data-page="access">Access</button>
+      <button class="nav-item" data-page="channels">Channels</button>
+      <button class="nav-item" data-page="maintenance">Maintenance</button>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="/" class="text-link">Back to chat</a>
+      <button class="secondary full" id="refreshAllBtn">Refresh</button>
+    </div>
+  </aside>
+
+  <main class="workspace">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Operator Workspace</p>
+        <h1 id="pageTitle">Overview</h1>
+      </div>
+      <div class="topbar-actions">
+        <span class="status-pill" id="statusPill">Loading</span>
+        <button class="secondary" id="tokenBtn">API Token</button>
+        <button class="primary" id="saveBtn">Save Config</button>
+      </div>
+    </header>
+
+    <section class="page active" id="page-overview" aria-labelledby="overview-heading">
+      <div class="section-heading">
+        <div>
+          <h2 id="overview-heading">System Overview</h2>
+          <p>Health, safety warnings, and the important runtime state in one place.</p>
+        </div>
+      </div>
+      <div class="card-grid" id="overviewCards"></div>
+      <div class="panel">
+        <div class="panel-heading">
+          <h3>Warnings</h3>
+          <button class="secondary" data-action="open-page" data-page="access">Review Access</button>
+        </div>
+        <div id="warningsList" class="warning-list"></div>
+      </div>
+    </section>
+
+    <section class="page" id="page-runtime" aria-labelledby="runtime-heading">
+      <div class="section-heading">
+        <div>
+          <h2 id="runtime-heading">Runtime</h2>
+          <p>Storage, sessions, debug API, and proactive behavior.</p>
+        </div>
+      </div>
+      <form class="form-grid" id="runtimeForm"></form>
+    </section>
+
+    <section class="page" id="page-models" aria-labelledby="models-heading">
+      <div class="section-heading">
+        <div>
+          <h2 id="models-heading">Models</h2>
+          <p>LLM backend settings used by chat, Telegram, identity drafting, and native tool routing.</p>
+        </div>
+        <button class="secondary" id="testLlmBtn">Test LLM</button>
+      </div>
+      <form class="form-grid" id="modelsForm"></form>
+      <pre class="output" id="llmTestOutput" hidden></pre>
+    </section>
+
+    <section class="page" id="page-tools" aria-labelledby="tools-heading">
+      <div class="section-heading">
+        <div>
+          <h2 id="tools-heading">Tools</h2>
+          <p>Runtime gates for agentic tools. The detailed tool inventory is added in the next phase.</p>
+        </div>
+      </div>
+      <form class="form-grid" id="toolsForm"></form>
+      <div class="panel">
+        <div class="panel-heading">
+          <h3>Tool Inventory</h3>
+          <span class="muted">Phase 2</span>
+        </div>
+        <p class="empty-copy">This page will expand into the registered tool catalog, policy status, and safe test actions.</p>
+      </div>
+    </section>
+
+    <section class="page" id="page-skills" aria-labelledby="skills-heading">
+      <div class="section-heading">
+        <div>
+          <h2 id="skills-heading">Skills</h2>
+          <p>Import, audit, map, and enable external Agent Skills.</p>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-heading">
+          <h3>Import Pipeline</h3>
+          <span class="muted">Phase 3</span>
+        </div>
+        <p class="empty-copy">Skills will install disabled by default, receive a compatibility report, and only enter runtime prompts after review.</p>
+      </div>
+    </section>
+
+    <section class="page" id="page-identity" aria-labelledby="identity-heading">
+      <div class="section-heading">
+        <div>
+          <h2 id="identity-heading">Identity</h2>
+          <p>Edit the seed soul file that drives role labels, generation, self-check, and memory digestion.</p>
+        </div>
+        <button class="secondary" id="reloadSoulBtn">Reload Identity</button>
+      </div>
+      <form class="form-grid" id="identityForm"></form>
+      <div class="button-row">
+        <button class="primary" id="saveSoulBtn" type="button">Save Identity</button>
+      </div>
+      <pre class="output" id="soulOutput" hidden></pre>
+    </section>
+
+    <section class="page" id="page-access" aria-labelledby="access-heading">
+      <div class="section-heading">
+        <div>
+          <h2 id="access-heading">Access & Security</h2>
+          <p>API bearer auth, CORS, and exposure warnings.</p>
+        </div>
+      </div>
+      <form class="form-grid" id="accessForm"></form>
+      <div class="panel">
+        <div class="panel-heading">
+          <h3>Security Notes</h3>
+        </div>
+        <ul class="notes">
+          <li>Tools and shell should not be exposed without an API key.</li>
+          <li>Secret values are never returned by the API. Leave them blank to keep the saved value.</li>
+          <li>CORS should stay empty unless a separate trusted origin needs browser access.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="page" id="page-channels" aria-labelledby="channels-heading">
+      <div class="section-heading">
+        <div>
+          <h2 id="channels-heading">Channels</h2>
+          <p>Console and Telegram integration settings.</p>
+        </div>
+        <button class="secondary" id="testTelegramBtn">Test Telegram</button>
+      </div>
+      <form class="form-grid" id="channelsForm"></form>
+      <pre class="output" id="telegramTestOutput" hidden></pre>
+    </section>
+
+    <section class="page" id="page-maintenance" aria-labelledby="maintenance-heading">
+      <div class="section-heading">
+        <div>
+          <h2 id="maintenance-heading">Maintenance</h2>
+          <p>Storage checks, diagnostics, config export, and backups.</p>
+        </div>
+      </div>
+      <div class="action-grid">
+        <button class="secondary" id="testStorageBtn">Test Storage</button>
+        <button class="secondary" id="diagnosticsBtn">Diagnostics</button>
+        <button class="secondary" id="exportConfigBtn">Export Config</button>
+        <button class="secondary" id="backupBtn">Create Backup</button>
+      </div>
+      <pre class="output" id="maintenanceOutput" hidden></pre>
+    </section>
+  </main>
+</div>
+
+<dialog id="tokenDialog" class="dialog">
+  <form method="dialog">
+    <h2>API Token</h2>
+    <p>Stored in this browser session and sent as a bearer token when configured on the server.</p>
+    <label class="field">
+      <span>Token</span>
+      <input id="apiTokenInput" type="password" autocomplete="off">
+    </label>
+    <div class="button-row end">
+      <button class="secondary" value="cancel">Cancel</button>
+      <button class="primary" id="saveTokenBtn" value="default">Save Token</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<script src="/admin/assets/admin.js"></script>
+</body>
+</html>
