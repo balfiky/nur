@@ -120,6 +120,12 @@ class TestDetectToolIntent:
         assert intent.tool_name == "shell.run_command"
         assert intent.arguments["cmd"] == "echo hello"
 
+    def test_unquoted_explicit_command_uses_shell(self):
+        intent = detect_tool_intent("do arbitrary-tool --flag", self._available())
+        assert intent is not None
+        assert intent.tool_name == "shell.run_command"
+        assert intent.arguments["cmd"] == "arbitrary-tool --flag"
+
     def test_hostname_question_uses_shell(self):
         intent = detect_tool_intent(
             "can you tell me the hostname of the machine you are running from?",
@@ -157,6 +163,17 @@ class TestDetectToolIntent:
         )
         assert "how much disk space left?" in msg
         assert "go" in msg
+
+    def test_raw_output_followup_reuses_previous_actionable_request(self):
+        msg = _message_for_tool_detection(
+            "give me raw output",
+            [
+                {"role": "user", "content": "check disk space now"},
+                {"role": "assistant", "content": "df -h /"},
+            ],
+        )
+        assert "check disk space now" in msg
+        assert "give me raw output" in msg
 
     def test_disk_space_question_uses_shell(self):
         intent = detect_tool_intent("how much disk space left?", self._available())
@@ -668,4 +685,4 @@ class TestGeneratorToolContext:
         prompt = build_system_prompt(ctx)
         assert "## Tool Execution Results" in prompt
         assert "fs.read_file: success" in prompt
-        assert "Do not echo raw output" in prompt
+        assert "If the user explicitly asks for raw output" in prompt

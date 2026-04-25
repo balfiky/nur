@@ -87,6 +87,16 @@ _STEP_PATTERNS: list[tuple[re.Pattern, str, str]] = [
     (re.compile(r"^\s*(df(?:\s+-h)?(?:\s+/)?)\s*$", re.I), "shell.run_command", "cmd_capture"),
     (re.compile(r"\brun\s+(?:the\s+)?(?:command\s+)?[`\"']([^`\"']+)[`\"']", re.I), "shell.run_command", "cmd"),
     (re.compile(r"\bexecute\s+[`\"']([^`\"']+)[`\"']", re.I), "shell.run_command", "cmd"),
+    (
+        re.compile(
+            r"\b(?:run|execute|issue)\s+(?:the\s+)?(?:command\s+)?"
+            r"([^\n`;&|]+)\s*$",
+            re.I,
+        ),
+        "shell.run_command",
+        "cmd_explicit",
+    ),
+    (re.compile(r"^\s*do\s+([^\n`;&|]+)\s*$", re.I), "shell.run_command", "cmd_explicit"),
     # Web
     (re.compile(r"\bsearch\s+(?:the\s+)?web\s+for\s+[\"']?([^\"']+?)[\"']?\s*$", re.I), "web.search", "query"),
     (re.compile(r"\b(?:latest|newest|recent)\b.{0,100}\b(?:news|updates?|release|version|price|prices|score|scores|results?)\b.*$", re.I), "web.search", "query_full"),
@@ -123,6 +133,9 @@ def _extract_step_args(
         return {"cmd": groups[0]}
     elif extractor == "cmd_capture":
         return {"cmd": groups[0]}
+    elif extractor == "cmd_explicit":
+        cmd = _clean_shell_command(groups[0])
+        return {"cmd": cmd} if cmd else None
     elif extractor == "cmd_cat_path":
         return {"cmd": f"cat {groups[0]}"}
     elif extractor == "query":
@@ -144,6 +157,49 @@ def _clean_search_query(text: str) -> str:
     query = query.strip("`\"' ")
     query = query.rstrip("?.! ")
     return query
+
+
+_NON_COMMAND_STARTS = {
+    "a",
+    "again",
+    "an",
+    "anything",
+    "here",
+    "it",
+    "me",
+    "my",
+    "necessary",
+    "needed",
+    "now",
+    "please",
+    "required",
+    "right",
+    "something",
+    "stuff",
+    "that",
+    "the",
+    "there",
+    "thing",
+    "this",
+    "us",
+    "we",
+    "you",
+    "your",
+}
+
+
+def _clean_shell_command(text: str) -> str | None:
+    """Normalize an explicitly requested shell command without inventing args."""
+    cmd = re.sub(r"\s+", " ", text).strip(" `\"'")
+    cmd = cmd.rstrip(".!")
+    if not cmd:
+        return None
+    first = cmd.split()[0].lower()
+    if first in _NON_COMMAND_STARTS or first.startswith("-"):
+        return None
+    if not re.match(r"^[A-Za-z0-9_./~+-][A-Za-z0-9_./~+@%=-]*$", first):
+        return None
+    return cmd
 
 
 def _parse_single_step(

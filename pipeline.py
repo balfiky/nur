@@ -115,6 +115,7 @@ _TOOL_FOLLOWUP_COMMAND_RE = re.compile(
     r"(?:needed|required|necessary|right)\s+command\b"
     r"|^\s*(?:go|do\s+it|run\s+it|check\s+again|try\s+again|"
     r"now\s+check\s+again|give\s+me\s+(?:the\s+)?output(?:\s+not\s+the\s+command)?|"
+    r"give\s+me\s+(?:the\s+)?raw\s+output(?:\s+not\s+the\s+command)?|"
     r"show\s+me\s+(?:the\s+)?output)\s*[.!?]*\s*$"
     r")",
     re.IGNORECASE,
@@ -124,7 +125,9 @@ _TOOL_HISTORY_ACTION_HINT_RE = re.compile(
     r"\b(?:hostname|host\s*name|machine\s+name|uname|/etc/hostname|"
     r"disk|drive|filesystem|storage|space|df\s+-h|"
     r"search|web|internet|fetch|read\s+file|list\s+files|"
-    r"cat\s+/|grep|calendar|events?)\b",
+    r"cat\s+/|grep|calendar|events?|"
+    r"(?:run|execute|issue)\s+(?:the\s+)?(?:command\s+)?[A-Za-z0-9_./~+-]|"
+    r"^\s*do\s+[A-Za-z0-9_./~+-])\b",
     re.IGNORECASE,
 )
 

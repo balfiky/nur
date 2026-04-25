@@ -284,7 +284,10 @@ def _build_tool_context_section(ctx: PipelineContext) -> str:
     lines.append(f"{ctx.tool_context_summary}")
     lines.append("")
     lines.append("Use the above results to inform your response.")
-    lines.append("Do not echo raw output verbatim — summarize and contextualize.")
+    lines.append(
+        "If the user explicitly asks for raw output, include the bounded output "
+        "shown above. Otherwise summarize and contextualize."
+    )
     lines.append("")
     return "\n".join(lines)
 
