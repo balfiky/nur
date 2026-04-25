@@ -218,6 +218,49 @@ def test_structured_router_uses_history_for_followup_reference() -> None:
     assert result.trace.executed_results[0].metadata["cmd"] == "df -h /"
 
 
+def test_structured_router_handles_confirmation_after_pending_tool_request() -> None:
+    model = FakeMessagesListChatModel(
+        responses=[
+            AIMessage(content="No tool needed."),
+            AIMessage(
+                content=json.dumps(
+                    {
+                        "tool_name": "shell.run_command",
+                        "arguments": {"cmd": "df -h /"},
+                        "confidence": 0.86,
+                        "rationale": "The current confirmation continues the disk-space request.",
+                    }
+                )
+            ),
+        ]
+    )
+    runner = LangGraphToolRunner(
+        executor=_fake_shell_executor(),
+        base_url="http://localhost:8000/v1",
+        model="test",
+        fallback_to_heuristic=True,
+        chat_model=model,
+    )
+    engine = EmotionalEngine()
+
+    result = runner.run_tool_loop(
+        user_message=(
+            "Recent conversation for tool routing:\n"
+            "User: great...give me your remaining disk space\n"
+            "Assistant: I'll get it. Hang on.\n"
+            "Current user message: yes of course"
+        ),
+        state=engine.state,
+        person=None,
+        defense_active=False,
+        engine=engine,
+        autonomy_level="high_risk",
+    )
+
+    assert result.trace.loop_count == 1
+    assert result.trace.executed_results[0].metadata["cmd"] == "df -h /"
+
+
 def test_hybrid_falls_back_for_explicit_unquoted_shell_command() -> None:
     model = FakeMessagesListChatModel(responses=[AIMessage(content="Done.")])
     runner = LangGraphToolRunner(

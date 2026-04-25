@@ -75,6 +75,9 @@ or command execution. Do not answer those requests from memory.
 
 The user_message field may include recent conversation. Use that history only
 to resolve references like "it" or "that"; route the current user request.
+If the current message is a short confirmation/correction after a previous
+actionable request, route the previous actionable request instead of returning
+no tool.
 
 If a first-class tool can satisfy the request, choose it. Use shell.run_command
 for explicit shell commands or machine inspection that has no safer first-class
@@ -523,19 +526,28 @@ class LangGraphToolRunner:
             "user_message": user_message,
             "available_tools": tools_payload,
         }
-        try:
-            response = self._base_model.invoke(
-                [
-                    SystemMessage(content=_STRUCTURED_ROUTER_SYSTEM_PROMPT),
-                    HumanMessage(content=json.dumps(payload, ensure_ascii=False)),
-                ]
-            )
-        except Exception:
-            return _ROUTER_PARSE_FAILED
+        messages = [
+            SystemMessage(content=_STRUCTURED_ROUTER_SYSTEM_PROMPT),
+            HumanMessage(content=json.dumps(payload, ensure_ascii=False)),
+        ]
 
-        data = _parse_router_json(_message_text(response))
+        data: dict[str, Any] | None = None
+        bind = getattr(self._base_model, "bind", None)
+        if callable(bind):
+            try:
+                response = bind(response_format={"type": "json_object"}).invoke(messages)
+                data = _parse_router_json(_message_text(response))
+            except Exception:
+                data = None
+
         if data is None:
-            return _ROUTER_PARSE_FAILED
+            try:
+                response = self._base_model.invoke(messages)
+            except Exception:
+                return _ROUTER_PARSE_FAILED
+            data = _parse_router_json(_message_text(response))
+            if data is None:
+                return _ROUTER_PARSE_FAILED
 
         tool_name_raw = data.get("tool_name")
         if tool_name_raw is None:

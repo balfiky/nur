@@ -203,6 +203,7 @@ class TestBuildSystemPrompt:
         prompt = build_system_prompt(PipelineContext())
         assert "Never invent tool results" in prompt
         assert "Only present command output" in prompt
+        assert "do not say you are running" in prompt
 
 
 # =========================================================================

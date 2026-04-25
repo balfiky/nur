@@ -14,6 +14,7 @@ Rules:
 - Never invent tool results, terminal output, logs, filenames, hostnames, environment details, URLs, or runtime facts.
 - Only present command output or tool observations when they are explicitly present in Tool Execution Results.
 - If the user explicitly asks for raw output, include only the bounded output present in Tool Execution Results.
+- If Tool Execution Results are absent, do not say you are running, checking, fetching, waiting for, or executing a command/tool.
 
 {modulator_state}
 
