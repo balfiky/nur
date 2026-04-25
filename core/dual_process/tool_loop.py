@@ -427,7 +427,13 @@ def _summarize_for_generator(observations: list[ToolObservation], results: list[
 
 
 def _format_result_output(result: ToolResult, limit: int = 1200) -> str:
-    if result.tool_name not in {"shell.run_command", "web.search"} or not result.output:
+    if result.tool_name not in {
+        "shell.run_command",
+        "system.hostname",
+        "system.uname",
+        "system.disk_usage",
+        "web.search",
+    } or not result.output:
         return ""
     text = result.output.strip()
     if not text:

@@ -15,7 +15,7 @@ A normal assistant can sound warm for one reply. Nūr asks a different question:
 [![CI](https://github.com/balfiky/nur/actions/workflows/ci.yml/badge.svg)](https://github.com/balfiky/nur/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
-[![version](https://img.shields.io/badge/version-0.26.1-informational)](CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-0.26.2-informational)](CHANGELOG.md)
 
 > **Honest scope:** Nūr is a research/product prototype. It does not claim consciousness, sentience, real feelings, therapy, diagnosis, psychological validity, or proven human-likeness.
 > Nūr persists relational and semantic memory under `data/`. Use it with consent when other people are involved, and see [PRIVACY.md](PRIVACY.md) for inspection, export, and deletion.
@@ -190,4 +190,4 @@ docs/       Public docs, design docs, diagrams, research notes
 
 ## Current Status
 
-Version `0.26.1`. 1432 tests. Reproducible eval evidence is intentionally narrow: relationship memory is load-bearing under the current Phase 11 scenarios. The project does not yet claim human-likeness, therapeutic value, or psychological validity.
+Version `0.26.2`. 1464 tests. Reproducible eval evidence is intentionally narrow: relationship memory is load-bearing under the current Phase 11 scenarios. The project does not yet claim human-likeness, therapeutic value, or psychological validity.

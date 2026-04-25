@@ -351,8 +351,8 @@ class TestRegistryCoexistence:
         exe = ToolExecutor(reg)
         register_builtins(reg, exe)
         names = reg.names()
-        # Filesystem: 6, Shell: 1, Web: 3, Browser: 5, Calendar: 3 = 18
-        assert len(names) == 18
+        # System: 3, Filesystem: 6, Shell: 1, Web: 3, Browser: 5, Calendar: 3 = 21
+        assert len(names) == 21
 
     def test_expected_tool_names(self):
         reg = ToolRegistry()
@@ -360,6 +360,8 @@ class TestRegistryCoexistence:
         register_builtins(reg, exe)
         names = set(reg.names())
         # Spot check all categories
+        assert "system.hostname" in names
+        assert "system.disk_usage" in names
         assert "fs.read_file" in names
         assert "shell.run_command" in names
         assert "web.search" in names

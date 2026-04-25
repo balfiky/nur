@@ -385,16 +385,22 @@ class TestBuiltinRegistration:
         assert "fs.glob_paths" in names
         assert "fs.write_file" in names
         assert "fs.delete_path" in names
+        assert "system.hostname" in names
+        assert "system.uname" in names
+        assert "system.disk_usage" in names
         assert "shell.run_command" in names
         assert "web.search" in names
         assert "web.fetch" in names
 
     def test_total_builtin_count(self):
         reg, exe = _make_executor_with_builtins()
-        assert len(reg) == 18  # 6 fs + 1 shell + 3 web + 5 browser + 3 calendar
+        # 3 system + 6 fs + 1 shell + 3 web + 5 browser + 3 calendar
+        assert len(reg) == 21
 
     def test_categories_assigned(self):
         reg, _ = _make_executor_with_builtins()
+        assert reg.get("system.hostname").category == ToolCategory.READ_ONLY
+        assert reg.get("system.disk_usage").category == ToolCategory.READ_ONLY
         assert reg.get("fs.read_file").category == ToolCategory.READ_ONLY
         assert reg.get("fs.write_file").category == ToolCategory.WRITE
         assert reg.get("fs.delete_path").category == ToolCategory.DESTRUCTIVE

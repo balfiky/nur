@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from nur_tools.registry import ToolRegistry
 from nur_tools.executor import ToolExecutor
-from nur_tools.builtin import filesystem, shell, web_search
+from nur_tools.builtin import filesystem, shell, system_info, web_search
 from nur_tools.builtin import browser as browser_mod
 from nur_tools.builtin import calendar as calendar_mod
 from nur_tools.builtin.web_search import WebProvider
@@ -38,6 +38,12 @@ def register_builtins(
             True to preserve existing test wiring; production callers gate
             this on an explicit config flag.
     """
+    # System inspection
+    for cap in system_info.CAPABILITIES:
+        registry.register(cap)
+    for name, handler in system_info.HANDLERS.items():
+        executor.register_handler(name, handler)
+
     # Filesystem
     for cap in filesystem.CAPABILITIES:
         registry.register(cap)

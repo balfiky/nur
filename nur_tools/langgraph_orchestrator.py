@@ -586,7 +586,7 @@ def _pydantic_args_schema(tool_name: str, arg_schema: dict[str, Any]) -> type[An
             Field(default, description=str(spec.get("description", ""))),
         )
     if not fields:
-        fields["_unused"] = (str | None, Field(None, description="unused"))
+        fields["unused"] = (str | None, Field(None, description="unused"))
     return create_model(f"{tool_name}_Args", **fields)
 
 
