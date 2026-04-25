@@ -15,6 +15,7 @@ import tempfile
 import time
 
 import pytest
+import httpx
 
 from core.dual_process.generator import MockLLMBackend
 from runtime.channels.telegram import (
@@ -81,6 +82,23 @@ class MockTelegramClient:
         self.sent_typings.append({"chat_id": chat_id, "time": time.time()})
 
 
+class RejectingTelegramClient(MockTelegramClient):
+    """Raises a fixed Telegram HTTP error from getUpdates."""
+
+    def __init__(self, status_code: int) -> None:
+        super().__init__()
+        self.status_code = status_code
+        self.update_calls = 0
+
+    async def get_updates(
+        self, offset: int | None = None, timeout: int = 30,
+    ) -> list[dict]:
+        self.update_calls += 1
+        request = httpx.Request("GET", "https://api.telegram.org/botx/getUpdates")
+        response = httpx.Response(self.status_code, request=request)
+        raise httpx.HTTPStatusError("rejected", request=request, response=response)
+
+
 def _make_channel(
     tmpdir: str,
     client: MockTelegramClient | None = None,
@@ -139,6 +157,23 @@ class TestTelegramTokenShape:
         assert not is_telegram_token_pollable("bot123:abc")
         assert not is_telegram_token_pollable("123456:")
         assert not is_telegram_token_pollable("123 456:abc")
+
+
+class TestPollingFailures:
+    def test_auth_rejection_stops_polling(self):
+        """Invalid real-looking tokens should not flood logs forever."""
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                client = RejectingTelegramClient(status_code=401)
+                channel, manager, _ = _make_channel(tmpdir, client=client)
+                try:
+                    await channel.start()
+                    assert client.update_calls == 1
+                finally:
+                    await channel.stop()
+                    await manager.shutdown()
+
+        asyncio.run(run())
 
 
 # =========================================================================

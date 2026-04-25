@@ -168,6 +168,17 @@ class TelegramChannel:
                     await self.handle_update(update)
             except asyncio.CancelledError:
                 break
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code in {401, 403}:
+                    log.error(
+                        "Telegram polling stopped: bot token was rejected with HTTP %s",
+                        exc.response.status_code,
+                    )
+                    self._running = False
+                    break
+                if self._running:
+                    log.exception("Telegram polling error")
+                    await asyncio.sleep(1)
             except Exception:
                 if self._running:
                     log.exception("Telegram polling error")
