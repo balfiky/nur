@@ -1,50 +1,78 @@
 # Project Nūr
 
-![Persistent cognitive state across turns](docs/diagrams/hero-banner.png)
+![Nūr architecture: conversation, emotional state, memory, and response context](docs/diagrams/github-cover.png)
+
+> Most AI assistants remember what you said.
+>
+> **Nūr experiments with remembering what it meant between you.**
 
 **Nūr is an experimental AI assistant runtime with persistent emotional memory.**
 
-Most LLM assistants can sound warm, hurt, careful, or attached for one reply, but the feeling resets on the next turn. Nūr experiments with a different idea: emotional state, memory, and relationship context should persist, decay, and shape future replies.
+It does not give an AI real feelings. It gives an LLM a structured state layer for mood, trust, tension, repair, commitments, and relationship continuity, so the assistant does not have to start emotionally from zero every turn.
 
-Under the hood, Nūr is a Python cognitive runtime that treats emotion, memory, and relationship context as *persistent state* — not a prompt-level style layer. It does not give an AI real feelings; it gives an LLM a structured state layer for mood, trust, tension, repair, commitments, and relationship continuity.
+A normal assistant can sound warm for one reply. Nūr asks a different question: what if warmth, rupture, apology, hesitation, repair, and unfinished business were part of runtime state — inspectable, persistent, decaying, and testable?
 
 [![CI](https://github.com/balfiky/nur/actions/workflows/ci.yml/badge.svg)](https://github.com/balfiky/nur/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
 [![version](https://img.shields.io/badge/version-0.26.1-informational)](CHANGELOG.md)
 
-> Open-source research/product prototype. It does not claim consciousness, real feelings, therapy, diagnosis, or psychological validity.
+> **Honest scope:** Nūr is a research/product prototype. It does not claim consciousness, sentience, real feelings, therapy, diagnosis, psychological validity, or proven human-likeness.
 > Nūr persists relational and semantic memory under `data/`. Use it with consent when other people are involved, and see [PRIVACY.md](PRIVACY.md) for inspection, export, and deletion.
 
 ## What That Feels Like
 
 ```text
-Mon  You:  I shipped the feature!
-     Nūr:  That's great — how did it land?
-                                 # writes memory · valence += positive
+Day 1
+You:  You completely misunderstood me.
+Nūr:  You're right. I missed what mattered there.
+                                  # rupture recorded · trust drops · open loop created
 
-Wed  You:  The rollback was rough.
-     Nūr:  I remember Monday went well. What flipped?
-                                 # retrieves Mon · opens unresolved loop · bonding holds
+Day 3
+You:  I think I was too harsh earlier.
+Nūr:  I remember that moment. We don't have to ignore it.
+      Want to repair it properly?
+                                  # repair detected · loop begins to close
 
-Fri  You:  Fixed it. Feeling better.
-     Nūr:  Good. Want to unpack what actually broke?
-                                 # closes loop · records repair · trust accumulates
+Day 10
+You:  This feels easier now.
+Nūr:  It does. There was tension here before, and it softened.
+                                  # relationship arc persists across sessions
 ```
 
 The LLM writes language. Deterministic state, memory retrieval, and safety gates live *outside* the model — so the assistant's stance toward you accumulates instead of resetting.
 
-## Start Here
+## Why This Is Different
 
-| Need | Document |
-|---|---|
-| Product/concept overview | [docs/OVERVIEW.md](docs/OVERVIEW.md) |
-| Runtime architecture | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
-| Install, admin, deployment | [docs/DEPLOYMENT_AND_ADMIN.md](docs/DEPLOYMENT_AND_ADMIN.md) |
-| Security model | [SECURITY.md](SECURITY.md) |
-| Privacy and data deletion | [PRIVACY.md](PRIVACY.md) |
-| Release history | [CHANGELOG.md](CHANGELOG.md) |
-| Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) |
+Most assistant memory systems store facts:
+
+- your name
+- your preferences
+- things you asked before
+
+Nūr stores relational state:
+
+- what felt warm
+- what felt unresolved
+- what broke trust
+- what repaired it
+- what commitments remain open
+- how the assistant's stance should change after history
+
+The LLM still writes the words. Nūr changes the state those words come from.
+
+## Build With It
+
+Use Nūr if you want to experiment with:
+
+- emotionally persistent AI companions
+- long-running personal assistants
+- relationship-aware agent memory
+- inspectable affective state
+- rupture, repair, and commitment tracking
+- safer stateful tool use around LLMs
+
+It is alpha, imperfect, and intentionally honest about what it does not prove.
 
 ## Quickstart
 
@@ -71,6 +99,18 @@ python3 -m pip install -e ".[dev]"
 nur-web                    # web UI at :8000
 nur                        # console runtime
 ```
+
+## Start Here
+
+| Need | Document |
+|---|---|
+| Product/concept overview | [docs/OVERVIEW.md](docs/OVERVIEW.md) |
+| Runtime architecture | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| Install, admin, deployment | [docs/DEPLOYMENT_AND_ADMIN.md](docs/DEPLOYMENT_AND_ADMIN.md) |
+| Security model | [SECURITY.md](SECURITY.md) |
+| Privacy and data deletion | [PRIVACY.md](PRIVACY.md) |
+| Release history | [CHANGELOG.md](CHANGELOG.md) |
+| Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) |
 
 ## Configure An LLM
 
