@@ -3,6 +3,9 @@
 import pytest
 
 from core.types import (
+    AffectSignal,
+    AffectState,
+    AgencyDecision,
     ModulatorState,
     OpenLoop,
     PersonProfile,
@@ -170,6 +173,26 @@ class TestBuildSystemPrompt:
         )
         prompt = build_system_prompt(ctx)
         assert "blunt" in prompt.lower()
+
+    def test_includes_affect_and_agency(self):
+        ctx = PipelineContext(
+            affect_state=AffectState(
+                primary="anger",
+                signals=[AffectSignal("anger", 0.72, ["blame"])],
+            ),
+            agency_decision=AgencyDecision(
+                action="resist",
+                rationale="anger at low trust",
+                response_instruction="Set a boundary.",
+                tool_instruction="Require clarity before writes.",
+            ),
+            autonomy_level="assisted",
+        )
+        prompt = build_system_prompt(ctx)
+        assert "Affect and Agency" in prompt
+        assert "anger: 0.72" in prompt
+        assert "Agency stance: resist" in prompt
+        assert "Autonomy mode: assisted" in prompt
 
     def test_empty_context(self):
         ctx = PipelineContext()

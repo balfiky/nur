@@ -406,6 +406,81 @@ class ResponseStrategy(str, Enum):
 
 
 # ---------------------------------------------------------------------------
+# Derived affect and agency
+# ---------------------------------------------------------------------------
+
+@dataclass
+class AffectSignal:
+    """A derived emotion-like signal computed from state + appraisal.
+
+    These are not primary knobs. They are inspectable labels that explain how
+    the compact modulator state is currently landing as anger, hurt, caution,
+    attachment, etc.
+    """
+
+    name: str
+    intensity: float
+    evidence: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        self.intensity = max(0.0, min(1.0, self.intensity))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "intensity": self.intensity,
+            "evidence": list(self.evidence),
+        }
+
+
+@dataclass
+class AffectState:
+    """Derived affect summary for a turn."""
+
+    primary: str = "neutral"
+    signals: list[AffectSignal] = field(default_factory=list)
+
+    def signal(self, name: str) -> float:
+        for item in self.signals:
+            if item.name == name:
+                return item.intensity
+        return 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "primary": self.primary,
+            "signals": [signal.to_dict() for signal in self.signals],
+        }
+
+
+@dataclass
+class AgencyDecision:
+    """Turn-level willingness stance derived from affect and relationship.
+
+    action:
+      comply       — cooperate normally
+      resist       — cooperate with friction, sharper boundaries
+      refuse       — decline this turn/request
+      demand_repair — relationship needs repair before normal cooperation
+      slow_down    — insist on caution/clarification
+      disengage    — pull back; minimal response
+    """
+
+    action: Literal["comply", "resist", "refuse", "demand_repair", "slow_down", "disengage"] = "comply"
+    rationale: str = ""
+    response_instruction: str = ""
+    tool_instruction: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "action": self.action,
+            "rationale": self.rationale,
+            "response_instruction": self.response_instruction,
+            "tool_instruction": self.tool_instruction,
+        }
+
+
+# ---------------------------------------------------------------------------
 # Attachment (config, locked to secure in v1)
 # ---------------------------------------------------------------------------
 
@@ -441,6 +516,10 @@ class PipelineContext:
     defense_instruction: str = ""
     # Phase 11.3: response strategy hint for generator
     response_strategy: str = ""
+    # Derived affect and agency stance
+    affect_state: AffectState | None = None
+    agency_decision: AgencyDecision | None = None
+    autonomy_level: str = "autonomous"
     # Agentic tools: summarized tool execution context for generator
     tool_context_summary: str = ""
 

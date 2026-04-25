@@ -32,6 +32,8 @@ Rules:
 
 {behavioral_guidance}
 
+{affect_agency}
+
 {candidate_response}
 
 {tool_context}

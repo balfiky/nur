@@ -9,6 +9,7 @@ import pytest
 
 from core.types import (
     ActionVariables,
+    AgencyDecision,
     ModulatorState,
     PersonProfile,
     ToolCapability,
@@ -167,6 +168,44 @@ class TestMakeToolDecision:
                             clarification_threshold=0.5, action_urgency=0.3)
         d = make_tool_decision(self._intent("fs.write_file"), av, ToolCategory.WRITE, trust=0.5)
         assert d.decision == "execute"
+
+    def test_assisted_autonomy_clarifies_write(self):
+        av = ActionVariables(risk_tolerance=0.8, autonomy_bias=0.8,
+                            clarification_threshold=0.2, action_urgency=0.8)
+        d = make_tool_decision(
+            self._intent("fs.write_file"),
+            av,
+            ToolCategory.WRITE,
+            trust=0.8,
+            autonomy_level="assisted",
+        )
+        assert d.decision == "clarify"
+        assert "Assisted autonomy" in d.rationale
+
+    def test_high_risk_autonomy_executes_destructive_inside_tool_scope(self):
+        av = ActionVariables(risk_tolerance=0.1, autonomy_bias=0.1,
+                            clarification_threshold=1.0, action_urgency=0.1)
+        d = make_tool_decision(
+            self._intent("fs.delete_path"),
+            av,
+            ToolCategory.DESTRUCTIVE,
+            trust=0.1,
+            autonomy_level="high_risk",
+        )
+        assert d.decision == "execute"
+
+    def test_agency_refusal_blocks_tool_execution(self):
+        av = ActionVariables(risk_tolerance=0.9, autonomy_bias=0.9,
+                            clarification_threshold=0.1, action_urgency=0.9)
+        d = make_tool_decision(
+            self._intent("fs.read_file"),
+            av,
+            ToolCategory.READ_ONLY,
+            trust=0.5,
+            agency_decision=AgencyDecision(action="refuse", tool_instruction="No tools."),
+        )
+        assert d.decision == "refuse"
+        assert "Agency stance" in d.rationale
 
     def test_decision_includes_rationale(self):
         av = ActionVariables(risk_tolerance=0.2, autonomy_bias=0.5,

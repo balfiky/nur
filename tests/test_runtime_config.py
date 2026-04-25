@@ -42,6 +42,7 @@ class TestConfigFromYaml:
                     "llm_api_key: local-key\n"
                     "llm_backend: minimax\n"
                     "minimax_api_key: sk-test\n"
+                    "autonomy_level: high_risk\n"
                     "debug_host: 0.0.0.0\n"
                     "debug_port: 9999\n"
                 )
@@ -58,6 +59,7 @@ class TestConfigFromYaml:
             assert config.llm_api_key == "local-key"
             assert config.llm_backend == "minimax"
             assert config.minimax_api_key == "sk-test"
+            assert config.autonomy_level == "high_risk"
             assert config.debug_host == "0.0.0.0"
             assert config.debug_port == 9999
 
@@ -67,6 +69,7 @@ class TestConfigFromYaml:
         assert config.max_active_sessions == 10
         assert config.console_enabled is True
         assert config.llm_backend == "auto"
+        assert config.autonomy_level == "assisted"
 
     def test_empty_file_returns_defaults(self):
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -177,6 +177,32 @@ class TestPerUserDebug:
                 assert "defense_activation" in last_turn
                 assert "unresolved_count" in last_turn
                 assert "unresolved_items" in last_turn
+                assert "affect_state" in last_turn
+                assert "agency_decision" in last_turn
+                assert "autonomy_level" in last_turn
+            finally:
+                await manager.shutdown()
+
+    async def test_debug_serializes_affect_agency(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager, app = _setup(tmpdir, autonomy_level="assisted")
+            try:
+                await _send(manager, "I hate you because you are too slow", user_id="user")
+
+                session_debug = _endpoint(app, "/sessions/{session_key}/debug", "GET")
+                last_turn = (await session_debug("console:user:direct"))["last_turn"]
+
+                assert last_turn["affect_state"]["primary"] in {"anger", "hurt", "rage"}
+                assert any(
+                    signal["name"] == "anger"
+                    for signal in last_turn["affect_state"]["signals"]
+                )
+                assert last_turn["agency_decision"]["action"] in {
+                    "resist",
+                    "refuse",
+                    "demand_repair",
+                }
+                assert last_turn["autonomy_level"] == "assisted"
             finally:
                 await manager.shutdown()
 

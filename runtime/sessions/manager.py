@@ -284,6 +284,7 @@ class SessionManager:
             db_path=self.config.user_db_path(rel_key),
             self_db_path=self.config.shared_db_path,
             tool_executor=tool_executor,
+            autonomy_level=self.config.autonomy_level,
         )
 
         # Restore per-session engine state from disk if present. Fall back to the

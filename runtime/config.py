@@ -64,6 +64,9 @@ class RuntimeConfig:
     # operations (fs.delete_path, shell.run_command, etc.), and the default
     # HTTP surface does not authenticate every request. Opt in explicitly.
     tools_enabled: bool = False
+    # How independently the assistant may act once tools are enabled:
+    # off | assisted | autonomous | high_risk
+    autonomy_level: str = "assisted"
     # Workspace root for filesystem tools when enabled. Empty string means
     # "<data_dir>/workspace". Filesystem tool calls that resolve outside this
     # root are refused.

@@ -76,6 +76,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
     tool_section = _build_tool_context_section(ctx)
     defense_section = _build_defense_instruction_section(ctx)
     strategy_section = _build_strategy_section(ctx)
+    affect_section = _build_affect_agency_section(ctx)
 
     agent_name = ctx.soul_profile.name if ctx.soul_profile else get_config().soul.name
 
@@ -98,9 +99,12 @@ def build_system_prompt(ctx: PipelineContext) -> str:
         prompt = prompt.replace("{tool_context}", tool_section)
         prompt = prompt.replace("{defense_instruction}", defense_section)
         prompt = prompt.replace("{response_strategy}", strategy_section)
+        prompt = prompt.replace("{affect_agency}", affect_section)
         # Append strategy if placeholder was absent from template
         if strategy_section and "{response_strategy}" not in template:
             prompt = prompt.rstrip() + "\n\n" + strategy_section
+        if affect_section and "{affect_agency}" not in template:
+            prompt = prompt.rstrip() + "\n\n" + affect_section
         return prompt
 
     # Fallback: build in code (for backwards compatibility)
@@ -121,6 +125,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
 
     parts.append(candidate_section)
     parts.append(tool_section)
+    parts.append(affect_section)
     parts.append(strategy_section)
     parts.append(defense_section)
     return "\n".join(parts)
@@ -298,6 +303,29 @@ def _build_strategy_section(ctx: PipelineContext) -> str:
         return ""
     lines = ["## Response Strategy"]
     lines.append(f"{ctx.response_strategy}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _build_affect_agency_section(ctx: PipelineContext) -> str:
+    if not ctx.affect_state and not ctx.agency_decision:
+        return ""
+    lines = ["## Affect and Agency"]
+    if ctx.affect_state:
+        lines.append(f"- Primary affect: {ctx.affect_state.primary}")
+        for signal in ctx.affect_state.signals[:5]:
+            evidence = ", ".join(signal.evidence)
+            lines.append(f"- {signal.name}: {signal.intensity:.2f}" + (f" ({evidence})" if evidence else ""))
+    if ctx.agency_decision:
+        lines.append(f"- Agency stance: {ctx.agency_decision.action}")
+        if ctx.agency_decision.rationale:
+            lines.append(f"- Rationale: {ctx.agency_decision.rationale}")
+        if ctx.agency_decision.response_instruction:
+            lines.append(f"- Response effect: {ctx.agency_decision.response_instruction}")
+        if ctx.agency_decision.tool_instruction:
+            lines.append(f"- Tool willingness: {ctx.agency_decision.tool_instruction}")
+    if ctx.autonomy_level:
+        lines.append(f"- Autonomy mode: {ctx.autonomy_level}")
     lines.append("")
     return "\n".join(lines)
 

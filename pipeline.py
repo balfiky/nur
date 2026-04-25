@@ -41,6 +41,8 @@ from typing import Any
 from config.loader import get_config
 from core.types import (
     ActionVariables,
+    AffectState,
+    AgencyDecision,
     AppraisalFrame,
     Anticipation,
     DefenseActivation,
@@ -62,6 +64,7 @@ from core.types import (
     ValueHierarchy,
 )
 from core.appraisal import appraise_message
+from core.affect import decide_agency, resolve_affect
 from core.strategy import select_strategy, STRATEGY_INSTRUCTIONS
 from core.emotional_engine import EmotionalEngine, SPIKE_INTENSITY_THRESHOLD
 from core.memory.short_term import ShortTermMemory
@@ -181,6 +184,11 @@ class DebugState:
     # Phase 11.3: Response strategy
     response_strategy: str = ""
 
+    # Derived affect and agency
+    affect_state: AffectState | None = None
+    agency_decision: AgencyDecision | None = None
+    autonomy_level: str = ""
+
     # Proactive behavior (Phase 8)
     proactive_trace: ProactiveTrace | None = None
 
@@ -213,6 +221,7 @@ class CognitivePipeline:
         db_path: str = ":memory:",
         self_db_path: str | None = None,
         tool_executor: Any | None = None,
+        autonomy_level: str = "autonomous",
         features: PipelineFeatures | None = None,
     ) -> None:
         """Create a cognitive pipeline.
@@ -227,6 +236,9 @@ class CognitivePipeline:
                           (single-DB mode, backward compatible).
             tool_executor: Optional ToolExecutor for agentic tool use.
                            When None, the tool loop is skipped entirely.
+            autonomy_level: Tool autonomy mode (off, assisted, autonomous,
+                            high_risk). Direct pipeline use defaults to
+                            autonomous for backwards compatibility.
             features: Feature toggles for ablation runs. Default (None)
                       enables every component. See ``PipelineFeatures``.
         """
@@ -298,6 +310,7 @@ class CognitivePipeline:
 
         # Agentic tools (Phase 2+)
         self._tool_executor = tool_executor
+        self._autonomy_level = autonomy_level
         # Session-scoped task plan (Phase 7)
         self._active_task_plan: TaskPlan | None = None
         # Proactive behavior tracking (Phase 8)
@@ -475,6 +488,20 @@ class CognitivePipeline:
         debug.unresolved_count = len(active_unresolved)
         debug.unresolved_items = list(active_unresolved)
 
+        # ---- Step 11b: Derived affect + agency (0 LLM calls) ----
+        _ts = time.perf_counter()
+        affect_state = resolve_affect(
+            text=user_message,
+            state=self.engine.state,
+            appraisal=appraisal,
+            person=person,
+        )
+        agency_decision = decide_agency(affect_state, appraisal, person)
+        debug.affect_state = affect_state
+        debug.agency_decision = agency_decision
+        debug.autonomy_level = self._autonomy_level
+        timings["affect_agency"] = (time.perf_counter() - _ts) * 1000
+
         # ---- Step 12: INNER DIALOGUE (0-5 LLM calls; 0 for calm) ----
         _ts = time.perf_counter()
         contagion_summary = (
@@ -534,6 +561,8 @@ class CognitivePipeline:
                 executor=self._tool_executor,
                 engine=self.engine,
                 active_plan=self._active_task_plan,
+                agency_decision=agency_decision,
+                autonomy_level=self._autonomy_level,
             )
             debug.tool_trace = tool_loop_result.trace
             debug.action_variables = tool_loop_result.action_variables
@@ -684,6 +713,9 @@ class CognitivePipeline:
             candidate_response=filtered_output,
             defense_instruction=defense_instruction,
             response_strategy=STRATEGY_INSTRUCTIONS.get(strategy, ""),
+            affect_state=affect_state,
+            agency_decision=agency_decision,
+            autonomy_level=self._autonomy_level,
             tool_context_summary=tool_context_summary,
         )
 
@@ -730,6 +762,10 @@ class CognitivePipeline:
                 candidate_response=correction_candidate,
                 defense_instruction=ctx.defense_instruction,
                 response_strategy=ctx.response_strategy,
+                affect_state=ctx.affect_state,
+                agency_decision=ctx.agency_decision,
+                autonomy_level=ctx.autonomy_level,
+                tool_context_summary=ctx.tool_context_summary,
             )
             gen_result = self.generator.generate(
                 correction_ctx,

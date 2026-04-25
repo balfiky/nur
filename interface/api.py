@@ -267,6 +267,7 @@ class ConfigUpdateRequest(BaseModel):
     # would silently reset ``tools_enabled`` / ``shell_tool_enabled`` /
     # ``tools_workspace`` to their safe defaults.
     tools_enabled: bool | None = None
+    autonomy_level: str | None = None
     tools_workspace: str | None = None
     shell_tool_enabled: bool | None = None
     clear_telegram_token: bool = False
@@ -543,6 +544,11 @@ async def update_config(req: ConfigUpdateRequest) -> dict:
         tools_enabled=(
             existing.tools_enabled if req.tools_enabled is None
             else bool(req.tools_enabled)
+        ),
+        autonomy_level=(
+            existing.autonomy_level
+            if req.autonomy_level is None
+            else _normalize_autonomy_level(req.autonomy_level)
         ),
         tools_workspace=(
             existing.tools_workspace if req.tools_workspace is None
@@ -1106,6 +1112,7 @@ _CONFIG_FIELD_SECTIONS = {
     "telegram_poll_timeout": "channels",
     "dedupe_ttl": "channels",
     "tools_enabled": "tools",
+    "autonomy_level": "tools",
     "tools_workspace": "tools",
     "shell_tool_enabled": "tools",
     "proactive_enabled": "runtime",
@@ -1132,6 +1139,7 @@ _SESSION_RELOAD_FIELDS = {
     "proactive_cooldown",
     "proactive_check_interval",
     "tools_enabled",
+    "autonomy_level",
     "tools_workspace",
     "shell_tool_enabled",
 }
@@ -1236,7 +1244,19 @@ def _admin_secret_status(config: RuntimeConfig) -> dict[str, dict]:
 def _allowed_values_for_field(field_name: str) -> list[str] | None:
     if field_name == "llm_backend":
         return ["auto", "provider", "openai_compatible", "minimax", "mock"]
+    if field_name == "autonomy_level":
+        return ["off", "assisted", "autonomous", "high_risk"]
     return None
+
+
+def _normalize_autonomy_level(value: str) -> str:
+    normalized = (value or "").strip().lower()
+    if normalized not in {"off", "assisted", "autonomous", "high_risk"}:
+        raise HTTPException(
+            status_code=400,
+            detail="autonomy_level must be one of: off, assisted, autonomous, high_risk",
+        )
+    return normalized
 
 
 def _admin_config_warnings(config: RuntimeConfig) -> list[dict]:
@@ -1267,6 +1287,8 @@ def _admin_config_warnings(config: RuntimeConfig) -> list[dict]:
         warnings.append(_warning("error", "shell_tool_enabled", "shell_without_tools", "shell_tool_enabled has no effect unless tools_enabled is true."))
     if config.shell_tool_enabled and not config.api_key:
         warnings.append(_warning("error", "shell_tool_enabled", "shell_without_auth", "Shell tool execution requires a protected admin/API surface."))
+    if config.autonomy_level == "high_risk":
+        warnings.append(_warning("warning", "autonomy_level", "high_risk_autonomy", "High-risk autonomy allows the assistant to act with fewer confirmations inside enabled tool scopes."))
     if config.cors_origins and not config.api_key:
         warnings.append(_warning("error", "cors_origins", "cors_without_auth", "CORS origins are configured while api_key is empty."))
     if config.debug_host not in {"127.0.0.1", "localhost", "::1"} and not config.api_key:

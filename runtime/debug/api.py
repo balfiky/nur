@@ -193,6 +193,17 @@ def _debug_to_dict(debug) -> dict:
 
     # Response strategy
     d["response_strategy"] = getattr(debug, "response_strategy", "") or ""
+    d["affect_state"] = (
+        debug.affect_state.to_dict()
+        if getattr(debug, "affect_state", None)
+        else None
+    )
+    d["agency_decision"] = (
+        debug.agency_decision.to_dict()
+        if getattr(debug, "agency_decision", None)
+        else None
+    )
+    d["autonomy_level"] = getattr(debug, "autonomy_level", "") or ""
 
     # Generation
     d["response"] = debug.response

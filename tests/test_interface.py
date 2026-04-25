@@ -272,6 +272,8 @@ class TestIndexPage:
         assert "/admin/sessions/reset" in html
         assert "/admin/users/delete" in html
         assert "Agentic Tools" in html
+        assert "cfg-autonomy_level" in html
+        assert "High-risk local" in html
         assert "Maintenance" in html
         assert "Delete User Data" in html
         assert "Mark first-run setup complete" in html
@@ -362,6 +364,7 @@ class TestConfigEndpoint:
         RuntimeConfig(
             llm_backend="mock",
             tools_enabled=True,
+            autonomy_level="high_risk",
             tools_workspace="/tmp/nur_ws",
             shell_tool_enabled=True,
         ).write_yaml(str(path))
@@ -371,6 +374,7 @@ class TestConfigEndpoint:
 
         saved = RuntimeConfig.from_yaml(str(path))
         assert saved.tools_enabled is True
+        assert saved.autonomy_level == "high_risk"
         assert saved.tools_workspace == "/tmp/nur_ws"
         assert saved.shell_tool_enabled is True
 
@@ -383,11 +387,13 @@ class TestConfigEndpoint:
         await update_config(ConfigUpdateRequest(
             llm_backend="mock",
             tools_enabled=True,
+            autonomy_level="autonomous",
             tools_workspace="/tmp/nur_ws2",
         ))
 
         saved = RuntimeConfig.from_yaml(str(path))
         assert saved.tools_enabled is True
+        assert saved.autonomy_level == "autonomous"
         assert saved.tools_workspace == "/tmp/nur_ws2"
         # shell_tool_enabled was not specified → remains default False.
         assert saved.shell_tool_enabled is False

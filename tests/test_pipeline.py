@@ -38,6 +38,14 @@ class TestCognitivePipeline:
         assert d.energy_after > 0
         assert d.emotion_label != ""
 
+    def test_debug_includes_affect_and_agency(self):
+        pipe = self._make_pipeline()
+        result = pipe.process("I hate you because you are too slow", user_id="alice")
+        assert result.debug.affect_state is not None
+        assert result.debug.affect_state.signal("anger") > 0
+        assert result.debug.agency_decision is not None
+        assert result.debug.agency_decision.action in {"resist", "refuse", "demand_repair"}
+
     def test_contagion_affects_state(self):
         pipe = self._make_pipeline()
         # Excited message should shift arousal/valence

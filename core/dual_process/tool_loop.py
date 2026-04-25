@@ -32,6 +32,7 @@ from core.task_planning import (
 from core.tool_appraisal import appraise_tool_result
 from core.types import (
     ActionVariables,
+    AgencyDecision,
     ModulatorState,
     PersonProfile,
     TaskPlan,
@@ -192,12 +193,73 @@ def make_tool_decision(
     action_vars: ActionVariables,
     category: ToolCategory,
     trust: float,
+    agency_decision: AgencyDecision | None = None,
+    autonomy_level: str = "autonomous",
 ) -> ToolDecision:
     """Decide whether to execute, clarify, defer, or refuse.
 
     Deterministic and testable. Driven by action variables,
     tool category, and trust level.
     """
+    normalized_autonomy = _normalize_autonomy_level(autonomy_level)
+    agency_action = agency_decision.action if agency_decision else "comply"
+
+    if normalized_autonomy == "off":
+        return ToolDecision(
+            decision="refuse",
+            intent=intent,
+            rationale="Autonomy mode is off; tools are not allowed",
+        )
+
+    if agency_action in {"refuse", "demand_repair", "disengage"}:
+        return ToolDecision(
+            decision="refuse",
+            intent=intent,
+            rationale=(
+                f"Agency stance is {agency_action}: "
+                f"{agency_decision.tool_instruction if agency_decision else ''}"
+            ).strip(),
+        )
+
+    if normalized_autonomy == "assisted" and category in (
+        ToolCategory.WRITE,
+        ToolCategory.DESTRUCTIVE,
+        ToolCategory.EXTERNAL_ACTION,
+    ):
+        return ToolDecision(
+            decision="clarify",
+            intent=intent,
+            rationale=f"Assisted autonomy requires confirmation for {category.value} action",
+        )
+
+    if agency_action == "slow_down" and category in (
+        ToolCategory.WRITE,
+        ToolCategory.DESTRUCTIVE,
+        ToolCategory.EXTERNAL_ACTION,
+    ):
+        return ToolDecision(
+            decision="clarify",
+            intent=intent,
+            rationale="Agency stance is slow_down; risky action needs confirmation",
+        )
+
+    if agency_action == "resist" and category in (
+        ToolCategory.WRITE,
+        ToolCategory.DESTRUCTIVE,
+    ):
+        return ToolDecision(
+            decision="clarify",
+            intent=intent,
+            rationale="Agency stance is resist; write/destructive action needs a clearer request",
+        )
+
+    if normalized_autonomy == "high_risk":
+        return ToolDecision(
+            decision="execute",
+            intent=intent,
+            rationale="High-risk autonomy approved within configured tool scope",
+        )
+
     # Refuse: destructive tool + low risk tolerance
     if category == ToolCategory.DESTRUCTIVE and action_vars.risk_tolerance < REFUSE_RISK_TOLERANCE:
         return ToolDecision(
@@ -237,6 +299,10 @@ def make_tool_decision(
         intent=intent,
         rationale="Action approved",
     )
+
+
+def _normalize_autonomy_level(value: str) -> str:
+    return value if value in {"off", "assisted", "autonomous", "high_risk"} else "autonomous"
 
 
 # ---------------------------------------------------------------------------
@@ -281,6 +347,8 @@ def run_tool_loop(
     max_executions: int = DEFAULT_MAX_EXECUTIONS,
     hard_cap: int = HARD_CAP_EXECUTIONS,
     active_plan: TaskPlan | None = None,
+    agency_decision: AgencyDecision | None = None,
+    autonomy_level: str = "autonomous",
 ) -> ToolLoopResult:
     """Run the cognitive tool loop.
 
@@ -344,7 +412,14 @@ def run_tool_loop(
             clarification_threshold=action_vars.clarification_threshold,
             persistence_drive=action_vars.persistence_drive,
         )
-        decision = make_tool_decision(synthetic_intent, action_vars, first_category, trust)
+        decision = make_tool_decision(
+            synthetic_intent,
+            action_vars,
+            first_category,
+            trust,
+            agency_decision=agency_decision,
+            autonomy_level=autonomy_level,
+        )
 
         if decision.decision != "execute":
             return ToolLoopResult(
@@ -400,7 +475,14 @@ def run_tool_loop(
     capability = executor._registry.get(intent.tool_name)
     category = capability.category if capability else ToolCategory.READ_ONLY
 
-    decision = make_tool_decision(intent, action_vars, category, trust)
+    decision = make_tool_decision(
+        intent,
+        action_vars,
+        category,
+        trust,
+        agency_decision=agency_decision,
+        autonomy_level=autonomy_level,
+    )
 
     proposed_intents: list[ToolIntent] = [intent]
     executed_results: list[ToolResult] = []
