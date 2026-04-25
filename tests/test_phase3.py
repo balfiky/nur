@@ -9,7 +9,7 @@ Covers:
 - Active-session limit (new users rejected at capacity)
 - Shared DB WAL mode verification
 - Shared DB concurrent writes from multiple user sessions
-- Unresolved items are in-memory only (not persisted)
+- Unresolved items are persisted in the saved engine-state snapshot
 - Timeout semantics: in-flight, queued, and true inactivity
 """
 
@@ -50,6 +50,16 @@ async def _send(manager: SessionManager, text: str,
     return await manager.handle_message(platform, user_id, chat_id, text)
 
 
+async def _wait_for_saved_state(state_path: str, timeout: float = 2.0) -> dict | None:
+    """Poll for a timer-driven state save without assuming exact scheduler timing."""
+    deadline = time.monotonic() + timeout
+    state = load_engine_state(state_path)
+    while state is None and time.monotonic() < deadline:
+        await asyncio.sleep(0.01)
+        state = load_engine_state(state_path)
+    return state
+
+
 # =========================================================================
 # Timer-driven inactivity timeout
 # =========================================================================
@@ -86,11 +96,8 @@ class TestInactivityTimeout:
                     await _send(manager, "I am so frustrated!")
                     state_path = config.session_state_path("console:user:direct")
 
-                    await asyncio.sleep(0.3)
-                    await asyncio.sleep(0.05)
-
                     # State file should exist after timeout eviction
-                    state = load_engine_state(state_path)
+                    state = await _wait_for_saved_state(state_path)
                     assert state is not None
                     assert "modulator_snapshot" in state
                 finally:
@@ -461,11 +468,7 @@ class TestUnresolvedItemsPersistence:
                     )
                     state_path = config.session_state_path("console:user:direct")
 
-                    # Wait for timeout eviction
-                    await asyncio.sleep(0.2)
-                    await asyncio.sleep(0.05)
-
-                    state = load_engine_state(state_path)
+                    state = await _wait_for_saved_state(state_path)
                     assert state is not None
                     assert "unresolved_items" in state
                     assert len(state["unresolved_items"]) > 0
