@@ -181,6 +181,32 @@ class TestDetectToolIntent:
         assert intent.tool_name == "shell.run_command"
         assert intent.arguments["cmd"] == "df -h /"
 
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "what is the harddisk utilization?",
+            "what is the harddisk utilzation?",
+            "check hard drive usage",
+            "give me the filesystem capacity",
+        ],
+    )
+    def test_disk_utilization_phrasing_uses_shell(self, message):
+        intent = detect_tool_intent(message, self._available())
+        assert intent is not None
+        assert intent.tool_name == "shell.run_command"
+        assert intent.arguments["cmd"] == "df -h /"
+
+    def test_execute_it_followup_reuses_previous_disk_request(self):
+        msg = _message_for_tool_detection(
+            "execute it on your pc",
+            [
+                {"role": "user", "content": "what is the harddisk utilzation?"},
+                {"role": "assistant", "content": "Run df -h."},
+            ],
+        )
+        assert "what is the harddisk utilzation?" in msg
+        assert "execute it on your pc" in msg
+
     def test_direct_df_command_uses_shell(self):
         intent = detect_tool_intent("df -h /", self._available())
         assert intent is not None
