@@ -56,6 +56,29 @@ def _make_pipeline_with_tools(tmp_path=None):
     return pipe, reg, exe
 
 
+class FakeWebProvider:
+    def search(self, query: str, limit: int) -> list[dict[str, str]]:
+        return [
+            {
+                "title": f"OpenAI update for {query}",
+                "url": "https://example.com/openai-update",
+            },
+        ]
+
+    def fetch(self, url: str) -> str:
+        return f"Fetched {url}"
+
+    def extract_text(self, url: str) -> str:
+        return f"Readable text from {url}"
+
+
+def _make_executor_with_fake_web():
+    reg = ToolRegistry()
+    exe = ToolExecutor(reg)
+    register_builtins(reg, exe, web_provider=FakeWebProvider())
+    return reg, exe
+
+
 # ===================================================================
 # Tool intent detection (heuristic)
 # ===================================================================
@@ -127,6 +150,25 @@ class TestDetectToolIntent:
         intent = detect_tool_intent("search the web for 'python dataclasses'", self._available())
         assert intent is not None
         assert intent.tool_name == "web.search"
+
+    @pytest.mark.parametrize(
+        ("message", "query"),
+        [
+            ("what is the latest news about openai?", "latest news about openai"),
+            ("latest openai news", "latest openai news"),
+            ("what happened with OpenAI today?", "what happened with OpenAI today"),
+            ("current price of bitcoin", "current price of bitcoin"),
+            ("who is the current CEO of OpenAI?", "who is the current CEO of OpenAI"),
+        ],
+    )
+    def test_temporal_web_questions_use_search(self, message, query):
+        intent = detect_tool_intent(message, self._available())
+        assert intent is not None
+        assert intent.tool_name == "web.search"
+        assert intent.arguments["query"] == query
+
+    def test_current_personal_state_does_not_trigger_search(self):
+        assert detect_tool_intent("what is your current mood?", self._available()) is None
 
     def test_fetch_url(self):
         intent = detect_tool_intent("fetch https://example.com", self._available())
@@ -342,6 +384,22 @@ class TestToolLoop:
         assert result.trace.loop_count == 1
         assert result.trace.executed_results[0].success is True
         assert "output='tool-visible'" in result.tool_context_summary
+
+    def test_web_search_output_is_available_to_generator(self):
+        _, exe = _make_executor_with_fake_web()
+        engine = EmotionalEngine()
+        result = run_tool_loop(
+            user_message="what is the latest news about openai?",
+            state=engine.state,
+            person=None,
+            defense_active=False,
+            executor=exe,
+            engine=engine,
+        )
+        assert result.trace.loop_count == 1
+        assert result.trace.executed_results[0].success is True
+        assert "OpenAI update" in result.tool_context_summary
+        assert "https://example.com/openai-update" in result.tool_context_summary
 
     def test_failed_tool_execution_changes_state(self):
         _, exe = _make_executor()

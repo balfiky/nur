@@ -87,6 +87,13 @@ _STEP_PATTERNS: list[tuple[re.Pattern, str, str]] = [
     (re.compile(r"\bexecute\s+[`\"']([^`\"']+)[`\"']", re.I), "shell.run_command", "cmd"),
     # Web
     (re.compile(r"\bsearch\s+(?:the\s+)?web\s+for\s+[\"']?([^\"']+?)[\"']?\s*$", re.I), "web.search", "query"),
+    (re.compile(r"\b(?:latest|newest|recent)\b.{0,100}\b(?:news|updates?|release|version|price|prices|score|scores|results?)\b.*$", re.I), "web.search", "query_full"),
+    (re.compile(r"\b(?:news|updates?)\s+(?:about|on|for)\s+[\"']?(.+?)[\"']?\s*$", re.I), "web.search", "query_full"),
+    (re.compile(r"\bwhat\s+happened\s+(?:with|to|about|on|in)\s+[\"']?.+?[\"']?\s+(?:today|recently|this\s+(?:week|month|year))\b.*$", re.I), "web.search", "query_full"),
+    (re.compile(r"\b(?:current|live|today'?s)\s+(?:price|weather|score|scores|results?|status|exchange\s+rate|stock\s+price)\s+(?:of|for|in)?\s*[\"']?.+?[\"']?\s*$", re.I), "web.search", "query_full"),
+    (re.compile(r"\bwho\s+(?:is|are)\s+(?:the\s+)?(?:current|new|latest)\s+.+$", re.I), "web.search", "query_full"),
+    (re.compile(r"\bwhat\s+(?:is|are)\s+(?:the\s+)?(?:current|latest|newest)\s+(?:version|release|price|weather|score|status|exchange\s+rate)\b.*$", re.I), "web.search", "query_full"),
+    (re.compile(r"\b(?:check|look\s*up|find)\b.{0,40}\b(?:latest|current|recent|today'?s)\b.{2,120}$", re.I), "web.search", "query_full"),
     (re.compile(r"\bfetch\s+(?:the\s+)?(?:url\s+|page\s+(?:at\s+)?)?(https?://\S+)", re.I), "web.fetch", "url"),
     # Browser
     (re.compile(r"\bbrowse\s+(?:to\s+)?(https?://\S+)", re.I), "browser.open_url", "url"),
@@ -101,6 +108,8 @@ def _extract_step_args(
     groups = match.groups()
     if extractor == "cmd_hostname":
         return {"cmd": "hostname"}
+    if extractor == "query_full":
+        return {"query": _clean_search_query(match.group(0))}
     if not groups:
         return None
 
@@ -113,7 +122,7 @@ def _extract_step_args(
     elif extractor == "cmd_cat_path":
         return {"cmd": f"cat {groups[0]}"}
     elif extractor == "query":
-        return {"query": groups[0]}
+        return {"query": _clean_search_query(groups[0])}
     elif extractor == "url":
         return {"url": groups[0]}
     elif extractor == "pattern_path" and len(groups) >= 2:
@@ -123,6 +132,14 @@ def _extract_step_args(
     elif extractor == "path_content" and len(groups) >= 2:
         return {"path": groups[0], "content": groups[1]}
     return None
+
+
+def _clean_search_query(text: str) -> str:
+    """Normalize a user phrase into a stable web-search query."""
+    query = re.sub(r"\s+", " ", text).strip()
+    query = query.strip("`\"' ")
+    query = query.rstrip("?.! ")
+    return query
 
 
 def _parse_single_step(

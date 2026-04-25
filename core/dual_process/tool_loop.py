@@ -117,6 +117,13 @@ _TOOL_PATTERNS: list[tuple[re.Pattern, str, str]] = [
     (re.compile(r"\b(?:google|search\s+for)\s+[\"']?(.+?)[\"']?\s*$", re.I), "web.search", "query"),
     (re.compile(r"\bbrowse\s+(?:the\s+)?(?:web|internet)\s+(?:for\s+)?[\"']?(.+?)[\"']?\s*$", re.I), "web.search", "query"),
     (re.compile(r"\bfind\s+(?:me\s+)?(?:info(?:rmation)?|(?:some(?:thing)?)\s+)?\s*(?:about|on)\s+[\"']?(.+?)[\"']?\s+(?:online|on\s+the\s+(?:web|internet))", re.I), "web.search", "query"),
+    (re.compile(r"\b(?:latest|newest|recent)\b.{0,100}\b(?:news|updates?|release|version|price|prices|score|scores|results?)\b.*$", re.I), "web.search", "query_full"),
+    (re.compile(r"\b(?:news|updates?)\s+(?:about|on|for)\s+[\"']?(.+?)[\"']?\s*$", re.I), "web.search", "query_full"),
+    (re.compile(r"\bwhat\s+happened\s+(?:with|to|about|on|in)\s+[\"']?.+?[\"']?\s+(?:today|recently|this\s+(?:week|month|year))\b.*$", re.I), "web.search", "query_full"),
+    (re.compile(r"\b(?:current|live|today'?s)\s+(?:price|weather|score|scores|results?|status|exchange\s+rate|stock\s+price)\s+(?:of|for|in)?\s*[\"']?.+?[\"']?\s*$", re.I), "web.search", "query_full"),
+    (re.compile(r"\bwho\s+(?:is|are)\s+(?:the\s+)?(?:current|new|latest)\s+.+$", re.I), "web.search", "query_full"),
+    (re.compile(r"\bwhat\s+(?:is|are)\s+(?:the\s+)?(?:current|latest|newest)\s+(?:version|release|price|weather|score|status|exchange\s+rate)\b.*$", re.I), "web.search", "query_full"),
+    (re.compile(r"\b(?:check|look\s*up|find)\b.{0,40}\b(?:latest|current|recent|today'?s)\b.{2,120}$", re.I), "web.search", "query_full"),
     # Browser
     (re.compile(r"\bopen\s+(?:the\s+)?(?:url\s+|page\s+(?:at\s+)?)?(https?://\S+)\s+in\s+(?:the\s+)?browser", re.I), "browser.open_url", "url"),
     (re.compile(r"\bbrowse\s+(?:to\s+)?(https?://\S+)", re.I), "browser.open_url", "url"),
@@ -167,6 +174,8 @@ def _extract_args(
         return {"path": "."}
     elif extractor == "cmd_hostname":
         return {"cmd": "hostname"}
+    elif extractor == "query_full":
+        return {"query": _clean_search_query(match.group(0))}
 
     if not groups:
         return None
@@ -180,7 +189,7 @@ def _extract_args(
     elif extractor == "cmd_cat_path":
         return {"cmd": f"cat {groups[0]}"}
     elif extractor == "query":
-        return {"query": groups[0]}
+        return {"query": _clean_search_query(groups[0])}
     elif extractor == "url":
         return {"url": groups[0]}
     elif extractor == "pattern_path" and len(groups) >= 2:
@@ -194,6 +203,14 @@ def _extract_args(
     elif extractor == "title_date" and len(groups) >= 2:
         return {"title": groups[0], "start": groups[1], "end": groups[1]}
     return None
+
+
+def _clean_search_query(text: str) -> str:
+    """Normalize a user phrase into a stable web-search query."""
+    query = re.sub(r"\s+", " ", text).strip()
+    query = query.strip("`\"' ")
+    query = query.rstrip("?.! ")
+    return query
 
 
 # ---------------------------------------------------------------------------
@@ -350,7 +367,7 @@ def _summarize_for_generator(observations: list[ToolObservation], results: list[
 
 
 def _format_result_output(result: ToolResult, limit: int = 1200) -> str:
-    if result.tool_name != "shell.run_command" or not result.output:
+    if result.tool_name not in {"shell.run_command", "web.search"} or not result.output:
         return ""
     text = result.output.strip()
     if not text:
