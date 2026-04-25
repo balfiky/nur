@@ -278,6 +278,7 @@ class TestIndexPage:
         assert '<link rel="icon" href="data:,' in html
         assert "clearGenericKey" in html
         assert "wizardPreset === 'local' && !apiKey" in html
+        assert "loadSettings({ loadSoul: false })" in html
 
     async def test_admin_route_serves_same_shell(self):
         resp = interface_api.admin_index()

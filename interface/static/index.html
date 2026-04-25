@@ -868,12 +868,12 @@ function openSettings() { settingsOverlay.classList.add('open'); loadSettings().
 function closeSettings() { settingsOverlay.classList.remove('open'); }
 function closeSettingsIfBackdrop(e) { if (e.target === settingsOverlay) closeSettings(); }
 
-async function loadSettings() {
+async function loadSettings(options = {}) {
   setStatus('Loading...');
   const res = await authedFetch('/admin/config'); if (!res.ok) throw new Error('HTTP ' + res.status);
   applySettings(await res.json());
   setStatus('');
-  loadSoul().catch(() => {});
+  if (options.loadSoul !== false) loadSoul().catch(() => {});
 }
 
 async function saveSettings() {
@@ -1170,7 +1170,7 @@ async function saveSoul() {
     (data.notes || []).forEach(n => lines.push(n));
     el.textContent = lines.join('\n');
     applyAgentName(payload.name);
-    loadSettings().catch(() => {});
+    loadSettings({ loadSoul: false }).catch(() => {});
   } catch (err) {
     el.className = 'admin-test-result error';
     el.textContent = 'Save failed: ' + err.message;
