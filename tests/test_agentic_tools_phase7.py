@@ -128,6 +128,24 @@ class TestTaskTypes:
         assert trace.continued_after_failure is False
         assert trace.plan_outcome == ""
 
+
+class TestHostInfoPlanning:
+    def test_uname_and_hostname_file_become_two_shell_steps(self):
+        plan = detect_multi_step_intent(
+            "run uname -a and cat /etc/hostname",
+            {"shell.run_command"},
+        )
+
+        assert plan is not None
+        assert [step.tool_name for step in plan.steps] == [
+            "shell.run_command",
+            "shell.run_command",
+        ]
+        assert [step.arguments["cmd"] for step in plan.steps] == [
+            "uname -a",
+            "cat /etc/hostname",
+        ]
+
     def test_tool_trace_has_task_trace_field(self):
         tt = ToolTraceType()
         assert tt.task_trace is None

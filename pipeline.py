@@ -109,6 +109,12 @@ from core.tool_memory import (
 )
 from core.types import ProactiveTrace, TaskPlan, TaskTrace
 
+_TOOL_FOLLOWUP_COMMAND_RE = re.compile(
+    r"\b(?:issue|run|execute|use)\s+(?:the\s+)?"
+    r"(?:needed|required|necessary|right)\s+command\b",
+    re.IGNORECASE,
+)
+
 
 # ---------------------------------------------------------------------------
 # Debug state — full transparency into what happened
@@ -194,6 +200,19 @@ class DebugState:
 
     # Timing instrumentation (ms)
     stage_timings_ms: dict[str, float] = field(default_factory=dict)
+
+
+def _message_for_tool_detection(
+    user_message: str,
+    conversation_history: list[dict[str, str]],
+) -> str:
+    """Attach the prior user request for terse tool follow-ups."""
+    if not _TOOL_FOLLOWUP_COMMAND_RE.search(user_message):
+        return user_message
+    for message in reversed(conversation_history):
+        if message.get("role") == "user" and message.get("content"):
+            return f"{message['content']}\n{user_message}"
+    return user_message
 
 
 # ---------------------------------------------------------------------------
@@ -553,8 +572,12 @@ class CognitivePipeline:
         tool_context_summary = ""
         if self._tool_executor is not None:
             _ts_tool = time.perf_counter()
+            tool_user_message = _message_for_tool_detection(
+                user_message,
+                self._conversation_history,
+            )
             tool_loop_result = run_tool_loop(
-                user_message=user_message,
+                user_message=tool_user_message,
                 state=self.engine.state,
                 person=person,
                 defense_active=False,  # defense hasn't fired yet

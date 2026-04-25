@@ -32,7 +32,7 @@ from core.emotional_engine import EmotionalEngine
 from nur_tools.registry import ToolRegistry
 from nur_tools.executor import ToolExecutor
 from nur_tools import register_builtins
-from pipeline import CognitivePipeline, DebugState
+from pipeline import CognitivePipeline, DebugState, _message_for_tool_detection
 
 
 # ===================================================================
@@ -96,6 +96,32 @@ class TestDetectToolIntent:
         assert intent is not None
         assert intent.tool_name == "shell.run_command"
         assert intent.arguments["cmd"] == "echo hello"
+
+    def test_hostname_question_uses_shell(self):
+        intent = detect_tool_intent(
+            "can you tell me the hostname of the machine you are running from?",
+            self._available(),
+        )
+        assert intent is not None
+        assert intent.tool_name == "shell.run_command"
+        assert intent.arguments["cmd"] == "hostname"
+
+    def test_unquoted_uname_uses_shell(self):
+        intent = detect_tool_intent("run uname -a", self._available())
+        assert intent is not None
+        assert intent.tool_name == "shell.run_command"
+        assert intent.arguments["cmd"] == "uname -a"
+
+    def test_tool_followup_reuses_previous_user_request(self):
+        msg = _message_for_tool_detection(
+            "issue the needed command",
+            [
+                {"role": "user", "content": "can you tell me your hostname?"},
+                {"role": "assistant", "content": "I would need a command."},
+            ],
+        )
+        assert "can you tell me your hostname?" in msg
+        assert "issue the needed command" in msg
 
     def test_web_search(self):
         intent = detect_tool_intent("search the web for 'python dataclasses'", self._available())
@@ -300,6 +326,22 @@ class TestToolLoop:
         assert result.trace.executed_results[0].success is True
         assert "fs.read_file: success" in result.tool_context_summary
         assert "hello world" not in result.tool_context_summary
+
+    def test_shell_output_is_available_to_generator(self):
+        _, exe = _make_executor()
+        engine = EmotionalEngine()
+        result = run_tool_loop(
+            user_message="run command 'printf tool-visible'",
+            state=engine.state,
+            person=None,
+            defense_active=False,
+            executor=exe,
+            engine=engine,
+            autonomy_level="high_risk",
+        )
+        assert result.trace.loop_count == 1
+        assert result.trace.executed_results[0].success is True
+        assert "output='tool-visible'" in result.tool_context_summary
 
     def test_failed_tool_execution_changes_state(self):
         _, exe = _make_executor()
@@ -533,7 +575,7 @@ class TestGeneratorToolContext:
         from core.dual_process.generator import build_system_prompt
         ctx = PipelineContext()
         prompt = build_system_prompt(ctx)
-        assert "Tool Execution Results" not in prompt
+        assert "## Tool Execution Results" not in prompt
 
     def test_tool_context_appears_in_prompt(self):
         from core.types import PipelineContext
@@ -542,6 +584,6 @@ class TestGeneratorToolContext:
             tool_context_summary="[fs.read_file] fs.read_file: success",
         )
         prompt = build_system_prompt(ctx)
-        assert "Tool Execution Results" in prompt
+        assert "## Tool Execution Results" in prompt
         assert "fs.read_file: success" in prompt
         assert "Do not echo raw output" in prompt

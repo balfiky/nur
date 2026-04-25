@@ -98,6 +98,12 @@ _TOOL_PATTERNS: list[tuple[re.Pattern, str, str]] = [
     (re.compile(r"\bdelete\s+(?:the\s+)?(?:file|dir(?:ectory)?)\s+(\S+)", re.I), "fs.delete_path", "path"),
     (re.compile(r"\brm\s+(\S+)", re.I), "fs.delete_path", "path"),
     # Shell
+    (re.compile(r"\b(?:what(?:'s|\s+is)|show|check|get|tell(?:\s+me)?)\b.{0,80}\b(?:your|the)?\s*(?:host\s*name|hostname|machine\s+name|node\s+name|server\s+name)\b", re.I), "shell.run_command", "cmd_hostname"),
+    (re.compile(r"\bname\s+of\s+the\s+machine\b.{0,80}\b(?:running|run)\b", re.I), "shell.run_command", "cmd_hostname"),
+    (re.compile(r"^\s*hostname\s*$", re.I), "shell.run_command", "cmd_hostname"),
+    (re.compile(r"\b(?:run|execute|issue|check|show)\s+(?:the\s+)?(?:command\s+)?(hostname|uname(?:\s+-a)?)\b", re.I), "shell.run_command", "cmd_capture"),
+    (re.compile(r"^\s*(uname(?:\s+-a)?)\s*$", re.I), "shell.run_command", "cmd_capture"),
+    (re.compile(r"\bcat\s+(/etc/hostname)\b", re.I), "shell.run_command", "cmd_cat_path"),
     (re.compile(r"\brun\s+(?:the\s+)?(?:command\s+)?[`\"']([^`\"']+)[`\"']", re.I), "shell.run_command", "cmd"),
     (re.compile(r"\bexecute\s+[`\"']([^`\"']+)[`\"']", re.I), "shell.run_command", "cmd"),
     # Web — specific patterns first
@@ -159,6 +165,8 @@ def _extract_args(
         return {"path": "/"}
     elif extractor == "default_cwd":
         return {"path": "."}
+    elif extractor == "cmd_hostname":
+        return {"cmd": "hostname"}
 
     if not groups:
         return None
@@ -167,6 +175,10 @@ def _extract_args(
         return {"path": groups[0]}
     elif extractor == "cmd":
         return {"cmd": groups[0]}
+    elif extractor == "cmd_capture":
+        return {"cmd": groups[0]}
+    elif extractor == "cmd_cat_path":
+        return {"cmd": f"cat {groups[0]}"}
     elif extractor == "query":
         return {"query": groups[0]}
     elif extractor == "url":
@@ -312,7 +324,8 @@ def _normalize_autonomy_level(value: str) -> str:
 def _summarize_for_generator(observations: list[ToolObservation], results: list[ToolResult]) -> str:
     """Build a concise summary of tool execution for the generator prompt.
 
-    The generator should not see raw command output or large search pages.
+    The generator sees bounded shell output so it can report observed command
+    results instead of guessing. Other tool outputs stay summarized.
     """
     if not observations:
         return ""
@@ -326,11 +339,25 @@ def _summarize_for_generator(observations: list[ToolObservation], results: list[
             metadata = _format_result_metadata(res.metadata)
             if metadata:
                 details.append(metadata)
+            output = _format_result_output(res)
+            if output:
+                details.append(output)
             parts.append(f"[{res.tool_name}] " + " | ".join(details))
         else:
             parts.append(f"[{res.tool_name}] Failed: {res.error}")
 
     return "\n".join(parts)
+
+
+def _format_result_output(result: ToolResult, limit: int = 1200) -> str:
+    if result.tool_name != "shell.run_command" or not result.output:
+        return ""
+    text = result.output.strip()
+    if not text:
+        return ""
+    if len(text) > limit:
+        text = text[:limit].rstrip() + "..."
+    return f"output={text!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -576,6 +603,9 @@ def _summarize_plan_for_generator(
                 metadata = _format_result_metadata(step.result.metadata)
                 if metadata:
                     details.append(metadata)
+                output = _format_result_output(step.result)
+                if output:
+                    details.append(output)
                 summary = " | ".join(details) if details else "success"
                 parts.append(f"  [{step.tool_name}] OK: {summary}")
             else:

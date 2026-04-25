@@ -56,6 +56,12 @@ _SEQUENCE_MARKERS = re.compile(
     re.IGNORECASE,
 )
 
+_HOST_INFO_MULTI_STEP_RE = re.compile(
+    r"\buname\s+-a\b.*(?:&&|\band\b|\bthen\b).*"
+    r"\bcat\s+/etc/hostname\b",
+    re.IGNORECASE | re.DOTALL,
+)
+
 # Single-step tool patterns (reused from tool_loop for decomposition)
 _STEP_PATTERNS: list[tuple[re.Pattern, str, str]] = [
     # Filesystem
@@ -71,6 +77,12 @@ _STEP_PATTERNS: list[tuple[re.Pattern, str, str]] = [
     (re.compile(r"\bdelete\s+(?:the\s+)?(?:file|dir(?:ectory)?)\s+(\S+)", re.I), "fs.delete_path", "path"),
     (re.compile(r"\brm\s+(\S+)", re.I), "fs.delete_path", "path"),
     # Shell
+    (re.compile(r"\b(?:what(?:'s|\s+is)|show|check|get|tell(?:\s+me)?)\b.{0,80}\b(?:your|the)?\s*(?:host\s*name|hostname|machine\s+name|node\s+name|server\s+name)\b", re.I), "shell.run_command", "cmd_hostname"),
+    (re.compile(r"\bname\s+of\s+the\s+machine\b.{0,80}\b(?:running|run)\b", re.I), "shell.run_command", "cmd_hostname"),
+    (re.compile(r"^\s*hostname\s*$", re.I), "shell.run_command", "cmd_hostname"),
+    (re.compile(r"\b(?:run|execute|issue|check|show)\s+(?:the\s+)?(?:command\s+)?(hostname|uname(?:\s+-a)?)\b", re.I), "shell.run_command", "cmd_capture"),
+    (re.compile(r"^\s*(uname(?:\s+-a)?)\s*$", re.I), "shell.run_command", "cmd_capture"),
+    (re.compile(r"\bcat\s+(/etc/hostname)\b", re.I), "shell.run_command", "cmd_cat_path"),
     (re.compile(r"\brun\s+(?:the\s+)?(?:command\s+)?[`\"']([^`\"']+)[`\"']", re.I), "shell.run_command", "cmd"),
     (re.compile(r"\bexecute\s+[`\"']([^`\"']+)[`\"']", re.I), "shell.run_command", "cmd"),
     # Web
@@ -87,6 +99,8 @@ def _extract_step_args(
 ) -> dict[str, Any] | None:
     """Extract structured arguments from a regex match."""
     groups = match.groups()
+    if extractor == "cmd_hostname":
+        return {"cmd": "hostname"}
     if not groups:
         return None
 
@@ -94,6 +108,10 @@ def _extract_step_args(
         return {"path": groups[0]}
     elif extractor == "cmd":
         return {"cmd": groups[0]}
+    elif extractor == "cmd_capture":
+        return {"cmd": groups[0]}
+    elif extractor == "cmd_cat_path":
+        return {"cmd": f"cat {groups[0]}"}
     elif extractor == "query":
         return {"query": groups[0]}
     elif extractor == "url":
@@ -136,6 +154,10 @@ def detect_multi_step_intent(
     Returns a TaskPlan if compound intent is found with 2+ steps,
     None for single-step or conversational messages.
     """
+    host_info_plan = _detect_host_info_plan(user_message, available_tools)
+    if host_info_plan is not None:
+        return host_info_plan
+
     # Must have compound connectors or sequence markers
     has_connectors = bool(_COMPOUND_CONNECTORS.search(user_message))
     has_sequence = bool(_SEQUENCE_MARKERS.search(user_message))
@@ -170,6 +192,35 @@ def detect_multi_step_intent(
         id=f"plan_{uuid.uuid4().hex[:8]}",
         goal=user_message[:200],
         steps=steps,
+    )
+
+
+def _detect_host_info_plan(
+    user_message: str,
+    available_tools: set[str],
+) -> TaskPlan | None:
+    """Detect common host-inspection compound shell requests."""
+    if "shell.run_command" not in available_tools:
+        return None
+    if not _HOST_INFO_MULTI_STEP_RE.search(user_message):
+        return None
+    return TaskPlan(
+        id=f"plan_{uuid.uuid4().hex[:8]}",
+        goal=user_message[:200],
+        steps=[
+            TaskStep(
+                id=f"step_{uuid.uuid4().hex[:8]}",
+                tool_name="shell.run_command",
+                arguments={"cmd": "uname -a"},
+                description="shell.run_command: uname -a",
+            ),
+            TaskStep(
+                id=f"step_{uuid.uuid4().hex[:8]}",
+                tool_name="shell.run_command",
+                arguments={"cmd": "cat /etc/hostname"},
+                description="shell.run_command: cat /etc/hostname",
+            ),
+        ],
     )
 
 
