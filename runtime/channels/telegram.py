@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 
@@ -130,7 +131,7 @@ class TelegramChannel:
     - Allowlist by numeric user ID (empty = allow all)
     - Per-update dedupe with TTL cache
     - Typing indicators resent every 4 s while Nūr processes
-    - Commands: /status, /reset, /debug
+    - Commands: /status, /new, /reset, /debug
     """
 
     def __init__(
@@ -278,6 +279,8 @@ class TelegramChannel:
 
         if cmd == "/status":
             await self._cmd_status(user_id, chat_id)
+        elif cmd == "/new":
+            await self._cmd_new(user_id, chat_id)
         elif cmd == "/reset":
             await self._cmd_reset(user_id, chat_id)
         elif cmd == "/debug":
@@ -314,8 +317,40 @@ class TelegramChannel:
             chat_id, "Session digested, state saved, session closed.",
         )
 
+    async def _cmd_new(self, user_id: str, chat_id: int) -> None:
+        """Close the current Telegram chat session and discard hot state."""
+        session_key = f"telegram:{user_id}:{chat_id}"
+        rel_key = f"telegram:{user_id}"
+
+        if session_key in self._manager.active_sessions:
+            await self._manager.evict_session(session_key)
+
+        removed = False
+        for path in (
+            self._manager.config.session_state_path(session_key),
+            self._manager.config.user_state_path(rel_key),
+        ):
+            removed = _remove_file_if_exists(path) or removed
+            removed = _remove_file_if_exists(path + ".tmp") or removed
+
+        message = "Started a new conversation. Long-term memory is unchanged."
+        if not removed:
+            message = "Started a new conversation."
+        await self._client.send_message(chat_id, message)
+
     async def _cmd_debug(self, user_id: str, chat_id: int) -> None:
         await self._client.send_message(
             chat_id,
             "Debug API not available yet (Phase 4).",
         )
+
+
+def _remove_file_if_exists(path: str) -> bool:
+    try:
+        os.remove(path)
+        return True
+    except FileNotFoundError:
+        return False
+    except OSError:
+        log.warning("Could not remove Telegram session state file: %s", path)
+        return False

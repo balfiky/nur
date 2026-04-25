@@ -11,6 +11,7 @@ Covers:
 from __future__ import annotations
 
 import asyncio
+import os
 import tempfile
 import time
 
@@ -423,6 +424,31 @@ class TestCommands:
                     assert "telegram:100:100" not in manager.active_sessions
                     reset_msg = client.sent_messages[-1]["text"].lower()
                     assert "session" in reset_msg
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_new_starts_fresh_conversation_without_restoring_hot_state(self):
+        """'/new' closes the active chat session and removes its saved snapshot."""
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                channel, manager, client = _make_channel(tmpdir)
+                session_key = "telegram:100:100"
+                state_path = manager.config.session_state_path(session_key)
+                try:
+                    await channel.handle_update(
+                        _make_update(update_id=1, text="I am furious about this")
+                    )
+                    assert session_key in manager.active_sessions
+
+                    await channel.handle_update(
+                        _make_update(update_id=2, text="/new")
+                    )
+
+                    assert session_key not in manager.active_sessions
+                    assert not os.path.exists(state_path)
+                    assert "new conversation" in client.sent_messages[-1]["text"].lower()
                 finally:
                     await manager.shutdown()
 
