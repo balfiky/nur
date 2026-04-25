@@ -438,6 +438,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
       </div><div class="admin-test-result" id="test-telegram" style="display:none"></div></div>
       <div class="settings-section"><h3>Tools</h3><div class="settings-grid">
         <div class="settings-field"><label for="cfg-tools_enabled">Agentic Tools</label><select id="cfg-tools_enabled"><option value="false">Disabled</option><option value="true">Enabled</option></select></div>
+        <div class="settings-field"><label for="cfg-tool_orchestrator">Tool Routing</label><select id="cfg-tool_orchestrator"><option value="hybrid">Reliable fallback</option><option value="langgraph">LangGraph only</option><option value="heuristic">Legacy rules</option></select></div>
         <div class="settings-field"><label for="cfg-autonomy_level">Autonomy</label><select id="cfg-autonomy_level"><option value="off">Off</option><option value="assisted">Assisted</option><option value="autonomous">Autonomous</option><option value="high_risk">High-risk local</option></select></div>
         <div class="settings-field"><label for="cfg-shell_tool_enabled">Shell Tool</label><select id="cfg-shell_tool_enabled"><option value="false">Disabled</option><option value="true">Enabled</option></select></div>
         <div class="settings-field full"><label for="cfg-tools_workspace">Tools Workspace</label><input id="cfg-tools_workspace" type="text" placeholder="Blank uses data/workspace"></div>
@@ -886,7 +887,7 @@ async function saveSettings() {
     llm_backend: gv('cfg-llm_backend'), llm_base_url: gv('cfg-llm_base_url'), llm_model: gv('cfg-llm_model'),
     debug_host: gv('cfg-debug_host'), debug_port: gi('cfg-debug_port'),
     cors_origins: lines('cfg-cors_origins'),
-    tools_enabled: gb('cfg-tools_enabled'), autonomy_level: gv('cfg-autonomy_level'), tools_workspace: gv('cfg-tools_workspace'), shell_tool_enabled: gb('cfg-shell_tool_enabled'),
+    tools_enabled: gb('cfg-tools_enabled'), tool_orchestrator: gv('cfg-tool_orchestrator'), autonomy_level: gv('cfg-autonomy_level'), tools_workspace: gv('cfg-tools_workspace'), shell_tool_enabled: gb('cfg-shell_tool_enabled'),
     proactive_enabled: gb('cfg-proactive_enabled'), proactive_idle_threshold: gf('cfg-proactive_idle_threshold'),
     proactive_max_per_session: gi('cfg-proactive_max_per_session'), proactive_cooldown: gf('cfg-proactive_cooldown'),
     proactive_check_interval: gf('cfg-proactive_check_interval'),
@@ -921,7 +922,7 @@ function applySettings(payload) {
   sv('cfg-llm_base_url', c.llm_base_url||''); sv('cfg-llm_model', c.llm_model||'');
   sv('cfg-debug_host', c.debug_host||'127.0.0.1'); sv('cfg-debug_port', c.debug_port??8077);
   sv('cfg-cors_origins', (c.cors_origins||[]).join('\n'));
-  sv('cfg-tools_enabled', String(!!c.tools_enabled)); sv('cfg-autonomy_level', c.autonomy_level||'assisted'); sv('cfg-tools_workspace', c.tools_workspace||''); sv('cfg-shell_tool_enabled', String(!!c.shell_tool_enabled));
+  sv('cfg-tools_enabled', String(!!c.tools_enabled)); sv('cfg-tool_orchestrator', c.tool_orchestrator||'heuristic'); sv('cfg-autonomy_level', c.autonomy_level||'assisted'); sv('cfg-tools_workspace', c.tools_workspace||''); sv('cfg-shell_tool_enabled', String(!!c.shell_tool_enabled));
   sv('cfg-proactive_enabled', String(c.proactive_enabled)); sv('cfg-proactive_idle_threshold', c.proactive_idle_threshold??300);
   sv('cfg-proactive_max_per_session', c.proactive_max_per_session??3); sv('cfg-proactive_cooldown', c.proactive_cooldown??300);
   sv('cfg-proactive_check_interval', c.proactive_check_interval??60);
@@ -1263,7 +1264,7 @@ function renderAdminOverview(payload) {
   document.getElementById('adminBackend').textContent = c.llm_backend || 'auto';
   document.getElementById('adminAuth').textContent = (payload.secret_status || {}).api_key ? 'protected' : 'open';
   document.getElementById('adminTelegram').textContent = (payload.secret_status || {}).telegram_token ? 'configured' : 'off';
-  document.getElementById('adminTools').textContent = c.tools_enabled ? ((c.autonomy_level || 'assisted') + (c.shell_tool_enabled ? ' + shell' : '')) : 'off';
+  document.getElementById('adminTools').textContent = c.tools_enabled ? ((c.tool_orchestrator || 'heuristic') + ' / ' + (c.autonomy_level || 'assisted') + (c.shell_tool_enabled ? ' + shell' : '')) : 'off';
   document.getElementById('adminOverview').title = warnings.length ? warnings.length + ' warning(s)' : 'No warnings';
 }
 

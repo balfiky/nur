@@ -272,6 +272,9 @@ class TestIndexPage:
         assert "/admin/sessions/reset" in html
         assert "/admin/users/delete" in html
         assert "Agentic Tools" in html
+        assert "Tool Routing" in html
+        assert "Reliable fallback" in html
+        assert "cfg-tool_orchestrator" in html
         assert "cfg-autonomy_level" in html
         assert "High-risk local" in html
         assert "Maintenance" in html
@@ -364,6 +367,7 @@ class TestConfigEndpoint:
         RuntimeConfig(
             llm_backend="mock",
             tools_enabled=True,
+            tool_orchestrator="hybrid",
             autonomy_level="high_risk",
             tools_workspace="/tmp/nur_ws",
             shell_tool_enabled=True,
@@ -374,6 +378,7 @@ class TestConfigEndpoint:
 
         saved = RuntimeConfig.from_yaml(str(path))
         assert saved.tools_enabled is True
+        assert saved.tool_orchestrator == "hybrid"
         assert saved.autonomy_level == "high_risk"
         assert saved.tools_workspace == "/tmp/nur_ws"
         assert saved.shell_tool_enabled is True
@@ -387,12 +392,14 @@ class TestConfigEndpoint:
         await update_config(ConfigUpdateRequest(
             llm_backend="mock",
             tools_enabled=True,
+            tool_orchestrator="hybrid",
             autonomy_level="autonomous",
             tools_workspace="/tmp/nur_ws2",
         ))
 
         saved = RuntimeConfig.from_yaml(str(path))
         assert saved.tools_enabled is True
+        assert saved.tool_orchestrator == "hybrid"
         assert saved.autonomy_level == "autonomous"
         assert saved.tools_workspace == "/tmp/nur_ws2"
         # shell_tool_enabled was not specified → remains default False.
