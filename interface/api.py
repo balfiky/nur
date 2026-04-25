@@ -1550,9 +1550,9 @@ def _parse_plain_soul_document(text: str) -> dict:
             "identity": _trim_text(identity, 2000),
             "voice": _trim_text(sections.get("voice", ""), 2000),
             "relational_stance": _trim_text(sections.get("relational_stance", ""), 2000),
-            "growth_policy": "",
-            "likes": [],
-            "dislikes": [],
+            "growth_policy": _trim_text(sections.get("growth_policy", ""), 2000),
+            "likes": _plain_list(sections.get("likes", "")),
+            "dislikes": _plain_list(sections.get("dislikes", "")),
             "boundaries": _plain_boundaries(sections.get("boundaries", "")),
             "core_values": {},
             "initial_traits": {},
@@ -1563,6 +1563,11 @@ def _parse_plain_soul_document(text: str) -> dict:
 def _split_plain_identity_sections(body: str) -> dict[str, str]:
     markers = {
         "core tone:": "voice",
+        "voice:": "voice",
+        "relational stance:": "relational_stance",
+        "growth policy:": "growth_policy",
+        "likes:": "likes",
+        "dislikes:": "dislikes",
         "boundaries:": "boundaries",
     }
     sections: dict[str, list[str]] = {"identity": []}
@@ -1598,6 +1603,16 @@ def _plain_boundaries(text: str) -> list[str]:
         else:
             items.append(stripped)
     return [_trim_text(item, 200) for item in items[:32] if item]
+
+
+def _plain_list(text: str) -> list[str]:
+    items: list[str] = []
+    for line in text.splitlines():
+        for part in line.split(","):
+            value = part.strip(" -\t")
+            if value:
+                items.append(_trim_text(value, 200))
+    return items[:32]
 
 
 def _coerce_soul_payload(data: dict) -> dict:

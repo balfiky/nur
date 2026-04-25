@@ -355,24 +355,10 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
     </div>
 
     <div class="wizard-panel" id="wizPanel-3" style="display:none">
-      <h2 class="wizard-title">Give it a name</h2>
-      <p class="wizard-sub">Your agent's identity shapes how it speaks and what it cares about.</p>
-      <div class="wizard-tabs">
-        <button type="button" class="wizard-tab active" data-tab="describe" onclick="wizardSelectTab('describe')">Describe in plain English</button>
-        <button type="button" class="wizard-tab" data-tab="manual" onclick="wizardSelectTab('manual')">Fill manually</button>
-        <button type="button" class="wizard-tab" data-tab="raw" onclick="wizardSelectTab('raw')">Paste soul.yaml</button>
-      </div>
-      <div class="wizard-fields" id="wiz-tab-describe">
-        <div><label for="wiz-soul-description">Describe your agent</label><textarea id="wiz-soul-description" rows="6" placeholder="e.g., A warm, thoughtful companion who values honesty and curiosity. Helps me think through hard problems without jumping to conclusions."></textarea></div>
-        <div><button type="button" class="wizard-preset" style="grid-column: span 2" onclick="wizardDraftSoul()">Generate identity from description</button></div>
-        <div class="admin-test-result" id="wiz-soul-draft-result" style="display:none"></div>
-      </div>
-      <div class="wizard-fields" id="wiz-tab-manual" style="display:none">
-        <div><label for="wiz-soul-name">Name</label><input id="wiz-soul-name" type="text" placeholder="Iris" maxlength="64"></div>
-        <div><label for="wiz-soul-identity">Identity (one or two sentences)</label><textarea id="wiz-soul-identity" rows="3" placeholder="A steady, honest collaborator who listens first."></textarea></div>
-      </div>
-      <div class="wizard-fields" id="wiz-tab-raw" style="display:none">
-        <div style="grid-column: span 2"><label for="wiz-soul-raw">Paste your soul.yaml or full identity document</label><textarea id="wiz-soul-raw" rows="10" placeholder="name: Jarvis&#10;identity: Sharp, opinionated collaborator...&#10;voice: Sarcastic but warm underneath..."></textarea><small style="color:var(--text-dim);margin-top:4px;display:block">Nūr parses YAML locally. Plain identity documents should start with Name: Jarvis.</small></div>
+      <h2 class="wizard-title">Identity</h2>
+      <p class="wizard-sub">Paste or write the whole agent identity in one place. Start with <span class="code">Name: Jarvis</span>.</p>
+      <div class="wizard-fields">
+        <div><label for="wiz-soul-text">Identity Text</label><textarea id="wiz-soul-text" rows="12" placeholder="Name: Jarvis&#10;&#10;You are Jarvis. Sharp, opinionated, concise.&#10;&#10;Core tone: Sarcastic, warm underneath the bite.&#10;&#10;Boundaries: Never say as an AI. Never use the word delve."></textarea></div>
       </div>
       <div class="admin-test-result" id="wiz-soul-result" style="display:none"></div>
       <div class="wizard-actions">
@@ -413,42 +399,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
         <label class="settings-inline"><input id="cfg-setup_completed" type="checkbox"> Mark first-run setup complete</label>
       </div>
       <div class="settings-section"><h3>Identity</h3>
-        <div class="settings-mini">Who your agent is. Fill this in before anyone else meets it — otherwise it runs with the default name &quot;Nūr&quot; and the project author's voice. Two ways to author: describe it in plain English and let the LLM draft everything for you, or fill the form directly.</div>
-
-        <div class="soul-draft-block">
-          <label for="soul-description" class="soul-draft-label">Describe your agent in a sentence or two</label>
-          <textarea id="soul-description" placeholder="e.g. A calm coding mentor who values clarity and patiently pushes me to think one level deeper. Warm but not fluffy. Never pretends certainty."></textarea>
-          <div class="soul-draft-actions">
-            <button class="secondary" onclick="draftSoulFromDescription()">Generate Identity from Description</button>
-            <div class="soul-draft-hint" id="soul-draft-hint">Needs an LLM configured. Uses your current backend + keys.</div>
-          </div>
-          <div class="admin-test-result" id="test-soul-draft" style="display:none"></div>
-        </div>
-
-        <div class="soul-divider"><span>or fill in manually</span></div>
-
+        <div class="settings-mini">Who your agent is. One text box is enough; Nūr parses it into the internal soul fields when you save.</div>
         <div class="settings-grid">
-          <div class="settings-field"><label for="soul-name">Name</label><input id="soul-name" type="text" placeholder="e.g. Iris, Atlas, your own choice" maxlength="64"></div>
-          <div class="settings-field"><label for="soul-growth_policy">Growth Policy</label><input id="soul-growth_policy" type="text" placeholder="What can change over time, what stays fixed"></div>
-          <div class="settings-field full"><label for="soul-identity">Identity</label><textarea id="soul-identity" placeholder="One to three sentences. Who this agent is and what it is for."></textarea></div>
-          <div class="settings-field full"><label for="soul-voice">Voice</label><textarea id="soul-voice" placeholder="How it should sound. Tone, register, what it avoids."></textarea></div>
-          <div class="settings-field full"><label for="soul-relational_stance">Relational Stance</label><textarea id="soul-relational_stance" placeholder="How it treats the user. Trust posture, repair over escalation."></textarea></div>
-          <div class="settings-field"><label for="soul-likes">Likes <span class="settings-note-inline">(one per line)</span></label><textarea id="soul-likes" placeholder="clarity&#10;steady collaboration&#10;honesty"></textarea></div>
-          <div class="settings-field"><label for="soul-dislikes">Dislikes <span class="settings-note-inline">(one per line)</span></label><textarea id="soul-dislikes" placeholder="manipulation&#10;empty flattery"></textarea></div>
-          <div class="settings-field full"><label for="soul-boundaries">Boundaries <span class="settings-note-inline">(one per line, short imperative sentences)</span></label><textarea id="soul-boundaries" placeholder="Do not pretend certainty when uncertain.&#10;Do not abandon loyalty for convenience."></textarea></div>
-        </div>
-
-        <div class="soul-weights-grid">
-          <div class="soul-weights-col">
-            <div class="soul-weights-title">Core Values<span class="settings-note-inline">how strongly this value matters</span></div>
-            <div id="soul-core_values-rows"></div>
-            <button type="button" class="soul-weights-add" onclick="addSoulWeightRow('core_values')">+ add value</button>
-          </div>
-          <div class="soul-weights-col">
-            <div class="soul-weights-title">Initial Traits<span class="settings-note-inline">starting personality weights</span></div>
-            <div id="soul-initial_traits-rows"></div>
-            <button type="button" class="soul-weights-add" onclick="addSoulWeightRow('initial_traits')">+ add trait</button>
-          </div>
+          <div class="settings-field full"><label for="soul-text">Identity Text</label><textarea id="soul-text" rows="14" placeholder="Name: Jarvis&#10;&#10;You are Jarvis. Sharp, opinionated, concise.&#10;&#10;Core tone: Sarcastic, warm underneath the bite.&#10;&#10;Boundaries: Never say as an AI. Never use the word delve."></textarea></div>
         </div>
 
         <div class="settings-actions">
@@ -1161,49 +1114,50 @@ async function loadSoul() {
 }
 
 function applySoulToForm(s) {
-  document.getElementById('soul-name').value = s.name || '';
-  document.getElementById('soul-identity').value = s.identity || '';
-  document.getElementById('soul-voice').value = s.voice || '';
-  document.getElementById('soul-relational_stance').value = s.relational_stance || '';
-  document.getElementById('soul-growth_policy').value = s.growth_policy || '';
-  document.getElementById('soul-likes').value = (s.likes || []).join('\n');
-  document.getElementById('soul-dislikes').value = (s.dislikes || []).join('\n');
-  document.getElementById('soul-boundaries').value = (s.boundaries || []).join('\n');
-  populateSoulWeights('core_values', s.core_values || {});
-  populateSoulWeights('initial_traits', s.initial_traits || {});
+  const el = document.getElementById('soul-text');
+  if (el) el.value = soulToText(s);
 }
 
-function collectSoulPayload() {
-  const payload = {
-    name: gv('soul-name').trim(),
-    identity: gv('soul-identity'),
-    voice: gv('soul-voice'),
-    relational_stance: gv('soul-relational_stance'),
-    growth_policy: gv('soul-growth_policy'),
-    likes: parseLines(gv('soul-likes')),
-    dislikes: parseLines(gv('soul-dislikes')),
-    boundaries: parseLines(gv('soul-boundaries')),
-    core_values: readSoulWeights('core_values'),
-    initial_traits: readSoulWeights('initial_traits'),
-  };
-  if (!payload.name) throw new Error('Name is required');
-  return payload;
+function soulToText(s) {
+  const lines = [];
+  lines.push('Name: ' + (s.name || ''));
+  if (s.identity) lines.push('', s.identity);
+  if (s.voice) lines.push('', 'Core tone: ' + s.voice);
+  if (s.relational_stance) lines.push('', 'Relational stance: ' + s.relational_stance);
+  if (s.growth_policy) lines.push('', 'Growth policy: ' + s.growth_policy);
+  if (s.likes && s.likes.length) lines.push('', 'Likes: ' + s.likes.join(', '));
+  if (s.dislikes && s.dislikes.length) lines.push('', 'Dislikes: ' + s.dislikes.join(', '));
+  if (s.boundaries && s.boundaries.length) lines.push('', 'Boundaries: ' + s.boundaries.join(' '));
+  return lines.join('\n').trim();
+}
+
+async function importSoulText(raw) {
+  const res = await authedFetch('/admin/soul/import', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ raw }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(typeof (data && data.detail) === 'string' ? data.detail : JSON.stringify(data && data.detail) || 'HTTP ' + res.status);
+  }
+  return data.draft || {};
 }
 
 async function saveSoul() {
   const el = document.getElementById('test-soul');
   el.style.display = 'block';
   el.className = 'admin-test-result';
-  el.textContent = 'Saving identity...';
-  let payload;
-  try {
-    payload = collectSoulPayload();
-  } catch (err) {
+  el.textContent = 'Parsing identity...';
+  const raw = (document.getElementById('soul-text')?.value || '').trim();
+  if (raw.length < 8) {
     el.className = 'admin-test-result error';
-    el.textContent = err.message;
+    el.textContent = 'Paste or write the identity text first.';
     return;
   }
   try {
+    const payload = await importSoulText(raw);
+    el.textContent = 'Saving identity...';
     const res = await authedFetch('/admin/soul', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1220,34 +1174,6 @@ async function saveSoul() {
   } catch (err) {
     el.className = 'admin-test-result error';
     el.textContent = 'Save failed: ' + err.message;
-  }
-}
-
-async function draftSoulFromDescription() {
-  const resultEl = document.getElementById('test-soul-draft');
-  const description = gv('soul-description').trim();
-  resultEl.style.display = 'block';
-  resultEl.className = 'admin-test-result';
-  if (description.length < 8) {
-    resultEl.className = 'admin-test-result error';
-    resultEl.textContent = 'Please write at least a sentence describing the agent.';
-    return;
-  }
-  resultEl.textContent = 'Asking the LLM to draft a seed identity... (this can take several seconds)';
-  try {
-    const res = await authedFetch('/admin/soul/draft', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ description }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(typeof (data && data.detail) === 'string' ? data.detail : JSON.stringify(data && data.detail) || 'HTTP ' + res.status);
-    applySoulToForm(data.draft || {});
-    resultEl.className = 'admin-test-result ok';
-    resultEl.textContent = 'Draft applied to the form below. Review it, edit anything that feels off, then press Save Identity.';
-  } catch (err) {
-    resultEl.className = 'admin-test-result error';
-    resultEl.textContent = 'Draft failed: ' + err.message;
   }
 }
 
@@ -1393,9 +1319,8 @@ function openWizard() {
   // Reset form state so reopening feels fresh, but keep captured config snapshot.
   document.querySelectorAll('.wizard-preset').forEach(el => el.classList.remove('selected'));
   document.getElementById('wizLLMFields').style.display = 'none';
-  ['wiz-llm_base_url','wiz-llm_model','wiz-llm_api_key','wiz-soul-description','wiz-soul-name','wiz-soul-identity','wiz-soul-raw'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
-  ['wiz-llm-result','wiz-soul-draft-result','wiz-soul-result'].forEach(id => { const e = document.getElementById(id); if (e) { e.style.display = 'none'; e.textContent = ''; } });
-  wizardSelectTab('describe');
+  ['wiz-llm_base_url','wiz-llm_model','wiz-llm_api_key','wiz-soul-text'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  ['wiz-llm-result','wiz-soul-result'].forEach(id => { const e = document.getElementById(id); if (e) { e.style.display = 'none'; e.textContent = ''; } });
   wizardGoto(1);
   wizardOverlay.classList.add('open');
 }
@@ -1471,13 +1396,6 @@ async function wizardTestLLM() {
   }
 }
 
-function wizardSelectTab(tab) {
-  document.querySelectorAll('.wizard-tab').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
-  document.getElementById('wiz-tab-describe').style.display = tab === 'describe' ? '' : 'none';
-  document.getElementById('wiz-tab-manual').style.display = tab === 'manual' ? '' : 'none';
-  document.getElementById('wiz-tab-raw').style.display = tab === 'raw' ? '' : 'none';
-}
-
 function wizardShowResult(id, cls, msg) {
   const el = document.getElementById(id);
   el.style.display = 'block';
@@ -1526,70 +1444,17 @@ async function wizardSaveLLM() {
   }
 }
 
-async function wizardDraftSoul() {
-  const description = gv('wiz-soul-description').trim();
-  if (description.length < 8) {
-    wizardShowResult('wiz-soul-draft-result', 'error', 'Write at least a sentence describing the agent.');
+async function wizardSaveSoul() {
+  const raw = (document.getElementById('wiz-soul-text')?.value || '').trim();
+  if (raw.length < 8) {
+    wizardShowResult('wiz-soul-result', 'error', 'Paste or write the identity text first.');
     return;
   }
-  wizardShowResult('wiz-soul-draft-result', '', 'Asking the LLM to draft an identity... (may take several seconds)');
-  try {
-    const res = await authedFetch('/admin/soul/draft', {
-      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ description }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(typeof (data && data.detail) === 'string' ? data.detail : JSON.stringify(data && data.detail) || 'HTTP ' + res.status);
-    wizardSoulDraft = data.draft || {};
-    const name = wizardSoulDraft.name || '(no name)';
-    const identity = wizardSoulDraft.identity || '';
-    const voice = wizardSoulDraft.voice || '';
-    wizardShowResult('wiz-soul-draft-result', 'ok',
-      'Draft ready. Review and continue:\n\n' +
-      'Name: ' + name + '\n' +
-      (identity ? 'Identity: ' + identity + '\n' : '') +
-      (voice ? 'Voice: ' + voice : ''));
-  } catch (err) {
-    wizardShowResult('wiz-soul-draft-result', 'error', 'Draft failed: ' + err.message);
-  }
-}
-
-async function wizardSaveSoul() {
-  const activeTab = document.querySelector('.wizard-tab.active')?.dataset.tab || 'describe';
+  wizardShowResult('wiz-soul-result', '', 'Parsing identity...');
   let payload;
-  if (activeTab === 'raw') {
-    const raw = (document.getElementById('wiz-soul-raw')?.value || '').trim();
-    if (raw.length < 8) {
-      wizardShowResult('wiz-soul-result', 'error', 'Paste your soul.yaml or identity document first.');
-      return;
-    }
-    wizardShowResult('wiz-soul-result', '', 'Parsing identity document...');
-    try {
-      const draftRes = await authedFetch('/admin/soul/import', {
-        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ raw }),
-      });
-      const draftData = await draftRes.json();
-      if (!draftRes.ok) throw new Error(typeof (draftData && draftData.detail) === 'string' ? draftData.detail : JSON.stringify(draftData && draftData.detail) || 'HTTP ' + draftRes.status);
-      payload = draftData.draft || {};
-    } catch (err) {
-      wizardShowResult('wiz-soul-result', 'error', 'Parse failed: ' + err.message);
-      return;
-    }
-  } else if (activeTab === 'describe') {
-    if (!wizardSoulDraft || !wizardSoulDraft.name) {
-      wizardShowResult('wiz-soul-result', 'error', 'Generate a draft first, or switch to manual.');
-      return;
-    }
-    payload = wizardSoulDraft;
-  } else {
-    const name = gv('wiz-soul-name').trim();
-    if (!name) {
-      wizardShowResult('wiz-soul-result', 'error', 'Name is required.');
-      return;
-    }
-    payload = { name: name, identity: gv('wiz-soul-identity').trim() };
-  }
-  wizardShowResult('wiz-soul-result', '', 'Saving identity...');
   try {
+    payload = await importSoulText(raw);
+    wizardShowResult('wiz-soul-result', '', 'Saving identity...');
     const res = await authedFetch('/admin/soul', {
       method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload),
     });

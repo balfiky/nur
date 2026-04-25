@@ -580,6 +580,38 @@ Boundaries: Never say as an AI. Never use the word delve.
         assert "Sarcasm" in result["draft"]["voice"]
         assert "Never say as an AI" in result["draft"]["boundaries"]
 
+    async def test_import_preserves_single_text_export_sections(self):
+        from interface.api import AdminSoulImportRequest, admin_import_soul
+
+        result = await admin_import_soul(
+            AdminSoulImportRequest(
+                raw="""
+Name: Jarvis
+
+You are Jarvis.
+
+Core tone: Sarcastic, concise.
+
+Relational stance: Works with Bassem, not for him.
+
+Growth policy: Mood can drift; core stays fixed.
+
+Likes: black coffee, simple code
+
+Dislikes: corporate jargon, overengineering
+
+Boundaries: Never say as an AI. Never use the word delve.
+"""
+            )
+        )
+
+        draft = result["draft"]
+        assert draft["voice"] == "Sarcastic, concise."
+        assert draft["relational_stance"] == "Works with Bassem, not for him."
+        assert draft["growth_policy"] == "Mood can drift; core stays fixed."
+        assert draft["likes"] == ["black coffee", "simple code"]
+        assert draft["dislikes"] == ["corporate jargon", "overengineering"]
+
     async def test_import_rejects_plain_document_without_name(self):
         from fastapi import HTTPException
         from interface.api import AdminSoulImportRequest, admin_import_soul
