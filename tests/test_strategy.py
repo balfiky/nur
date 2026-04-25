@@ -55,6 +55,14 @@ class TestSetBoundary:
         )
         assert s == ResponseStrategy.SET_BOUNDARY
 
+    def test_attack_neutral_trust_sets_boundary(self):
+        s = select_strategy(
+            appraisal=_appraisal(social_move="attack", targets_assistant=True, blame=0.9),
+            modulators=_modulators(),
+            person=_person(trust=0.5),
+        )
+        assert s == ResponseStrategy.SET_BOUNDARY
+
     def test_attack_high_trust_is_not_boundary(self):
         """High trust means the attack is aberrant — repair, not boundary."""
         s = select_strategy(
@@ -108,6 +116,19 @@ class TestRepair:
         )
         assert s == ResponseStrategy.REPAIR
 
+    def test_apology_without_digested_open_loop_repairs(self):
+        """In-session apologies must repair before relationship digestion runs."""
+        s = select_strategy(
+            appraisal=_appraisal(
+                social_move="apology",
+                inferred_intent="repair",
+                vulnerability=0.65,
+            ),
+            modulators=_modulators(valence=0.2, arousal=0.85),
+            person=_person(trust=0.22),
+        )
+        assert s == ResponseStrategy.REPAIR
+
 
 # ---------------------------------------------------------------------------
 # Priority 3: give_space — low energy or withdrawal
@@ -146,6 +167,16 @@ class TestGround:
         s = select_strategy(
             appraisal=_appraisal(),
             modulators=_modulators(arousal=0.8, certainty=0.2),
+        )
+        assert s == ResponseStrategy.GROUND
+
+    def test_surprising_risk_at_moderate_arousal_grounds(self):
+        s = select_strategy(
+            appraisal=_appraisal(
+                expectation_violation=0.8,
+                inferred_intent="seek_action",
+            ),
+            modulators=_modulators(arousal=0.7, certainty=0.35),
         )
         assert s == ResponseStrategy.GROUND
 
@@ -314,6 +345,14 @@ class TestPipelineIntegration:
         assert result.debug.response_strategy == "validate"
 
     def test_strategy_set_boundary_for_attack(self):
+        from core.dual_process.generator import MockLLMBackend
+        from pipeline import CognitivePipeline
+
+        pipe = CognitivePipeline(llm_backend=MockLLMBackend())
+        result = pipe.process("I hate you because you are too slow", user_id="alice")
+        assert result.debug.response_strategy == "set_boundary"
+
+    def test_strategy_set_boundary_for_repeated_attack(self):
         from core.dual_process.generator import MockLLMBackend
         from pipeline import CognitivePipeline
 

@@ -160,6 +160,13 @@ _ACTION_REQUEST_MARKERS = (
     "tell me",
     "show me",
     "explain",
+    "review",
+    "give me",
+    "fix it",
+    "solve it",
+    "challenge my",
+    "slow me down",
+    "be careful",
 )
 _CONNECTION_MARKERS = (
     "hello",

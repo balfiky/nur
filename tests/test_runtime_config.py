@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from unittest.mock import patch
 
 import pytest
 
@@ -121,6 +122,51 @@ class TestConfigFromYaml:
 # =========================================================================
 
 class TestBackendSelection:
+    def _mock_response(self, content: str = "ok", status_code: int = 200, text: str = ""):
+        from unittest.mock import MagicMock
+
+        resp = MagicMock()
+        resp.status_code = status_code
+        resp.text = text
+        resp.json.return_value = {
+            "choices": [{"message": {"content": content}}],
+        }
+        return resp
+
+    @patch("requests.Session.post")
+    def test_openai_compatible_disables_qwen_thinking(self, mock_post):
+        mock_post.return_value = self._mock_response("ok")
+        backend = OpenAICompatibleLLMBackend(
+            base_url="http://localhost:8000/v1",
+            model="Qwen/Test",
+            api_key="k",
+        )
+        backend.generate("sys", "msg")
+
+        payload = mock_post.call_args.kwargs["json"]
+        assert payload["chat_template_kwargs"] == {"enable_thinking": False}
+
+    @patch("requests.Session.post")
+    def test_openai_compatible_retries_without_template_kwargs_when_rejected(self, mock_post):
+        rejected = self._mock_response(
+            "",
+            status_code=400,
+            text="unknown field chat_template_kwargs",
+        )
+        accepted = self._mock_response("ok")
+        mock_post.side_effect = [rejected, accepted]
+        backend = OpenAICompatibleLLMBackend(
+            base_url="https://provider.example/v1",
+            model="provider-model",
+            api_key="k",
+        )
+
+        assert backend.generate("sys", "msg") == "ok"
+        first_payload = mock_post.call_args_list[0].kwargs["json"]
+        second_payload = mock_post.call_args_list[1].kwargs["json"]
+        assert "chat_template_kwargs" in first_payload
+        assert "chat_template_kwargs" not in second_payload
+
     def test_provider_backend(self):
         """Explicit hosted-provider config returns the generic sync backend."""
         config = RuntimeConfig(

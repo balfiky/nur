@@ -45,8 +45,8 @@ def select_strategy(
         relationship is not None and relationship.open_loop_count > 0
     )
 
-    # 1. Protect self from abuse — attack aimed at assistant, low trust
-    if appraisal.social_move == "attack" and trust < 0.4:
+    # 1. Protect self from abuse — attack aimed at assistant, low/neutral trust.
+    if appraisal.social_move == "attack" and trust <= 0.5:
         return ResponseStrategy.SET_BOUNDARY
 
     # 2. Repair — assistant is blamed but trust isn't rock-bottom
@@ -58,8 +58,10 @@ def select_strategy(
     ):
         return ResponseStrategy.REPAIR
 
-    # 2b. Apology into an active rupture should repair before anything else.
-    if appraisal.social_move == "apology" and has_open_loops:
+    # 2b. Apologies are explicit repair attempts. Relationship-memory open
+    # loops are only available after session digestion, so in-session repairs
+    # cannot depend on has_open_loops alone.
+    if appraisal.social_move == "apology" and trust >= 0.2:
         return ResponseStrategy.REPAIR
 
     # 3. Give space — system is drained
@@ -71,6 +73,10 @@ def select_strategy(
         arousal > 0.75 and (appraisal.mixed_affect or certainty < 0.3)
     ) or (
         appraisal.mixed_affect and appraisal.vulnerability > 0.5 and arousal > 0.6
+    ) or (
+        appraisal.expectation_violation > 0.6 and arousal >= 0.65 and certainty <= 0.45
+    ) or (
+        appraisal.inferred_intent == "seek_action" and arousal >= 0.65 and certainty <= 0.4
     ):
         return ResponseStrategy.GROUND
 

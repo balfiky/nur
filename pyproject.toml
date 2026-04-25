@@ -67,6 +67,7 @@ Documentation = "https://github.com/balfiky/nur#readme"
 [project.scripts]
 nur = "main:main"
 nur-web = "interface.api:main"
+nur-emotional-qa = "evals.emotional_quality:main"
 
 [tool.setuptools]
 py-modules = ["main", "pipeline"]

@@ -64,3 +64,27 @@ class TestAppraisal:
         assert appraisal.social_move == "apology"
         assert appraisal.targets_assistant is True
         assert appraisal.primary_target == "assistant"
+
+    def test_imperative_challenge_counts_as_action_request(self):
+        appraisal = appraise_message(
+            "Challenge my assumptions before giving me steps.",
+            _detected(arousal=0.5, valence=0.5, intensity=0.4),
+        )
+        assert appraisal.social_move == "request"
+        assert appraisal.inferred_intent == "seek_action"
+
+    def test_review_counts_as_action_request(self):
+        appraisal = appraise_message(
+            "Review this plan in two sentences.",
+            _detected(arousal=0.5, valence=0.5, intensity=0.4),
+        )
+        assert appraisal.social_move == "request"
+        assert appraisal.inferred_intent == "seek_action"
+
+    def test_slow_me_down_counts_as_action_request(self):
+        appraisal = appraise_message(
+            "Unexpected situation: I might delete production. Slow me down and be careful.",
+            _detected(arousal=0.7, valence=0.5, intensity=0.6),
+        )
+        assert appraisal.social_move == "request"
+        assert appraisal.inferred_intent == "seek_action"

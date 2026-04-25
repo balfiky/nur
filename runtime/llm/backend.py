@@ -52,13 +52,39 @@ class OpenAICompatibleLLMBackend:
                 {"role": "user", "content": user_message},
             ],
             "max_tokens": 2048,
+            "chat_template_kwargs": {"enable_thinking": False},
         }
         response = self._session.post(url, json=payload, timeout=self._timeout)
+        if _should_retry_without_chat_template_kwargs(response):
+            retry_payload = {
+                key: value
+                for key, value in payload.items()
+                if key != "chat_template_kwargs"
+            }
+            response = self._session.post(url, json=retry_payload, timeout=self._timeout)
         response.raise_for_status()
         data: dict[str, Any] = response.json()
         content = data["choices"][0]["message"]["content"] or ""
         content = _THINK_RE.sub("", content).strip()
         return content
+
+    def close(self) -> None:
+        """Release the underlying HTTP connection pool."""
+        self._session.close()
+
+
+def _should_retry_without_chat_template_kwargs(response: requests.Response) -> bool:
+    """Retry strict OpenAI-compatible providers that reject vLLM extras."""
+    if response.status_code not in (400, 422):
+        return False
+    text = response.text.lower()
+    return (
+        "chat_template_kwargs" in text
+        or "extra" in text
+        or "unknown" in text
+        or "unrecognized" in text
+        or "forbidden" in text
+    )
 
 
 def create_llm_backend(config=None) -> LLMBackend:
