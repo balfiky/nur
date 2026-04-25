@@ -20,7 +20,11 @@ from core.types import (
     UnresolvedItem,
     ValueHierarchy,
 )
-from core.defense_mechanisms import DefenseMechanism, _BASE_SUPPRESSION
+from core.defense_mechanisms import (
+    DEFENSE_INSTRUCTIONS,
+    DefenseMechanism,
+    _BASE_SUPPRESSION,
+)
 from core.anticipation import AnticipationEngine, PRE_SHIFT_SCALE, CONFIDENCE_GATE
 from core.dual_process.inner_dialogue import (
     InnerDialogue,
@@ -118,8 +122,8 @@ class TestDeflectionUnderLowTrust:
         if activation is not None:
             assert activation.defense_type == "deflection"
 
-    def test_deflection_adds_instruction(self):
-        """Defense appends deflection instruction to output."""
+    def test_deflection_preserves_user_visible_output(self):
+        """Defense selection stays internal; output text is not prompt-marked."""
         dm = DefenseMechanism()
         state = ModulatorState(arousal=0.9, valence=0.15)
         person = PersonProfile(person_id="x", trust=0.2)
@@ -132,8 +136,9 @@ class TestDeflectionUnderLowTrust:
             person_profile=person,
         )
         assert activation is not None
-        assert "[Defense instruction:" in filtered
-        assert "redirect" in filtered.lower()
+        assert activation.defense_type == "deflection"
+        assert filtered == "Original response"
+        assert "redirect" in DEFENSE_INSTRUCTIONS[activation.defense_type].lower()
 
     def test_no_deflection_with_high_trust(self):
         """Same arousal but high trust → different defense or none."""

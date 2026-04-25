@@ -143,7 +143,7 @@ class TestRationalization:
         assert activation is not None
         assert activation.defense_type != "rationalization"
 
-    def test_rationalization_instruction_appended(self):
+    def test_rationalization_preserves_user_visible_output(self):
         dm = DefenseMechanism()
         state = ModulatorState(arousal=0.8, valence=0.1)
         topics = [TopicProfile(topic="loss", emotional_charge=0.8)]
@@ -154,8 +154,10 @@ class TestRationalization:
             _person(),
             topic_profiles=topics,
         )
-        assert "Defense instruction" in output
-        assert "logical" in output.lower() or "practical" in output.lower()
+        assert output == "I'm devastated."
+        assert activation is not None
+        assert activation.defense_type == "rationalization"
+        assert "logical" in DEFENSE_INSTRUCTIONS[activation.defense_type].lower()
 
 
 # ---------------------------------------------------------------------------
@@ -189,16 +191,19 @@ class TestDeflection:
         if activation:
             assert activation.defense_type != "deflection"
 
-    def test_deflection_instruction_appended(self):
+    def test_deflection_instruction_stays_internal(self):
         dm = DefenseMechanism()
         state = ModulatorState(arousal=0.9, valence=0.15)
-        output, _ = dm.evaluate(
+        output, activation = dm.evaluate(
             "response",
             state,
             _self(),
             _person(trust=0.2),
         )
-        assert "redirect" in output.lower()
+        assert output == "response"
+        assert activation is not None
+        assert activation.defense_type == "deflection"
+        assert "redirect" in DEFENSE_INSTRUCTIONS[activation.defense_type].lower()
 
 
 # ---------------------------------------------------------------------------
@@ -264,16 +269,20 @@ class TestMinimization:
         if activation:
             assert activation.defense_type == "minimization"
 
-    def test_minimization_instruction_appended(self):
+    def test_minimization_instruction_stays_internal(self):
         dm = DefenseMechanism()
         state = _high_intensity_state()
-        output, _ = dm.evaluate(
+        output, activation = dm.evaluate(
             "I'm really upset",
             state,
             _self(flaws=["over_intensity"]),
             _person(trust=0.6),
         )
-        assert "hedging" in output.lower() or "understate" in output.lower()
+        assert output == "I'm really upset"
+        assert activation is not None
+        assert activation.defense_type == "minimization"
+        instruction = DEFENSE_INSTRUCTIONS[activation.defense_type].lower()
+        assert "hedging" in instruction or "understate" in instruction
 
 
 # ---------------------------------------------------------------------------
@@ -309,16 +318,19 @@ class TestProjection:
         if activation:
             assert activation.defense_type != "projection"
 
-    def test_projection_instruction_appended(self):
+    def test_projection_preserves_user_visible_output(self):
         dm = DefenseMechanism()
         state = ModulatorState(arousal=0.85, valence=0.15)
-        output, _ = dm.evaluate(
+        output, activation = dm.evaluate(
             "I'm stressed",
             state,
             _self(maturity=0.1),
             _person(trust=0.5),
         )
-        assert "OTHER person" in output
+        assert output == "I'm stressed"
+        assert activation is not None
+        assert activation.defense_type == "projection"
+        assert "OTHER person" in DEFENSE_INSTRUCTIONS[activation.defense_type]
 
 
 # ---------------------------------------------------------------------------

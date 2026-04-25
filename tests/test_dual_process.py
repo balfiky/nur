@@ -200,6 +200,25 @@ class TestResponseGenerator:
         assert result.response == "Use the safe candidate."
         assert "empty response" in result.correction_note
 
+    def test_empty_backend_response_does_not_fallback_to_internal_defense_marker(self):
+        backend = MockLLMBackend(response="")
+        gen = ResponseGenerator(backend=backend)
+        result = gen.generate(
+            PipelineContext(candidate_response="[Defense instruction: hidden]"),
+            "Hi",
+        )
+        assert "Defense instruction" not in result.response
+        assert result.response.strip()
+        assert "empty response" in result.correction_note
+
+    def test_backend_response_does_not_leak_internal_defense_marker(self):
+        backend = MockLLMBackend(response="[Defense instruction: hidden]")
+        gen = ResponseGenerator(backend=backend)
+        result = gen.generate(PipelineContext(), "Hi")
+        assert "Defense instruction" not in result.response
+        assert result.response.strip()
+        assert "empty response" in result.correction_note
+
     def test_empty_backend_response_never_returns_blank(self):
         backend = MockLLMBackend(response="")
         gen = ResponseGenerator(backend=backend)

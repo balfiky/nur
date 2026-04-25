@@ -89,9 +89,6 @@ class DefenseMechanism:
         suppression = self._suppression_factor(defense, self_profile.maturity_score)
         expressed = raw_intensity * suppression
 
-        instruction = DEFENSE_INSTRUCTIONS[defense]
-        filtered = f"{inner_dialogue_output}\n\n[Defense instruction: {instruction}]"
-
         activation = DefenseActivation(
             defense_type=defense,
             raw_intensity=raw_intensity,
@@ -103,7 +100,7 @@ class DefenseMechanism:
         # Log defense event to self-profile for pattern detection
         self._log_event(self_profile, activation)
 
-        return filtered, activation
+        return inner_dialogue_output, activation
 
     # ------------------------------------------------------------------
     # Raw intensity

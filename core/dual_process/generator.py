@@ -7,10 +7,16 @@ LLM backend is swappable: OpenAI, Anthropic, Ollama, MiniMax, or a callable.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import re
 from typing import Protocol
 
 from config.loader import get_config
 from core.types import PipelineContext
+
+_INTERNAL_MARKER_RE = re.compile(
+    r"^\s*\[(?:Defense instruction|Self-check correction):.*?\]\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -359,7 +365,9 @@ class ResponseGenerator:
             )
             full_message = f"Recent conversation:\n{history_text}\n\nUser: {user_message}"
 
-        response = (self._backend.generate(system_prompt, full_message) or "").strip()
+        response = _strip_internal_markers(
+            self._backend.generate(system_prompt, full_message) or "",
+        )
         correction_note = ""
         if not response:
             response = _fallback_empty_response(ctx)
@@ -378,7 +386,12 @@ class ResponseGenerator:
 
 def _fallback_empty_response(ctx: PipelineContext) -> str:
     """Return a minimal non-empty reply when the provider returns no content."""
-    candidate = (ctx.candidate_response or "").strip()
+    candidate = _strip_internal_markers(ctx.candidate_response or "")
     if candidate:
         return candidate
     return "I heard you. Give me the specific miss and I will tighten the next answer."
+
+
+def _strip_internal_markers(text: str) -> str:
+    """Remove prompt-control markers that must never be visible to users."""
+    return _INTERNAL_MARKER_RE.sub("", text).strip()
