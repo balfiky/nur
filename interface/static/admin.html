@@ -90,16 +90,23 @@
       <div class="section-heading">
         <div>
           <h2 id="tools-heading">Tools</h2>
-          <p>Runtime gates for agentic tools. The detailed tool inventory is added in the next phase.</p>
+          <p>Runtime gates, registered capabilities, risk category, and argument surface.</p>
         </div>
       </div>
       <form class="form-grid" id="toolsForm"></form>
       <div class="panel">
         <div class="panel-heading">
           <h3>Tool Inventory</h3>
-          <span class="muted">Phase 2</span>
+          <button class="secondary" id="refreshToolsBtn">Refresh Tools</button>
         </div>
-        <p class="empty-copy">This page will expand into the registered tool catalog, policy status, and safe test actions.</p>
+        <div class="tool-summary" id="toolsSummary"></div>
+        <div class="tool-toolbar">
+          <input id="toolSearch" type="search" placeholder="Filter tools..." aria-label="Filter tools">
+          <select id="toolCategoryFilter" aria-label="Filter by tool category">
+            <option value="">All categories</option>
+          </select>
+        </div>
+        <div class="tool-list" id="toolsList"></div>
       </div>
     </section>
 

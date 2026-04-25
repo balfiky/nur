@@ -4,6 +4,8 @@
     metadata: [],
     status: null,
     soul: null,
+    tools: [],
+    toolsLoaded: false,
     activePage: "overview",
   };
 
@@ -287,6 +289,95 @@
     setStatus(hasErrors ? "Needs attention" : (hasWarnings ? "Warnings" : "OK"), hasErrors ? "error" : (hasWarnings ? "warn" : "ok"));
   }
 
+  async function loadTools() {
+    const summary = document.getElementById("toolsSummary");
+    const list = document.getElementById("toolsList");
+    if (summary) summary.innerHTML = `<p class="empty-copy">Loading tools...</p>`;
+    if (list) list.innerHTML = "";
+    const res = await authedFetch("/v1/tools?platform=web&user_id=admin&chat_id=admin");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Tools HTTP " + res.status);
+    state.tools = data.tools || [];
+    state.toolsLoaded = true;
+    renderToolInventory();
+  }
+
+  function renderToolInventory() {
+    const summary = document.getElementById("toolsSummary");
+    const list = document.getElementById("toolsList");
+    const categoryFilter = document.getElementById("toolCategoryFilter");
+    if (!summary || !list || !categoryFilter) return;
+
+    const tools = state.tools || [];
+    const categories = [...new Set(tools.map((tool) => tool.category || "unknown"))].sort();
+    const currentCategory = categoryFilter.value;
+    categoryFilter.innerHTML = `<option value="">All categories</option>` + categories.map((category) => (
+      `<option value="${escapeAttr(category)}" ${currentCategory === category ? "selected" : ""}>${escapeHtml(labelize(category))}</option>`
+    )).join("");
+
+    const counts = countTools(tools);
+    summary.innerHTML = [
+      ["Total", tools.length],
+      ["Read", counts.read_only || 0],
+      ["Write", counts.write || 0],
+      ["Destructive", counts.destructive || 0],
+      ["External", counts.external_action || 0],
+    ].map(([label, value]) => `
+      <div class="tool-summary-card">
+        <strong>${escapeHtml(value)}</strong>
+        <span>${escapeHtml(label)}</span>
+      </div>
+    `).join("");
+
+    const query = (document.getElementById("toolSearch").value || "").trim().toLowerCase();
+    const filtered = tools.filter((tool) => {
+      const categoryOk = !categoryFilter.value || tool.category === categoryFilter.value;
+      const haystack = `${tool.name} ${tool.description} ${tool.category}`.toLowerCase();
+      return categoryOk && (!query || haystack.includes(query));
+    });
+
+    if (!state.config.tools_enabled) {
+      list.innerHTML = `<div class="tool-row"><p class="empty-copy">Tools are disabled in runtime config. Enable Agentic Tools and save to inspect registered capabilities.</p></div>`;
+      return;
+    }
+    if (!filtered.length) {
+      list.innerHTML = `<div class="tool-row"><p class="empty-copy">${tools.length ? "No tools match the current filter." : "No tools are registered for the current runtime."}</p></div>`;
+      return;
+    }
+    list.innerHTML = filtered.map(renderToolRow).join("");
+  }
+
+  function renderToolRow(tool) {
+    const argKeys = Object.keys(tool.arg_schema || {});
+    const chips = [
+      tool.category,
+      tool.requires_network ? "network" : "",
+      tool.mcp_backed ? "mcp" : "",
+      tool.supports_streaming ? "streaming" : "",
+    ].filter(Boolean);
+    return `
+      <article class="tool-row">
+        <div>
+          <div class="tool-name">${escapeHtml(tool.name)}</div>
+          <div class="chip-row">
+            ${chips.map((chip) => `<span class="chip ${escapeAttr(chip)}">${escapeHtml(labelize(chip))}</span>`).join("")}
+          </div>
+        </div>
+        <div class="tool-description">${escapeHtml(tool.description || "")}</div>
+        <div class="tool-args">${escapeHtml(argKeys.length ? argKeys.join(", ") : "no arguments")}</div>
+      </article>
+    `;
+  }
+
+  function countTools(tools) {
+    const counts = {};
+    for (const tool of tools) {
+      const category = tool.category || "unknown";
+      counts[category] = (counts[category] || 0) + 1;
+    }
+    return counts;
+  }
+
   function renderWarnings(warnings) {
     const list = document.getElementById("warningsList");
     if (!warnings.length) {
@@ -315,6 +406,10 @@
     state.metadata = configPayload.field_metadata || [];
     renderOverview();
     renderAllForms();
+    if (state.activePage === "tools") {
+      state.toolsLoaded = false;
+      await loadTools();
+    }
     await loadSoul(false);
   }
 
@@ -372,6 +467,10 @@
       state.metadata = data.field_metadata || [];
       await refreshStatusOnly();
       renderAllForms();
+      if (state.activePage === "tools") {
+        state.toolsLoaded = false;
+        await loadTools();
+      }
       showToast(data.message || "Configuration saved.");
     } finally {
       els.saveBtn.disabled = false;
@@ -493,6 +592,12 @@
     }
     els.pageTitle.textContent = document.querySelector(`.nav-item[data-page="${CSS.escape(page)}"]`)?.textContent || "Admin";
     history.replaceState(null, "", "#" + page);
+    if (page === "tools" && !state.toolsLoaded && Object.keys(state.config).length) {
+      loadTools().catch((err) => {
+        document.getElementById("toolsList").innerHTML = `<div class="tool-row"><p class="empty-copy">${escapeHtml(err.message || String(err))}</p></div>`;
+        showToast(err.message || String(err), "error");
+      });
+    }
   }
 
   function openTokenDialog() {
@@ -531,6 +636,12 @@
     els.saveTokenBtn.addEventListener("click", () => setApiToken(els.apiTokenInput.value.trim()));
     document.getElementById("testLlmBtn").addEventListener("click", testLlm);
     document.getElementById("testTelegramBtn").addEventListener("click", testTelegram);
+    document.getElementById("refreshToolsBtn").addEventListener("click", () => {
+      state.toolsLoaded = false;
+      loadTools().catch((err) => showToast(err.message || String(err), "error"));
+    });
+    document.getElementById("toolSearch").addEventListener("input", renderToolInventory);
+    document.getElementById("toolCategoryFilter").addEventListener("change", renderToolInventory);
     document.getElementById("reloadSoulBtn").addEventListener("click", () => loadSoul(true));
     document.getElementById("saveSoulBtn").addEventListener("click", saveSoul);
     document.getElementById("testStorageBtn").addEventListener("click", () => runJsonAction("maintenanceOutput", async () => {
