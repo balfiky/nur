@@ -20,6 +20,8 @@ class TestAdminConsoleStatic:
         assert "Tool Inventory" in html
         assert 'id="refreshToolsBtn"' in html
         assert 'id="toolCategoryFilter"' in html
+        assert 'id="importSkillBtn"' in html
+        assert 'id="skillsList"' in html
 
     def test_admin_assets_are_whitelisted(self):
         css = interface_api.admin_asset("admin.css")
@@ -31,6 +33,7 @@ class TestAdminConsoleStatic:
         assert js.status_code == 200
         assert b"fieldSections" in js.body
         assert b"/v1/tools" in js.body
+        assert b"/admin/skills" in js.body
 
     def test_unknown_admin_asset_404s(self):
         with pytest.raises(HTTPException) as exc:

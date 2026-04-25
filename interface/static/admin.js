@@ -6,6 +6,9 @@
     soul: null,
     tools: [],
     toolsLoaded: false,
+    skills: [],
+    skillsRoot: "",
+    skillsLoaded: false,
     activePage: "overview",
   };
 
@@ -392,6 +395,115 @@
     `).join("");
   }
 
+  async function loadSkills() {
+    const list = document.getElementById("skillsList");
+    if (list) list.innerHTML = `<p class="empty-copy">Loading skills...</p>`;
+    const res = await authedFetch("/admin/skills");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Skills HTTP " + res.status);
+    state.skills = data.skills || [];
+    state.skillsRoot = data.root || "";
+    state.skillsLoaded = true;
+    renderSkills();
+  }
+
+  async function importSkill() {
+    const sourcePath = document.getElementById("skillSourcePath").value.trim();
+    const skillMarkdown = document.getElementById("skillMarkdown").value.trim();
+    const nameHint = document.getElementById("skillNameHint").value.trim();
+    const res = await authedFetch("/admin/skills/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source_path: sourcePath || null,
+        skill_markdown: skillMarkdown || null,
+        name_hint: nameHint,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Import failed");
+    document.getElementById("skillMarkdown").value = "";
+    document.getElementById("skillNameHint").value = "";
+    showToast("Skill imported for review.");
+    await loadSkills();
+  }
+
+  function renderSkills() {
+    const list = document.getElementById("skillsList");
+    const root = document.getElementById("skillsRoot");
+    if (!list || !root) return;
+    root.textContent = state.skillsRoot;
+    if (!state.skills.length) {
+      list.innerHTML = `<p class="empty-copy">No imported skills yet. Import a SKILL.md folder or paste a skill definition above.</p>`;
+      return;
+    }
+    list.innerHTML = state.skills.map(renderSkillRow).join("");
+  }
+
+  function renderSkillRow(skill) {
+    const audit = skill.compatibility || {};
+    const errors = audit.errors || [];
+    const warnings = audit.warnings || [];
+    const requiredTools = audit.required_tools || [];
+    const riskFlags = audit.risk_flags || [];
+    const unsupported = audit.unsupported_features || [];
+    const enabled = !!skill.enabled;
+    const canEnable = !enabled && !errors.length;
+    return `
+      <article class="skill-row">
+        <div class="skill-row-header">
+          <div>
+            <div class="skill-title">${escapeHtml(skill.name || skill.id)}</div>
+            <div class="skill-description">${escapeHtml(skill.description || "No description")}</div>
+          </div>
+          <div class="skill-actions">
+            <span class="status-chip ${escapeAttr(skill.status || "disabled")}">${escapeHtml(labelize(skill.status || "disabled"))}</span>
+            <button class="secondary" data-skill-action="audit" data-skill-id="${escapeAttr(skill.id)}">Audit</button>
+            ${enabled
+              ? `<button class="secondary" data-skill-action="disable" data-skill-id="${escapeAttr(skill.id)}">Disable</button>`
+              : `<button class="primary" data-skill-action="enable" data-skill-id="${escapeAttr(skill.id)}" ${canEnable ? "" : "disabled"}>Enable</button>`}
+          </div>
+        </div>
+        <div class="skill-meta">${escapeHtml(skill.root || "")}</div>
+        <div class="audit-grid">
+          ${renderAuditBox("Required Tools", requiredTools)}
+          ${renderAuditBox("Risk Flags", riskFlags)}
+          ${renderAuditBox("Unsupported Hints", unsupported)}
+          ${renderAuditBox("Errors", errors)}
+          ${renderAuditBox("Warnings", warnings)}
+          ${renderAuditBox("Files", skillFileSummary(audit.files || {}))}
+        </div>
+      </article>
+    `;
+  }
+
+  function renderAuditBox(title, items) {
+    const values = Array.isArray(items) ? items : [String(items || "none")];
+    const content = values.length
+      ? `<ul>${values.slice(0, 8).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
+      : `<p class="empty-copy">None</p>`;
+    return `<div class="audit-box"><strong>${escapeHtml(title)}</strong>${content}</div>`;
+  }
+
+  function skillFileSummary(files) {
+    if (!files.total_count) return ["No files scanned"];
+    return [
+      `${files.total_count} total files`,
+      `${files.script_count || 0} scripts`,
+      `${files.resource_count || 0} resources`,
+    ];
+  }
+
+  async function mutateSkill(skillId, action) {
+    const res = await authedFetch(`/admin/skills/${encodeURIComponent(skillId)}/${action}`, {
+      method: "POST",
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `${action} failed`);
+    showToast(`Skill ${labelize(action)} complete.`);
+    await loadSkills();
+  }
+
   async function loadAll() {
     setStatus("Loading");
     const [statusRes, configRes] = await Promise.all([
@@ -598,6 +710,12 @@
         showToast(err.message || String(err), "error");
       });
     }
+    if (page === "skills" && !state.skillsLoaded) {
+      loadSkills().catch((err) => {
+        document.getElementById("skillsList").innerHTML = `<p class="empty-copy">${escapeHtml(err.message || String(err))}</p>`;
+        showToast(err.message || String(err), "error");
+      });
+    }
   }
 
   function openTokenDialog() {
@@ -642,6 +760,19 @@
     });
     document.getElementById("toolSearch").addEventListener("input", renderToolInventory);
     document.getElementById("toolCategoryFilter").addEventListener("change", renderToolInventory);
+    document.getElementById("refreshSkillsBtn").addEventListener("click", () => {
+      state.skillsLoaded = false;
+      loadSkills().catch((err) => showToast(err.message || String(err), "error"));
+    });
+    document.getElementById("importSkillBtn").addEventListener("click", () => {
+      importSkill().catch((err) => showToast(err.message || String(err), "error"));
+    });
+    document.getElementById("skillsList").addEventListener("click", (event) => {
+      const target = event.target.closest("[data-skill-action]");
+      if (!target) return;
+      mutateSkill(target.dataset.skillId, target.dataset.skillAction)
+        .catch((err) => showToast(err.message || String(err), "error"));
+    });
     document.getElementById("reloadSoulBtn").addEventListener("click", () => loadSoul(true));
     document.getElementById("saveSoulBtn").addEventListener("click", saveSoul);
     document.getElementById("testStorageBtn").addEventListener("click", () => runJsonAction("maintenanceOutput", async () => {

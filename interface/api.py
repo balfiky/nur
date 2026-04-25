@@ -330,6 +330,12 @@ class AdminUserDeleteRequest(BaseModel):
     confirmation: str
 
 
+class AdminSkillImportRequest(BaseModel):
+    source_path: str | None = Field(default=None, max_length=4096)
+    skill_markdown: str | None = Field(default=None, max_length=250000)
+    name_hint: str = Field(default="", max_length=128)
+
+
 class AdminSoulDraftRequest(BaseModel):
     """LLM-assisted soul drafting from a natural-language description."""
 
@@ -914,6 +920,81 @@ async def admin_delete_user(req: AdminUserDeleteRequest) -> dict:
     )
 
 
+@app.get("/admin/skills", dependencies=[Depends(_require_bearer)])
+async def admin_list_skills() -> dict:
+    """List imported skills and their latest compatibility report."""
+    from runtime.skills import SkillError, list_skills
+
+    try:
+        return list_skills(_load_runtime_config())
+    except SkillError as exc:
+        _raise_skill_http_error(exc)
+
+
+@app.post("/admin/skills/import", dependencies=[Depends(_require_bearer)])
+async def admin_import_skill(req: AdminSkillImportRequest) -> dict:
+    """Import a skill folder or pasted SKILL.md for review.
+
+    Imported skills are disabled until explicitly enabled. This endpoint does
+    not inject any skill into generation prompts.
+    """
+    from runtime.skills import SkillError, import_skill
+
+    try:
+        skill = import_skill(
+            _load_runtime_config(),
+            source_path=req.source_path,
+            skill_markdown=req.skill_markdown,
+            name_hint=req.name_hint,
+        )
+    except SkillError as exc:
+        _raise_skill_http_error(exc)
+    return {"ok": True, "skill": skill}
+
+
+@app.get("/admin/skills/{skill_id}", dependencies=[Depends(_require_bearer)])
+async def admin_get_skill(skill_id: str) -> dict:
+    from runtime.skills import SkillError, get_skill
+
+    try:
+        return {"skill": get_skill(_load_runtime_config(), skill_id)}
+    except SkillError as exc:
+        _raise_skill_http_error(exc)
+
+
+@app.post("/admin/skills/{skill_id}/audit", dependencies=[Depends(_require_bearer)])
+async def admin_audit_skill(skill_id: str) -> dict:
+    from runtime.skills import SkillError, audit_installed_skill
+
+    try:
+        skill = audit_installed_skill(_load_runtime_config(), skill_id)
+    except SkillError as exc:
+        _raise_skill_http_error(exc)
+    return {"ok": True, "skill": skill}
+
+
+@app.post("/admin/skills/{skill_id}/enable", dependencies=[Depends(_require_bearer)])
+async def admin_enable_skill(skill_id: str) -> dict:
+    from runtime.skills import SkillError, set_skill_enabled
+
+    try:
+        skill = set_skill_enabled(_load_runtime_config(), skill_id, True)
+    except SkillError as exc:
+        _raise_skill_http_error(exc)
+    return {"ok": True, "skill": skill}
+
+
+@app.post("/admin/skills/{skill_id}/disable", dependencies=[Depends(_require_bearer)])
+async def admin_disable_skill(skill_id: str) -> dict:
+    from runtime.skills import SkillError, set_skill_enabled
+
+    try:
+        skill = set_skill_enabled(_load_runtime_config(), skill_id, False)
+    except SkillError as exc:
+        _raise_skill_http_error(exc)
+    return {"ok": True, "skill": skill}
+
+
 @app.post("/session/end", dependencies=[Depends(_require_bearer)])
 async def end_session(req: EndSessionRequest) -> dict:
     if _pipeline_override is not None:
@@ -1047,6 +1128,12 @@ def _static_asset_response(filename: str, media_type: str):
     path = os.path.join(static_dir, filename)
     with open(path, "rb") as f:
         return Response(content=f.read(), media_type=media_type)
+
+
+def _raise_skill_http_error(exc: Exception) -> None:
+    detail = str(exc)
+    code = 404 if "not found" in detail.lower() else 400
+    raise HTTPException(status_code=code, detail=detail)
 
 
 def _session_key(user_id: str, chat_id: str) -> str:

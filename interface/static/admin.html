@@ -116,13 +116,37 @@
           <h2 id="skills-heading">Skills</h2>
           <p>Import, audit, map, and enable external Agent Skills.</p>
         </div>
+        <button class="secondary" id="refreshSkillsBtn">Refresh Skills</button>
       </div>
       <div class="panel">
         <div class="panel-heading">
-          <h3>Import Pipeline</h3>
-          <span class="muted">Phase 3</span>
+          <h3>Import Skill</h3>
         </div>
-        <p class="empty-copy">Skills will install disabled by default, receive a compatibility report, and only enter runtime prompts after review.</p>
+        <div class="form-grid">
+          <label class="field-card wide">
+            <span>Server path to a skill folder or SKILL.md</span>
+            <input id="skillSourcePath" type="text" placeholder="/home/balfiky/.agents/skills/example">
+            <small class="field-help">Use this for local OpenClaw, Claude, ChatGPT/Agent Skills-compatible folders.</small>
+          </label>
+          <label class="field-card wide">
+            <span>Or paste SKILL.md</span>
+            <textarea id="skillMarkdown" spellcheck="false" placeholder="---&#10;name: example&#10;description: What this skill teaches the assistant&#10;---"></textarea>
+          </label>
+          <label class="field-card">
+            <span>Name hint</span>
+            <input id="skillNameHint" type="text" placeholder="optional">
+          </label>
+        </div>
+        <div class="button-row">
+          <button class="primary" id="importSkillBtn" type="button">Import For Review</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-heading">
+          <h3>Installed Skills</h3>
+          <span class="muted" id="skillsRoot"></span>
+        </div>
+        <div class="skill-list" id="skillsList"></div>
       </div>
     </section>
 

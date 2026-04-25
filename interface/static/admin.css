@@ -466,6 +466,87 @@ select:focus {
 .chip.external_action { background: #fffaeb; border-color: #fedf89; color: var(--warning); }
 .chip.cognitive { background: #f4f3ff; border-color: #d9d6fe; color: #5925dc; }
 
+.skill-list {
+  display: grid;
+  gap: 12px;
+}
+
+.skill-row {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.skill-row-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.skill-title {
+  font-size: 16px;
+  font-weight: 750;
+  margin-bottom: 4px;
+}
+
+.skill-description {
+  color: var(--muted-strong);
+}
+
+.skill-meta {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.skill-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.audit-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.audit-box {
+  background: var(--surface-muted);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.audit-box strong {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.audit-box ul {
+  color: var(--muted-strong);
+  margin: 0;
+  padding-left: 18px;
+}
+
+.status-chip {
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 750;
+  padding: 4px 9px;
+}
+
+.status-chip.enabled { background: #ecfdf3; color: var(--success); }
+.status-chip.needs_review { background: #fffaeb; color: var(--warning); }
+.status-chip.invalid { background: #fef3f2; color: var(--danger); }
+.status-chip.disabled { background: var(--surface-strong); color: var(--muted-strong); }
+
 .output {
   background: #0f172a;
   border-radius: 8px;
@@ -528,8 +609,15 @@ select:focus {
   .action-grid,
   .tool-summary,
   .tool-toolbar,
-  .tool-row {
+  .tool-row,
+  .audit-grid {
     grid-template-columns: 1fr;
+  }
+  .skill-row-header {
+    flex-direction: column;
+  }
+  .skill-actions {
+    justify-content: flex-start;
   }
 }
 
