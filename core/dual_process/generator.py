@@ -359,13 +359,26 @@ class ResponseGenerator:
             )
             full_message = f"Recent conversation:\n{history_text}\n\nUser: {user_message}"
 
-        response = self._backend.generate(system_prompt, full_message)
+        response = (self._backend.generate(system_prompt, full_message) or "").strip()
+        correction_note = ""
+        if not response:
+            response = _fallback_empty_response(ctx)
+            correction_note = "LLM returned an empty response; fallback response used."
 
         return GenerationResult(
             response=response,
             system_prompt=system_prompt,
+            correction_note=correction_note,
         )
 
     @property
     def backend(self) -> LLMBackend:
         return self._backend
+
+
+def _fallback_empty_response(ctx: PipelineContext) -> str:
+    """Return a minimal non-empty reply when the provider returns no content."""
+    candidate = (ctx.candidate_response or "").strip()
+    if candidate:
+        return candidate
+    return "I heard you. Give me the specific miss and I will tighten the next answer."

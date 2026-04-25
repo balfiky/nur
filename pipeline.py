@@ -691,6 +691,7 @@ class CognitivePipeline:
             ctx, user_message, self._conversation_history
         )
         debug.generation_attempts = 1
+        debug.correction_note = gen_result.correction_note
         timings["generator"] = (time.perf_counter() - _ts) * 1000
 
         # ---- Self-check (rule-based default; LLM only when warranted) ----

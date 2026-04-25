@@ -190,6 +190,23 @@ class TestResponseGenerator:
         assert result.response == "Hello there!"
         assert result.system_prompt != ""
 
+    def test_empty_backend_response_falls_back_to_candidate(self):
+        backend = MockLLMBackend(response="")
+        gen = ResponseGenerator(backend=backend)
+        result = gen.generate(
+            PipelineContext(candidate_response="Use the safe candidate."),
+            "Hi",
+        )
+        assert result.response == "Use the safe candidate."
+        assert "empty response" in result.correction_note
+
+    def test_empty_backend_response_never_returns_blank(self):
+        backend = MockLLMBackend(response="")
+        gen = ResponseGenerator(backend=backend)
+        result = gen.generate(PipelineContext(), "Hi")
+        assert result.response.strip()
+        assert "empty response" in result.correction_note
+
     def test_passes_context_to_backend(self):
         backend = MockLLMBackend()
         gen = ResponseGenerator(backend=backend)

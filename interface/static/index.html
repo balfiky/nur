@@ -372,7 +372,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
         <div><label for="wiz-soul-identity">Identity (one or two sentences)</label><textarea id="wiz-soul-identity" rows="3" placeholder="A steady, honest collaborator who listens first."></textarea></div>
       </div>
       <div class="wizard-fields" id="wiz-tab-raw" style="display:none">
-        <div style="grid-column: span 2"><label for="wiz-soul-raw">Paste your soul.yaml or full identity document</label><textarea id="wiz-soul-raw" rows="10" placeholder="name: Jarvis&#10;identity: Sharp, opinionated collaborator...&#10;voice: Sarcastic but warm underneath..."></textarea><small style="color:var(--text-dim);margin-top:4px;display:block">The LLM will extract name, identity, voice, and other fields from whatever you paste.</small></div>
+        <div style="grid-column: span 2"><label for="wiz-soul-raw">Paste your soul.yaml or full identity document</label><textarea id="wiz-soul-raw" rows="10" placeholder="name: Jarvis&#10;identity: Sharp, opinionated collaborator...&#10;voice: Sarcastic but warm underneath..."></textarea><small style="color:var(--text-dim);margin-top:4px;display:block">Nūr parses YAML locally. Plain identity documents should start with Name: Jarvis.</small></div>
       </div>
       <div class="admin-test-result" id="wiz-soul-result" style="display:none"></div>
       <div class="wizard-actions">
@@ -1564,8 +1564,8 @@ async function wizardSaveSoul() {
     }
     wizardShowResult('wiz-soul-result', '', 'Parsing identity document...');
     try {
-      const draftRes = await authedFetch('/admin/soul/draft', {
-        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ description: raw }),
+      const draftRes = await authedFetch('/admin/soul/import', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ raw }),
       });
       const draftData = await draftRes.json();
       if (!draftRes.ok) throw new Error(typeof (draftData && draftData.detail) === 'string' ? draftData.detail : JSON.stringify(draftData && draftData.detail) || 'HTTP ' + draftRes.status);

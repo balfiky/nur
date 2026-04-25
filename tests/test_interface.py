@@ -443,6 +443,21 @@ class TestConfigEndpoint:
         assert captured[0].telegram_token == "keep-me"
         assert captured[0].telegram_allowlist == {"456", "789"}
 
+    async def test_restart_telegram_skips_malformed_token(self, monkeypatch):
+        started = False
+
+        async def fake_start(_config):
+            nonlocal started
+            started = True
+
+        monkeypatch.setattr(interface_api, "_start_telegram", fake_start)
+        await interface_api._restart_telegram_channel(
+            RuntimeConfig(telegram_token="not-a-real-token")
+        )
+
+        assert started is False
+        assert interface_api._telegram_task is None
+
 
 class TestAdminSoul:
     async def test_get_admin_soul_returns_current_identity(self):
@@ -513,6 +528,68 @@ class TestAdminSoul:
         )
         assert req.likes == ["clarity", "honesty"]
         assert req.boundaries == ["Do not pretend certainty when uncertain."]
+
+
+class TestAdminSoulImport:
+    async def test_import_parses_top_level_soul_yaml(self):
+        from interface.api import AdminSoulImportRequest, admin_import_soul
+
+        result = await admin_import_soul(
+            AdminSoulImportRequest(
+                raw="""
+soul:
+  name: Jarvis
+  identity: Sharp collaborator.
+  voice: Sarcastic, concise.
+  relational_stance: Works with the user.
+  likes:
+    - simple code
+  core_values:
+    clarity: 0.9
+"""
+            )
+        )
+
+        assert result["ok"] is True
+        assert result["source"] == "yaml"
+        assert result["draft"]["name"] == "Jarvis"
+        assert result["draft"]["likes"] == ["simple code"]
+        assert result["draft"]["core_values"]["clarity"] == 0.9
+
+    async def test_import_parses_plain_identity_document(self):
+        from interface.api import AdminSoulImportRequest, admin_import_soul
+
+        result = await admin_import_soul(
+            AdminSoulImportRequest(
+                raw="""
+Name: Jarvis
+
+You are Jarvis. Not an assistant. Sharp, opinionated, and concise.
+
+Core tone: Sarcasm is your native language. Warm underneath the bite.
+
+Boundaries: Never say as an AI. Never use the word delve.
+"""
+            )
+        )
+
+        assert result["ok"] is True
+        assert result["source"] == "text"
+        assert result["draft"]["name"] == "Jarvis"
+        assert "You are Jarvis" in result["draft"]["identity"]
+        assert "Sarcasm" in result["draft"]["voice"]
+        assert "Never say as an AI" in result["draft"]["boundaries"]
+
+    async def test_import_rejects_plain_document_without_name(self):
+        from fastapi import HTTPException
+        from interface.api import AdminSoulImportRequest, admin_import_soul
+
+        with pytest.raises(HTTPException) as exc:
+            await admin_import_soul(
+                AdminSoulImportRequest(raw="You are a sharp collaborator.")
+            )
+        assert exc.value.status_code == 400
+        assert "Name:" in exc.value.detail
 
 
 class TestAdminSetupDefaultSoul:

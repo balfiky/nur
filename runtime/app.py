@@ -58,7 +58,14 @@ class NurApp:
         # Start Telegram channel if token is configured
         telegram_task: asyncio.Task | None = None
         if self.config.telegram_token:
-            telegram_task = asyncio.create_task(self._start_telegram())
+            from runtime.channels.telegram import is_telegram_token_pollable
+
+            if not is_telegram_token_pollable(self.config.telegram_token):
+                log.warning(
+                    "Telegram token is configured but malformed; polling is not started"
+                )
+            else:
+                telegram_task = asyncio.create_task(self._start_telegram())
 
         # Start proactive behavior loop if enabled
         proactive_task: asyncio.Task | None = None

@@ -122,6 +122,13 @@ async def _restart_telegram_channel(config: RuntimeConfig) -> None:
 
     await _stop_telegram_channel()
     if config.telegram_token:
+        from runtime.channels.telegram import is_telegram_token_pollable
+
+        if not is_telegram_token_pollable(config.telegram_token):
+            _log.warning(
+                "Telegram token is configured but malformed; polling is not started"
+            )
+            return
         _telegram_task = asyncio.create_task(_start_telegram(config))
         _telegram_task.add_done_callback(_log_telegram_task_exception)
 
@@ -333,6 +340,20 @@ class AdminSoulDraftRequest(BaseModel):
         stripped = value.strip()
         if len(stripped) < 8:
             raise ValueError("description must be at least 8 characters")
+        return stripped
+
+
+class AdminSoulImportRequest(BaseModel):
+    """Raw soul.yaml or identity document pasted by an operator."""
+
+    raw: str = Field(..., min_length=8, max_length=20000)
+
+    @field_validator("raw")
+    @classmethod
+    def _strip_raw(cls, value: str) -> str:
+        stripped = value.strip()
+        if len(stripped) < 8:
+            raise ValueError("raw must be at least 8 characters")
         return stripped
 
 
@@ -803,6 +824,27 @@ async def admin_draft_soul(req: AdminSoulDraftRequest) -> dict:
         "notes": [
             "This is a draft, not a save. Review the fields and press Save Identity to commit.",
             "LLM-authored drafts may drift from the description on second reading; edit anything that feels off.",
+        ],
+    }
+
+
+@app.post("/admin/soul/import", dependencies=[Depends(_require_bearer)])
+async def admin_import_soul(req: AdminSoulImportRequest) -> dict:
+    """Parse pasted soul.yaml or a plain identity document without an LLM call."""
+    payload, source = _parse_raw_soul_document(req.raw)
+    try:
+        draft = AdminSoulUpdateRequest.model_validate(payload)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Pasted identity did not match the soul schema: {exc}",
+        )
+    return {
+        "ok": True,
+        "draft": draft.model_dump(),
+        "source": source,
+        "notes": [
+            "Parsed locally. Review the fields and press Save Identity to commit.",
         ],
     }
 
@@ -1425,6 +1467,186 @@ def _parse_soul_draft_json(raw: str) -> dict:
             status_code=502,
             detail=f"LLM draft was not valid JSON: {exc}",
         )
+
+
+_SOUL_FIELDS = {
+    "name",
+    "identity",
+    "voice",
+    "relational_stance",
+    "growth_policy",
+    "likes",
+    "dislikes",
+    "boundaries",
+    "core_values",
+    "initial_traits",
+}
+
+
+def _parse_raw_soul_document(raw: str) -> tuple[dict, str]:
+    """Parse pasted identity text into the admin soul schema.
+
+    Accepts either real ``soul.yaml`` (with or without a top-level ``soul`` key)
+    or a plain text document beginning with ``Name: ...``. The latter keeps the
+    wizard's raw-paste path deterministic instead of depending on an LLM.
+    """
+    text = raw.strip()
+    yaml_payload = _parse_soul_yaml_payload(text)
+    if yaml_payload is not None:
+        return yaml_payload, "yaml"
+    return _parse_plain_soul_document(text), "text"
+
+
+def _parse_soul_yaml_payload(text: str) -> dict | None:
+    import yaml as _yaml
+
+    try:
+        loaded = _yaml.safe_load(text)
+    except _yaml.YAMLError:
+        return None
+    if not isinstance(loaded, dict):
+        return None
+
+    source = loaded.get("soul") if isinstance(loaded.get("soul"), dict) else loaded
+    normalized = {
+        str(key).strip().lower().replace("-", "_"): value
+        for key, value in source.items()
+    }
+    if not any(field in normalized for field in _SOUL_FIELDS):
+        return None
+
+    return _coerce_soul_payload(normalized)
+
+
+def _parse_plain_soul_document(text: str) -> dict:
+    lines = text.splitlines()
+    first_idx = next((i for i, line in enumerate(lines) if line.strip()), -1)
+    if first_idx < 0:
+        raise HTTPException(status_code=400, detail="Pasted identity document is empty.")
+
+    name = ""
+    first = lines[first_idx].strip()
+    if first.lower().startswith("name:"):
+        name = first.split(":", 1)[1].strip()
+        body = "\n".join(lines[first_idx + 1 :]).strip()
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Paste a soul.yaml document or start the identity document with "
+                "'Name: <agent name>'."
+            ),
+        )
+    if not name:
+        raise HTTPException(status_code=400, detail="Identity document name is empty.")
+    if not body:
+        raise HTTPException(status_code=400, detail="Identity document body is empty.")
+
+    sections = _split_plain_identity_sections(body)
+    identity = sections.get("identity") or body
+    return _coerce_soul_payload(
+        {
+            "name": name,
+            "identity": _trim_text(identity, 2000),
+            "voice": _trim_text(sections.get("voice", ""), 2000),
+            "relational_stance": _trim_text(sections.get("relational_stance", ""), 2000),
+            "growth_policy": "",
+            "likes": [],
+            "dislikes": [],
+            "boundaries": _plain_boundaries(sections.get("boundaries", "")),
+            "core_values": {},
+            "initial_traits": {},
+        }
+    )
+
+
+def _split_plain_identity_sections(body: str) -> dict[str, str]:
+    markers = {
+        "core tone:": "voice",
+        "boundaries:": "boundaries",
+    }
+    sections: dict[str, list[str]] = {"identity": []}
+    current = "identity"
+    for line in body.splitlines():
+        stripped = line.strip()
+        lowered = stripped.lower()
+        for prefix, marker in markers.items():
+            if lowered.startswith(prefix):
+                current = marker
+                sections.setdefault(current, [])
+                remainder = stripped.split(":", 1)[1].strip()
+                if remainder:
+                    sections[current].append(remainder)
+                break
+        else:
+            sections.setdefault(current, []).append(line)
+            continue
+    return {key: "\n".join(value).strip() for key, value in sections.items()}
+
+
+def _plain_boundaries(text: str) -> list[str]:
+    if not text.strip():
+        return []
+    items: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.lower().startswith("never "):
+            parts = [part.strip(" .") for part in stripped.split(".") if part.strip()]
+            items.extend(parts)
+        else:
+            items.append(stripped)
+    return [_trim_text(item, 200) for item in items[:32] if item]
+
+
+def _coerce_soul_payload(data: dict) -> dict:
+    return {
+        "name": _trim_text(str(data.get("name") or ""), 64),
+        "identity": _trim_text(str(data.get("identity") or ""), 2000),
+        "voice": _trim_text(str(data.get("voice") or ""), 2000),
+        "relational_stance": _trim_text(str(data.get("relational_stance") or ""), 2000),
+        "growth_policy": _trim_text(str(data.get("growth_policy") or ""), 2000),
+        "likes": _coerce_string_list(data.get("likes")),
+        "dislikes": _coerce_string_list(data.get("dislikes")),
+        "boundaries": _coerce_string_list(data.get("boundaries")),
+        "core_values": _coerce_weight_dict(data.get("core_values")),
+        "initial_traits": _coerce_weight_dict(data.get("initial_traits")),
+    }
+
+
+def _coerce_string_list(value) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        candidates = value.splitlines()
+    elif isinstance(value, list):
+        candidates = value
+    else:
+        candidates = [value]
+    return [_trim_text(str(item).strip(), 200) for item in candidates if str(item).strip()]
+
+
+def _coerce_weight_dict(value) -> dict[str, float]:
+    if not isinstance(value, dict):
+        return {}
+    out: dict[str, float] = {}
+    for key, raw in value.items():
+        name = str(key).strip()
+        if not name:
+            continue
+        try:
+            out[name] = float(raw)
+        except (TypeError, ValueError):
+            out[name] = 0.5
+    return out
+
+
+def _trim_text(value: str, limit: int) -> str:
+    value = value.strip()
+    if len(value) <= limit:
+        return value
+    return value[: max(0, limit - 3)].rstrip() + "..."
 
 
 def _soul_looks_default() -> bool:

@@ -21,6 +21,7 @@ from runtime.channels.telegram import (
     DedupeCache,
     TelegramChannel,
     TelegramConfig,
+    is_telegram_token_pollable,
 )
 from runtime.config import RuntimeConfig
 from runtime.sessions.manager import SessionManager
@@ -129,6 +130,15 @@ class TestDedupeCache:
         cache.mark(1)
         cache.mark(2)
         assert len(cache) == 2
+
+
+class TestTelegramTokenShape:
+    def test_pollable_token_requires_numeric_bot_id_and_secret(self):
+        assert is_telegram_token_pollable("123456:abc")
+        assert not is_telegram_token_pollable("not-a-real-token")
+        assert not is_telegram_token_pollable("bot123:abc")
+        assert not is_telegram_token_pollable("123456:")
+        assert not is_telegram_token_pollable("123 456:abc")
 
 
 # =========================================================================

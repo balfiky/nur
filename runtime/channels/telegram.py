@@ -17,6 +17,21 @@ log = logging.getLogger(__name__)
 _TYPING_INTERVAL = 4.0
 
 
+def is_telegram_token_pollable(token: str) -> bool:
+    """Return true for tokens that are shaped enough to start polling.
+
+    Admin validation may store draft tokens so operators can fix them later,
+    but the runtime should not hammer Telegram with obviously malformed values.
+    A real Bot API token starts with a numeric bot id, then a colon, then a
+    non-empty secret.
+    """
+    value = (token or "").strip()
+    if not value or any(ch.isspace() for ch in value):
+        return False
+    bot_id, sep, secret = value.partition(":")
+    return bool(sep and bot_id.isdigit() and secret)
+
+
 # ---------------------------------------------------------------------------
 # Dedupe cache
 # ---------------------------------------------------------------------------
