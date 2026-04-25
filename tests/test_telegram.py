@@ -429,8 +429,8 @@ class TestCommands:
 
         asyncio.run(run())
 
-    def test_new_starts_fresh_conversation_without_restoring_hot_state(self):
-        """'/new' closes the active chat session and removes its saved snapshot."""
+    def test_new_starts_fresh_active_conversation_without_restoring_hot_state(self):
+        """'/new' replaces the active chat session with a clean one."""
         async def run():
             with tempfile.TemporaryDirectory() as tmpdir:
                 channel, manager, client = _make_channel(tmpdir)
@@ -446,9 +446,41 @@ class TestCommands:
                         _make_update(update_id=2, text="/new")
                     )
 
-                    assert session_key not in manager.active_sessions
+                    assert session_key in manager.active_sessions
                     assert not os.path.exists(state_path)
+                    snap = manager.active_sessions[session_key].pipeline.engine.snapshot()
+                    assert snap["arousal"] == 0.5
+                    assert snap["valence"] == 0.5
                     assert "new conversation" in client.sent_messages[-1]["text"].lower()
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_mental_reports_assistant_state(self):
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                channel, manager, client = _make_channel(tmpdir)
+                try:
+                    await channel.handle_update(_make_update(text="/mental"))
+                    message = client.sent_messages[-1]["text"].lower()
+                    assert "mental state" in message
+                    assert "mental health" in message
+                    assert "arousal" in message
+                    assert "resolution" in message
+                    assert "telegram:100:100" in manager.active_sessions
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_mood_alias_reports_assistant_state(self):
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                channel, manager, client = _make_channel(tmpdir)
+                try:
+                    await channel.handle_update(_make_update(text="/mood"))
+                    assert "mental state" in client.sent_messages[-1]["text"].lower()
                 finally:
                     await manager.shutdown()
 

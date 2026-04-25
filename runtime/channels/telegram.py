@@ -131,7 +131,7 @@ class TelegramChannel:
     - Allowlist by numeric user ID (empty = allow all)
     - Per-update dedupe with TTL cache
     - Typing indicators resent every 4 s while Nūr processes
-    - Commands: /status, /new, /reset, /debug
+    - Commands: /status, /mental, /new, /reset, /debug
     """
 
     def __init__(
@@ -279,6 +279,8 @@ class TelegramChannel:
 
         if cmd == "/status":
             await self._cmd_status(user_id, chat_id)
+        elif cmd in {"/mental", "/mood"}:
+            await self._cmd_mental(user_id, chat_id)
         elif cmd == "/new":
             await self._cmd_new(user_id, chat_id)
         elif cmd == "/reset":
@@ -303,6 +305,38 @@ class TelegramChannel:
         for mod, val in snap.items():
             bar = "█" * int(val * 10) + "░" * (10 - int(val * 10))
             lines.append(f"  {mod:11s} {bar} {val:.2f}")
+        await self._client.send_message(chat_id, "\n".join(lines))
+
+    async def _cmd_mental(self, user_id: str, chat_id: int) -> None:
+        session = await self._manager.ensure_session(
+            "telegram",
+            user_id,
+            str(chat_id),
+        )
+        snap = session.pipeline.engine.snapshot()
+        label = session.pipeline.engine.to_emotion_label()
+        active_loops = session.pipeline.engine.active_unresolved()
+        stability = _mental_stability_score(snap)
+        lines = [
+            f"Mental state: {label}",
+            f"Mental health: {_mental_health_label(stability)} ({stability}/100)",
+        ]
+        for mod in ("arousal", "valence", "certainty", "bonding", "energy", "resolution"):
+            val = snap.get(mod, 0.0)
+            lines.append(f"  {mod:11s} {_bar(val)} {val:.2f}")
+        lines.append(f"Open loops: {len(active_loops)}")
+
+        last_debug = session.last_debug
+        if last_debug is not None:
+            lines.append(
+                "Last self-check: "
+                f"{'passed' if last_debug.self_check_passed else 'failed'}"
+            )
+            if last_debug.response_strategy:
+                lines.append(f"Strategy: {last_debug.response_strategy}")
+            if last_debug.tool_trace is not None:
+                lines.append(f"Tool executions: {last_debug.tool_trace.loop_count}")
+
         await self._client.send_message(chat_id, "\n".join(lines))
 
     async def _cmd_reset(self, user_id: str, chat_id: int) -> None:
@@ -333,7 +367,9 @@ class TelegramChannel:
             removed = _remove_file_if_exists(path) or removed
             removed = _remove_file_if_exists(path + ".tmp") or removed
 
-        message = "Started a new conversation. Long-term memory is unchanged."
+        await self._manager.ensure_session("telegram", user_id, str(chat_id))
+
+        message = "Started a new conversation. Relationship memory remains available."
         if not removed:
             message = "Started a new conversation."
         await self._client.send_message(chat_id, message)
@@ -354,3 +390,34 @@ def _remove_file_if_exists(path: str) -> bool:
     except OSError:
         log.warning("Could not remove Telegram session state file: %s", path)
         return False
+
+
+def _bar(value: float) -> str:
+    filled = max(0, min(10, int(value * 10)))
+    return "█" * filled + "░" * (10 - filled)
+
+
+def _mental_stability_score(snapshot: dict[str, float]) -> int:
+    arousal = snapshot.get("arousal", 0.5)
+    valence = snapshot.get("valence", 0.5)
+    certainty = snapshot.get("certainty", 0.5)
+    energy = snapshot.get("energy", 1.0)
+    resolution = snapshot.get("resolution", 0.0)
+    strain = (
+        abs(arousal - 0.5) * 0.7
+        + abs(valence - 0.5) * 0.9
+        + (1.0 - certainty) * 0.5
+        + (1.0 - energy) * 0.8
+        + resolution * 0.9
+    )
+    return max(0, min(100, round(100 * (1.0 - min(1.0, strain / 2.2)))))
+
+
+def _mental_health_label(score: int) -> str:
+    if score >= 80:
+        return "stable"
+    if score >= 60:
+        return "strained"
+    if score >= 40:
+        return "distressed"
+    return "critical"
