@@ -64,6 +64,11 @@ class RuntimeConfig:
     # operations (fs.delete_path, shell.run_command, etc.), and the default
     # HTTP surface does not authenticate every request. Opt in explicitly.
     tools_enabled: bool = False
+    # Tool orchestration backend:
+    # heuristic = existing deterministic matcher
+    # langgraph = model-native tool calling through LangGraph
+    # hybrid = LangGraph first, deterministic matcher as a fallback
+    tool_orchestrator: str = "heuristic"
     # How independently the assistant may act once tools are enabled:
     # off | assisted | autonomous | high_risk
     autonomy_level: str = "assisted"

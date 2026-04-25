@@ -146,6 +146,30 @@ class TestDetectToolIntent:
         assert "can you tell me your hostname?" in msg
         assert "issue the needed command" in msg
 
+    def test_terse_tool_followup_reuses_previous_actionable_request(self):
+        msg = _message_for_tool_detection(
+            "go",
+            [
+                {"role": "user", "content": "how much disk space left?"},
+                {"role": "assistant", "content": "df -h /"},
+                {"role": "user", "content": "stop printing the command"},
+            ],
+        )
+        assert "how much disk space left?" in msg
+        assert "go" in msg
+
+    def test_disk_space_question_uses_shell(self):
+        intent = detect_tool_intent("how much disk space left?", self._available())
+        assert intent is not None
+        assert intent.tool_name == "shell.run_command"
+        assert intent.arguments["cmd"] == "df -h /"
+
+    def test_direct_df_command_uses_shell(self):
+        intent = detect_tool_intent("df -h /", self._available())
+        assert intent is not None
+        assert intent.tool_name == "shell.run_command"
+        assert intent.arguments["cmd"] == "df -h /"
+
     def test_web_search(self):
         intent = detect_tool_intent("search the web for 'python dataclasses'", self._available())
         assert intent is not None

@@ -110,8 +110,21 @@ from core.tool_memory import (
 from core.types import ProactiveTrace, TaskPlan, TaskTrace
 
 _TOOL_FOLLOWUP_COMMAND_RE = re.compile(
+    r"("
     r"\b(?:issue|run|execute|use)\s+(?:the\s+)?"
-    r"(?:needed|required|necessary|right)\s+command\b",
+    r"(?:needed|required|necessary|right)\s+command\b"
+    r"|^\s*(?:go|do\s+it|run\s+it|check\s+again|try\s+again|"
+    r"now\s+check\s+again|give\s+me\s+(?:the\s+)?output(?:\s+not\s+the\s+command)?|"
+    r"show\s+me\s+(?:the\s+)?output)\s*[.!?]*\s*$"
+    r")",
+    re.IGNORECASE,
+)
+
+_TOOL_HISTORY_ACTION_HINT_RE = re.compile(
+    r"\b(?:hostname|host\s*name|machine\s+name|uname|/etc/hostname|"
+    r"disk|drive|filesystem|storage|space|df\s+-h|"
+    r"search|web|internet|fetch|read\s+file|list\s+files|"
+    r"cat\s+/|grep|calendar|events?)\b",
     re.IGNORECASE,
 )
 
@@ -211,7 +224,9 @@ def _message_for_tool_detection(
         return user_message
     for message in reversed(conversation_history):
         if message.get("role") == "user" and message.get("content"):
-            return f"{message['content']}\n{user_message}"
+            content = message["content"]
+            if _TOOL_HISTORY_ACTION_HINT_RE.search(content):
+                return f"{content}\n{user_message}"
     return user_message
 
 
@@ -329,6 +344,7 @@ class CognitivePipeline:
 
         # Agentic tools (Phase 2+)
         self._tool_executor = tool_executor
+        self._tool_runner = getattr(tool_executor, "_tool_runner", None)
         self._autonomy_level = autonomy_level
         # Session-scoped task plan (Phase 7)
         self._active_task_plan: TaskPlan | None = None
@@ -576,17 +592,29 @@ class CognitivePipeline:
                 user_message,
                 self._conversation_history,
             )
-            tool_loop_result = run_tool_loop(
-                user_message=tool_user_message,
-                state=self.engine.state,
-                person=person,
-                defense_active=False,  # defense hasn't fired yet
-                executor=self._tool_executor,
-                engine=self.engine,
-                active_plan=self._active_task_plan,
-                agency_decision=agency_decision,
-                autonomy_level=self._autonomy_level,
-            )
+            if self._tool_runner is not None:
+                tool_loop_result = self._tool_runner.run_tool_loop(
+                    user_message=tool_user_message,
+                    state=self.engine.state,
+                    person=person,
+                    defense_active=False,  # defense hasn't fired yet
+                    engine=self.engine,
+                    active_plan=self._active_task_plan,
+                    agency_decision=agency_decision,
+                    autonomy_level=self._autonomy_level,
+                )
+            else:
+                tool_loop_result = run_tool_loop(
+                    user_message=tool_user_message,
+                    state=self.engine.state,
+                    person=person,
+                    defense_active=False,  # defense hasn't fired yet
+                    executor=self._tool_executor,
+                    engine=self.engine,
+                    active_plan=self._active_task_plan,
+                    agency_decision=agency_decision,
+                    autonomy_level=self._autonomy_level,
+                )
             debug.tool_trace = tool_loop_result.trace
             debug.action_variables = tool_loop_result.action_variables
             tool_context_summary = tool_loop_result.tool_context_summary
@@ -921,15 +949,26 @@ class CognitivePipeline:
             and self._tool_executor is not None
             and self._active_task_plan is not None
         ):
-            tool_loop_result = run_tool_loop(
-                user_message="continue",
-                state=self.engine.state,
-                person=person,
-                defense_active=False,
-                executor=self._tool_executor,
-                engine=self.engine,
-                active_plan=self._active_task_plan,
-            )
+            if self._tool_runner is not None:
+                tool_loop_result = self._tool_runner.run_tool_loop(
+                    user_message="continue",
+                    state=self.engine.state,
+                    person=person,
+                    defense_active=False,
+                    engine=self.engine,
+                    active_plan=self._active_task_plan,
+                    autonomy_level=self._autonomy_level,
+                )
+            else:
+                tool_loop_result = run_tool_loop(
+                    user_message="continue",
+                    state=self.engine.state,
+                    person=person,
+                    defense_active=False,
+                    executor=self._tool_executor,
+                    engine=self.engine,
+                    active_plan=self._active_task_plan,
+                )
             tool_context = tool_loop_result.tool_context_summary
             debug.tool_trace = tool_loop_result.trace
             debug.action_variables = tool_loop_result.action_variables

@@ -52,6 +52,10 @@ cors_origins: []
 # (defaults to `<data_dir>/workspace`). Shell execution requires the
 # separate `shell_tool_enabled` flag.
 tools_enabled: false
+# heuristic = current deterministic matcher
+# langgraph = model-native tool calling through LangGraph
+# hybrid = LangGraph first, deterministic matcher fallback
+tool_orchestrator: heuristic
 autonomy_level: assisted
 tools_workspace: ''
 shell_tool_enabled: false

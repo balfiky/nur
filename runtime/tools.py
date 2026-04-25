@@ -17,6 +17,7 @@ from nur_tools import register_builtins
 from nur_tools.executor import ToolExecutor
 from nur_tools.registry import ToolRegistry
 from nur_tools.builtin.web_provider import RequestsWebProvider
+from nur_tools.langgraph_orchestrator import LangGraphToolRunner
 
 
 def create_tool_executor(
@@ -54,4 +55,14 @@ def create_tool_executor(
         include_shell=config.shell_tool_enabled,
     )
     executor._owned_resources = [web_provider]
+    orchestrator = (config.tool_orchestrator or "heuristic").strip().lower()
+    if orchestrator in {"langgraph", "hybrid"}:
+        effective_key = config.llm_api_key or config.minimax_api_key
+        executor._tool_runner = LangGraphToolRunner(
+            executor=executor,
+            base_url=config.llm_base_url,
+            model=config.llm_model,
+            api_key=effective_key,
+            fallback_to_heuristic=(orchestrator == "hybrid"),
+        )
     return executor
