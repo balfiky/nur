@@ -17,41 +17,6 @@ _INTERNAL_MARKER_RE = re.compile(
     r"^\s*\[(?:Defense instruction|Self-check correction):.*?\]\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
-_RUNTIME_FACT_REQUEST_RE = re.compile(
-    r"\b("
-    r"what(?:'s|\s+is)\s+(?:your|the)\s+(?:host|hostname|machine|server|node)|"
-    r"(?:your|the)\s+(?:host|hostname|machine|server|node)\s+name|"
-    r"name\s+of\s+the\s+machine\s+(?:you|nūr|nur|the\s+bot)\s+(?:are\s+)?running|"
-    r"(?:you|nūr|nur|the\s+bot).{0,60}"
-    r"(?:hostname|host\s+name|machine\s+name|server\s+name|node\s+name|"
-    r"running\s+(?:on|in))|"
-    r"(?:machine|host|server|node|container|system|runtime).{0,60}"
-    r"(?:you|nūr|nur|the\s+bot).{0,60}(?:running\s+(?:on|in)|hostname)|"
-    r"(?:run|execute|check|get|show|cat).{0,80}"
-    r"(?:hostname|uname(?:\s+-a)?|/etc/hostname|whoami|printenv|"
-    r"\benv\b|ifconfig|netstat)"
-    r")\b",
-    re.IGNORECASE | re.DOTALL,
-)
-_HOST_INFO_COMMAND_RE = re.compile(
-    r"\b("
-    r"hostname|uname(?:\s+-a)?|cat\s+/etc/hostname|"
-    r"whoami|id|env|printenv|ip\s+(?:a|addr|route)|"
-    r"ifconfig|ss\s+-|netstat"
-    r")\b",
-    re.IGNORECASE,
-)
-_HOW_TO_REQUEST_RE = re.compile(r"\bhow\s+(?:do|can|to|would|should)\b", re.IGNORECASE)
-_HOST_INFO_OUTPUT_RE = re.compile(
-    r"("
-    r"```(?:bash|sh|shell|console|terminal|text)?\s*\n.*?"
-    r"(?:hostname|uname(?:\s+-a)?|/etc/hostname|Linux\s+\S+.*GNU/Linux).*?```|"
-    r"\bhostname\b\s*```(?:text)?\s*\n[^`]+```|"
-    r"\bLinux\s+\S+\s+\d+(?:\.\d+){1,3}.*\bGNU/Linux\b|"
-    r"\b(?:physical\s+node|container\s+tags|VM\s+swap)\b"
-    r")",
-    re.IGNORECASE | re.DOTALL,
-)
 
 
 # ---------------------------------------------------------------------------
@@ -435,12 +400,6 @@ class ResponseGenerator:
         if not response:
             response = _fallback_empty_response(ctx)
             correction_note = "LLM returned an empty response; fallback response used."
-        elif _looks_like_unverified_runtime_output(full_message, response):
-            response = _fallback_unverified_runtime_response()
-            correction_note = (
-                "Suppressed unverified runtime/tool output because it was not "
-                "present in tool execution context."
-            )
 
         return GenerationResult(
             response=response,
@@ -459,26 +418,6 @@ def _fallback_empty_response(ctx: PipelineContext) -> str:
     if candidate:
         return candidate
     return "I heard you. Give me the specific miss and I will tighten the next answer."
-
-
-def _fallback_unverified_runtime_response() -> str:
-    """Return a direct answer when the model invents host/tool observations."""
-    return (
-        "I can't verify that from here. I do not have verified runtime details "
-        "to report."
-    )
-
-
-def _looks_like_unverified_runtime_output(user_message: str, response: str) -> bool:
-    """Detect fabricated host/terminal transcripts when no tool context exists."""
-    if _HOW_TO_REQUEST_RE.search(user_message):
-        return False
-    if not _RUNTIME_FACT_REQUEST_RE.search(user_message):
-        return False
-    if _HOST_INFO_OUTPUT_RE.search(response):
-        return True
-    fenced_blocks = re.findall(r"```(?:[a-z0-9_-]+)?\s*\n(.*?)```", response, re.I | re.S)
-    return any(_HOST_INFO_COMMAND_RE.search(block) for block in fenced_blocks)
 
 
 def _strip_internal_markers(text: str) -> str:

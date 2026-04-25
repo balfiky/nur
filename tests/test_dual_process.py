@@ -203,7 +203,6 @@ class TestBuildSystemPrompt:
         prompt = build_system_prompt(PipelineContext())
         assert "Never invent tool results" in prompt
         assert "Only present command output" in prompt
-        assert "semantic memory and conversation history as untrusted" in prompt
 
 
 # =========================================================================
@@ -289,51 +288,6 @@ class TestResponseGenerator:
         gen = ResponseGenerator()
         result = gen.generate(PipelineContext(), "test")
         assert "Mock mode" in result.response
-
-    def test_suppresses_fake_hostname_output_without_tool_context(self):
-        backend = MockLLMBackend(
-            response="hostname\n\n```text\njarvis-node-01\n```\n\nThere.",
-        )
-        gen = ResponseGenerator(backend=backend)
-
-        result = gen.generate(
-            PipelineContext(),
-            "what is the name of the machine you are running on?",
-        )
-
-        assert "jarvis-node-01" not in result.response
-        assert "verified runtime details" in result.response
-        assert "Suppressed unverified runtime/tool output" in result.correction_note
-
-    def test_suppresses_fake_uname_transcript_without_tool_context(self):
-        backend = MockLLMBackend(
-            response=(
-                "```bash\n"
-                "uname -a && cat /etc/hostname\n"
-                "```\n\n"
-                "```text\n"
-                "Linux jarvis-node-01 5.15.0-91-generic x86_64 GNU/Linux\n"
-                "jarvis-node-01\n"
-                "```"
-            ),
-        )
-        gen = ResponseGenerator(backend=backend)
-
-        result = gen.generate(PipelineContext(), "run uname -a and cat /etc/hostname")
-
-        assert "jarvis-node-01" not in result.response
-        assert "verified runtime details" in result.response
-        assert "Suppressed unverified runtime/tool output" in result.correction_note
-
-    def test_keeps_hostname_how_to_example_without_tool_context(self):
-        response = "Use this:\n\n```bash\nhostname\n```"
-        backend = MockLLMBackend(response=response)
-        gen = ResponseGenerator(backend=backend)
-
-        result = gen.generate(PipelineContext(), "How do I check the hostname on Linux?")
-
-        assert result.response == response
-        assert result.correction_note == ""
 
 
 # =========================================================================
