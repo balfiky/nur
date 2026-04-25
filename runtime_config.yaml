@@ -29,7 +29,6 @@ proactive_check_interval: 60.0
 api_key: ''
 cors_origins: []
 tools_enabled: false
-tool_orchestrator: heuristic
 autonomy_level: assisted
 tools_workspace: ''
 shell_tool_enabled: false

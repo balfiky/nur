@@ -267,7 +267,6 @@ class ConfigUpdateRequest(BaseModel):
     # would silently reset ``tools_enabled`` / ``shell_tool_enabled`` /
     # ``tools_workspace`` to their safe defaults.
     tools_enabled: bool | None = None
-    tool_orchestrator: str | None = None
     autonomy_level: str | None = None
     tools_workspace: str | None = None
     shell_tool_enabled: bool | None = None
@@ -545,11 +544,6 @@ async def update_config(req: ConfigUpdateRequest) -> dict:
         tools_enabled=(
             existing.tools_enabled if req.tools_enabled is None
             else bool(req.tools_enabled)
-        ),
-        tool_orchestrator=(
-            existing.tool_orchestrator
-            if req.tool_orchestrator is None
-            else _normalize_tool_orchestrator(req.tool_orchestrator)
         ),
         autonomy_level=(
             existing.autonomy_level
@@ -1118,7 +1112,6 @@ _CONFIG_FIELD_SECTIONS = {
     "telegram_poll_timeout": "channels",
     "dedupe_ttl": "channels",
     "tools_enabled": "tools",
-    "tool_orchestrator": "tools",
     "autonomy_level": "tools",
     "tools_workspace": "tools",
     "shell_tool_enabled": "tools",
@@ -1146,7 +1139,6 @@ _SESSION_RELOAD_FIELDS = {
     "proactive_cooldown",
     "proactive_check_interval",
     "tools_enabled",
-    "tool_orchestrator",
     "autonomy_level",
     "tools_workspace",
     "shell_tool_enabled",
@@ -1254,8 +1246,6 @@ def _allowed_values_for_field(field_name: str) -> list[str] | None:
         return ["auto", "provider", "openai_compatible", "minimax", "mock"]
     if field_name == "autonomy_level":
         return ["off", "assisted", "autonomous", "high_risk"]
-    if field_name == "tool_orchestrator":
-        return ["heuristic", "langgraph", "hybrid"]
     return None
 
 
@@ -1265,16 +1255,6 @@ def _normalize_autonomy_level(value: str) -> str:
         raise HTTPException(
             status_code=400,
             detail="autonomy_level must be one of: off, assisted, autonomous, high_risk",
-        )
-    return normalized
-
-
-def _normalize_tool_orchestrator(value: str) -> str:
-    normalized = (value or "").strip().lower()
-    if normalized not in {"heuristic", "langgraph", "hybrid"}:
-        raise HTTPException(
-            status_code=400,
-            detail="tool_orchestrator must be one of: heuristic, langgraph, hybrid",
         )
     return normalized
 
@@ -1303,11 +1283,6 @@ def _admin_config_warnings(config: RuntimeConfig) -> list[dict]:
 
     if config.tools_enabled and not config.api_key:
         warnings.append(_warning("error", "tools_enabled", "tools_without_auth", "Agentic tools are enabled while api_key is empty. Set api_key before exposing this server."))
-    if config.tool_orchestrator in {"langgraph", "hybrid"}:
-        if not config.llm_base_url.strip():
-            warnings.append(_warning("error", "tool_orchestrator", "langgraph_missing_base_url", "LangGraph tool orchestration requires llm_base_url."))
-        if not config.llm_model.strip():
-            warnings.append(_warning("error", "tool_orchestrator", "langgraph_missing_model", "LangGraph tool orchestration requires llm_model."))
     if config.shell_tool_enabled and not config.tools_enabled:
         warnings.append(_warning("error", "shell_tool_enabled", "shell_without_tools", "shell_tool_enabled has no effect unless tools_enabled is true."))
     if config.shell_tool_enabled and not config.api_key:

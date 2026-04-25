@@ -55,14 +55,13 @@ def create_tool_executor(
         include_shell=config.shell_tool_enabled,
     )
     executor._owned_resources = [web_provider]
-    orchestrator = (config.tool_orchestrator or "heuristic").strip().lower()
-    if orchestrator in {"langgraph", "hybrid"}:
+    if config.llm_base_url.strip() and config.llm_model.strip():
         effective_key = config.llm_api_key or config.minimax_api_key
         executor._tool_runner = LangGraphToolRunner(
             executor=executor,
             base_url=config.llm_base_url,
             model=config.llm_model,
             api_key=effective_key,
-            fallback_to_heuristic=(orchestrator == "hybrid"),
+            fallback_to_heuristic=True,
         )
     return executor
