@@ -3,19 +3,17 @@
 from __future__ import annotations
 
 import os
-import tempfile
-import textwrap
+from types import SimpleNamespace
 
 import pytest
 
 from core.types import ToolCapability, ToolCategory, ToolResult
 from nur_tools.registry import ToolRegistry
 from nur_tools.executor import ToolExecutor
-from nur_tools.builtin.filesystem import CAPABILITIES as FS_CAPS, HANDLERS as FS_HANDLERS
-from nur_tools.builtin.shell import CAPABILITIES as SHELL_CAPS, HANDLERS as SHELL_HANDLERS
+from nur_tools.builtin.filesystem import HANDLERS as FS_HANDLERS
+from nur_tools.builtin.shell import HANDLERS as SHELL_HANDLERS
+from nur_tools.builtin import system_info
 from nur_tools.builtin.web_search import (
-    CAPABILITIES as WEB_CAPS,
-    WebProvider,
     NullWebProvider,
     create_handlers,
 )
@@ -306,6 +304,46 @@ class TestShellRunCommand:
         result = SHELL_HANDLERS["shell.run_command"]({"cmd": "true"})
         assert result.success is True
 
+    def test_supports_shell_pipes(self):
+        result = SHELL_HANDLERS["shell.run_command"]({"cmd": "printf hello | tr a-z A-Z"})
+        assert result.success is True
+        assert result.output == "HELLO"
+
+
+# ===================================================================
+# System inspection tools
+# ===================================================================
+
+class TestSystemInstalledPackages:
+    def test_installed_packages_filters_dpkg_prefix(self, monkeypatch):
+        monkeypatch.setattr(
+            system_info.shutil,
+            "which",
+            lambda name: "/usr/bin/dpkg-query" if name == "dpkg-query" else None,
+        )
+
+        def fake_run(args, **kwargs):
+            assert args[0] == "dpkg-query"
+            return SimpleNamespace(
+                returncode=0,
+                stdout=(
+                    "libc6\t2.39\tamd64\tinstall ok installed\n"
+                    "nvidia-driver-550\t550.120\tamd64\tinstall ok installed\n"
+                    "nvidia-utils-550\t550.120\tamd64\tinstall ok installed\n"
+                ),
+                stderr="",
+            )
+
+        monkeypatch.setattr(system_info.subprocess, "run", fake_run)
+        result = system_info.HANDLERS["system.installed_packages"]({"prefix": "nvidia"})
+
+        assert result.success is True
+        assert result.metadata["manager"] == "dpkg"
+        assert result.metadata["count"] == 2
+        assert "nvidia-driver-550" in result.output
+        assert "nvidia-utils-550" in result.output
+        assert "libc6" not in result.output
+
 
 # ===================================================================
 # Web search/fetch tool
@@ -388,19 +426,21 @@ class TestBuiltinRegistration:
         assert "system.hostname" in names
         assert "system.uname" in names
         assert "system.disk_usage" in names
+        assert "system.installed_packages" in names
         assert "shell.run_command" in names
         assert "web.search" in names
         assert "web.fetch" in names
 
     def test_total_builtin_count(self):
         reg, exe = _make_executor_with_builtins()
-        # 3 system + 6 fs + 1 shell + 3 web + 5 browser + 3 calendar
-        assert len(reg) == 21
+        # 4 system + 6 fs + 1 shell + 3 web + 5 browser + 3 calendar
+        assert len(reg) == 22
 
     def test_categories_assigned(self):
         reg, _ = _make_executor_with_builtins()
         assert reg.get("system.hostname").category == ToolCategory.READ_ONLY
         assert reg.get("system.disk_usage").category == ToolCategory.READ_ONLY
+        assert reg.get("system.installed_packages").category == ToolCategory.READ_ONLY
         assert reg.get("fs.read_file").category == ToolCategory.READ_ONLY
         assert reg.get("fs.write_file").category == ToolCategory.WRITE
         assert reg.get("fs.delete_path").category == ToolCategory.DESTRUCTIVE

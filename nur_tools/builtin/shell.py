@@ -1,4 +1,4 @@
-"""Builtin shell tool — subprocess execution with structured output.
+"""Builtin shell tool — command execution with structured output.
 
 Captures stdout, stderr, and exit code. Normalizes timeouts and
 execution errors into ToolResult values.
@@ -6,7 +6,6 @@ execution errors into ToolResult values.
 
 from __future__ import annotations
 
-import shlex
 import subprocess
 from typing import Any
 
@@ -20,7 +19,11 @@ from nur_tools.executor import ToolHandler
 CAPABILITIES: list[ToolCapability] = [
     ToolCapability(
         name="shell.run_command",
-        description="Run a shell command and capture output",
+        description=(
+            "Run a shell command through the local system shell and capture "
+            "stdout, stderr, and exit code. Supports normal shell syntax such "
+            "as pipes, redirects, environment expansion, and &&."
+        ),
         category=ToolCategory.DESTRUCTIVE,
         arg_schema={
             "cmd": {"type": "string", "required": True},
@@ -38,20 +41,10 @@ _DEFAULT_TIMEOUT = 30
 
 
 def _run_command(args: dict[str, Any]) -> ToolResult:
-    cmd = args["cmd"]
+    cmd = str(args["cmd"])
     cwd = args.get("cwd") or None
     timeout = args.get("timeout_seconds", _DEFAULT_TIMEOUT)
-    try:
-        argv = shlex.split(cmd)
-    except ValueError as exc:
-        return ToolResult(
-            tool_name="shell.run_command",
-            success=False,
-            output="",
-            error=f"Invalid shell command: {exc}",
-            metadata={"cmd": cmd},
-        )
-    if not argv:
+    if not cmd.strip():
         return ToolResult(
             tool_name="shell.run_command",
             success=False,
@@ -62,8 +55,9 @@ def _run_command(args: dict[str, Any]) -> ToolResult:
 
     try:
         proc = subprocess.run(
-            argv,
-            shell=False,
+            cmd,
+            shell=True,
+            executable="/bin/bash",
             cwd=cwd,
             capture_output=True,
             text=True,

@@ -61,6 +61,10 @@ Prefer first-class system tools for hostname, OS/kernel, and disk-usage
 questions. Use shell tools only for explicit shell commands or machine
 inspection that has no first-class tool.
 
+For installed OS package inventory, apt/dpkg package lists, and package-name
+prefix questions such as "packages starting with nvidia", prefer
+system.installed_packages over ad-hoc shell commands.
+
 If the user is correcting a previous assistant message like "give me output,
 not the command" or confirming a pending tool action, resolve that request
 from the recent conversation and call the needed tool. Do not say you are

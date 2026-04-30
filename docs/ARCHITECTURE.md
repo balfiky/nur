@@ -149,6 +149,12 @@ Turning on tools does not turn on auth, and setting auth does not turn
 on tools. Production deployments should set `api_key` before exposing
 the server and leave tools disabled unless needed.
 
+Built-in read-only tools cover hostname, OS/kernel facts, disk usage,
+installed package inventory, filesystem reads inside the configured workspace,
+web search/fetch, browser state, and calendar reads. The shell tool is a
+separate high-risk opt-in and runs through the local shell, so pipes and other
+normal shell syntax work when the operator deliberately enables it.
+
 ## Skills
 
 Imported Agent Skills live under `data/skills` with a JSON registry. Code

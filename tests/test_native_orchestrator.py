@@ -148,6 +148,37 @@ def test_native_runner_executes_shell_tool_call_without_regex() -> None:
     assert "ran df -h /" in result.tool_context_summary
 
 
+def test_native_runner_exposes_installed_packages_tool() -> None:
+    client = FakeNativeClient([
+        _response(_tool_call("system__installed_packages", {"prefix": "nvidia"})),
+    ])
+    runner = NativeToolCallRunner(
+        executor=_executor(),
+        base_url="http://localhost:8002/v1",
+        model="test-model",
+        client=client,
+    )
+    engine = EmotionalEngine()
+
+    result = runner.run_tool_loop(
+        user_message='list apt packages starting with "nvidia"',
+        state=engine.state,
+        person=None,
+        defense_active=False,
+        engine=engine,
+        max_executions=1,
+        autonomy_level="high_risk",
+    )
+
+    tool_names = {
+        item["function"]["name"] for item in client.requests[0]["tools"]
+    }
+    assert "system__installed_packages" in tool_names
+    assert result.trace.loop_count == 1
+    assert result.trace.executed_results[0].tool_name == "system.installed_packages"
+    assert result.trace.executed_results[0].metadata["prefix"] == "nvidia"
+
+
 def test_native_runner_returns_empty_trace_when_model_chooses_no_tool() -> None:
     client = FakeNativeClient([
         _response(_tool_call("control__no_tool", {"reason": "greeting only"})),

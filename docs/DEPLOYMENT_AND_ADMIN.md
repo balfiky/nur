@@ -230,7 +230,7 @@ Important fields:
 | `data_dir` | Persistent data root; default is `data`. |
 | `tools_enabled` | Master switch for tool execution; off by default. |
 | `tools_workspace` | Filesystem sandbox root for tools; blank means `<data_dir>/workspace`. |
-| `shell_tool_enabled` | Separate opt-in for subprocess execution; keep off by default. |
+| `shell_tool_enabled` | Separate opt-in for local shell execution; keep off by default. Supports normal shell syntax such as pipes once enabled. |
 
 ## Telegram Commands
 

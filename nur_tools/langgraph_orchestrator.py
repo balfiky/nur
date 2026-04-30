@@ -58,8 +58,11 @@ check, calculate, list, read, write, or act on external state. Do not answer
 runtime facts from memory. If a tool is needed, call the tool. If no tool is
 needed, return a short final answer without a tool call.
 
-For machine inspection requests, prefer shell__run_command with commands such
-as hostname, df -h /, uname -a, or other precise read-only inspection commands.
+For machine inspection requests, prefer first-class system tools when present:
+system__hostname for hostname, system__disk_usage for disk usage,
+system__uname for OS/kernel, and system__installed_packages for installed
+package inventory. Use shell__run_command only for explicit shell commands or
+machine inspection that has no first-class tool.
 Do not claim cleanup, deletion, or state changes unless a tool call actually
 performed that action.
 """
@@ -86,8 +89,9 @@ Use precise read-only commands for inspection unless the user explicitly asks
 for a state-changing command.
 
 Examples:
-- disk usage, storage fullness, drive capacity -> shell.run_command {"cmd": "df -h /"}
-- hostname, machine name, node name -> shell.run_command {"cmd": "hostname"}
+- disk usage, storage fullness, drive capacity -> system.disk_usage {"path": "/"}
+- hostname, machine name, node name -> system.hostname {}
+- installed apt/dpkg packages starting with nvidia -> system.installed_packages {"prefix": "nvidia"}
 - current/latest web facts -> web.search {"query": "..."}
 
 If no tool is needed, return {"tool_name": null, "arguments": {}, "confidence": 0, "rationale": "no tool needed"}.

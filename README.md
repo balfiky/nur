@@ -233,6 +233,7 @@ Before exposing Nūr beyond localhost:
 
 - Set `api_key` so admin and chat endpoints require bearer auth
 - Keep `tools_enabled: false` and `shell_tool_enabled: false` unless explicitly needed
+- Use first-class read-only tools for routine host facts; shell is a separate local-command surface
 - Set Telegram allowlists before enabling a bot
 - Treat `data/`, `runtime_config.yaml`, and backups as sensitive
 - Read [docs/DEPLOYMENT_AND_ADMIN.md](docs/DEPLOYMENT_AND_ADMIN.md), [SECURITY.md](SECURITY.md), and [PRIVACY.md](PRIVACY.md)
