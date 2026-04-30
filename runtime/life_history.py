@@ -182,6 +182,70 @@ class LifeHistoryStore:
         ).fetchall()
         return [_drive_to_dict(row) for row in rows]
 
+    def prompt_context(
+        self,
+        *,
+        belief_limit: int = 5,
+        evolution_limit: int = 5,
+        drive_limit: int = 5,
+    ) -> dict[str, Any]:
+        """Return the compact life-history slice safe to inject into prompts.
+
+        This intentionally returns distilled beliefs, changed drives, and
+        recent evolution events only. Raw excerpts and long experience text
+        remain in the ledger/admin view, not in every chat prompt.
+        """
+        beliefs = [
+            {
+                "key": item["key"],
+                "statement": item["statement"],
+                "confidence": item["confidence"],
+                "evidence": item["evidence"],
+            }
+            for item in self.list_beliefs(limit=belief_limit * 3)
+            if item.get("status") == "active" and float(item.get("confidence", 0.0)) >= 0.4
+        ][:belief_limit]
+
+        changed_drives: list[dict[str, Any]] = []
+        for drive in self.list_drives():
+            name = str(drive.get("name") or "")
+            baseline, description = DEFAULT_DRIVES.get(name, (0.5, str(drive.get("description") or "")))
+            value = float(drive.get("value", baseline))
+            delta = value - baseline
+            if abs(delta) < 0.02:
+                continue
+            changed_drives.append({
+                "name": name,
+                "value": value,
+                "baseline": baseline,
+                "delta": delta,
+                "description": drive.get("description") or description,
+            })
+        changed_drives.sort(key=lambda item: abs(float(item["delta"])), reverse=True)
+
+        evolution = [
+            {
+                "domain": item["domain"],
+                "subject": item["subject"],
+                "after_state": item["after_state"],
+                "reason": item["reason"],
+                "confidence": item["confidence"],
+            }
+            for item in self.list_evolution(limit=evolution_limit * 3)
+            if float(item.get("confidence", 0.0)) >= 0.4
+        ][:evolution_limit]
+
+        return {
+            "counts": {
+                "experiences": self._count("experience_events"),
+                "evolution_events": self._count("evolution_events"),
+                "beliefs": self._count("beliefs"),
+            },
+            "beliefs": beliefs,
+            "drives": changed_drives[:drive_limit],
+            "recent_evolution": evolution,
+        }
+
     def _ingest_text(
         self,
         *,

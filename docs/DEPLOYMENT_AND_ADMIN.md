@@ -149,6 +149,11 @@ experience ledger. It supports:
 - An experience ledger showing what was ingested and why it was salient
 - Current belief and drive summaries
 
+After intake, normal runtime sessions retrieve a compact generation context
+from this ledger: current beliefs, drive shifts, and recent evolution events.
+Raw excerpts stay in the admin/SQLite ledger; they are not injected into every
+chat prompt.
+
 Data is stored in `data/shared/life_history.db`. This is shared assistant
 identity data, not per-user chat memory. User deletion does not remove it.
 For a full identity reset, stop the service and remove both

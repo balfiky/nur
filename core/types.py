@@ -508,6 +508,7 @@ class PipelineContext:
     values: ValueHierarchy = field(default_factory=ValueHierarchy)
     retrieved_memories: list[LongTermEntry] = field(default_factory=list)
     semantic_memories: list[SemanticMemoryEntry] = field(default_factory=list)
+    life_history_context: dict[str, Any] = field(default_factory=dict)
     short_term_history: list[ShortTermEntry] = field(default_factory=list)
     contradiction_flags: list[str] = field(default_factory=list)
     contagion: DetectedEmotion | None = None

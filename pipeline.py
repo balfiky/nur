@@ -33,10 +33,11 @@ self-check. Inner dialogue only fires when non-spike unresolved items exist
 from __future__ import annotations
 
 import json
+import logging
 import re
 import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
 
 from config.loader import get_config
 from core.types import (
@@ -84,7 +85,6 @@ from core.profiles.self_model import SelfProfileManager, SELF_ENTITY_ID
 from core.profiles.topic import TopicProfileManager
 from core.profiles.contradiction import ContradictionDetector
 from core.dual_process.generator import (
-    GenerationResult,
     LLMBackend,
     MockLLMBackend,
     ResponseGenerator,
@@ -108,6 +108,8 @@ from core.tool_memory import (
     is_salient_episode,
 )
 from core.types import ProactiveTrace, TaskPlan, TaskTrace
+
+log = logging.getLogger(__name__)
 
 _TOOL_FOLLOWUP_COMMAND_RE = re.compile(
     r"("
@@ -161,6 +163,7 @@ class DebugState:
     # Step 7: Memory retrieval
     retrieved_memories: list[LongTermEntry] = field(default_factory=list)
     semantic_memories: list[SemanticMemoryEntry] = field(default_factory=list)
+    life_history_context: dict[str, Any] = field(default_factory=dict)
     relationship_context: RelationshipContext | None = None
 
     # Step 8: Profiles
@@ -277,6 +280,7 @@ class CognitivePipeline:
         tool_executor: Any | None = None,
         autonomy_level: str = "autonomous",
         features: PipelineFeatures | None = None,
+        life_history_provider: Callable[[], dict[str, Any] | None] | None = None,
     ) -> None:
         """Create a cognitive pipeline.
 
@@ -295,6 +299,10 @@ class CognitivePipeline:
                             autonomous for backwards compatibility.
             features: Feature toggles for ablation runs. Default (None)
                       enables every component. See ``PipelineFeatures``.
+            life_history_provider: Optional callable returning a compact
+                                   identity-level life-history context for
+                                   generation. Runtime sessions wire this to
+                                   ``data/shared/life_history.db``.
         """
         self._features = features or PipelineFeatures()
         # Primary backend (used if no fast backend provided)
@@ -366,6 +374,7 @@ class CognitivePipeline:
         self._tool_executor = tool_executor
         self._tool_runner = getattr(tool_executor, "_tool_runner", None)
         self._autonomy_level = autonomy_level
+        self._life_history_provider = life_history_provider
         # Session-scoped task plan (Phase 7)
         self._active_task_plan: TaskPlan | None = None
         # Proactive behavior tracking (Phase 8)
@@ -515,6 +524,11 @@ class CognitivePipeline:
         )
         debug.semantic_memories = semantic_memories
         timings["semantic_memory_retrieval"] = (time.perf_counter() - _ts) * 1000
+
+        _ts = time.perf_counter()
+        life_history_context = self._load_life_history_context()
+        debug.life_history_context = life_history_context
+        timings["life_history_retrieval"] = (time.perf_counter() - _ts) * 1000
 
         # ---- Step 11: Contradiction check ----
         contradiction_flags: list[str] = []
@@ -782,6 +796,7 @@ class CognitivePipeline:
             values=self.values,
             retrieved_memories=retrieved,
             semantic_memories=semantic_memories,
+            life_history_context=life_history_context,
             short_term_history=self.short_term.recent(5),
             contradiction_flags=contradiction_flags,
             contagion=detected,
@@ -831,6 +846,7 @@ class CognitivePipeline:
                 values=ctx.values,
                 retrieved_memories=ctx.retrieved_memories,
                 semantic_memories=ctx.semantic_memories,
+                life_history_context=ctx.life_history_context,
                 short_term_history=ctx.short_term_history,
                 contradiction_flags=ctx.contradiction_flags,
                 contagion=ctx.contagion,
@@ -1030,6 +1046,8 @@ class CognitivePipeline:
             limit=self._semantic_cfg.retrieval_limit,
         )
         debug.semantic_memories = proactive_semantic
+        life_history_context = self._load_life_history_context()
+        debug.life_history_context = life_history_context
         ctx = PipelineContext(
             modulator_snapshot=self.engine.snapshot(),
             soul_profile=self.soul,
@@ -1037,6 +1055,7 @@ class CognitivePipeline:
             self_profile=self_prof,
             relationship_context=None,
             semantic_memories=proactive_semantic,
+            life_history_context=life_history_context,
             candidate_response=filtered,
             defense_instruction=defense_instruction,
             tool_context_summary=tool_context,
@@ -1069,6 +1088,17 @@ class CognitivePipeline:
         expected = dict(self.soul.initial_traits)
         expected.update(self.self_profile.get_expected_traits())
         return expected
+
+    def _load_life_history_context(self) -> dict[str, Any]:
+        """Read compact identity-level life context for generation."""
+        if self._life_history_provider is None:
+            return {}
+        try:
+            context = self._life_history_provider()
+        except Exception as exc:
+            log.warning("Life history context unavailable: %s", exc)
+            return {"error": exc.__class__.__name__}
+        return context if isinstance(context, dict) else {}
 
     def _record_semantic_memory(
         self,

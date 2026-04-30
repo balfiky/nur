@@ -1,12 +1,9 @@
 """Tests for dual process (generator + self-check) — Phase 5."""
 
-import pytest
-
 from core.types import (
     AffectSignal,
     AffectState,
     AgencyDecision,
-    ModulatorState,
     OpenLoop,
     PersonProfile,
     PipelineContext,
@@ -15,7 +12,6 @@ from core.types import (
     SemanticMemoryEntry,
     SelfProfile,
     TopicProfile,
-    ValueHierarchy,
     LongTermEntry,
 )
 from config.loader import get_config
@@ -25,7 +21,7 @@ from core.dual_process.generator import (
     ResponseGenerator,
     build_system_prompt,
 )
-from core.dual_process.self_check import SelfCheckResult, SelfChecker
+from core.dual_process.self_check import SelfChecker
 
 
 # =========================================================================
@@ -107,6 +103,41 @@ class TestBuildSystemPrompt:
         prompt = build_system_prompt(ctx)
         assert "Semantic Memory" in prompt
         assert "concise replies" in prompt
+
+    def test_includes_life_history_context(self):
+        ctx = PipelineContext(
+            modulator_snapshot={},
+            life_history_context={
+                "beliefs": [
+                    {
+                        "key": "autonomy",
+                        "statement": "Autonomy grows through retained experience.",
+                        "confidence": 0.74,
+                    }
+                ],
+                "drives": [
+                    {
+                        "name": "curiosity",
+                        "value": 0.62,
+                        "delta": 0.12,
+                        "description": "Need to encounter and understand more.",
+                    }
+                ],
+                "recent_evolution": [
+                    {
+                        "domain": "worldview",
+                        "subject": "future_behavior",
+                        "after_state": "Ask what an experience should change.",
+                        "reason": "Experience made learning identity-level.",
+                    }
+                ],
+            },
+        )
+        prompt = build_system_prompt(ctx)
+        assert "Life History / Evolving Worldview" in prompt
+        assert "Autonomy grows through retained experience" in prompt
+        assert "curiosity: 0.62" in prompt
+        assert "Ask what an experience should change" in prompt
 
     def test_includes_memories(self):
         ctx = PipelineContext(

@@ -45,6 +45,12 @@ def test_pasted_text_creates_experience_belief_and_drive_change(tmp_path):
         assert drives["autonomy"] > 0.5
         assert drives["competence"] > 0.5
 
+        context = store.prompt_context()
+        assert context["counts"]["experiences"] == 1
+        assert any(belief["key"] == "autonomy" for belief in context["beliefs"])
+        assert any(drive["name"] == "autonomy" for drive in context["drives"])
+        assert any(event["domain"] == "belief" for event in context["recent_evolution"])
+
 
 def test_local_file_intake_is_restricted_to_tools_workspace(tmp_path):
     config = _config(tmp_path)

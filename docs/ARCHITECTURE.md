@@ -115,9 +115,10 @@ Core records:
 
 The admin console exposes this as `/admin` → **Life**: summary counts,
 experience ledger, evolution timeline, beliefs, and drives. This is the
-observability surface for character drift. The current phase records and
-shows evolution; making every generation strongly governed by that layer is
-future work.
+observability surface for character drift. Runtime sessions also load a
+compact prompt slice from this store — current beliefs, shifted drives, and
+recent evolution events — so normal chat can be shaped by identity-level
+experience without sending raw source material every turn.
 
 ## LLM Boundary
 

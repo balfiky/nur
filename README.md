@@ -76,9 +76,11 @@ That means the project now has two distinct continuity layers:
 - **Identity continuity:** how Nūr records experiences that may change its
   worldview, motivations, and self-model over time.
 
-This layer is intentionally experimental. Today it is observable in
-`/admin` → **Life** and stored under `data/shared/life_history.db`; deeper
-influence on normal chat behavior is still an active development area.
+This layer is intentionally experimental. It is observable in `/admin` →
+**Life** and stored under `data/shared/life_history.db`. Runtime sessions now
+load a compact slice of current beliefs, shifted drives, and recent evolution
+into generation, so formative experiences can bias Nūr's perspective without
+dumping raw source material into every prompt.
 
 ## Build With It
 

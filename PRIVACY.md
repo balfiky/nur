@@ -175,10 +175,12 @@ to your deployment.
 Nūr does not phone home. However, if you configure an external LLM backend
 (MiniMax, OpenAI-compatible, etc.), **every turn sends the assembled
 prompt — which includes retrieved memory, profiles, and relationship
-context — to that provider**. Life History digestion can also call the
-configured LLM backend when available, sending the pasted text or file
-summary being digested. Review the provider's data-handling policy before
-enabling it for real users.
+context — to that provider**. Runtime sessions may also include a compact
+Life History slice: current beliefs, shifted drives, and recent evolution
+events. Raw Life History source excerpts are not injected into every chat
+prompt, but Life History digestion can call the configured LLM backend when
+available, sending the pasted text or file summary being digested. Review the
+provider's data-handling policy before enabling it for real users.
 
 ## Reporting Privacy Issues
 

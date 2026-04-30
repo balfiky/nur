@@ -101,9 +101,10 @@ records what Nūr encountered, and evolution events record what changed
 afterward. The first supported inputs are pasted text and local
 text/Markdown files. Current outputs include belief revisions, drive
 changes, self-trait observations, and future-behavior tendencies. This is
-observable in `/admin` → **Life**. It is not yet a claim that every chat
-turn is fully governed by those revisions; closing that behavior loop is
-future work.
+observable in `/admin` → **Life**. Normal runtime sessions now retrieve a
+compact version of those revisions for generation, so the layer can influence
+chat behavior. This still is not a claim that the assistant is independently
+alive or scientifically validated.
 
 For structural detail — per-turn stage order, LLM call accounting,
 persistence layout, auth/tool gates, and the full component claim map —

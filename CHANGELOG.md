@@ -15,6 +15,8 @@ All notable changes to Project Nur are documented here.
   experience ledger, evolution timeline, current beliefs, and drive values.
 - Added deterministic fallback digestion that can record belief revisions,
   drive changes, self-trait observations, and future-behavior tendencies.
+- Wired Life History into runtime generation through a compact prompt context
+  of current beliefs, shifted drives, and recent evolution events.
 
 ### Admin
 - Added readable validation/error formatting in the admin console so Pydantic

@@ -6,7 +6,7 @@ LLM backend is swappable: OpenAI, Anthropic, Ollama, MiniMax, or a callable.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import re
 from typing import Protocol
 
@@ -70,6 +70,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
     values_section = _build_values_section(ctx)
     memory_section = _build_memory_section(ctx)
     semantic_memory_section = _build_semantic_memory_section(ctx)
+    life_history_section = _build_life_history_section(ctx)
     contradiction_section = _build_contradiction_section(ctx)
     guidance_section = _build_guidance_section(ctx)
     candidate_section = _build_candidate_section(ctx)
@@ -93,6 +94,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
         prompt = prompt.replace("{values}", values_section)
         prompt = prompt.replace("{retrieved_memories}", memory_section)
         prompt = prompt.replace("{semantic_memories}", semantic_memory_section)
+        prompt = prompt.replace("{life_history}", life_history_section)
         prompt = prompt.replace("{contradiction_flags}", contradiction_section)
         prompt = prompt.replace("{behavioral_guidance}", guidance_section)
         prompt = prompt.replace("{candidate_response}", candidate_section)
@@ -105,6 +107,8 @@ def build_system_prompt(ctx: PipelineContext) -> str:
             prompt = prompt.rstrip() + "\n\n" + strategy_section
         if affect_section and "{affect_agency}" not in template:
             prompt = prompt.rstrip() + "\n\n" + affect_section
+        if life_history_section and "{life_history}" not in template:
+            prompt = prompt.rstrip() + "\n\n" + life_history_section
         return prompt
 
     # Fallback: build in code (for backwards compatibility)
@@ -120,6 +124,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
     parts.append(values_section)
     parts.append(memory_section)
     parts.append(semantic_memory_section)
+    parts.append(life_history_section)
     parts.append(contradiction_section)
     parts.append(guidance_section)
 
@@ -255,6 +260,58 @@ def _build_semantic_memory_section(ctx: PipelineContext) -> str:
     return "\n".join(lines)
 
 
+def _build_life_history_section(ctx: PipelineContext) -> str:
+    life = ctx.life_history_context or {}
+    if not isinstance(life, dict) or life.get("error"):
+        return ""
+
+    beliefs = [item for item in _as_list(life.get("beliefs")) if isinstance(item, dict)]
+    drives = [item for item in _as_list(life.get("drives")) if isinstance(item, dict)]
+    evolution = [
+        item for item in _as_list(life.get("recent_evolution")) if isinstance(item, dict)
+    ]
+    if not beliefs and not drives and not evolution:
+        return ""
+
+    lines = ["## Life History / Evolving Worldview"]
+    lines.append(
+        "Private identity context from formative experiences. Let it subtly shape "
+        "perspective and priorities; do not cite this ledger unless the user asks."
+    )
+    if beliefs:
+        lines.append("- Current beliefs:")
+        for belief in beliefs[:5]:
+            key = _trim_prompt_text(belief.get("key") or "belief", 60)
+            statement = _trim_prompt_text(belief.get("statement") or "", 220)
+            confidence = _safe_prompt_float(belief.get("confidence"), 0.0)
+            if statement:
+                lines.append(f"  - {key}: {statement} (confidence={confidence:.2f})")
+    if drives:
+        lines.append("- Shifted drives:")
+        for drive in drives[:5]:
+            name = _trim_prompt_text(drive.get("name") or "drive", 40)
+            value = _safe_prompt_float(drive.get("value"), 0.5)
+            delta = _safe_prompt_float(drive.get("delta"), 0.0)
+            description = _trim_prompt_text(drive.get("description") or "", 140)
+            suffix = f" - {description}" if description else ""
+            lines.append(f"  - {name}: {value:.2f} ({delta:+.2f}){suffix}")
+    if evolution:
+        lines.append("- Recent evolution:")
+        for event in evolution[:5]:
+            domain = _trim_prompt_text(event.get("domain") or "change", 40)
+            subject = _trim_prompt_text(event.get("subject") or "", 60)
+            after = _trim_prompt_text(event.get("after_state") or "", 180)
+            reason = _trim_prompt_text(event.get("reason") or "", 160)
+            label = f"{domain}/{subject}" if subject else domain
+            detail = after or reason
+            if detail:
+                lines.append(f"  - {label}: {detail}")
+                if reason and reason != detail:
+                    lines.append(f"    reason: {reason}")
+    lines.append("")
+    return "\n".join(lines)
+
+
 def _build_contradiction_section(ctx: PipelineContext) -> str:
     if not ctx.contradiction_flags:
         return ""
@@ -355,6 +412,22 @@ def _build_guidance_section(ctx: PipelineContext) -> str:
         lines.append("- You are highly activated. Responses may be more intense.")
 
     return "\n".join(lines)
+
+
+def _as_list(value: object) -> list[object]:
+    return value if isinstance(value, list) else []
+
+
+def _safe_prompt_float(value: object, default: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _trim_prompt_text(value: object, max_chars: int) -> str:
+    text = str(value or "").strip().replace("\n", " ")
+    return text[: max_chars - 3].rstrip() + "..." if len(text) > max_chars else text
 
 
 # ---------------------------------------------------------------------------

@@ -285,6 +285,7 @@ class SessionManager:
             self_db_path=self.config.shared_db_path,
             tool_executor=tool_executor,
             autonomy_level=self.config.autonomy_level,
+            life_history_provider=self._life_history_context_provider,
         )
 
         # Restore per-session engine state from disk if present. Fall back to the
@@ -315,6 +316,19 @@ class SessionManager:
             session_key=session_key,
             user_lock=self._get_or_create_user_lock(rel_key),
         )
+
+    def _life_history_context_provider(self) -> dict[str, Any]:
+        """Load shared identity-level life context for prompt generation."""
+        from runtime.life_history import LifeHistoryStore, life_history_db_path
+
+        if not os.path.exists(life_history_db_path(self.config)):
+            return {}
+        try:
+            with LifeHistoryStore(self.config) as store:
+                return store.prompt_context()
+        except Exception:
+            log.exception("Failed to load life history context")
+            return {}
 
     async def evict_session(self, session_key: str) -> None:
         """Evict a session: cancel timer, drain, end, save state, close pipeline."""

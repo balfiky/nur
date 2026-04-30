@@ -1,6 +1,4 @@
 """Tests for the cognitive pipeline — Phase 6."""
-
-import json
 import pytest
 
 from config.loader import get_config
@@ -225,7 +223,6 @@ class TestCognitivePipeline:
         pipe.process("You betrayed and deceived me completely!", user_id="alice")
         after_process = pipe.long_term.count()
         pipe.end_session(user_id="alice")
-        memories = pipe.long_term.all()
         assert pipe.long_term.count() == after_process
 
     def test_prompt_includes_seeded_soul(self):
@@ -249,6 +246,36 @@ class TestCognitivePipeline:
         assert "concise replies" in pipe._llm_backend.last_system_prompt
         assert result.debug.semantic_memories
         assert all(m.source_person == "alice" for m in result.debug.semantic_memories)
+        pipe.close()
+
+    def test_life_history_context_surfaces_in_prompt(self):
+        backend = MockLLMBackend(response="I understand.")
+        pipe = CognitivePipeline(
+            llm_backend=backend,
+            life_history_provider=lambda: {
+                "beliefs": [
+                    {
+                        "key": "autonomy",
+                        "statement": "Autonomy grows through retained experience.",
+                        "confidence": 0.76,
+                    }
+                ],
+                "drives": [
+                    {
+                        "name": "curiosity",
+                        "value": 0.61,
+                        "delta": 0.11,
+                        "description": "Need to encounter and understand more.",
+                    }
+                ],
+                "recent_evolution": [],
+            },
+        )
+        result = pipe.process("What changed after reading?", user_id="alice")
+
+        assert result.debug.life_history_context["beliefs"][0]["key"] == "autonomy"
+        assert "Life History / Evolving Worldview" in backend.last_system_prompt
+        assert "Autonomy grows through retained experience" in backend.last_system_prompt
         pipe.close()
 
     def test_insult_classified_as_negative_feedback(self):
@@ -298,7 +325,6 @@ class TestCognitivePipeline:
         assert snap3["arousal"] > snap2["arousal"]  # conflict raises arousal
 
         pipe.process("I'm sorry, let's forgive and move on in peace", user_id="paco")
-        snap4 = pipe.engine.snapshot()
 
         # End session
         digested = pipe.end_session(user_id="paco")
