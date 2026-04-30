@@ -26,6 +26,8 @@ All notable changes to Project Nur are documented here.
 - Expanded the first-run wizard from a text-only identity step into a guided
   five-step flow with structured identity controls and optional first Life
   History intake.
+- Switched the main web shell, setup wizard, debug panel, and embedded settings
+  drawer to a light, readable operator palette and widened the embedded drawer.
 
 ### Skills
 - Wired enabled, audited Agent Skills into generation as bounded private

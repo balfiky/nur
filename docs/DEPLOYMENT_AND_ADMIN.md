@@ -78,6 +78,10 @@ The `/admin` route serves the built-in operator console. It uses the same
 runtime config primitives as `runtime_config.yaml`; it is not a separate config
 system.
 
+The chat UI, setup wizard, debug panel, and embedded settings drawer use the
+same light operator palette as the standalone console so configuration and
+observability remain readable during normal use.
+
 The **Setup Wizard** (accessible from Settings → Setup → Launch Setup Wizard)
 walks through LLM backend, agent identity, optional first formative material,
 and completion in five steps. It is the recommended path for first-time
