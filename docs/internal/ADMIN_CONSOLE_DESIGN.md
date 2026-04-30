@@ -133,6 +133,20 @@ Recommended steps:
 
 The wizard should end in the normal admin console, not a separate page.
 
+### Terminal Setup Follow-Ups
+
+The `nur-setup` terminal flow should collect the network binding target before
+it prints run instructions:
+
+- bind host/IP, defaulting to `127.0.0.1`
+- port, defaulting to `8000`
+- a warning when binding to `0.0.0.0` or another non-loopback address without
+  a configured access token
+
+The generated completion message should then show the exact `nur-web --host ...
+--port ...` command for the selected values. This keeps setup terminal-native
+while avoiding a hidden assumption about localhost and port 8000.
+
 ### Permanent Admin Console
 
 The permanent console should replace the current single drawer layout with
