@@ -101,15 +101,20 @@ It is alpha, imperfect, and intentionally honest about what it does not prove.
 
 ## Quickstart
 
+Nūr is not published on PyPI yet. Install from the GitHub repository:
+
 ```bash
-pip install project-nur
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --upgrade pip
+python3 -m pip install "git+https://github.com/balfiky/nur.git"
 nur-web
 ```
 
 Open http://localhost:8000. A first-run wizard walks you through LLM backend,
 seed identity, and an optional first formative experience.
 
-To keep your customized agent identity across `pip install --upgrade`:
+To keep your customized agent identity across upgrades:
 
 ```bash
 export NUR_CONFIG_DIR=~/.config/nur

@@ -31,19 +31,25 @@ in five steps (Welcome → Connect LLM → Identity → First Experience → Don
 You can skip it and come back via
 **Settings → Setup → Launch Setup Wizard**.
 
-## Pip Wheel Install
+## Git Install
 
 ```bash
-pip install project-nur
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --upgrade pip
+python3 -m pip install "git+https://github.com/balfiky/nur.git"
 export NUR_CONFIG_DIR=~/.config/nur   # see below — do this before the first run
 mkdir -p "$NUR_CONFIG_DIR"
 nur-web
 ```
 
+Nūr is not published on PyPI yet. `pip install project-nur` will only work
+after a public wheel is released.
+
 ## NUR_CONFIG_DIR — keeping your identity across upgrades
 
-When installed from the wheel, `config/soul.yaml` lives inside the package
-directory and is **overwritten on `pip install --upgrade`**. Set
+When installed from a packaged distribution, `config/soul.yaml` lives inside the
+package directory and may be overwritten on package upgrade. Set
 `NUR_CONFIG_DIR` to a directory you control before the first run:
 
 ```bash
@@ -270,17 +276,17 @@ python3 -m pip install -e ".[dev]"
 python3 -m pytest tests/test_interface.py tests/test_interface_v1.py -q
 ```
 
-**Wheel install:**
+**Git install:**
 
 ```bash
-pip install --upgrade project-nur
+python3 -m pip install --upgrade "git+https://github.com/balfiky/nur.git"
 ```
 
 Then restart `nur-web`.
 
 If `NUR_CONFIG_DIR` is set, your identity file is untouched. If it is not set,
-`pip install --upgrade` will overwrite the bundled `config/soul.yaml` with the
-defaults shipped in the new wheel.
+a package upgrade may overwrite the bundled `config/soul.yaml` with the
+defaults shipped in the new package.
 
 If your deployment has real user data, create a backup before upgrading.
 

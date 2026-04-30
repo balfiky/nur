@@ -65,6 +65,8 @@ All notable changes to Project Nur are documented here.
 - F-008: Disabled the send button while the composer is blank.
 
 ### Documentation
+- Replaced the unpublished `pip install project-nur` quickstart path with a
+  GitHub/source install path until a public PyPI wheel exists.
 - Documented the Life History layer across README, overview, architecture,
   deployment/admin, privacy, and security docs, including the important
   distinction that `life_history.db` is shared assistant identity data and is
