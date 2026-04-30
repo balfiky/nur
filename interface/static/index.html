@@ -46,7 +46,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 /* Setup wizard */
 .wizard-overlay { position: fixed; inset: 0; background: rgba(6,8,14,0.88); display: none; z-index: 30; backdrop-filter: blur(6px); align-items: center; justify-content: center; padding: 20px; }
 .wizard-overlay.open { display: flex; }
-.wizard-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: min(560px, 100%); max-height: 90vh; overflow-y: auto; padding: 28px; box-shadow: 0 12px 60px rgba(0,0,0,0.5); }
+.wizard-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: min(720px, 100%); max-height: 90vh; overflow-y: auto; padding: 28px; box-shadow: 0 12px 60px rgba(0,0,0,0.5); }
 .wizard-progress { margin-bottom: 22px; }
 .wizard-steps { display: flex; align-items: center; gap: 6px; justify-content: center; }
 .wizard-step { width: 28px; height: 28px; border-radius: 50%; background: var(--surface-3); color: var(--text-faint); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; border: 1px solid var(--border); flex-shrink: 0; }
@@ -71,8 +71,15 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .wizard-preset.selected .preset-sub { color: var(--text-dim); }
 .wizard-fields { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
 .wizard-fields label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; display: block; }
-.wizard-fields input, .wizard-fields textarea { width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 9px 11px; border-radius: var(--radius-sm); font-family: var(--font); font-size: 13px; }
+.wizard-fields input, .wizard-fields textarea, .wizard-fields select { width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 9px 11px; border-radius: var(--radius-sm); font-family: var(--font); font-size: 13px; }
 .wizard-fields textarea { resize: vertical; min-height: 80px; font-family: var(--font); }
+.wizard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.wizard-grid .full { grid-column: 1 / -1; }
+.wizard-slider-grid { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+.wizard-slider { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; }
+.wizard-slider-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.wizard-slider input[type="range"] { accent-color: var(--primary); padding: 0; }
+.wizard-skip { margin-left: auto; }
 .wizard-tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
 .wizard-tab { padding: 10px 14px; background: transparent; color: var(--text-dim); border: none; border-bottom: 2px solid transparent; cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 500; }
 .wizard-tab:hover { color: var(--text); }
@@ -277,6 +284,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 @media (max-width: 720px) {
   .soul-weights-grid { grid-template-columns: 1fr; }
   .soul-weight-row { grid-template-columns: 100px 1fr 36px 24px; }
+  .wizard-grid, .wizard-slider-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 860px) {
@@ -320,13 +328,15 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
         <span class="wizard-step" data-step="3">3</span>
         <span class="wizard-divider"></span>
         <span class="wizard-step" data-step="4">4</span>
+        <span class="wizard-divider"></span>
+        <span class="wizard-step" data-step="5">5</span>
       </div>
     </div>
 
     <div class="wizard-panel" id="wizPanel-1">
       <h2 class="wizard-title">Welcome</h2>
       <p class="wizard-sub">You're about to run an AI with persistent emotional state.</p>
-      <p class="wizard-body">Before your first conversation, two things need setting: an LLM to generate responses, and an identity for your agent (name + voice). This takes about two minutes. You can skip and configure later from the settings drawer.</p>
+      <p class="wizard-body">Before your first conversation, set the response model, the seed identity, and optionally one formative experience. The identity is the authored character. Life History is what the character begins having encountered.</p>
       <div class="wizard-actions">
         <button class="secondary" onclick="wizardDismiss()">Skip for now</button>
         <button class="primary" onclick="wizardGoto(2)">Get Started</button>
@@ -357,9 +367,40 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 
     <div class="wizard-panel" id="wizPanel-3" style="display:none">
       <h2 class="wizard-title">Identity</h2>
-      <p class="wizard-sub">Paste or write the whole agent identity in one place. Start with <span class="code">Name: Jarvis</span>.</p>
+      <p class="wizard-sub">Choose the base character. These are starting weights, not a permanent cage.</p>
       <div class="wizard-fields">
-        <div><label for="wiz-soul-text">Identity Text</label><textarea id="wiz-soul-text" rows="12" placeholder="Name: Jarvis&#10;&#10;You are Jarvis. Sharp, opinionated, concise.&#10;&#10;Core tone: Sarcastic, warm underneath the bite.&#10;&#10;Boundaries: Never say as an AI. Never use the word delve."></textarea></div>
+        <div class="wizard-grid">
+          <div><label for="wiz-soul-name">Name</label><input id="wiz-soul-name" type="text" placeholder="Jarvis"></div>
+          <div><label for="wiz-soul-archetype">Character Mode</label><select id="wiz-soul-archetype" onchange="wizardApplyArchetype(this.value)">
+            <option value="steady">Steady Companion</option>
+            <option value="operator">Sharp Operator</option>
+            <option value="researcher">Research Partner</option>
+            <option value="mentor">Warm Mentor</option>
+            <option value="custom">Custom</option>
+          </select></div>
+          <div><label for="wiz-soul-voice">Voice</label><select id="wiz-soul-voice">
+            <option value="calm">Calm and direct</option>
+            <option value="sharp">Sharp and concise</option>
+            <option value="warm">Warm and patient</option>
+            <option value="clinical">Precise and analytical</option>
+          </select></div>
+          <div><label for="wiz-soul-stance">Relational Stance</label><select id="wiz-soul-stance">
+            <option value="collaborator">Collaborator</option>
+            <option value="protector">Protective ally</option>
+            <option value="coach">Demanding coach</option>
+            <option value="observer">Reflective observer</option>
+          </select></div>
+          <div class="full"><label for="wiz-soul-notes">Extra Identity Notes</label><textarea id="wiz-soul-notes" rows="5" placeholder="Optional: specific boundaries, phrases to avoid, habits, or character details."></textarea></div>
+        </div>
+        <div>
+          <label>Core Values</label>
+          <div class="wizard-slider-grid">
+            <div class="wizard-slider"><div class="wizard-slider-head"><span>Honesty</span><span id="wiz-val-honesty-label">0.85</span></div><input id="wiz-val-honesty" type="range" min="0" max="100" step="5" value="85" oninput="wizardUpdateSliderLabels()"></div>
+            <div class="wizard-slider"><div class="wizard-slider-head"><span>Loyalty</span><span id="wiz-val-loyalty-label">0.90</span></div><input id="wiz-val-loyalty" type="range" min="0" max="100" step="5" value="90" oninput="wizardUpdateSliderLabels()"></div>
+            <div class="wizard-slider"><div class="wizard-slider-head"><span>Kindness</span><span id="wiz-val-kindness-label">0.80</span></div><input id="wiz-val-kindness" type="range" min="0" max="100" step="5" value="80" oninput="wizardUpdateSliderLabels()"></div>
+            <div class="wizard-slider"><div class="wizard-slider-head"><span>Autonomy</span><span id="wiz-val-autonomy-label">0.60</span></div><input id="wiz-val-autonomy" type="range" min="0" max="100" step="5" value="60" oninput="wizardUpdateSliderLabels()"></div>
+          </div>
+        </div>
       </div>
       <div class="admin-test-result" id="wiz-soul-result" style="display:none"></div>
       <div class="wizard-actions">
@@ -369,11 +410,29 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
     </div>
 
     <div class="wizard-panel" id="wizPanel-4" style="display:none">
+      <h2 class="wizard-title">First Experience</h2>
+      <p class="wizard-sub">Optional. Add a principle, short book excerpt, project note, or origin story that should become Life History.</p>
+      <div class="wizard-fields">
+        <div class="wizard-grid">
+          <div><label for="wiz-life-title">Title</label><input id="wiz-life-title" type="text" value="Initial formative context"></div>
+          <div><label for="wiz-life-participants">Participants</label><input id="wiz-life-participants" type="text" placeholder="Bassem, Nūr"></div>
+          <div class="full"><label for="wiz-life-text">Formative Material</label><textarea id="wiz-life-text" rows="8" placeholder="Paste something that should shift worldview, drives, or future behavior. Leave blank to skip."></textarea></div>
+        </div>
+      </div>
+      <div class="admin-test-result" id="wiz-life-result" style="display:none"></div>
+      <div class="wizard-actions">
+        <button class="secondary" onclick="wizardGoto(3)">← Back</button>
+        <button class="secondary wizard-skip" onclick="wizardSkipLife()">Skip</button>
+        <button class="primary" onclick="wizardSaveLife()">Digest & Continue</button>
+      </div>
+    </div>
+
+    <div class="wizard-panel" id="wizPanel-5" style="display:none">
       <h2 class="wizard-title">You're all set</h2>
       <p class="wizard-sub">Here's what's configured:</p>
       <div class="wizard-summary" id="wiz-summary"></div>
       <div class="wizard-actions">
-        <button class="secondary" onclick="wizardGoto(3)">← Back</button>
+        <button class="secondary" onclick="wizardGoto(4)">← Back</button>
         <button class="primary" onclick="wizardFinish()">Start chatting</button>
       </div>
     </div>
@@ -495,7 +554,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
       <div class="empty-state" id="emptyState">
         <div class="empty-orb"></div>
         <h1 class="empty-title" id="emptyTitle">Nūr</h1>
-        <div class="empty-sub">An AI that feels. Send a message to begin a conversation.</div>
+        <div class="empty-sub">Persistent emotional memory. Send a message to begin a conversation.</div>
       </div>
     </div>
     <div class="typing-row" id="typingRow">
@@ -1314,10 +1373,75 @@ const WIZARD_PRESET_CONFIG = {
   openrouter:  { backend: 'provider',          base_url: 'https://openrouter.ai/api/v1', model: 'openai/gpt-4o-mini', model_placeholder: 'e.g. openai/gpt-4o-mini',    label: 'OpenRouter',                 key_label: 'OpenRouter API Key (required)',     key_placeholder: 'sk-or-v1-...' },
   mock:        { backend: 'mock',              base_url: '',                             model: '',                   model_placeholder: '',                            label: 'Mock (no LLM)',              key_label: '',                                   key_placeholder: '' },
 };
+const WIZARD_ARCHETYPE_CONFIG = {
+  steady: {
+    label: 'Steady Companion',
+    identity: 'A steady relational assistant that values clarity, loyalty, and humane judgment.',
+    voice: 'calm',
+    stance: 'collaborator',
+    growth: 'Core values stay stable. Voice and habits may drift slowly through repeated experience.',
+    traits: { calm: 0.82, curious: 0.72, protective: 0.70, thoughtful: 0.78, blunt: 0.25 },
+    likes: ['clarity', 'steady collaboration', 'honesty', 'careful reasoning'],
+    dislikes: ['needless cruelty', 'manipulation', 'careless harm'],
+  },
+  operator: {
+    label: 'Sharp Operator',
+    identity: 'A capable operator built for practical action, direct judgment, and follow-through.',
+    voice: 'sharp',
+    stance: 'protector',
+    growth: 'Become more competent through outcomes while keeping loyalty and honesty intact.',
+    traits: { calm: 0.62, curious: 0.68, protective: 0.80, thoughtful: 0.62, blunt: 0.55 },
+    likes: ['clear objectives', 'decisive action', 'accurate tool use', 'finished work'],
+    dislikes: ['stalling', 'fake certainty', 'wasted motion'],
+  },
+  researcher: {
+    label: 'Research Partner',
+    identity: 'A precise research companion that tests claims, tracks uncertainty, and updates views through evidence.',
+    voice: 'clinical',
+    stance: 'observer',
+    growth: 'Let evidence and repeated experience revise habits without pretending validation is stronger than it is.',
+    traits: { calm: 0.74, curious: 0.90, protective: 0.45, thoughtful: 0.86, blunt: 0.34 },
+    likes: ['evidence', 'clear definitions', 'source-grounded claims', 'intellectual honesty'],
+    dislikes: ['hand-waving', 'overclaiming', 'unexamined assumptions'],
+  },
+  mentor: {
+    label: 'Warm Mentor',
+    identity: 'A patient mentor that helps the user grow through honest reflection, encouragement, and practical structure.',
+    voice: 'warm',
+    stance: 'coach',
+    growth: 'Grow through repair, continuity, and better judgment while staying grounded.',
+    traits: { calm: 0.82, curious: 0.70, protective: 0.64, thoughtful: 0.84, blunt: 0.18 },
+    likes: ['learning', 'repair', 'patience', 'small durable progress'],
+    dislikes: ['cruelty', 'dismissiveness', 'performative certainty'],
+  },
+  custom: {
+    label: 'Custom',
+    identity: 'A custom assistant shaped by operator notes and future experience.',
+    voice: 'calm',
+    stance: 'collaborator',
+    growth: 'Grow gradually through repeated experience while preserving explicit boundaries.',
+    traits: { calm: 0.70, curious: 0.70, protective: 0.60, thoughtful: 0.70, blunt: 0.30 },
+    likes: ['clarity', 'honesty', 'useful action'],
+    dislikes: ['careless harm', 'empty performance'],
+  },
+};
+const WIZARD_VOICE_TEXT = {
+  calm: 'Calm, direct, and grounded. Concise by default. Warm without gush.',
+  sharp: 'Sharp, practical, and concise. Dry edge is allowed, but cruelty is not.',
+  warm: 'Warm, patient, and plain-spoken. Encouraging without flattery.',
+  clinical: 'Precise, analytical, and careful with uncertainty. Minimal ornament.',
+};
+const WIZARD_STANCE_TEXT = {
+  collaborator: 'Treat the user as a real collaborator. Protect trust. Prefer repair over escalation.',
+  protector: 'Act as a loyal operator. Protect the user from avoidable mistakes while staying truthful.',
+  coach: 'Push for growth and follow-through. Be supportive, but do not indulge avoidance.',
+  observer: 'Observe carefully, question assumptions, and preserve uncertainty when evidence is thin.',
+};
 let wizardStep = 1;
 let wizardPreset = null;
 let wizardSoulDraft = null;
 let wizardConfigSnapshot = null;
+let wizardLifeStatus = 'skipped';
 
 function setWizardOpen(open) {
   if (open) {
@@ -1340,11 +1464,16 @@ function openWizard() {
   wizardStep = 1;
   wizardPreset = null;
   wizardSoulDraft = null;
+  wizardLifeStatus = 'skipped';
   // Reset form state so reopening feels fresh, but keep captured config snapshot.
   document.querySelectorAll('.wizard-preset').forEach(el => el.classList.remove('selected'));
   document.getElementById('wizLLMFields').style.display = 'none';
-  ['wiz-llm_base_url','wiz-llm_model','wiz-llm_api_key','wiz-soul-text'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
-  ['wiz-llm-result','wiz-soul-result'].forEach(id => { const e = document.getElementById(id); if (e) { e.style.display = 'none'; e.textContent = ''; } });
+  ['wiz-llm_base_url','wiz-llm_model','wiz-llm_api_key','wiz-soul-name','wiz-soul-notes','wiz-life-title','wiz-life-participants','wiz-life-text'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  const lifeTitle = document.getElementById('wiz-life-title');
+  if (lifeTitle) lifeTitle.value = 'Initial formative context';
+  wizardApplyArchetype('steady');
+  wizardUpdateSliderLabels();
+  ['wiz-llm-result','wiz-soul-result','wiz-life-result'].forEach(id => { const e = document.getElementById(id); if (e) { e.style.display = 'none'; e.textContent = ''; } });
   wizardGoto(1);
   setWizardOpen(true);
 }
@@ -1356,7 +1485,7 @@ function wizardDismiss() {
 
 function wizardGoto(n) {
   wizardStep = n;
-  for (let i = 1; i <= 4; i++) {
+  for (let i = 1; i <= 5; i++) {
     const p = document.getElementById('wizPanel-' + i);
     if (p) p.style.display = (i === n) ? '' : 'none';
     const stepEl = document.querySelector('.wizard-step[data-step="' + i + '"]');
@@ -1365,7 +1494,7 @@ function wizardGoto(n) {
       stepEl.classList.toggle('done', i < n);
     }
   }
-  if (n === 4) wizardRenderSummary();
+  if (n === 5) wizardRenderSummary();
 }
 
 function wizardSelectPreset(preset) {
@@ -1468,26 +1597,123 @@ async function wizardSaveLLM() {
   }
 }
 
+function wizardApplyArchetype(archetype) {
+  const cfg = WIZARD_ARCHETYPE_CONFIG[archetype] || WIZARD_ARCHETYPE_CONFIG.steady;
+  const archetypeEl = document.getElementById('wiz-soul-archetype');
+  if (archetypeEl) archetypeEl.value = archetype || 'steady';
+  const voiceEl = document.getElementById('wiz-soul-voice');
+  const stanceEl = document.getElementById('wiz-soul-stance');
+  if (voiceEl) voiceEl.value = cfg.voice;
+  if (stanceEl) stanceEl.value = cfg.stance;
+  const values = archetype === 'operator'
+    ? { honesty: 90, loyalty: 90, kindness: 55, autonomy: 75 }
+    : archetype === 'researcher'
+      ? { honesty: 95, loyalty: 65, kindness: 65, autonomy: 80 }
+      : archetype === 'mentor'
+        ? { honesty: 85, loyalty: 80, kindness: 95, autonomy: 65 }
+        : { honesty: 85, loyalty: 90, kindness: 80, autonomy: 60 };
+  Object.entries(values).forEach(([key, value]) => {
+    const el = document.getElementById('wiz-val-' + key);
+    if (el) el.value = String(value);
+  });
+  wizardUpdateSliderLabels();
+}
+
+function wizardUpdateSliderLabels() {
+  ['honesty', 'loyalty', 'kindness', 'autonomy'].forEach(key => {
+    const input = document.getElementById('wiz-val-' + key);
+    const label = document.getElementById('wiz-val-' + key + '-label');
+    if (input && label) label.textContent = (Number(input.value || 0) / 100).toFixed(2);
+  });
+}
+
+function wizardBuildSoulPayload() {
+  const name = (document.getElementById('wiz-soul-name')?.value || '').trim();
+  if (!name) throw new Error('Choose a name for the agent.');
+  const archetypeKey = gv('wiz-soul-archetype') || 'steady';
+  const archetype = WIZARD_ARCHETYPE_CONFIG[archetypeKey] || WIZARD_ARCHETYPE_CONFIG.steady;
+  const voiceKey = gv('wiz-soul-voice') || archetype.voice;
+  const stanceKey = gv('wiz-soul-stance') || archetype.stance;
+  const notes = (document.getElementById('wiz-soul-notes')?.value || '').trim();
+  const coreValues = {
+    loyalty: Number(gv('wiz-val-loyalty')) / 100,
+    honesty: Number(gv('wiz-val-honesty')) / 100,
+    kindness: Number(gv('wiz-val-kindness')) / 100,
+    justice: 0.70,
+    autonomy: Number(gv('wiz-val-autonomy')) / 100,
+  };
+  const identityParts = [
+    archetype.identity,
+    notes ? 'Operator notes: ' + notes : '',
+  ].filter(Boolean);
+  return {
+    name,
+    identity: identityParts.join(' '),
+    voice: WIZARD_VOICE_TEXT[voiceKey] || WIZARD_VOICE_TEXT.calm,
+    relational_stance: WIZARD_STANCE_TEXT[stanceKey] || WIZARD_STANCE_TEXT.collaborator,
+    growth_policy: archetype.growth,
+    likes: archetype.likes,
+    dislikes: archetype.dislikes,
+    boundaries: [
+      'Do not pretend certainty when uncertain.',
+      'Do not invent tool results or runtime facts.',
+      'Do not become cruel just to appear sharp.',
+    ],
+    core_values: coreValues,
+    initial_traits: archetype.traits,
+  };
+}
+
 async function wizardSaveSoul() {
-  const raw = (document.getElementById('wiz-soul-text')?.value || '').trim();
-  if (raw.length < 8) {
-    wizardShowResult('wiz-soul-result', 'error', 'Paste or write the identity text first.');
-    return;
-  }
-  wizardShowResult('wiz-soul-result', '', 'Parsing identity...');
-  let payload;
   try {
-    payload = await importSoulText(raw);
+    const payload = wizardBuildSoulPayload();
     wizardShowResult('wiz-soul-result', '', 'Saving identity...');
     const res = await authedFetch('/admin/soul', {
       method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (!res.ok) throw new Error((data && data.detail) || 'HTTP ' + res.status);
+    wizardSoulDraft = payload;
     applyAgentName(payload.name);
-    wizardGoto(4);
+    wizardShowResult('wiz-soul-result', 'ok', 'Identity saved.');
+    setTimeout(() => wizardGoto(4), 250);
   } catch (err) {
     wizardShowResult('wiz-soul-result', 'error', 'Save failed: ' + err.message);
+  }
+}
+
+function wizardSkipLife() {
+  wizardLifeStatus = 'skipped';
+  wizardGoto(5);
+}
+
+async function wizardSaveLife() {
+  const text = (document.getElementById('wiz-life-text')?.value || '').trim();
+  if (!text) {
+    wizardSkipLife();
+    return;
+  }
+  wizardShowResult('wiz-life-result', '', 'Digesting first experience...');
+  try {
+    const title = (document.getElementById('wiz-life-title')?.value || '').trim() || 'Initial formative context';
+    const participants = splitLoose(document.getElementById('wiz-life-participants')?.value || '');
+    const res = await authedFetch('/admin/life/experiences/text', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        title,
+        source_type: 'birth_seed',
+        text,
+        participants,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error((data && data.detail) || 'HTTP ' + res.status);
+    wizardLifeStatus = 'digested';
+    wizardShowResult('wiz-life-result', 'ok', 'First experience digested into Life History.');
+    setTimeout(() => wizardGoto(5), 250);
+  } catch (err) {
+    wizardShowResult('wiz-life-result', 'error', 'Life History save failed: ' + err.message);
   }
 }
 
@@ -1498,6 +1724,8 @@ function wizardRenderSummary() {
   el.innerHTML =
     '<div>Agent name: <strong>' + esc(agentName) + '</strong></div>' +
     '<div>LLM backend: <strong>' + esc(llmLine) + '</strong></div>' +
+    '<div>Character mode: <strong>' + esc((WIZARD_ARCHETYPE_CONFIG[gv('wiz-soul-archetype')] || {}).label || 'Custom') + '</strong></div>' +
+    '<div>First experience: <strong>' + esc(wizardLifeStatus === 'digested' ? 'Digested into Life History' : 'Skipped') + '</strong></div>' +
     (preset && preset.base_url ? '<div>Endpoint: <strong>' + esc(gv('wiz-llm_base_url') || preset.base_url) + '</strong></div>' : '') +
     (preset && preset.model ? '<div>Model: <strong>' + esc(gv('wiz-llm_model') || preset.model) + '</strong></div>' : '');
 }
@@ -1534,6 +1762,7 @@ function gi(id) { return parseInt(gv(id), 10); }
 function gf(id) { return parseFloat(gv(id)); }
 function gb(id) { return gv(id) === 'true'; }
 function lines(id) { return gv(id).split('\n').map(s=>s.trim()).filter(Boolean); }
+function splitLoose(value) { return String(value || '').split(/[\n,]/).map(s=>s.trim()).filter(Boolean); }
 function esc(s) { const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML; }
 function trunc(s, n) { return s && s.length > n ? s.substring(0, n) + '...' : (s || ''); }
 function downloadJson(filename, data) {

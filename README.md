@@ -103,7 +103,8 @@ pip install project-nur
 nur-web
 ```
 
-Open http://localhost:8000. A first-run wizard walks you through LLM backend and agent identity.
+Open http://localhost:8000. A first-run wizard walks you through LLM backend,
+seed identity, and an optional first formative experience.
 
 To keep your customized agent identity across `pip install --upgrade`:
 

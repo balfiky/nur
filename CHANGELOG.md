@@ -21,6 +21,9 @@ All notable changes to Project Nur are documented here.
 ### Admin
 - Added readable validation/error formatting in the admin console so Pydantic
   validation failures do not surface as `[object Object]`.
+- Expanded the first-run wizard from a text-only identity step into a guided
+  five-step flow with structured identity controls and optional first Life
+  History intake.
 
 ### Validation
 - F-009: Rejected invalid admin runtime numeric values before config saves.

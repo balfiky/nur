@@ -282,6 +282,10 @@ class TestIndexPage:
         assert "clearGenericKey" in html
         assert "wizardPreset === 'local' && !apiKey" in html
         assert "loadSettings({ loadSoul: false })" in html
+        assert "Character Mode" in html
+        assert "First Experience" in html
+        assert "wizardBuildSoulPayload" in html
+        assert "/admin/life/experiences/text" in html
 
     async def test_static_shell_has_accessibility_and_metadata_hooks(self):
         html = index().body.decode()

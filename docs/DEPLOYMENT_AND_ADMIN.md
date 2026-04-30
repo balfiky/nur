@@ -26,8 +26,9 @@ Open:
 - API docs: `http://localhost:8000/docs`
 
 A first-run setup wizard opens automatically on first launch. It walks through
-LLM backend selection and agent identity in four steps (Welcome → Connect LLM →
-Name your agent → Done). You can skip it and come back via
+LLM backend selection, seed identity, and optional first Life History material
+in five steps (Welcome → Connect LLM → Identity → First Experience → Done).
+You can skip it and come back via
 **Settings → Setup → Launch Setup Wizard**.
 
 ## Pip Wheel Install
@@ -78,8 +79,9 @@ runtime config primitives as `runtime_config.yaml`; it is not a separate config
 system.
 
 The **Setup Wizard** (accessible from Settings → Setup → Launch Setup Wizard)
-walks through LLM backend, agent identity, and completion in four steps. It is
-the recommended path for first-time configuration.
+walks through LLM backend, agent identity, optional first formative material,
+and completion in five steps. It is the recommended path for first-time
+configuration.
 
 The full console lets you:
 
