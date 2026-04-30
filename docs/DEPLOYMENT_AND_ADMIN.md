@@ -147,6 +147,8 @@ experience ledger. It supports:
 
 - Pasted text intake for short formative material
 - Local text/Markdown file intake from inside `tools_workspace`
+- An evolution snapshot for first/latest experience, dominant drive,
+  strongest drive drift, and change-type mix
 - An evolution timeline of belief, drive, self-trait, and worldview changes
 - An experience ledger showing what was ingested and why it was salient
 - Current belief and drive summaries

@@ -18,11 +18,14 @@ class TestAdminConsoleStatic:
         assert "Operator Workspace" in html
         assert "Skills" in html
         assert "Life History" in html
+        assert "Evolution Snapshot" in html
         assert "Tool Inventory" in html
         assert 'id="refreshToolsBtn"' in html
         assert 'id="toolCategoryFilter"' in html
         assert 'id="importSkillBtn"' in html
         assert 'id="skillsList"' in html
+        assert 'id="lifeSnapshotNarrative"' in html
+        assert 'id="lifeDriveDrift"' in html
         assert 'id="lifeTimeline"' in html
         assert 'id="lifeExperiences"' in html
 
@@ -33,11 +36,13 @@ class TestAdminConsoleStatic:
         assert css.status_code == 200
         assert b"--bg: #ffffff" in css.body
         assert b".tool-row" in css.body
+        assert b".evolution-grid" in css.body
         assert js.status_code == 200
         assert b"fieldSections" in js.body
         assert b"/v1/tools" in js.body
         assert b"/admin/skills" in js.body
         assert b"/admin/life" in js.body
+        assert b"renderLifeSnapshot" in js.body
 
     def test_unknown_admin_asset_404s(self):
         with pytest.raises(HTTPException) as exc:

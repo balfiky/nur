@@ -51,6 +51,14 @@ def test_pasted_text_creates_experience_belief_and_drive_change(tmp_path):
         assert any(drive["name"] == "autonomy" for drive in context["drives"])
         assert any(event["domain"] == "belief" for event in context["recent_evolution"])
 
+        snapshot = store.evolution_snapshot()
+        assert snapshot["first_experience"]["source_title"] == "Autonomy Notes"
+        assert snapshot["latest_experience"]["source_title"] == "Autonomy Notes"
+        assert snapshot["domain_counts"]
+        assert snapshot["dominant_drives"][0]["value"] >= 0.5
+        assert any(item["name"] == "autonomy" for item in snapshot["drive_drift"])
+        assert "Autonomy Notes" in snapshot["readable_summary"]
+
 
 def test_local_file_intake_is_restricted_to_tools_workspace(tmp_path):
     config = _config(tmp_path)

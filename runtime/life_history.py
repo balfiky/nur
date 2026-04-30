@@ -134,6 +134,7 @@ class LifeHistoryStore:
         return {
             "db_path": self.db_path,
             "counts": counts,
+            "snapshot": self.evolution_snapshot(),
             "recent_experiences": self.list_experiences(limit=20),
             "recent_evolution": self.list_evolution(limit=50),
             "beliefs": self.list_beliefs(limit=25),
@@ -181,6 +182,98 @@ class LifeHistoryStore:
             """
         ).fetchall()
         return [_drive_to_dict(row) for row in rows]
+
+    def evolution_snapshot(self) -> dict[str, Any]:
+        """Return a compact, operator-readable summary of character drift."""
+        first_experience = self._conn.execute(
+            """
+            SELECT id, timestamp, source_title, source_type
+            FROM experience_events
+            ORDER BY timestamp ASC
+            LIMIT 1
+            """
+        ).fetchone()
+        latest_experience = self._conn.execute(
+            """
+            SELECT id, timestamp, source_title, source_type
+            FROM experience_events
+            ORDER BY timestamp DESC
+            LIMIT 1
+            """
+        ).fetchone()
+        domain_rows = self._conn.execute(
+            """
+            SELECT domain, COUNT(*) AS count
+            FROM evolution_events
+            GROUP BY domain
+            ORDER BY count DESC, domain ASC
+            """
+        ).fetchall()
+
+        drives = []
+        for drive in self.list_drives():
+            name = str(drive.get("name") or "")
+            baseline, description = DEFAULT_DRIVES.get(
+                name,
+                (0.5, str(drive.get("description") or "")),
+            )
+            value = float(drive.get("value", baseline))
+            drives.append({
+                "name": name,
+                "value": value,
+                "baseline": baseline,
+                "delta": value - baseline,
+                "description": drive.get("description") or description,
+                "updated_at": drive.get("updated_at"),
+            })
+        drives_by_drift = sorted(
+            drives,
+            key=lambda item: abs(float(item["delta"])),
+            reverse=True,
+        )
+        dominant_drives = sorted(
+            drives,
+            key=lambda item: float(item["value"]),
+            reverse=True,
+        )
+
+        belief_rows = self._conn.execute(
+            """
+            SELECT key, statement, confidence, updated_at
+            FROM beliefs
+            WHERE status = 'active'
+            ORDER BY confidence DESC, updated_at DESC
+            LIMIT 5
+            """
+        ).fetchall()
+        latest_evolution = self.list_evolution(limit=5)
+
+        return {
+            "first_experience": _experience_ref_to_dict(first_experience),
+            "latest_experience": _experience_ref_to_dict(latest_experience),
+            "domain_counts": [
+                {"domain": row["domain"], "count": int(row["count"])}
+                for row in domain_rows
+            ],
+            "drive_drift": drives_by_drift,
+            "dominant_drives": dominant_drives[:3],
+            "strongest_beliefs": [
+                {
+                    "key": row["key"],
+                    "statement": row["statement"],
+                    "confidence": row["confidence"],
+                    "updated_at": row["updated_at"],
+                }
+                for row in belief_rows
+            ],
+            "recent_changes": latest_evolution,
+            "readable_summary": _snapshot_summary(
+                first_experience=first_experience,
+                latest_experience=latest_experience,
+                domain_rows=domain_rows,
+                drive_drift=drives_by_drift,
+            ),
+        }
 
     def prompt_context(
         self,
@@ -886,6 +979,47 @@ def _extract_json(text: str) -> dict[str, Any] | None:
     except json.JSONDecodeError:
         return None
     return data if isinstance(data, dict) else None
+
+
+def _experience_ref_to_dict(row: sqlite3.Row | None) -> dict[str, Any] | None:
+    if row is None:
+        return None
+    return {
+        "id": row["id"],
+        "timestamp": row["timestamp"],
+        "source_title": row["source_title"],
+        "source_type": row["source_type"],
+    }
+
+
+def _snapshot_summary(
+    *,
+    first_experience: sqlite3.Row | None,
+    latest_experience: sqlite3.Row | None,
+    domain_rows: list[sqlite3.Row],
+    drive_drift: list[dict[str, Any]],
+) -> str:
+    if first_experience is None:
+        return "No formative experiences have been recorded yet."
+    parts = [
+        f"Life History began with {first_experience['source_title']!r}.",
+    ]
+    if (
+        latest_experience is not None
+        and latest_experience["id"] != first_experience["id"]
+    ):
+        parts.append(f"Latest experience: {latest_experience['source_title']!r}.")
+    if domain_rows:
+        top_domain = domain_rows[0]["domain"]
+        top_count = int(domain_rows[0]["count"])
+        parts.append(f"Most recorded change type: {top_domain} ({top_count}).")
+    changed = [item for item in drive_drift if abs(float(item["delta"])) >= 0.02]
+    if changed:
+        top = changed[0]
+        parts.append(f"Strongest drive drift: {top['name']} {float(top['delta']):+.2f}.")
+    else:
+        parts.append("Drives remain close to their seed baselines.")
+    return " ".join(parts)
 
 
 def _experience_to_dict(row: sqlite3.Row) -> dict[str, Any]:

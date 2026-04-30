@@ -43,6 +43,10 @@ def test_admin_life_text_intake_and_overview(monkeypatch, tmp_path):
         assert overview.status_code == 200
         data = overview.json()
         assert data["counts"]["experiences"] == 1
+        assert data["snapshot"]["latest_experience"]["source_title"] == "Autonomy Fragment"
+        assert data["snapshot"]["domain_counts"]
+        assert data["snapshot"]["drive_drift"]
+        assert "Autonomy Fragment" in data["snapshot"]["readable_summary"]
         assert data["recent_evolution"]
         assert data["beliefs"]
         assert data["drives"]

@@ -77,9 +77,11 @@ That means the project now has two distinct continuity layers:
   worldview, motivations, and self-model over time.
 
 This layer is intentionally experimental. It is observable in `/admin` →
-**Life** and stored under `data/shared/life_history.db`. Runtime sessions now
-load a compact slice of current beliefs, shifted drives, and recent evolution
-into generation, so formative experiences can bias Nūr's perspective without
+**Life** and stored under `data/shared/life_history.db`. The admin view now
+includes an evolution snapshot: first/latest experience, strongest drive
+drift, dominant drive pressure, and change-type mix. Runtime sessions load a
+compact slice of current beliefs, shifted drives, and recent evolution into
+generation, so formative experiences can bias Nūr's perspective without
 dumping raw source material into every prompt.
 
 ## Build With It

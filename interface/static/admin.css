@@ -168,6 +168,13 @@ h3 {
   margin-bottom: 0;
 }
 
+h4 {
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  margin: 0 0 10px;
+  text-transform: uppercase;
+}
+
 .topbar-actions,
 .button-row,
 .action-grid,
@@ -528,6 +535,77 @@ select:focus {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.evolution-read {
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted-strong);
+  margin-bottom: 16px;
+  padding: 12px 14px;
+}
+
+.evolution-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.evolution-grid .wide {
+  grid-column: 1 / -1;
+}
+
+.snapshot-cards,
+.domain-mix,
+.drift-list {
+  display: grid;
+  gap: 10px;
+}
+
+.snapshot-card,
+.domain-row,
+.drift-row {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.snapshot-card span,
+.domain-row span,
+.drift-row span {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.snapshot-card strong,
+.drift-row strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.domain-bar,
+.drift-meter {
+  background: var(--surface-strong);
+  border-radius: 999px;
+  height: 8px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.domain-bar span,
+.drift-meter span {
+  background: var(--accent);
+  display: block;
+  height: 100%;
+}
+
+.drift-meter span.negative {
+  background: var(--warning);
+}
+
 .life-list {
   display: grid;
   gap: 10px;
@@ -680,9 +758,13 @@ select:focus {
   .tool-summary,
   .tool-toolbar,
   .tool-row,
+  .evolution-grid,
   .two-column,
   .audit-grid {
     grid-template-columns: 1fr;
+  }
+  .evolution-grid .wide {
+    grid-column: auto;
   }
   .skill-row-header {
     flex-direction: column;

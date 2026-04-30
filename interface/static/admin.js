@@ -281,6 +281,27 @@
     return String(value).replaceAll("_", " ");
   }
 
+  function titleize(value) {
+    return labelize(value).replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
+  function formatDate(timestamp) {
+    const date = new Date(Number(timestamp) * 1000);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  function signed(value) {
+    const number = Number(value || 0);
+    return `${number >= 0 ? "+" : ""}${number.toFixed(2)}`;
+  }
+
   function renderOverview() {
     const status = state.status || {};
     const tools = status.tools || {};
@@ -569,6 +590,7 @@
     const dbPath = document.getElementById("lifeDbPath");
     if (dbPath) dbPath.textContent = data.db_path || "";
     renderLifeSummary(data.counts || {});
+    renderLifeSnapshot(data.snapshot || {});
     renderLifeTimeline(data.recent_evolution || []);
     renderLifeExperiences(data.recent_experiences || []);
     renderLifeBeliefs(data.beliefs || []);
@@ -590,6 +612,66 @@
         <strong>${escapeHtml(value)}</strong>
       </article>
     `).join("");
+  }
+
+  function renderLifeSnapshot(snapshot) {
+    const narrative = document.getElementById("lifeSnapshotNarrative");
+    const cards = document.getElementById("lifeSnapshotCards");
+    const domains = document.getElementById("lifeDomainMix");
+    const drift = document.getElementById("lifeDriveDrift");
+    if (!narrative || !cards || !domains || !drift) return;
+
+    narrative.textContent = snapshot.readable_summary || "No character evolution has been recorded yet.";
+    const latest = snapshot.latest_experience || {};
+    const first = snapshot.first_experience || {};
+    const dominantDrive = (snapshot.dominant_drives || [])[0] || {};
+    const largestDrift = (snapshot.drive_drift || []).find((item) => Math.abs(Number(item.delta || 0)) >= 0.02) || {};
+    const signalCards = [
+      ["First Experience", first.source_title || "None", first.timestamp ? formatDate(first.timestamp) : ""],
+      ["Latest Experience", latest.source_title || "None", latest.timestamp ? formatDate(latest.timestamp) : ""],
+      ["Dominant Drive", dominantDrive.name ? titleize(dominantDrive.name) : "Unchanged", dominantDrive.value != null ? Number(dominantDrive.value).toFixed(2) : ""],
+      ["Largest Drift", largestDrift.name ? titleize(largestDrift.name) : "None", largestDrift.delta != null ? signed(largestDrift.delta) : "near baseline"],
+    ];
+    cards.innerHTML = signalCards.map(([label, value, foot]) => `
+      <article class="snapshot-card">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value)}</strong>
+        ${foot ? `<div class="metric-foot">${escapeHtml(foot)}</div>` : ""}
+      </article>
+    `).join("");
+
+    const domainCounts = snapshot.domain_counts || [];
+    const maxDomain = Math.max(1, ...domainCounts.map((item) => Number(item.count || 0)));
+    domains.innerHTML = domainCounts.length
+      ? domainCounts.map((item) => {
+          const count = Number(item.count || 0);
+          return `
+            <article class="domain-row">
+              <span>${escapeHtml(titleize(item.domain || "change"))}</span>
+              <strong>${escapeHtml(count)}</strong>
+              <div class="domain-bar"><span style="width:${Math.max(3, Math.round((count / maxDomain) * 100))}%"></span></div>
+            </article>
+          `;
+        }).join("")
+      : `<p class="empty-copy">No evolution events yet.</p>`;
+
+    const changedDrives = (snapshot.drive_drift || [])
+      .filter((item) => Math.abs(Number(item.delta || 0)) >= 0.005)
+      .slice(0, 7);
+    drift.innerHTML = changedDrives.length
+      ? changedDrives.map((item) => {
+          const delta = Number(item.delta || 0);
+          const width = Math.max(3, Math.min(100, Math.round(Math.abs(delta) * 200)));
+          return `
+            <article class="drift-row">
+              <span>${escapeHtml(titleize(item.name || "drive"))}</span>
+              <strong>${escapeHtml(signed(delta))}</strong>
+              <div class="drift-meter"><span class="${delta < 0 ? "negative" : ""}" style="width:${width}%"></span></div>
+              <div class="life-reason">${escapeHtml(item.description || "")}</div>
+            </article>
+          `;
+        }).join("")
+      : `<p class="empty-copy">Drives remain near their seed baselines.</p>`;
   }
 
   function renderLifeTimeline(events) {

@@ -114,11 +114,13 @@ Core records:
 | `drive_states` / `drive_changes` | persistent motivation values and their change log |
 
 The admin console exposes this as `/admin` → **Life**: summary counts,
-experience ledger, evolution timeline, beliefs, and drives. This is the
-observability surface for character drift. Runtime sessions also load a
-compact prompt slice from this store — current beliefs, shifted drives, and
-recent evolution events — so normal chat can be shaped by identity-level
-experience without sending raw source material every turn.
+an evolution snapshot, experience ledger, evolution timeline, beliefs, and
+drives. The snapshot is deterministic and operator-facing: first/latest
+experience, strongest drive drift, dominant drive pressure, and change-type
+mix. This is the observability surface for character drift. Runtime sessions
+also load a compact prompt slice from this store — current beliefs, shifted
+drives, and recent evolution events — so normal chat can be shaped by
+identity-level experience without sending raw source material every turn.
 
 ## LLM Boundary
 

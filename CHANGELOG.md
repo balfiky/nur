@@ -13,6 +13,8 @@ All notable changes to Project Nur are documented here.
   inside `tools_workspace`.
 - Added evolution observability in `/admin` → **Life**: experience counts,
   experience ledger, evolution timeline, current beliefs, and drive values.
+- Added a deterministic evolution snapshot for first/latest experience,
+  dominant drive, strongest drive drift, and change-type mix.
 - Added deterministic fallback digestion that can record belief revisions,
   drive changes, self-trait observations, and future-behavior tendencies.
 - Wired Life History into runtime generation through a compact prompt context
