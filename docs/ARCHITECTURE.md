@@ -162,10 +162,10 @@ normal tool policy, auth, workspace, and shell gates.
 
 ## Admin And Setup Surface
 
-The web UI includes a first-run setup wizard, a permanent settings /
-admin drawer, and the `/admin` route. Both the wizard and the drawer
-use the same `RuntimeConfig` and runtime factories as the rest of the
-app. Operational instructions live in
+The web UI includes a first-run setup wizard, a quick settings drawer,
+and a full-screen `/admin` operator console linked from the chat header.
+All three surfaces use the same `RuntimeConfig` and runtime factories as
+the rest of the app. Operational instructions live in
 [DEPLOYMENT_AND_ADMIN.md](DEPLOYMENT_AND_ADMIN.md).
 
 ## Evaluation And Ablation Harness
