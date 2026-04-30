@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+from importlib import metadata
+from importlib import resources
 import os
 import re
 import shutil
@@ -17,7 +19,7 @@ from pathlib import Path
 from runtime.config import RuntimeConfig
 
 
-ROOT = Path(__file__).resolve().parent.parent
+PROJECT_NAME = "project-nur"
 REQUIRED_PYTHONS = ("3.10", "3.11", "3.12")
 EXPECTED_CONSOLE_SCRIPTS = {
     "nur": "main:main",
@@ -68,8 +70,25 @@ def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv)
     root = Path(args.root).resolve()
     results: list[CheckResult] = []
+    target = _resolve_target(args.target, root)
+
+    if target == "install":
+        if args.mode == "release":
+            results.append(CheckResult(
+                name="validation target",
+                ok=False,
+                detail="release validation requires a source checkout, not an installed package",
+            ))
+            _print_results(results)
+            raise SystemExit(1)
+        results.extend(_run_install_checks(root))
+        _print_results(results)
+        if any(not result.ok for result in results):
+            raise SystemExit(1)
+        return
 
     checks = [
+        ("validation target", lambda: "source checkout"),
         ("python version", lambda: _check_python_version()),
         ("version and changelog consistency", lambda: _check_version_consistency(root)),
         ("runtime safe defaults", lambda: _check_runtime_safe_defaults(root)),
@@ -120,8 +139,9 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="nur-validate",
         description=(
-            "Run neutral repository validation checks. Use --mode release before "
-            "cutting or verifying a tag."
+            "Run neutral validation checks. In a source checkout this validates "
+            "repository/release readiness; in an installed workspace it validates "
+            "the installed package and local runtime config."
         ),
     )
     parser.add_argument(
@@ -133,7 +153,17 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
             "release=full+release/tag/wheel install checks."
         ),
     )
-    parser.add_argument("--root", default=str(ROOT), help="Repository root.")
+    parser.add_argument(
+        "--target",
+        choices=["auto", "repo", "install"],
+        default="auto",
+        help="Validation target. auto uses repo checks only when --root looks like a checkout.",
+    )
+    parser.add_argument(
+        "--root",
+        default=".",
+        help="Repository/workspace root (default: current directory).",
+    )
     parser.add_argument("--skip-tests", action="store_true", help="Skip pytest in full/release mode.")
     parser.add_argument("--skip-build", action="store_true", help="Skip wheel/sdist build checks.")
     parser.add_argument(
@@ -147,6 +177,40 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         help="Fail release mode when untracked files exist.",
     )
     return parser.parse_args(argv)
+
+
+def _resolve_target(target: str, root: Path) -> str:
+    if target == "repo":
+        if not _looks_like_repo_root(root):
+            raise SystemExit(f"{root} does not look like a Project Nūr source checkout.")
+        return "repo"
+    if target == "install":
+        return "install"
+    return "repo" if _looks_like_repo_root(root) else "install"
+
+
+def _looks_like_repo_root(root: Path) -> bool:
+    pyproject = root / "pyproject.toml"
+    if not pyproject.is_file():
+        return False
+    try:
+        text = pyproject.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return 'name = "project-nur"' in text and (root / "runtime").is_dir()
+
+
+def _run_install_checks(root: Path) -> list[CheckResult]:
+    checks = [
+        ("validation target", lambda: "installed package/workspace"),
+        ("python version", lambda: _check_python_version()),
+        ("installed package version", lambda: _check_installed_version()),
+        ("installed package resources", lambda: _check_installed_resources()),
+        ("installed console scripts", lambda: _check_installed_console_scripts()),
+        ("workspace runtime config", lambda: _check_workspace_runtime_config(root)),
+        ("critical imports", lambda: _check_critical_imports()),
+    ]
+    return [_run_named_check(name, check) for name, check in checks]
 
 
 def _run_named_check(name: str, check) -> CheckResult:
@@ -164,6 +228,62 @@ def _check_python_version() -> str:
     if current < (3, 10):
         raise ValidationFailure("Python 3.10+ is required.")
     return f"{current.major}.{current.minor}.{current.micro}"
+
+
+def _check_installed_version() -> str:
+    try:
+        return metadata.version(PROJECT_NAME)
+    except metadata.PackageNotFoundError as exc:
+        raise ValidationFailure(f"{PROJECT_NAME} is not installed in this environment") from exc
+
+
+def _check_installed_resources() -> str:
+    missing = []
+    for rel_path in sorted(EXPECTED_PACKAGE_FILES):
+        package_name, *parts = rel_path.split("/")
+        try:
+            resource = resources.files(package_name).joinpath(*parts)
+            if not resource.is_file():
+                missing.append(rel_path)
+        except (ModuleNotFoundError, FileNotFoundError):
+            missing.append(rel_path)
+    if missing:
+        raise ValidationFailure("missing installed resources: " + ", ".join(missing))
+    return f"{len(EXPECTED_PACKAGE_FILES)} files"
+
+
+def _check_installed_console_scripts() -> str:
+    try:
+        entry_points = metadata.entry_points(group="console_scripts")
+    except TypeError:
+        entry_points = metadata.entry_points().get("console_scripts", [])
+    found = {entry.name: entry.value for entry in entry_points}
+    missing = [
+        f"{name} -> {target}"
+        for name, target in EXPECTED_CONSOLE_SCRIPTS.items()
+        if found.get(name) != target
+    ]
+    if missing:
+        raise ValidationFailure("missing installed console scripts: " + ", ".join(missing))
+    return f"{len(EXPECTED_CONSOLE_SCRIPTS)} scripts"
+
+
+def _check_workspace_runtime_config(root: Path) -> str:
+    path = root / "runtime_config.yaml"
+    if not path.exists():
+        return "runtime_config.yaml not found; run nur-setup if this is a new workspace"
+    cfg = RuntimeConfig.from_yaml(str(path))
+    warnings = []
+    if cfg.tools_enabled and not cfg.api_key:
+        warnings.append("tools enabled without api_key")
+    if cfg.shell_tool_enabled and not cfg.api_key:
+        warnings.append("shell enabled without api_key")
+    if cfg.cors_origins:
+        warnings.append("custom CORS origins configured")
+    detail = f"llm_backend={cfg.llm_backend}, data_dir={cfg.data_dir}"
+    if warnings:
+        detail += "; warnings: " + ", ".join(warnings)
+    return detail
 
 
 def _check_version_consistency(root: Path) -> str:
@@ -328,12 +448,15 @@ def _check_release_git_state(root: Path, *, strict_untracked: bool) -> str:
 
 def _smoke_install_wheel(root: Path, wheel_path: Path) -> str:
     with tempfile.TemporaryDirectory(prefix="nur-wheel-smoke-") as tmp:
+        workspace = Path(tmp) / "workspace"
+        workspace.mkdir()
+        (workspace / "runtime_config.yaml").write_text("llm_backend: mock\n", encoding="utf-8")
         venv_dir = Path(tmp) / "venv"
         venv.EnvBuilder(with_pip=True).create(venv_dir)
         python = _venv_python(venv_dir)
         _run([str(python), "-m", "pip", "install", "--upgrade", "pip"], cwd=root)
         _run([str(python), "-m", "pip", "install", str(wheel_path)], cwd=root)
-        _run([str(python), "-c", "import interface.api, runtime.learning_intake"], cwd=root)
+        _run([str(python), "-c", "import interface.api, runtime.learning_intake"], cwd=workspace)
         bin_dir = "Scripts" if os.name == "nt" else "bin"
         commands = [
             [str(venv_dir / bin_dir / "nur"), "--version"],
@@ -342,10 +465,17 @@ def _smoke_install_wheel(root: Path, wheel_path: Path) -> str:
             [str(venv_dir / bin_dir / "nur-uninstall"), "--help"],
             [str(venv_dir / bin_dir / "nur-emotional-qa"), "--help"],
             [str(venv_dir / bin_dir / "nur-validate"), "--help"],
+            [
+                str(venv_dir / bin_dir / "nur-validate"),
+                "--mode",
+                "quick",
+                "--root",
+                str(workspace),
+            ],
         ]
         for cmd in commands:
-            _run(cmd, cwd=root)
-    return "entry points import and respond"
+            _run(cmd, cwd=workspace)
+    return "entry points import, respond, and validate installed workspace"
 
 
 def _print_results(results: list[CheckResult]) -> None:

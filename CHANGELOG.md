@@ -10,6 +10,16 @@ _No unreleased changes._
 
 ---
 
+## v0.27.2 — 2026-05-01 (Installed validation mode)
+
+### Validation
+- Fixed `nur-validate` in installed/user workspaces. It now auto-detects when
+  repo files are unavailable and validates installed package version,
+  resources, console scripts, workspace runtime config, and critical imports
+  instead of failing on missing `pyproject.toml`, docs, or CI files.
+
+---
+
 ## v0.27.1 — 2026-04-30 (Validation hardening)
 
 ### Validation
