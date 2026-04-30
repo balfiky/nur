@@ -365,6 +365,11 @@ class TelegramChannel:
             return
 
         await self._manager.evict_session(session_key)
+        for path in (
+            self._manager.config.session_history_path(session_key),
+        ):
+            _remove_file_if_exists(path)
+            _remove_file_if_exists(path + ".tmp")
         await self._client.send_message(
             chat_id, "Session digested, state saved, session closed.",
         )
@@ -380,6 +385,7 @@ class TelegramChannel:
         removed = False
         for path in (
             self._manager.config.session_state_path(session_key),
+            self._manager.config.session_history_path(session_key),
             self._manager.config.user_state_path(rel_key),
         ):
             removed = _remove_file_if_exists(path) or removed

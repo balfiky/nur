@@ -243,9 +243,15 @@ the typing loop or normal chat generation.
 | `/start` | Send a short greeting plus the command list. |
 | `/status` | Show the active session's emotional modulators, if one exists. |
 | `/mental` or `/mood` | Create/inspect the current session and report mental-state diagnostics. |
-| `/new` | Start a fresh hot conversation while keeping relationship memory. |
-| `/reset` | Digest, save, and close the active session. |
+| `/new` | Start a fresh hot conversation while keeping relationship memory. Clears the active hot transcript. |
+| `/reset` | Digest, save, and close the active session. Clears the active hot transcript. |
 | `/debug` | Show a compact last-turn debug summary for the active session. |
+
+Telegram keeps the active hot transcript under
+`<data_dir>/telegram_<user_id>/sessions/<chat_id>.history.json` and restores it
+after idle eviction or runtime restart. The transcript is separate from
+relationship and semantic memory; `/new`, `/reset`, and explicit session-end
+operations clear it.
 
 ## Life History Admin
 

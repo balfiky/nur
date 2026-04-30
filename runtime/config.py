@@ -170,6 +170,12 @@ class RuntimeConfig:
         safe_chat = _safe_path_token(chat_id)
         return os.path.join(self.user_data_dir(rel_key), "sessions", f"{safe_chat}.json")
 
+    def session_history_path(self, session_key: str) -> str:
+        """Per-session hot transcript path restored until the session is ended."""
+        state_path = self.session_state_path(session_key)
+        root, _ext = os.path.splitext(state_path)
+        return f"{root}.history.json"
+
 
 def _safe_path_token(value: str) -> str:
     """Filesystem-safe token for path segments derived from runtime keys."""

@@ -15,7 +15,6 @@ import os
 import tempfile
 import time
 
-import pytest
 import httpx
 
 from core.dual_process.generator import MockLLMBackend
@@ -436,11 +435,13 @@ class TestCommands:
                 channel, manager, client = _make_channel(tmpdir)
                 session_key = "telegram:100:100"
                 state_path = manager.config.session_state_path(session_key)
+                history_path = manager.config.session_history_path(session_key)
                 try:
                     await channel.handle_update(
                         _make_update(update_id=1, text="I am furious about this")
                     )
                     assert session_key in manager.active_sessions
+                    assert os.path.exists(history_path)
 
                     await channel.handle_update(
                         _make_update(update_id=2, text="/new")
@@ -448,6 +449,7 @@ class TestCommands:
 
                     assert session_key in manager.active_sessions
                     assert not os.path.exists(state_path)
+                    assert not os.path.exists(history_path)
                     snap = manager.active_sessions[session_key].pipeline.engine.snapshot()
                     assert snap["arousal"] == 0.5
                     assert snap["valence"] == 0.5

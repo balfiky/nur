@@ -77,6 +77,7 @@ Persistence is deliberately split:
 |---|---|
 | `data/<platform>_<user_id>/nur.db` | per-user long-term emotional, semantic, relationship, and profile data |
 | `data/<platform>_<user_id>/sessions/<chat_id>.json` | per-chat session engine state |
+| `data/<platform>_<user_id>/sessions/<chat_id>.history.json` | active hot transcript restored until session end, `/reset`, or `/new` |
 | `data/shared/self_model.db` | assistant self-model shared across users |
 | `data/shared/life_history.db` | shared experience/evolution ledger for formative material |
 | `runtime_config.yaml` | operator runtime configuration (current working directory) |

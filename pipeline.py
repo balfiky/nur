@@ -1326,6 +1326,22 @@ class CognitivePipeline:
                     except Exception:  # pragma: no cover — defensive
                         pass
 
+    def export_conversation_history(self) -> list[dict[str, str]]:
+        """Return the hot in-session transcript for runtime persistence."""
+        return [
+            {"role": item["role"], "content": item["content"]}
+            for item in self._conversation_history
+            if item.get("role") in {"user", "assistant"} and item.get("content")
+        ]
+
+    def restore_conversation_history(self, history: list[dict[str, str]]) -> None:
+        """Restore a hot transcript saved by the runtime session manager."""
+        self._conversation_history = [
+            {"role": str(item["role"]), "content": str(item["content"])}
+            for item in history
+            if item.get("role") in {"user", "assistant"} and item.get("content")
+        ]
+
     def restore_state(
         self,
         snapshot: dict[str, float],

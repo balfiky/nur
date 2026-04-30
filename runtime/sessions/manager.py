@@ -15,7 +15,7 @@ from core.dual_process.generator import LLMBackend
 from core.types import UnresolvedItem
 from pipeline import CognitivePipeline
 from runtime.config import RuntimeConfig
-from runtime.sessions.persistence import load_engine_state
+from runtime.sessions.persistence import load_conversation_history, load_engine_state
 from runtime.sessions.user_session import UserSession
 
 log = logging.getLogger(__name__)
@@ -221,7 +221,7 @@ class SessionManager:
             self._start_idle_timer(session_key)
             return
         log.info("Inactivity timeout for %s", session_key)
-        await self.evict_session(session_key)
+        await self.evict_session(session_key, end_conversation=False)
 
     # ------------------------------------------------------------------
     # Session lifecycle
@@ -307,11 +307,18 @@ class SessionManager:
             log.info("Restored state for %s (saved_at=%.0f)", session_key,
                      saved.get("saved_at", 0))
 
+        history_path = self.config.session_history_path(session_key)
+        history = load_conversation_history(history_path)
+        if history:
+            pipeline.restore_conversation_history(history)
+            log.info("Restored %d hot transcript item(s) for %s", len(history), session_key)
+
         return UserSession(
             rel_key=rel_key,
             user_id=user_id,
             pipeline=pipeline,
             state_path=state_path,
+            history_path=history_path,
             max_queue=self.config.max_queue_per_user,
             executor=self._executor,
             session_key=session_key,
@@ -341,15 +348,15 @@ class SessionManager:
             log.exception("Failed to load enabled skill context")
             return {}
 
-    async def evict_session(self, session_key: str) -> None:
-        """Evict a session: cancel timer, drain, end, save state, close pipeline."""
+    async def evict_session(self, session_key: str, *, end_conversation: bool = True) -> None:
+        """Evict a session: cancel timer, drain, save state, close pipeline."""
         self._cancel_idle_timer(session_key)
         async with self._lock:
             session = self._sessions.pop(session_key, None)
         if session is None:
             return
         log.info("Evicting session: %s", session_key)
-        await session.drain_and_close()
+        await session.drain_and_close(end_conversation=end_conversation)
 
     async def evict_idle(self) -> list[str]:
         """Evict sessions that have been idle longer than the timeout.
@@ -367,7 +374,7 @@ class SessionManager:
                     to_evict.append(session_key)
 
         for session_key in to_evict:
-            await self.evict_session(session_key)
+            await self.evict_session(session_key, end_conversation=False)
 
         return to_evict
 
@@ -385,7 +392,7 @@ class SessionManager:
 
         log.info("Shutting down %d active session(s)", len(keys))
         for session_key in keys:
-            await self.evict_session(session_key)
+            await self.evict_session(session_key, end_conversation=False)
         if not self._executor_shutdown:
             self._executor.shutdown(wait=True, cancel_futures=False)
             self._executor_shutdown = True

@@ -12,7 +12,11 @@ from dataclasses import dataclass
 from typing import Any, Awaitable, TypeVar
 
 from pipeline import CognitivePipeline, DebugState
-from runtime.sessions.persistence import save_engine_state
+from runtime.sessions.persistence import (
+    delete_conversation_history,
+    save_conversation_history,
+    save_engine_state,
+)
 
 log = logging.getLogger(__name__)
 
@@ -73,6 +77,7 @@ class UserSession:
         user_id: str,
         pipeline: CognitivePipeline,
         state_path: str,
+        history_path: str,
         max_queue: int = 3,
         *,
         executor: Executor | None = None,
@@ -84,6 +89,7 @@ class UserSession:
         self.user_id = user_id
         self.pipeline = pipeline
         self.state_path = state_path
+        self.history_path = history_path
         self.last_activity: float = time.time()
 
         self._max_queue = max_queue
@@ -111,18 +117,22 @@ class UserSession:
         if self._pending_message_count == 0:
             self._drained.set()
 
-    async def drain_and_close(self) -> None:
-        """Wait for accepted messages to finish, then end + persist + close."""
+    async def drain_and_close(self, *, end_conversation: bool = True) -> None:
+        """Wait for accepted messages, then either end or suspend + close."""
         self._stopped = True
 
         await self._drained.wait()
 
-        await self._run_reliably(self._end_and_save_async(), name="session-close")
+        if end_conversation:
+            await self._run_reliably(self._end_and_save_async(), name="session-close")
+        else:
+            await self._run_reliably(self._save_and_close_async(), name="session-suspend")
 
     def _end_and_save(self) -> None:
         """Synchronous: end session, persist state, close pipeline."""
         try:
             self.pipeline.end_session(user_id=self.user_id)
+            delete_conversation_history(self.history_path)
         except Exception:
             log.exception("Error ending session for %s", self.session_key)
         try:
@@ -138,6 +148,29 @@ class UserSession:
             self.pipeline.close()
         except Exception:
             log.exception("Error closing pipeline for %s", self.session_key)
+
+    def _save_and_close(self) -> None:
+        """Synchronous: persist hot state/transcript and close without digestion."""
+        try:
+            self._save_hot_state()
+        except Exception:
+            log.exception("Error saving hot state for %s", self.session_key)
+        try:
+            self.pipeline.close()
+        except Exception:
+            log.exception("Error closing pipeline for %s", self.session_key)
+
+    def _save_hot_state(self) -> None:
+        state = self.pipeline.engine.export_state()
+        save_engine_state(
+            self.state_path,
+            state["modulator_snapshot"],
+            unresolved_items=state["unresolved_items"],
+        )
+        save_conversation_history(
+            self.history_path,
+            self.pipeline.export_conversation_history(),
+        )
 
     def save_state(self) -> None:
         """Save current engine state without ending the session."""
@@ -247,6 +280,14 @@ class UserSession:
         else:
             await self._run_blocking(self._end_and_save)
 
+    async def _save_and_close_async(self) -> None:
+        """Run hot-session persistence under the per-user lock."""
+        if self._user_lock is not None:
+            async with self._user_lock:
+                await self._run_blocking(self._save_and_close)
+        else:
+            await self._run_blocking(self._save_and_close)
+
     async def _end_session_async(self) -> Any:
         """Worker-thread wrapper for session digestion without closing."""
         self.mark_work_started()
@@ -262,6 +303,7 @@ class UserSession:
                     self.pipeline.end_session,
                     self.user_id,
                 )
+            delete_conversation_history(self.history_path)
             self.last_activity = time.time()
             return result
         finally:
@@ -295,6 +337,7 @@ class UserSession:
                     result = await self._run_blocking(
                         self.pipeline.process, text, self.user_id,
                     )
+                await self._run_blocking(self._save_hot_state)
                 self.last_debug = result.debug
                 self.last_activity = time.time()
                 return result.response

@@ -29,8 +29,9 @@ These areas process or persist potentially sensitive user content and warrant
 extra scrutiny:
 
 - `runtime/sessions/persistence.py` — writes per-session engine state to
-  `data/<platform>_<user_id>/sessions/<chat_id>.json`. `data/` is gitignored;
-  never commit it.
+  `data/<platform>_<user_id>/sessions/<chat_id>.json` and active hot
+  transcripts to `data/<platform>_<user_id>/sessions/<chat_id>.history.json`.
+  `data/` is gitignored; never commit it.
 - `core/memory/long_term.py`, `core/memory/relationship.py`,
   `core/memory/semantic.py` — SQLite tables in `data/<platform>_<user_id>/nur.db`
   storing distilled user memory (`memories`), relationship events

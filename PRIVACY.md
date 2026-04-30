@@ -18,6 +18,7 @@ Within `data_dir`, Nūr writes:
 | `data/shared/life_history.db` | Shared life-history/evolution ledger — formative experiences, belief revisions, drive changes, self-trait observations |
 | `data/<platform>_<user_id>/nur.db` | Per-user SQLite: emotional memory, relationship events, open loops, person/topic profiles, semantic memory |
 | `data/<platform>_<user_id>/sessions/<chat_id>.json` | Per-session engine state: `modulator_snapshot`, `saved_at`, and `unresolved_items` |
+| `data/<platform>_<user_id>/sessions/<chat_id>.history.json` | Active hot transcript for that chat, restored until the session is explicitly ended or reset |
 | `data/<platform>_<user_id>/engine_state.json` | Legacy per-user engine-state snapshot (kept for backward-compatible restore) |
 
 The entire `data/` directory is gitignored. Do not commit it.
@@ -67,11 +68,14 @@ private material into Life History unless you have the right consent.
 
 ## What Is Actually Recorded
 
-**Raw transcripts are not stored by default.** The `memories` table holds
-*distilled emotional summaries*, not conversation logs. The `semantic_memories`
-table may quote short user statements verbatim when the user expresses a
-preference or fact (e.g., "I prefer concise replies") — review it before
-sharing a database.
+Active chat transcripts are stored in per-session `*.history.json` files so
+Telegram and other channels can restore the hot conversation after idle
+eviction or runtime restart. These hot transcripts are cleared by `/new`,
+`/reset`, and explicit session-end operations. Separately, the `memories` table
+holds *distilled emotional summaries*, not full conversation logs. The
+`semantic_memories` table may quote short user statements verbatim when the
+user expresses a preference or fact (e.g., "I prefer concise replies") — review
+it before sharing a database.
 
 Life History is different: pasted text and local-file excerpts can be stored
 as experience evidence. Treat `data/shared/life_history.db` as sensitive.
@@ -110,7 +114,7 @@ user on a given platform in one call:
 
 - Evicts every live session for that `platform:user_id` (drain,
   digest, close) before touching disk.
-- Deletes the per-user SQLite DB (`nur.db`) and every session JSON.
+- Deletes the per-user SQLite DB (`nur.db`) and every session JSON/transcript.
 - Removes the per-user directory itself.
 - **Does not touch** `data/shared/self_model.db` — the shared self-model
   holds only rows for entity `__self__` and a defense log with no
@@ -157,7 +161,7 @@ the wipe still proceeds.
 rm -rf data/<platform>_<user_id>
 ```
 
-This removes `nur.db` and all session JSON in one step.
+This removes `nur.db` and all session JSON/transcript files in one step.
 
 If you want a full reset of the assistant's self-model (e.g., before
 handing the system to a different operator), also delete

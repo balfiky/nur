@@ -24,8 +24,13 @@ from core.dual_process.generator import MockLLMBackend
 from core.types import UnresolvedItem
 from runtime.config import RuntimeConfig
 from runtime.sessions.manager import SessionManager
-from runtime.sessions.persistence import load_engine_state, save_engine_state
-from runtime.sessions.user_session import UserSession
+from runtime.sessions.persistence import (
+    delete_conversation_history,
+    load_conversation_history,
+    load_engine_state,
+    save_conversation_history,
+    save_engine_state,
+)
 from runtime.skills import import_skill, set_skill_enabled
 from runtime.tools import create_tool_executor
 from pipeline import CognitivePipeline
@@ -113,6 +118,23 @@ class TestStatePersistence:
             unresolved_after = restored.engine.active_unresolved()
             assert len(unresolved_after) == len(unresolved_before)
             assert restored.engine.state.resolution > 0.0
+
+    def test_save_load_and_delete_conversation_history(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "sessions", "direct.history.json")
+            history = [
+                {"role": "user", "content": "remember the blue notebook"},
+                {"role": "assistant", "content": "I will keep that in mind."},
+                {"role": "system", "content": "ignored"},
+            ]
+            save_conversation_history(path, history)
+
+            loaded = load_conversation_history(path)
+            assert loaded == history[:2]
+            assert not os.path.exists(path + ".tmp")
+
+            delete_conversation_history(path)
+            assert load_conversation_history(path) == []
 
 
 # =========================================================================
@@ -340,6 +362,58 @@ class TestSessionStatePersistence:
                 assert state is not None
                 assert "modulator_snapshot" in state
                 assert "saved_at" in state
+
+        asyncio.run(run())
+
+    def test_shutdown_preserves_hot_conversation_history(self):
+        """Manager shutdown suspends the hot transcript instead of losing it."""
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                config = _make_config(tmpdir)
+                manager1 = SessionManager(config, backend_factory=_mock_factory)
+
+                await manager1.handle_message(
+                    "telegram", "42", "dm", "remember the blue notebook",
+                )
+                await manager1.shutdown()
+
+                history_path = config.session_history_path("telegram:42:dm")
+                saved_history = load_conversation_history(history_path)
+                assert saved_history[0]["content"] == "remember the blue notebook"
+
+                manager2 = SessionManager(config, backend_factory=_mock_factory)
+                try:
+                    session = await manager2.ensure_session("telegram", "42", "dm")
+                    restored = session.pipeline.export_conversation_history()
+                    assert restored[0]["content"] == "remember the blue notebook"
+                finally:
+                    await manager2.shutdown()
+
+        asyncio.run(run())
+
+    def test_timeout_preserves_hot_conversation_history_for_restore(self):
+        """Idle eviction frees RAM but keeps the active transcript restorable."""
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                config = _make_config(tmpdir, session_timeout_seconds=0.15)
+                manager = SessionManager(config, backend_factory=_mock_factory)
+                try:
+                    await manager.handle_message(
+                        "telegram", "42", "dm", "remember the green folder",
+                    )
+                    history_path = config.session_history_path("telegram:42:dm")
+                    deadline = time.time() + 2.0
+                    while time.time() < deadline and manager.active_sessions:
+                        await asyncio.sleep(0.02)
+                    assert "telegram:42:dm" not in manager.active_sessions
+                    history = load_conversation_history(history_path)
+                    assert history[0]["content"] == "remember the green folder"
+
+                    session = await manager.ensure_session("telegram", "42", "dm")
+                    restored = session.pipeline.export_conversation_history()
+                    assert restored[0]["content"] == "remember the green folder"
+                finally:
+                    await manager.shutdown()
 
         asyncio.run(run())
 
@@ -603,6 +677,12 @@ class TestIdentityKeys:
         assert dm != group
         assert dm.endswith("/sessions/dm.json")
         assert group.endswith("/sessions/group99.json")
+
+    def test_session_history_path_sits_next_to_session_state(self):
+        """Hot transcript files use the same per-chat path namespace."""
+        config = RuntimeConfig(data_dir="/tmp/test")
+        path = config.session_history_path("telegram:12345:dm")
+        assert path.endswith("/sessions/dm.history.json")
 
 
 # =========================================================================
