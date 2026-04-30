@@ -49,6 +49,7 @@ dependencies = [
     "requests>=2.31,<3.0",
     "anyio>=4.10,<4.11",
     "pydantic>=2.0,<3.0",
+    "python-multipart>=0.0.20,<1.0",
     "openai>=2.0,<3.0",
     "langgraph>=1.1,<2.0",
     "langchain-openai>=1.2,<2.0",
@@ -69,6 +70,7 @@ Documentation = "https://github.com/balfiky/nur#readme"
 
 [project.scripts]
 nur = "main:main"
+nur-setup = "interface.setup:main"
 nur-web = "interface.api:main"
 nur-emotional-qa = "evals.emotional_quality:main"
 

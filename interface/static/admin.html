@@ -125,18 +125,28 @@
         </div>
         <div class="form-grid">
           <label class="field-card wide">
-            <span>Server path to a skill folder or SKILL.md</span>
-            <input id="skillSourcePath" type="text" placeholder="/home/balfiky/.agents/skills/example">
-            <small class="field-help">Use this for local OpenClaw, Claude, ChatGPT/Agent Skills-compatible folders.</small>
-          </label>
-          <label class="field-card wide">
-            <span>Or paste SKILL.md</span>
-            <textarea id="skillMarkdown" spellcheck="false" placeholder="---&#10;name: example&#10;description: What this skill teaches the assistant&#10;---"></textarea>
+            <span>Upload Skill</span>
+            <input id="skillUpload" type="file" accept=".md,.markdown,.zip">
+            <small class="field-help">Choose SKILL.md, a Markdown skill file, or a zipped skill folder. Nūr imports it disabled for review.</small>
           </label>
           <label class="field-card">
             <span>Name hint</span>
             <input id="skillNameHint" type="text" placeholder="optional">
           </label>
+          <details class="advanced-settings wide">
+            <summary>Manual import options</summary>
+            <div class="form-grid nested">
+              <label class="field-card wide">
+                <span>Server path to a skill folder or SKILL.md</span>
+                <input id="skillSourcePath" type="text" placeholder="/home/balfiky/.agents/skills/example">
+                <small class="field-help">Use only when the skill already exists on this server.</small>
+              </label>
+              <label class="field-card wide">
+                <span>Or paste SKILL.md</span>
+                <textarea id="skillMarkdown" spellcheck="false" placeholder="---&#10;name: example&#10;description: What this skill teaches the assistant&#10;---"></textarea>
+              </label>
+            </div>
+          </details>
         </div>
         <div class="button-row">
           <button class="primary" id="importSkillBtn" type="button">Import For Review</button>
@@ -209,17 +219,32 @@
       </div>
       <div class="panel">
         <div class="panel-heading">
-          <h3>Local File Experience</h3>
+          <h3>Upload Experience</h3>
         </div>
         <div class="form-grid">
           <label class="field-card wide">
-            <span>File Path</span>
-            <input id="lifeFilePath" type="text" placeholder="/path/inside/tools/workspace/book.md">
+            <span>Choose File</span>
+            <input id="lifeUploadFile" type="file" accept=".txt,.md,.markdown,.rst,.text">
+            <small class="field-help">Upload text, Markdown, reStructuredText, or .text files directly from your browser.</small>
           </label>
           <label class="field-card">
             <span>Title</span>
             <input id="lifeFileTitle" type="text" placeholder="optional">
           </label>
+          <label class="field-card">
+            <span>Participants</span>
+            <input id="lifeUploadParticipants" type="text" placeholder="Bassem, Nūr">
+          </label>
+          <details class="advanced-settings wide">
+            <summary>Advanced: digest a server-side file path</summary>
+            <div class="form-grid nested">
+              <label class="field-card wide">
+                <span>Server File Path</span>
+                <input id="lifeFilePath" type="text" placeholder="/path/inside/tools/workspace/book.md">
+                <small class="field-help">Use only when the file already exists inside the configured tools workspace.</small>
+              </label>
+            </div>
+          </details>
         </div>
         <div class="button-row">
           <button class="primary" id="ingestLifeFileBtn" type="button">Digest File</button>

@@ -97,12 +97,14 @@ Supported v1 inputs:
 | Input | Path |
 |---|---|
 | Pasted text | `POST /admin/life/experiences/text` |
-| Local text/Markdown file | `POST /admin/life/experiences/file` |
+| Browser-uploaded text/Markdown file | `POST /admin/life/experiences/upload` |
+| Advanced local text/Markdown file | `POST /admin/life/experiences/file` |
 
-Local file intake is restricted to `RuntimeConfig.resolved_tools_workspace`.
-The canonical store is SQLite at `data/shared/life_history.db`; graph and
-vector stores are intentionally deferred projections, not the source of
-truth.
+Browser uploads are the normal product path. Local file intake is restricted to
+`RuntimeConfig.resolved_tools_workspace` for operators who deliberately want
+server-side paths. The canonical store is SQLite at
+`data/shared/life_history.db`; graph and vector stores are intentionally
+deferred projections, not the source of truth.
 
 Core records:
 
@@ -152,12 +154,13 @@ the server and leave tools disabled unless needed.
 Imported Agent Skills live under `data/skills` with a JSON registry. Code
 entry point: `runtime/skills.py`.
 
-The admin console imports a local skill folder or pasted `SKILL.md`, audits it
-for metadata, tool hints, scripts, risk flags, and unsupported platform
-features, then keeps it disabled until an operator enables it. Once enabled,
-the skill enters generation as bounded private guidance: name, description,
-instructions, tool hints, and risk flags. Scripts and resources are not
-executed by the skills module. Any real action still has to pass through
+The admin console imports uploaded `SKILL.md`/Markdown files, zipped skill
+folders, server-side skill folders, or pasted `SKILL.md`, audits them for
+metadata, tool hints, scripts, risk flags, and unsupported platform features,
+then keeps them disabled until an operator enables them. Once enabled, the skill
+enters generation as bounded private guidance: name, description, instructions,
+tool hints, and risk flags. Scripts and resources are not executed by the
+skills module. Any real action still has to pass through
 normal tool policy, auth, workspace, and shell gates.
 
 ## Admin And Setup Surface

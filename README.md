@@ -64,10 +64,10 @@ The LLM still writes the words. Nūr changes the state those words come from.
 ## Life History And Evolution
 
 Nūr also has an early **Life History** layer for formative material: pasted
-texts, notes, essays, and local text/Markdown files. This is not just a
-summarizer. It records an experience, then writes an inspectable evolution
-trace: belief shifts, drive changes, self-trait observations, and future
-behavior tendencies.
+texts, notes, essays, and browser-uploaded text/Markdown files. This is not
+just a summarizer. It records an experience, then writes an inspectable
+evolution trace: belief shifts, drive changes, self-trait observations, and
+future behavior tendencies.
 
 That means the project now has two distinct continuity layers:
 
@@ -108,16 +108,19 @@ python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install --upgrade pip
 python3 -m pip install "git+https://github.com/balfiky/nur.git"
-nur-web
+nur-setup
 ```
 
-Open http://localhost:8000. A first-run wizard walks you through LLM backend,
-seed identity, and an optional first formative experience.
+`nur-setup` creates `runtime_config.yaml`, creates local data/workspace folders,
+opens http://localhost:8000, and starts the first-run wizard. The browser flow
+walks you through LLM backend, seed identity, and optional Life History material.
+You can upload text/Markdown files directly; you do not need to create files
+inside Nūr's data folder.
 
 For a LAN/public bind, run the same command with a public host:
 
 ```bash
-nur-web --host 0.0.0.0 --port 8000
+nur-web --host 0.0.0.0 --port 8000 --config runtime_config.yaml
 ```
 
 No API token is required by default. If you later set `api_key` in `/admin`,
@@ -137,6 +140,7 @@ git clone https://github.com/balfiky/nur.git
 cd nur
 python3 -m pip install -e ".[dev]"
 nur-web                    # web UI at :8000
+nur-setup                  # initialize config/data and launch the web wizard
 nur                        # console runtime
 ```
 

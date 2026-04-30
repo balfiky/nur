@@ -10,7 +10,6 @@ from interface.api import (
     ConfigUpdateRequest,
     EndSessionRequest,
     RestRequest,
-    app,
     chat,
     debug,
     end_session,
@@ -280,12 +279,14 @@ class TestIndexPage:
         assert "Mark first-run setup complete" in html
         assert '<link rel="icon" href="data:,' in html
         assert "clearGenericKey" in html
-        assert "wizardPreset === 'local' && !apiKey" in html
+        assert "wizardPreset === 'local' || wizardPreset === 'vllm'" in html
         assert "loadSettings({ loadSoul: false })" in html
         assert "Character Mode" in html
+        assert 'id="wiz-soul-name" type="text" value="Nūr"' in html
         assert "First Experience" in html
         assert "wizardBuildSoulPayload" in html
         assert "/admin/life/experiences/text" in html
+        assert "/admin/life/experiences/upload" in html
 
     async def test_static_shell_has_accessibility_and_metadata_hooks(self):
         html = index().body.decode()

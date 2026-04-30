@@ -23,7 +23,9 @@ class TestAdminConsoleStatic:
         assert 'id="refreshToolsBtn"' in html
         assert 'id="toolCategoryFilter"' in html
         assert 'id="importSkillBtn"' in html
+        assert 'id="skillUpload"' in html
         assert 'id="skillsList"' in html
+        assert 'id="lifeUploadFile"' in html
         assert 'id="lifeSnapshotNarrative"' in html
         assert 'id="lifeDriveDrift"' in html
         assert 'id="lifeTimeline"' in html
@@ -43,7 +45,9 @@ class TestAdminConsoleStatic:
         assert b"fieldSections" in js.body
         assert b"/v1/tools" in js.body
         assert b"/admin/skills" in js.body
+        assert b"/admin/skills/import/upload" in js.body
         assert b"/admin/life" in js.body
+        assert b"/admin/life/experiences/upload" in js.body
         assert b"renderLifeSnapshot" in js.body
 
     def test_unknown_admin_asset_404s(self):

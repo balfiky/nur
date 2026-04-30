@@ -74,6 +74,8 @@ a.icon-btn { text-decoration: none; }
 .wizard-fields label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; display: block; }
 .wizard-fields input, .wizard-fields textarea, .wizard-fields select { width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 9px 11px; border-radius: var(--radius-sm); font-family: var(--font); font-size: 13px; }
 .wizard-fields textarea { resize: vertical; min-height: 80px; font-family: var(--font); }
+.wizard-fields input[type="file"] { background: var(--surface); cursor: pointer; }
+.wizard-fields input[type="file"]::file-selector-button { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); cursor: pointer; font-family: var(--font); font-weight: 600; margin-right: 10px; padding: 7px 10px; }
 .wizard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .wizard-grid .full { grid-column: 1 / -1; }
 .wizard-slider-grid { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
@@ -351,7 +353,8 @@ a.icon-btn { text-decoration: none; }
       <h2 class="wizard-title">Connect your LLM</h2>
       <p class="wizard-sub">Pick how you want to generate responses. You can change this anytime.</p>
       <div class="wizard-presets" id="wizPresets">
-        <button type="button" class="wizard-preset" data-preset="local" onclick="wizardSelectPreset('local')">Local<span class="preset-sub">Ollama, LM Studio, vLLM</span></button>
+        <button type="button" class="wizard-preset" data-preset="local" onclick="wizardSelectPreset('local')">Ollama / LM Studio<span class="preset-sub">Local OpenAI-compatible server</span></button>
+        <button type="button" class="wizard-preset" data-preset="vllm" onclick="wizardSelectPreset('vllm')">vLLM<span class="preset-sub">Local GPU model server</span></button>
         <button type="button" class="wizard-preset" data-preset="hosted" onclick="wizardSelectPreset('hosted')">Hosted<span class="preset-sub">OpenAI-compatible gateway</span></button>
         <button type="button" class="wizard-preset" data-preset="openrouter" onclick="wizardSelectPreset('openrouter')">OpenRouter<span class="preset-sub">800+ models, one key</span></button>
         <button type="button" class="wizard-preset" data-preset="mock" onclick="wizardSelectPreset('mock')">Mock<span class="preset-sub">Explore without a real LLM</span></button>
@@ -374,7 +377,7 @@ a.icon-btn { text-decoration: none; }
       <p class="wizard-sub">Choose the base character. These are starting weights, not a permanent cage.</p>
       <div class="wizard-fields">
         <div class="wizard-grid">
-          <div><label for="wiz-soul-name">Name</label><input id="wiz-soul-name" type="text" placeholder="Jarvis"></div>
+          <div><label for="wiz-soul-name">Name</label><input id="wiz-soul-name" type="text" value="Nūr" placeholder="Jarvis"></div>
           <div><label for="wiz-soul-archetype">Character Mode</label><select id="wiz-soul-archetype" onchange="wizardApplyArchetype(this.value)">
             <option value="steady">Steady Companion</option>
             <option value="operator">Sharp Operator</option>
@@ -420,7 +423,8 @@ a.icon-btn { text-decoration: none; }
         <div class="wizard-grid">
           <div><label for="wiz-life-title">Title</label><input id="wiz-life-title" type="text" value="Initial formative context"></div>
           <div><label for="wiz-life-participants">Participants</label><input id="wiz-life-participants" type="text" placeholder="Bassem, Nūr"></div>
-          <div class="full"><label for="wiz-life-text">Formative Material</label><textarea id="wiz-life-text" rows="8" placeholder="Paste something that should shift worldview, drives, or future behavior. Leave blank to skip."></textarea></div>
+          <div class="full"><label for="wiz-life-upload">Upload Formative Material</label><input id="wiz-life-upload" type="file" accept=".txt,.md,.markdown,.rst,.text"></div>
+          <div class="full"><label for="wiz-life-text">Or Paste Formative Material</label><textarea id="wiz-life-text" rows="8" placeholder="Paste something that should shift worldview, drives, or future behavior. Leave blank to skip."></textarea></div>
         </div>
       </div>
       <div class="admin-test-result" id="wiz-life-result" style="display:none"></div>
@@ -1372,7 +1376,8 @@ function renderSetup(setup) {
 // ---- Setup wizard --------------------------------------------------------
 const wizardOverlay = document.getElementById('wizardOverlay');
 const WIZARD_PRESET_CONFIG = {
-  local:       { backend: 'openai_compatible', base_url: 'http://localhost:11434/v1',    model: 'llama3.2',           model_placeholder: 'e.g. llama3.2',              label: 'Local (Ollama / LM Studio)', key_label: 'API Key (usually blank for local)', key_placeholder: 'Often blank' },
+  local:       { backend: 'openai_compatible', base_url: 'http://localhost:11434/v1',    model: 'llama3.2',           model_placeholder: 'e.g. llama3.2',              label: 'Ollama / LM Studio',         key_label: 'API Key (usually blank for local)', key_placeholder: 'Often blank' },
+  vllm:        { backend: 'openai_compatible', base_url: 'http://localhost:8002/v1',     model: '',                   model_placeholder: 'e.g. qwen3.6-heretic-v1',   label: 'vLLM',                       key_label: 'API Key (usually blank for vLLM)',   key_placeholder: 'Often blank' },
   hosted:      { backend: 'provider',          base_url: 'https://api.openai.com/v1',    model: 'gpt-4o-mini',        model_placeholder: 'e.g. gpt-4o-mini',           label: 'Hosted provider',            key_label: 'API Key (required)',                key_placeholder: 'sk-...' },
   openrouter:  { backend: 'provider',          base_url: 'https://openrouter.ai/api/v1', model: 'openai/gpt-4o-mini', model_placeholder: 'e.g. openai/gpt-4o-mini',    label: 'OpenRouter',                 key_label: 'OpenRouter API Key (required)',     key_placeholder: 'sk-or-v1-...' },
   mock:        { backend: 'mock',              base_url: '',                             model: '',                   model_placeholder: '',                            label: 'Mock (no LLM)',              key_label: '',                                   key_placeholder: '' },
@@ -1472,7 +1477,9 @@ function openWizard() {
   // Reset form state so reopening feels fresh, but keep captured config snapshot.
   document.querySelectorAll('.wizard-preset').forEach(el => el.classList.remove('selected'));
   document.getElementById('wizLLMFields').style.display = 'none';
-  ['wiz-llm_base_url','wiz-llm_model','wiz-llm_api_key','wiz-soul-name','wiz-soul-notes','wiz-life-title','wiz-life-participants','wiz-life-text'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  ['wiz-llm_base_url','wiz-llm_model','wiz-llm_api_key','wiz-soul-notes','wiz-life-title','wiz-life-participants','wiz-life-text','wiz-life-upload'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  const soulName = document.getElementById('wiz-soul-name');
+  if (soulName) soulName.value = 'Nūr';
   const lifeTitle = document.getElementById('wiz-life-title');
   if (lifeTitle) lifeTitle.value = 'Initial formative context';
   wizardApplyArchetype('steady');
@@ -1574,11 +1581,12 @@ async function wizardSaveLLM() {
     wizardConfigSnapshot = curJson.config || {};
     const cfg = WIZARD_PRESET_CONFIG[wizardPreset];
     const apiKey = wizardPreset === 'mock' ? '' : gv('wiz-llm_api_key').trim();
-    const clearGenericKey = wizardPreset === 'mock' || (wizardPreset === 'local' && !apiKey);
+    const localNoKey = (wizardPreset === 'local' || wizardPreset === 'vllm') && !apiKey;
+    const clearGenericKey = wizardPreset === 'mock' || localNoKey;
     const payload = Object.assign({}, wizardConfigSnapshot, {
       llm_backend: cfg.backend,
-      llm_base_url: cfg.base_url === '' ? '' : gv('wiz-llm_base_url'),
-      llm_model: cfg.model === '' ? '' : gv('wiz-llm_model'),
+      llm_base_url: wizardPreset === 'mock' ? '' : gv('wiz-llm_base_url'),
+      llm_model: wizardPreset === 'mock' ? '' : gv('wiz-llm_model'),
       llm_api_key: apiKey,
       minimax_api_key: '',
       telegram_token: '',
@@ -1692,8 +1700,10 @@ function wizardSkipLife() {
 }
 
 async function wizardSaveLife() {
+  const uploadInput = document.getElementById('wiz-life-upload');
+  const upload = uploadInput?.files?.[0] || null;
   const text = (document.getElementById('wiz-life-text')?.value || '').trim();
-  if (!text) {
+  if (!upload && !text) {
     wizardSkipLife();
     return;
   }
@@ -1701,19 +1711,32 @@ async function wizardSaveLife() {
   try {
     const title = (document.getElementById('wiz-life-title')?.value || '').trim() || 'Initial formative context';
     const participants = splitLoose(document.getElementById('wiz-life-participants')?.value || '');
-    const res = await authedFetch('/admin/life/experiences/text', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        title,
-        source_type: 'birth_seed',
-        text,
-        participants,
-      }),
-    });
+    let res;
+    if (upload) {
+      const form = new FormData();
+      form.append('file', upload);
+      form.append('title', title);
+      form.append('participants', participants.join(', '));
+      res = await authedFetch('/admin/life/experiences/upload', {
+        method: 'POST',
+        body: form,
+      });
+    } else {
+      res = await authedFetch('/admin/life/experiences/text', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          title,
+          source_type: 'birth_seed',
+          text,
+          participants,
+        }),
+      });
+    }
     const data = await res.json();
     if (!res.ok) throw new Error((data && data.detail) || 'HTTP ' + res.status);
     wizardLifeStatus = 'digested';
+    if (uploadInput) uploadInput.value = '';
     wizardShowResult('wiz-life-result', 'ok', 'First experience digested into Life History.');
     setTimeout(() => wizardGoto(5), 250);
   } catch (err) {

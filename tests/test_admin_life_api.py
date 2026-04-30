@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import io
+
 from fastapi.testclient import TestClient
 
 import interface.api as interface_api
@@ -80,5 +82,35 @@ def test_admin_life_file_intake_uses_workspace(monkeypatch, tmp_path):
         payload = accepted.json()
         assert payload["experience"]["source_type"] == "local_file"
         assert payload["experience"]["source_ref"] == str(source.resolve())
+    set_pipeline(None)
+    set_session_manager(None)
+
+
+def test_admin_life_upload_intake_does_not_require_workspace(monkeypatch, tmp_path):
+    client, _workspace = _client(monkeypatch, tmp_path)
+    with client:
+        resp = client.post(
+            "/admin/life/experiences/upload",
+            data={"title": "Uploaded Book", "participants": "Bassem, Nur"},
+            files={
+                "file": (
+                    "outside-book.md",
+                    io.BytesIO(b"Autonomy and learning should change future behavior."),
+                    "text/markdown",
+                )
+            },
+        )
+        assert resp.status_code == 200
+        payload = resp.json()
+        assert payload["experience"]["source_type"] == "uploaded_file"
+        assert payload["experience"]["source_ref"] == "outside-book.md"
+        assert payload["experience"]["source_title"] == "Uploaded Book"
+
+        rejected = client.post(
+            "/admin/life/experiences/upload",
+            files={"file": ("book.pdf", io.BytesIO(b"%PDF"), "application/pdf")},
+        )
+        assert rejected.status_code == 400
+        assert "plain text" in rejected.json()["detail"]
     set_pipeline(None)
     set_session_manager(None)

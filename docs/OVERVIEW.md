@@ -42,8 +42,8 @@ Concretely, Nūr maintains:
   mechanism the system uses to profile users
 - a relationship layer that tracks rupture, repair, commitments, and
   unresolved loops across sessions
-- a life-history layer for formative material, where texts and files can
-  become experiences that revise beliefs, drives, and self-observations
+- a life-history layer for formative material, where pasted or uploaded texts
+  can become experiences that revise beliefs, drives, and self-observations
 - explicit decision points — appraisal, strategy, deliberation,
   defense — each testable in isolation
 

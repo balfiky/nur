@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import io
+import zipfile
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -67,3 +70,34 @@ def test_admin_skills_import_requires_one_source(client):
 
     assert resp.status_code == 400
     assert "exactly one" in resp.json()["detail"]
+
+
+def test_admin_skills_upload_markdown(client):
+    resp = client.post(
+        "/admin/skills/import/upload",
+        data={"name_hint": "uploaded"},
+        files={"file": ("SKILL.md", io.BytesIO(SKILL_MD.encode("utf-8")), "text/markdown")},
+    )
+
+    assert resp.status_code == 200
+    skill = resp.json()["skill"]
+    assert skill["id"] == "report-writer"
+    assert skill["source"] == "pasted"
+
+
+def test_admin_skills_upload_zip_folder(client):
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.writestr("report-writer/SKILL.md", SKILL_MD)
+        zf.writestr("report-writer/references/style.txt", "Be concise.")
+    archive.seek(0)
+
+    resp = client.post(
+        "/admin/skills/import/upload",
+        files={"file": ("report-writer.zip", archive, "application/zip")},
+    )
+
+    assert resp.status_code == 200
+    skill = resp.json()["skill"]
+    assert skill["id"] == "report-writer"
+    assert skill["compatibility"]["files"]["resource_count"] == 1

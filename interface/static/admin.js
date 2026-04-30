@@ -16,6 +16,23 @@
 
   const secretFields = new Set(["telegram_token", "llm_api_key", "minimax_api_key", "api_key"]);
   const listFields = new Set(["telegram_allowlist", "cors_origins"]);
+  const advancedConfigFields = new Set([
+    "data_dir",
+    "max_queue_per_user",
+    "max_active_sessions",
+    "session_timeout_seconds",
+    "debug_host",
+    "debug_port",
+    "proactive_idle_threshold",
+    "proactive_max_per_session",
+    "proactive_cooldown",
+    "proactive_check_interval",
+    "tools_workspace",
+    "api_key",
+    "cors_origins",
+    "telegram_poll_timeout",
+    "dedupe_ttl",
+  ]);
 
   const fieldSections = {
     runtime: [
@@ -182,7 +199,7 @@
   function renderConfigForm(formId, fields) {
     const form = document.getElementById(formId);
     if (!form) return;
-    form.innerHTML = fields.map(([name, label, type, wide]) => {
+    const renderField = ([name, label, type, wide]) => {
       const fieldMeta = metaFor(name);
       const value = state.config[name];
       const restart = fieldMeta.restart_required ? "Requires server restart. " : "";
@@ -197,7 +214,18 @@
           ${help ? `<div class="field-help">${escapeHtml(help)}</div>` : ""}
         </div>
       `;
-    }).join("");
+    };
+    const basic = fields.filter(([name]) => !advancedConfigFields.has(name));
+    const advanced = fields.filter(([name]) => advancedConfigFields.has(name));
+    form.innerHTML = [
+      basic.map(renderField).join(""),
+      advanced.length ? `
+        <details class="advanced-settings wide">
+          <summary>Advanced settings</summary>
+          <div class="form-grid nested">${advanced.map(renderField).join("")}</div>
+        </details>
+      ` : "",
+    ].join("");
   }
 
   function renderConfigInput(name, type, value, fieldMeta) {
@@ -324,6 +352,10 @@
         <div class="metric-foot">${escapeHtml(foot || "")}</div>
       </article>
     `).join("");
+    if (els.tokenBtn) {
+      els.tokenBtn.hidden = !status.auth_enabled;
+      els.tokenBtn.style.display = status.auth_enabled ? "" : "none";
+    }
     renderWarnings(status.warnings || []);
     const hasErrors = (status.warnings || []).some((item) => item.severity === "error");
     const hasWarnings = (status.warnings || []).length > 0;
@@ -446,20 +478,35 @@
   }
 
   async function importSkill() {
+    const uploadInput = document.getElementById("skillUpload");
+    const upload = uploadInput?.files?.[0] || null;
     const sourcePath = document.getElementById("skillSourcePath").value.trim();
     const skillMarkdown = document.getElementById("skillMarkdown").value.trim();
     const nameHint = document.getElementById("skillNameHint").value.trim();
-    const res = await authedFetch("/admin/skills/import", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        source_path: sourcePath || null,
-        skill_markdown: skillMarkdown || null,
-        name_hint: nameHint,
-      }),
-    });
+    let res;
+    if (upload) {
+      const form = new FormData();
+      form.append("file", upload);
+      form.append("name_hint", nameHint);
+      res = await authedFetch("/admin/skills/import/upload", {
+        method: "POST",
+        body: form,
+      });
+    } else {
+      res = await authedFetch("/admin/skills/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source_path: sourcePath || null,
+          skill_markdown: skillMarkdown || null,
+          name_hint: nameHint,
+        }),
+      });
+    }
     const data = await res.json();
     if (!res.ok) throw new Error(responseErrorMessage(data, "Import failed"));
+    if (uploadInput) uploadInput.value = "";
+    document.getElementById("skillSourcePath").value = "";
     document.getElementById("skillMarkdown").value = "";
     document.getElementById("skillNameHint").value = "";
     showToast("Skill imported for review.");
@@ -571,16 +618,34 @@
   }
 
   async function ingestLifeFile() {
+    const uploadInput = document.getElementById("lifeUploadFile");
+    const upload = uploadInput?.files?.[0] || null;
     const filePath = document.getElementById("lifeFilePath").value.trim();
     const title = document.getElementById("lifeFileTitle").value.trim();
-    const participants = splitList(document.getElementById("lifeParticipants").value);
-    const res = await authedFetch("/admin/life/experiences/file", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ file_path: filePath, title, participants }),
-    });
+    const participantsText = document.getElementById("lifeUploadParticipants").value
+      || document.getElementById("lifeParticipants").value;
+    let res;
+    if (upload) {
+      const form = new FormData();
+      form.append("file", upload);
+      form.append("title", title);
+      form.append("participants", participantsText);
+      res = await authedFetch("/admin/life/experiences/upload", {
+        method: "POST",
+        body: form,
+      });
+    } else {
+      const participants = splitList(participantsText);
+      res = await authedFetch("/admin/life/experiences/file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_path: filePath, title, participants }),
+      });
+    }
     const data = await res.json();
     if (!res.ok) throw new Error(responseErrorMessage(data, "File digestion failed"));
+    if (uploadInput) uploadInput.value = "";
+    document.getElementById("lifeFilePath").value = "";
     showToast("File experience digested.");
     await loadLife();
   }

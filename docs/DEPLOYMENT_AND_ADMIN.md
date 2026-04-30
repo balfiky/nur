@@ -19,6 +19,15 @@ python3 -m pip install -e ".[dev]"
 nur-web
 ```
 
+For a normal local setup, run:
+
+```bash
+nur-setup
+```
+
+That command creates `runtime_config.yaml`, creates data/workspace folders,
+starts the web UI, and opens the first-run wizard in your browser.
+
 Open:
 
 - Chat UI: `http://localhost:8000`
@@ -28,6 +37,8 @@ Open:
 A first-run setup wizard opens automatically on first launch. It walks through
 LLM backend selection, seed identity, and optional first Life History material
 in five steps (Welcome → Connect LLM → Identity → First Experience → Done).
+Life History material can be pasted or uploaded from the browser as text or
+Markdown, so a normal user does not need to place files into the data directory.
 You can skip it and come back via
 **Settings → Setup → Launch Setup Wizard**.
 
@@ -40,7 +51,7 @@ python3 -m pip install --upgrade pip
 python3 -m pip install "git+https://github.com/balfiky/nur.git"
 export NUR_CONFIG_DIR=~/.config/nur   # see below — do this before the first run
 mkdir -p "$NUR_CONFIG_DIR"
-nur-web
+nur-setup
 ```
 
 Nūr is not published on PyPI yet. `pip install project-nur` will only work
@@ -50,11 +61,14 @@ For local-only use, the default `nur-web` command binds to `127.0.0.1`. For
 LAN/public testing:
 
 ```bash
-nur-web --host 0.0.0.0 --port 8000
+nur-web --host 0.0.0.0 --port 8000 --config runtime_config.yaml
 ```
 
 No API token is required by default. If you later set `api_key`, the browser
 admin console has an **API Token** button for that hardened mode.
+
+`nur-web` now also accepts `--config /path/to/runtime_config.yaml` when you need
+to run from a systemd working directory that differs from the config location.
 
 ## NUR_CONFIG_DIR — keeping your identity across upgrades
 
@@ -74,9 +88,9 @@ With the env var set:
 - The admin console shows a note when the env var is **not** set so operators
   don't silently lose their identity on the next upgrade.
 
-The env var only governs `soul.yaml`. `runtime_config.yaml` is always written
-to the **current working directory** (wherever you run `nur-web`), so it is
-already upgrade-safe as long as you run from a consistent directory.
+The env var only governs `soul.yaml`. `runtime_config.yaml` is normally written
+to the current working directory, or to the explicit path passed through
+`nur-setup --config` / `nur-web --config`.
 
 For systemd or Docker deployments, pass it as an environment variable:
 
@@ -113,8 +127,8 @@ The full console lets you:
 - Configure LLM provider, model, base URL, and API keys
 - Configure Telegram token, allowlist, polling, and dedupe settings
 - Configure bearer auth, CORS, tools, shell-tool opt-in, and workspace paths
-- Import, audit, and enable external Agent Skills
-- Feed formative text or local text/Markdown files into **Life History**
+- Upload, import, audit, and enable external Agent Skills
+- Feed pasted or uploaded formative text/Markdown files into **Life History**
 - Observe experience count, evolution events, current beliefs, and drive shifts
 - Test LLM, Telegram, and storage settings before relying on them
 - Inspect diagnostics: Python version, uptime, active sessions, storage paths
@@ -129,10 +143,11 @@ secrets.
 
 ## Skills Admin
 
-The **Skills** page imports local Agent Skill folders or pasted `SKILL.md`
-content. Imported skills are disabled until review. The audit reports metadata,
-tool hints, risk flags, bundled scripts, resource counts, and unsupported
-platform-specific hints.
+The **Skills** page imports uploaded `SKILL.md`/Markdown files, zipped skill
+folders, server-side skill folders, or pasted `SKILL.md` content. Browser upload
+is the normal path; server paths are an advanced escape hatch. Imported skills
+are disabled until review. The audit reports metadata, tool hints, risk flags,
+bundled scripts, resource counts, and unsupported platform-specific hints.
 
 Enabled skills are injected into generation as bounded private guidance. They
 do not execute bundled scripts or bypass tool policy. If a skill needs web,
@@ -199,7 +214,8 @@ The **Life** page is the first observability surface for Nūr's identity-level
 experience ledger. It supports:
 
 - Pasted text intake for short formative material
-- Local text/Markdown file intake from inside `tools_workspace`
+- Browser upload intake for text/Markdown/reStructuredText files
+- Advanced local text/Markdown file intake from inside `tools_workspace`
 - An evolution snapshot for first/latest experience, dominant drive,
   strongest drive drift, and change-type mix
 - An evolution timeline of belief, drive, self-trait, and worldview changes

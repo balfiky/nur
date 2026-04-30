@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import json
 import logging
 import os
@@ -10,12 +11,25 @@ import platform
 import secrets
 import shutil
 import sys
+import tempfile
 import time
 import zipfile
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 
-from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect, status
+from fastapi import (
+    Depends,
+    FastAPI,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field, field_validator
@@ -149,10 +163,16 @@ app = FastAPI(
 )
 
 WEB_PLATFORM = "web"
-RUNTIME_CONFIG_PATH = "runtime_config.yaml"
+RUNTIME_CONFIG_PATH = os.environ.get("NUR_RUNTIME_CONFIG", "runtime_config.yaml")
 _MAX_CHAT_MESSAGE_CHARS = 16_000
 _MAX_ID_CHARS = 128
 _MAX_WS_MESSAGE_CHARS = 20_000
+_MAX_LIFE_UPLOAD_BYTES = 10_000_000
+_MAX_SKILL_MARKDOWN_UPLOAD_BYTES = 1_000_000
+_MAX_SKILL_ARCHIVE_UPLOAD_BYTES = 25_000_000
+_MAX_SKILL_ARCHIVE_FILES = 250
+_LIFE_UPLOAD_SUFFIXES = {".txt", ".md", ".markdown", ".rst", ".text"}
+_SKILL_MARKDOWN_SUFFIXES = {".md", ".markdown"}
 _HTML_SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "same-origin",
@@ -1005,6 +1025,55 @@ async def admin_import_skill(req: AdminSkillImportRequest) -> dict:
     return {"ok": True, "skill": skill}
 
 
+@app.post("/admin/skills/import/upload", dependencies=[Depends(_require_bearer)])
+async def admin_import_skill_upload(
+    file: UploadFile = File(...),
+    name_hint: str = Form(""),
+) -> dict:
+    """Import an uploaded SKILL.md/Markdown file or zipped skill folder."""
+    from runtime.skills import SkillError, import_skill
+
+    filename = _upload_filename(file, fallback="skill-upload")
+    suffix = Path(filename).suffix.lower()
+    config = _load_runtime_config()
+    try:
+        if suffix == ".zip":
+            payload = await _read_upload_bytes(
+                file,
+                max_bytes=_MAX_SKILL_ARCHIVE_UPLOAD_BYTES,
+                label="Skill archive",
+            )
+            with tempfile.TemporaryDirectory(prefix="nur-skill-upload-") as tmp:
+                extract_root = Path(tmp) / "skill"
+                extract_root.mkdir(parents=True, exist_ok=True)
+                _safe_extract_zip(payload, extract_root)
+                source_root = _single_skill_root_from_upload(extract_root)
+                skill = import_skill(
+                    config,
+                    source_path=str(source_root),
+                    name_hint=name_hint,
+                )
+        elif suffix in _SKILL_MARKDOWN_SUFFIXES:
+            payload = await _read_upload_bytes(
+                file,
+                max_bytes=_MAX_SKILL_MARKDOWN_UPLOAD_BYTES,
+                label="Skill Markdown",
+            )
+            skill = import_skill(
+                config,
+                skill_markdown=payload.decode("utf-8", errors="replace"),
+                name_hint=name_hint,
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Upload SKILL.md, a Markdown skill file, or a .zip skill folder.",
+            )
+    except SkillError as exc:
+        _raise_skill_http_error(exc)
+    return {"ok": True, "skill": skill}
+
+
 @app.get("/admin/skills/{skill_id}", dependencies=[Depends(_require_bearer)])
 async def admin_get_skill(skill_id: str) -> dict:
     from runtime.skills import SkillError, get_skill
@@ -1093,6 +1162,47 @@ async def admin_life_ingest_file(req: AdminLifeFileRequest) -> dict:
                 file_path=req.file_path,
                 title=req.title,
                 participants=req.participants,
+                llm_client=backend,
+            )
+    except LifeHistoryError as exc:
+        _raise_life_http_error(exc)
+    finally:
+        _close_optional_backend(backend)
+    return {"ok": True, **result}
+
+
+@app.post("/admin/life/experiences/upload", dependencies=[Depends(_require_bearer)])
+async def admin_life_ingest_upload(
+    file: UploadFile = File(...),
+    title: str = Form(""),
+    participants: str = Form(""),
+) -> dict:
+    """Digest a browser-uploaded text or Markdown file into Life History."""
+    from runtime.life_history import LifeHistoryError, LifeHistoryStore
+
+    filename = _upload_filename(file, fallback="uploaded-experience.txt")
+    suffix = Path(filename).suffix.lower()
+    if suffix not in _LIFE_UPLOAD_SUFFIXES:
+        raise HTTPException(
+            status_code=400,
+            detail="Life History uploads support plain text, Markdown, reStructuredText, or .text files.",
+        )
+    payload = await _read_upload_bytes(
+        file,
+        max_bytes=_MAX_LIFE_UPLOAD_BYTES,
+        label="Life History file",
+    )
+    text = payload.decode("utf-8", errors="replace")
+
+    config = _load_runtime_config()
+    backend = _optional_life_llm_backend(config)
+    try:
+        with LifeHistoryStore(config) as store:
+            result = store.ingest_uploaded_text(
+                filename=filename,
+                text=text,
+                title=title,
+                participants=_split_form_list(participants),
                 llm_client=backend,
             )
     except LifeHistoryError as exc:
@@ -1340,6 +1450,96 @@ def _close_optional_backend(backend) -> None:
     close = getattr(backend, "close", None)
     if callable(close):
         close()
+
+
+def _upload_filename(upload: UploadFile, *, fallback: str) -> str:
+    raw = (upload.filename or "").strip().replace("\\", "/")
+    name = Path(raw).name.strip()
+    return name[:180] or fallback
+
+
+async def _read_upload_bytes(upload: UploadFile, *, max_bytes: int, label: str) -> bytes:
+    payload = await upload.read(max_bytes + 1)
+    if len(payload) > max_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{label} is too large ({max_bytes} byte limit).",
+        )
+    if not payload:
+        raise HTTPException(status_code=400, detail=f"{label} is empty.")
+    return payload
+
+
+def _split_form_list(raw: str) -> list[str]:
+    values = []
+    for item in str(raw or "").replace("\n", ",").split(","):
+        stripped = item.strip()
+        if stripped:
+            values.append(stripped)
+    return values[:20]
+
+
+def _safe_extract_zip(payload: bytes, destination: Path) -> None:
+    destination = destination.resolve()
+    try:
+        with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+            members = [info for info in archive.infolist() if not info.is_dir()]
+            if not members:
+                raise HTTPException(status_code=400, detail="Skill archive is empty.")
+            if len(members) > _MAX_SKILL_ARCHIVE_FILES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Skill archive has too many files ({_MAX_SKILL_ARCHIVE_FILES} limit).",
+                )
+            total_size = sum(max(0, int(info.file_size)) for info in members)
+            if total_size > _MAX_SKILL_ARCHIVE_UPLOAD_BYTES:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Skill archive expands beyond the upload size limit.",
+                )
+            for info in members:
+                name = info.filename.replace("\\", "/")
+                if name.startswith("/") or name.startswith("../") or "/../" in name:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Skill archive contains an unsafe path.",
+                    )
+                mode = (info.external_attr >> 16) & 0o170000
+                if mode == 0o120000:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Skill archive contains a symbolic link.",
+                    )
+                target = (destination / name).resolve()
+                try:
+                    target.relative_to(destination)
+                except ValueError as exc:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Skill archive contains an unsafe path.",
+                    ) from exc
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with archive.open(info) as source, open(target, "wb") as out:
+                    shutil.copyfileobj(source, out)
+    except zipfile.BadZipFile as exc:
+        raise HTTPException(status_code=400, detail="Skill archive is not a valid zip file.") from exc
+
+
+def _single_skill_root_from_upload(extract_root: Path) -> Path:
+    candidates = [
+        path.parent
+        for path in extract_root.rglob("SKILL.md")
+        if path.is_file() and "__MACOSX" not in path.parts
+    ]
+    if not candidates:
+        raise HTTPException(status_code=400, detail="No SKILL.md found in uploaded archive.")
+    unique = sorted({path.resolve() for path in candidates}, key=lambda item: (len(item.parts), str(item)))
+    if len(unique) > 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Uploaded archive contains multiple skills. Upload one skill folder at a time.",
+        )
+    return unique[0]
 
 
 def _session_key(user_id: str, chat_id: str) -> str:
@@ -2425,6 +2625,11 @@ def _parse_web_args(argv: list[str] | None = None):
         help="TCP port to bind (default: 8000).",
     )
     parser.add_argument(
+        "--config",
+        default=os.environ.get("NUR_RUNTIME_CONFIG", "runtime_config.yaml"),
+        help="Runtime config YAML path (default: runtime_config.yaml).",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=f"project-nur {_web_version()}",
@@ -2437,6 +2642,9 @@ def main() -> None:
     import uvicorn
 
     args = _parse_web_args()
+    global RUNTIME_CONFIG_PATH
+    RUNTIME_CONFIG_PATH = args.config
+    os.environ["NUR_RUNTIME_CONFIG"] = args.config
     uvicorn.run("interface.api:app", host=args.host, port=args.port)
 
 

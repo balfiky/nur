@@ -296,6 +296,10 @@ h4 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.form-grid.nested {
+  margin-top: 12px;
+}
+
 .field-card {
   display: grid;
   gap: 8px;
@@ -326,6 +330,37 @@ select {
   min-height: 38px;
   padding: 8px 10px;
   width: 100%;
+}
+
+input[type="file"] {
+  background: var(--surface-muted);
+  cursor: pointer;
+}
+
+input[type="file"]::file-selector-button {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 650;
+  margin-right: 12px;
+  padding: 7px 11px;
+}
+
+.advanced-settings {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  grid-column: 1 / -1;
+  padding: 12px;
+}
+
+.advanced-settings summary {
+  color: var(--muted-strong);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 textarea {

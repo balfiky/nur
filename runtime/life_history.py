@@ -124,6 +124,33 @@ class LifeHistoryStore:
             },
         )
 
+    def ingest_uploaded_text(
+        self,
+        *,
+        filename: str,
+        text: str,
+        title: str = "",
+        participants: list[str] | None = None,
+        llm_client: LLMBackend | None = None,
+    ) -> dict[str, Any]:
+        filename = (filename or "uploaded-file").strip() or "uploaded-file"
+        text = _require_text(text, "text", max_chars=MAX_LOCAL_FILE_BYTES)
+        fallback_title = Path(filename).stem.replace("_", " ").replace("-", " ") or "Uploaded material"
+        resolved_title = title.strip() or fallback_title
+        return self._ingest_text(
+            title=resolved_title,
+            text=text,
+            source_type="uploaded_file",
+            source_ref=filename,
+            participants=participants or [],
+            llm_client=llm_client,
+            metadata={
+                "input_mode": "browser_upload",
+                "filename": filename,
+                "char_count": len(text),
+            },
+        )
+
     def overview(self) -> dict[str, Any]:
         counts = {
             "experiences": self._count("experience_events"),
