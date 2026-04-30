@@ -100,10 +100,14 @@ Supported v1 inputs:
 | Pasted text | `POST /admin/life/experiences/text` |
 | Browser-uploaded text/Markdown file | `POST /admin/life/experiences/upload` |
 | Advanced local text/Markdown file | `POST /admin/life/experiences/file` |
+| Explicit conversation learning URL/text | `runtime.learning_intake` via `SessionManager` |
 
 Browser uploads are the normal product path. Local file intake is restricted to
 `RuntimeConfig.resolved_tools_workspace` for operators who deliberately want
-server-side paths. The canonical store is SQLite at
+server-side paths. Conversation learning only runs on explicit language such as
+"learn from this URL", "study this project", or "digest: <material>"; ordinary
+search/browsing requests do not mutate identity-level Life History. The
+canonical store is SQLite at
 `data/shared/life_history.db`; graph and vector stores are intentionally
 deferred projections, not the source of truth.
 

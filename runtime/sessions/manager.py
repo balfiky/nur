@@ -15,10 +15,21 @@ from core.dual_process.generator import LLMBackend
 from core.types import UnresolvedItem
 from pipeline import CognitivePipeline
 from runtime.config import RuntimeConfig
+from runtime.learning_intake import LearningIntakeError, ingest_learning_from_message
 from runtime.sessions.persistence import load_conversation_history, load_engine_state
 from runtime.sessions.user_session import UserSession
 
 log = logging.getLogger(__name__)
+
+
+def _append_learning_note(response: str, note: str) -> str:
+    """Attach a runtime learning receipt without hiding the normal reply."""
+    if not note:
+        return response
+    response = (response or "").rstrip()
+    if not response:
+        return note
+    return f"{response}\n\n{note}"
 
 
 class SessionManager:
@@ -53,6 +64,7 @@ class SessionManager:
         self._sessions: dict[str, UserSession] = {}
         self._idle_timers: dict[str, asyncio.TimerHandle] = {}
         self._user_locks: dict[str, asyncio.Lock] = {}
+        self._learning_lock = asyncio.Lock()
         self._lock = asyncio.Lock()
         self._accepting = True
         self._executor = ThreadPoolExecutor(
@@ -104,7 +116,11 @@ class SessionManager:
                 with suppress(asyncio.CancelledError):
                     await send_task
                 raise
-            return send_task.result()
+            response = send_task.result()
+            learning_note = await self._maybe_run_learning_intake(user_id, text)
+            if learning_note:
+                return _append_learning_note(response, learning_note)
+            return response
         finally:
             # Reset again on completion so the timeout counts from last activity
             self._reset_idle_timer(session_key)
@@ -129,6 +145,25 @@ class SessionManager:
             self._executor,
             partial(fn, *args, **kwargs),
         )
+
+    async def _maybe_run_learning_intake(self, user_id: str, text: str) -> str:
+        """Persist explicit "learn from this" requests into Life History."""
+        try:
+            async with self._learning_lock:
+                result = await self._run_blocking(
+                    ingest_learning_from_message,
+                    self.config,
+                    text,
+                    actor=user_id,
+                )
+        except LearningIntakeError as exc:
+            return f"Learning intake failed: {exc}"
+        except Exception:
+            log.exception("Learning intake failed")
+            return "Learning intake failed: unexpected runtime error."
+        if result is None:
+            return ""
+        return result.confirmation_text()
 
     @property
     def active_sessions(self) -> dict[str, UserSession]:

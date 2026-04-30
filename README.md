@@ -64,10 +64,10 @@ The LLM still writes the words. Nūr changes the state those words come from.
 ## Life History And Evolution
 
 Nūr also has an early **Life History** layer for formative material: pasted
-texts, notes, essays, and browser-uploaded text/Markdown files. This is not
-just a summarizer. It records an experience, then writes an inspectable
-evolution trace: belief shifts, drive changes, self-trait observations, and
-future behavior tendencies.
+texts, notes, essays, browser-uploaded text/Markdown files, and explicit chat
+requests like "learn from this project: <url>". This is not just a summarizer.
+It records an experience, then writes an inspectable evolution trace: belief
+shifts, drive changes, self-trait observations, and future behavior tendencies.
 
 That means the project now has two distinct continuity layers:
 
@@ -83,6 +83,11 @@ drift, dominant drive pressure, and change-type mix. Runtime sessions load a
 compact slice of current beliefs, shifted drives, and recent evolution into
 generation, so formative experiences can bias Nūr's perspective without
 dumping raw source material into every prompt.
+
+When a user explicitly asks Nūr to learn from a URL, the runtime fetches
+readable text, preserves the source reference, writes the Life History event,
+and appends a short learning receipt. Ordinary search, browsing, and casual
+conversation do not mutate identity-level Life History.
 
 ## Build With It
 

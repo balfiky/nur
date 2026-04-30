@@ -19,6 +19,9 @@ All notable changes to Project Nur are documented here.
   drive changes, self-trait observations, and future-behavior tendencies.
 - Wired Life History into runtime generation through a compact prompt context
   of current beliefs, shifted drives, and recent evolution events.
+- Added explicit conversation learning intake: "learn from" / "study this" /
+  "digest" requests can fetch URLs, preserve source references, write Life
+  History experiences, and return a learning receipt.
 
 ### Admin
 - Added readable validation/error formatting in the admin console so Pydantic

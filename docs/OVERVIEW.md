@@ -42,8 +42,9 @@ Concretely, Nūr maintains:
   mechanism the system uses to profile users
 - a relationship layer that tracks rupture, repair, commitments, and
   unresolved loops across sessions
-- a life-history layer for formative material, where pasted or uploaded texts
-  can become experiences that revise beliefs, drives, and self-observations
+- a life-history layer for formative material, where pasted/uploaded texts and
+  explicit "learn from this URL" requests can become experiences that revise
+  beliefs, drives, and self-observations
 - explicit decision points — appraisal, strategy, deliberation,
   defense — each testable in isolation
 
@@ -98,8 +99,9 @@ to long-term storage.
 Life history is a separate identity-level store under
 `data/shared/life_history.db`. It is append-oriented: an experience event
 records what Nūr encountered, and evolution events record what changed
-afterward. The first supported inputs are pasted text and local
-text/Markdown files. Current outputs include belief revisions, drive
+afterward. Supported inputs include pasted text, uploaded text/Markdown files,
+advanced local files, and explicit conversation learning requests such as
+"learn from this project: <url>". Current outputs include belief revisions, drive
 changes, self-trait observations, and future-behavior tendencies. This is
 observable in `/admin` → **Life**. Normal runtime sessions now retrieve a
 compact version of those revisions for generation, so the layer can influence
@@ -180,9 +182,9 @@ Stated up front so no reader has to infer it:
 - **No multi-party conversation support.** Single-user scoping is
   architectural, not incidental.
 - **No completed "self-independent character" loop.** Nūr can now record
-  formative experiences and observe belief/drive changes, but autonomous
-  learning, self-directed goals, and strong runtime behavior changes from
-  the life-history layer are not complete.
+  formative experiences from admin intake and explicit chat learning requests,
+  but self-directed goal selection and strong runtime behavior changes from the
+  life-history layer are still early.
 
 ## 7. Running it
 

@@ -151,6 +151,42 @@ class LifeHistoryStore:
             },
         )
 
+    def ingest_external_text(
+        self,
+        *,
+        title: str,
+        text: str,
+        source_type: str,
+        source_ref: str,
+        participants: list[str] | None = None,
+        llm_client: LLMBackend | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Digest externally collected material while preserving its source ref.
+
+        Browser uploads and local files already have dedicated intake paths. This
+        method is for runtime learning flows where Nūr gathered material from a
+        URL or direct conversation text and needs that source recorded in the
+        identity-level ledger.
+        """
+        title = _require_text(title, "title", max_chars=180)
+        text = _require_text(text, "text", max_chars=MAX_PASTED_TEXT_CHARS)
+        source_type = _safe_label(source_type or "external_text")
+        source_ref = _trim(str(source_ref or "external"), 900)
+        return self._ingest_text(
+            title=title,
+            text=text,
+            source_type=source_type,
+            source_ref=source_ref,
+            participants=participants or [],
+            llm_client=llm_client,
+            metadata={
+                "input_mode": "external_text",
+                "char_count": len(text),
+                **(metadata or {}),
+            },
+        )
+
     def overview(self) -> dict[str, Any]:
         counts = {
             "experiences": self._count("experience_events"),

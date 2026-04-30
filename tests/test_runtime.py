@@ -23,6 +23,7 @@ import pytest
 from core.dual_process.generator import MockLLMBackend
 from core.types import UnresolvedItem
 from runtime.config import RuntimeConfig
+from runtime.learning_intake import LearningIntakeResult
 from runtime.sessions.manager import SessionManager
 from runtime.sessions.persistence import (
     delete_conversation_history,
@@ -211,6 +212,44 @@ Use a concise outline before drafting.
                     assert "Use a concise outline before drafting" in (
                         backend.last_system_prompt
                     )
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_explicit_learning_request_appends_life_history_receipt(self, monkeypatch):
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                config = _make_config(tmpdir)
+
+                def fake_intake(config, message, *, actor):
+                    assert actor == "alice"
+                    assert "learn from" in message
+                    return LearningIntakeResult(
+                        title="Hermes Agent",
+                        source_ref="https://github.com/NousResearch/hermes-agent",
+                        experience_id=1,
+                        source_type="conversation_learning_url",
+                        evolution_counts={"belief": 1, "drive": 2},
+                    )
+
+                monkeypatch.setattr(
+                    "runtime.sessions.manager.ingest_learning_from_message",
+                    fake_intake,
+                )
+                manager = SessionManager(
+                    config,
+                    backend_factory=lambda: MockLLMBackend(response="Noted."),
+                )
+                try:
+                    response = await _send(
+                        manager,
+                        "learn from https://github.com/NousResearch/hermes-agent",
+                        user_id="alice",
+                    )
+                    assert response.startswith("Noted.")
+                    assert "Learned into Life History: Hermes Agent." in response
+                    assert "Admin > Life" in response
                 finally:
                     await manager.shutdown()
 

@@ -261,6 +261,8 @@ experience ledger. It supports:
 - Pasted text intake for short formative material
 - Browser upload intake for text/Markdown/reStructuredText files
 - Advanced local text/Markdown file intake from inside `tools_workspace`
+- Explicit conversation learning intake when a user says "learn from" /
+  "study this" / "digest" with a URL or sufficiently long pasted material
 - An evolution snapshot for first/latest experience, dominant drive,
   strongest drive drift, and change-type mix
 - An evolution timeline of belief, drive, self-trait, and worldview changes
@@ -271,6 +273,12 @@ After intake, normal runtime sessions retrieve a compact generation context
 from this ledger: current beliefs, drive shifts, and recent evolution events.
 Raw excerpts stay in the admin/SQLite ledger; they are not injected into every
 chat prompt.
+
+Conversation learning is deliberately explicit. A request such as "learn from
+this project https://github.com/..." fetches readable source text, records the
+URL as `source_ref`, writes evolution events, and appends a short learning
+receipt to the reply. A normal web search or casual discussion does not write
+to Life History.
 
 Data is stored in `data/shared/life_history.db`. This is shared assistant
 identity data, not per-user chat memory. User deletion does not remove it.
