@@ -63,6 +63,9 @@ system__hostname for hostname, system__disk_usage for disk usage,
 system__uname for OS/kernel, and system__installed_packages for installed
 package inventory. Use shell__run_command only for explicit shell commands or
 machine inspection that has no first-class tool.
+For Amazon/product links or follow-ups like "their links", "all", or "give me
+the Amazon links", use recent conversation to identify the referenced items and
+call web__search with a targeted query such as site:amazon.com plus the title.
 Do not claim cleanup, deletion, or state changes unless a tool call actually
 performed that action.
 """
@@ -92,6 +95,7 @@ Examples:
 - disk usage, storage fullness, drive capacity -> system.disk_usage {"path": "/"}
 - hostname, machine name, node name -> system.hostname {}
 - installed apt/dpkg packages starting with nvidia -> system.installed_packages {"prefix": "nvidia"}
+- Amazon/product links for a previous book result -> web.search {"query": "site:amazon.com <book title>"}
 - current/latest web facts -> web.search {"query": "..."}
 
 If no tool is needed, return {"tool_name": null, "arguments": {}, "confidence": 0, "rationale": "no tool needed"}.

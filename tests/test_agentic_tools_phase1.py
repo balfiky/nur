@@ -17,6 +17,7 @@ from nur_tools.builtin.web_search import (
     NullWebProvider,
     create_handlers,
 )
+from nur_tools.builtin.web_provider import _parse_ddg_results
 from nur_tools import register_builtins
 
 
@@ -352,7 +353,7 @@ class TestSystemInstalledPackages:
 class TestWebSearch:
     def test_search_with_fake_provider(self):
         prov = FakeWebProvider(search_results=[
-            {"title": "Result 1", "url": "https://example.com/1"},
+            {"title": "Result 1", "url": "https://example.com/1", "snippet": "First"},
             {"title": "Result 2", "url": "https://example.com/2"},
         ])
         handlers = create_handlers(prov)
@@ -360,6 +361,7 @@ class TestWebSearch:
         assert result.success is True
         assert "Result 1" in result.output
         assert "Result 2" in result.output
+        assert "snippet: First" in result.output
         assert result.metadata["result_count"] == 2
 
     def test_search_respects_limit(self):
@@ -400,6 +402,20 @@ class TestWebSearch:
         result = exe.execute("web.search", {"query": "test"})
         assert result.success is False
         assert "ConnectionError" in result.error
+
+    def test_duckduckgo_redirect_urls_and_snippets_are_parsed(self):
+        html = """
+        <a class="result__a" href="/l/?uddg=https%3A%2F%2Fwww.amazon.com%2FBook%2Fdp%2FB123">Book</a>
+        <a class="result__snippet">Useful snippet about the book.</a>
+        """
+        results = _parse_ddg_results(html, 5)
+        assert results == [
+            {
+                "title": "Book",
+                "url": "https://www.amazon.com/Book/dp/B123",
+                "snippet": "Useful snippet about the book.",
+            },
+        ]
 
     def test_default_handlers_error(self):
         """Default HANDLERS use NullWebProvider — errors when called."""

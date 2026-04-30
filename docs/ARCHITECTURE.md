@@ -151,9 +151,12 @@ the server and leave tools disabled unless needed.
 
 Built-in read-only tools cover hostname, OS/kernel facts, disk usage,
 installed package inventory, filesystem reads inside the configured workspace,
-web search/fetch, browser state, and calendar reads. The shell tool is a
-separate high-risk opt-in and runs through the local shell, so pipes and other
-normal shell syntax work when the operator deliberately enables it.
+web search/fetch, browser state, and calendar reads. Web search is a
+best-effort DuckDuckGo HTML provider that returns titles, resolved URLs, and
+snippets when available; fetched/readable page text is passed into the
+generator as bounded tool context. The shell tool is a separate high-risk
+opt-in and runs through the local shell, so pipes and other normal shell syntax
+work when the operator deliberately enables it.
 
 ## Skills
 

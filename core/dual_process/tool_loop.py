@@ -432,7 +432,10 @@ def _format_result_output(result: ToolResult, limit: int = 1200) -> str:
         "system.hostname",
         "system.uname",
         "system.disk_usage",
+        "system.installed_packages",
         "web.search",
+        "web.fetch",
+        "web.extract_text",
     } or not result.output:
         return ""
     text = result.output.strip()

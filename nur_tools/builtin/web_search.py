@@ -7,7 +7,6 @@ an error asking for configuration.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from core.types import ToolCapability, ToolCategory, ToolResult
@@ -112,13 +111,18 @@ def create_handlers(provider: WebProvider | None = None) -> dict[str, ToolHandle
         query = args["query"]
         limit = args.get("limit", 5)
         results = prov.search(query, limit)
-        lines = [f"- {r.get('title', '?')}: {r.get('url', '?')}" for r in results]
+        lines: list[str] = []
+        for result in results:
+            lines.append(f"- {result.get('title', '?')}: {result.get('url', '?')}")
+            snippet = str(result.get("snippet") or "").strip()
+            if snippet:
+                lines.append(f"  snippet: {snippet}")
         output = "\n".join(lines) if lines else "(no results)"
         return ToolResult(
             tool_name="web.search",
             success=True,
             output=output,
-            metadata={"query": query, "result_count": len(results)},
+            metadata={"query": query, "result_count": len(results), "results": results},
             side_effect_summary="none",
         )
 

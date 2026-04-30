@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 from html import unescape
+from urllib.parse import parse_qs, unquote, urlparse
 
 import requests
 
@@ -81,15 +82,20 @@ def _parse_ddg_results(html: str, limit: int) -> list[dict[str, str]]:
     """Extract search results from DuckDuckGo HTML response."""
     results: list[dict[str, str]] = []
     # DuckDuckGo HTML lite uses <a class="result__a"> for result links
-    for m in re.finditer(
+    matches = list(re.finditer(
         r'<a[^>]+class="result__a"[^>]*href="([^"]*)"[^>]*>(.*?)</a>',
         html, re.DOTALL,
-    ):
-        url = m.group(1).strip()
-        title = re.sub(r"<[^>]+>", "", m.group(2))
-        title = unescape(title).strip()
+    ))
+    for idx, m in enumerate(matches):
+        url = _normalize_ddg_url(m.group(1).strip())
+        title = _html_fragment_to_text(m.group(2))
         if url and title:
-            results.append({"title": title, "url": url})
+            next_start = matches[idx + 1].start() if idx + 1 < len(matches) else len(html)
+            snippet = _extract_ddg_snippet(html[m.end():next_start])
+            result = {"title": title, "url": url}
+            if snippet:
+                result["snippet"] = snippet
+            results.append(result)
         if len(results) >= limit:
             break
 
@@ -99,14 +105,46 @@ def _parse_ddg_results(html: str, limit: int) -> list[dict[str, str]]:
             r'<a[^>]+rel="nofollow"[^>]*href="([^"]*)"[^>]*>(.*?)</a>',
             html, re.DOTALL,
         ):
-            url = m.group(1).strip()
-            title = re.sub(r"<[^>]+>", "", m.group(2))
-            title = unescape(title).strip()
+            url = _normalize_ddg_url(m.group(1).strip())
+            title = _html_fragment_to_text(m.group(2))
             if url and title and url.startswith("http"):
                 results.append({"title": title, "url": url})
             if len(results) >= limit:
                 break
     return results
+
+
+def _normalize_ddg_url(url: str) -> str:
+    """Turn DuckDuckGo redirect links into the target URL when possible."""
+    decoded = unescape(url).strip()
+    if decoded.startswith("//"):
+        decoded = "https:" + decoded
+    elif decoded.startswith("/"):
+        decoded = "https://duckduckgo.com" + decoded
+
+    parsed = urlparse(decoded)
+    if parsed.netloc.endswith("duckduckgo.com") and parsed.path.startswith("/l/"):
+        target = parse_qs(parsed.query).get("uddg", [""])[0]
+        if target:
+            return unquote(target)
+    return decoded
+
+
+def _extract_ddg_snippet(segment: str) -> str:
+    match = re.search(
+        r'<[^>]+class="[^"]*result__snippet[^"]*"[^>]*>(.*?)</',
+        segment,
+        re.DOTALL | re.IGNORECASE,
+    )
+    if not match:
+        return ""
+    return _html_fragment_to_text(match.group(1))
+
+
+def _html_fragment_to_text(fragment: str) -> str:
+    text = re.sub(r"<[^>]+>", " ", fragment)
+    text = unescape(text)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def _html_to_text(html: str) -> str:

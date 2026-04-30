@@ -2,17 +2,12 @@
 
 from __future__ import annotations
 
-import os
-import tempfile
-
 import pytest
 
 from core.types import (
     ActionVariables,
     AgencyDecision,
-    ModulatorState,
     PersonProfile,
-    ToolCapability,
     ToolCategory,
     ToolDecision,
     ToolIntent,
@@ -21,12 +16,10 @@ from core.types import (
     ToolTrace,
 )
 from core.tool_appraisal import appraise_tool_result
-from core.action_variables import derive_action_variables
 from core.dual_process.tool_loop import (
     detect_tool_intent,
     make_tool_decision,
     run_tool_loop,
-    ToolLoopResult,
 )
 from core.emotional_engine import EmotionalEngine
 from nur_tools.registry import ToolRegistry
@@ -67,6 +60,7 @@ class FakeWebProvider:
             {
                 "title": f"OpenAI update for {query}",
                 "url": "https://example.com/openai-update",
+                "snippet": "OpenAI search snippet",
             },
         ]
 
@@ -93,7 +87,7 @@ class TestDetectToolIntent:
         return {
             "fs.read_file", "fs.list_dir", "fs.search_text", "fs.glob_paths",
             "fs.write_file", "fs.delete_path", "shell.run_command",
-            "web.search", "web.fetch",
+            "web.search", "web.fetch", "web.extract_text",
         }
 
     def test_no_tool_for_conversational(self):
@@ -191,6 +185,19 @@ class TestDetectToolIntent:
         assert "Recent conversation for tool routing" in msg
         assert "what is the harddisk utilzation?" in msg
         assert "Current user message: no, execute it on your pc" in msg
+
+    def test_model_tool_routing_includes_link_followup_history(self):
+        msg = _message_for_model_tool_routing(
+            "all",
+            [
+                {"role": "user", "content": "search for top PyTorch AI books released in 2026"},
+                {"role": "assistant", "content": "I found one Amazon result and several lists."},
+                {"role": "user", "content": "can you give me their amazon links"},
+            ],
+        )
+        assert "search for top PyTorch AI books released in 2026" in msg
+        assert "can you give me their amazon links" in msg
+        assert "Current user message: all" in msg
 
     def test_disk_space_question_uses_shell(self):
         intent = detect_tool_intent("how much disk space left?", self._available())
@@ -458,6 +465,22 @@ class TestToolLoop:
         assert result.trace.executed_results[0].success is True
         assert "OpenAI update" in result.tool_context_summary
         assert "https://example.com/openai-update" in result.tool_context_summary
+        assert "OpenAI search snippet" in result.tool_context_summary
+
+    def test_web_extract_output_is_available_to_generator(self):
+        _, exe = _make_executor_with_fake_web()
+        engine = EmotionalEngine()
+        result = run_tool_loop(
+            user_message="extract text from https://example.com/article",
+            state=engine.state,
+            person=None,
+            defense_active=False,
+            executor=exe,
+            engine=engine,
+        )
+        assert result.trace.loop_count == 1
+        assert result.trace.executed_results[0].success is True
+        assert "Readable text from https://example.com/article" in result.tool_context_summary
 
     def test_failed_tool_execution_changes_state(self):
         _, exe = _make_executor()
@@ -597,9 +620,8 @@ class TestPipelineToolIntegration:
     def test_failed_tool_lowers_certainty(self):
         """Failed tool execution during pipeline lowers certainty."""
         pipe, _, _ = _make_pipeline_with_tools()
-        result1 = pipe.process("How are you?")
-        certainty_before = result1.debug.modulator_snapshot["certainty"]
-        result2 = pipe.process("read file /nonexistent_xyz_42")
+        pipe.process("How are you?")
+        pipe.process("read file /nonexistent_xyz_42")
         # The modulator snapshot in debug is captured BEFORE tool loop,
         # but the engine state has been updated by tool appraisal
         pipe.close()
