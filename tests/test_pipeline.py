@@ -4,6 +4,7 @@ import pytest
 from config.loader import get_config
 from core.dual_process.generator import MockLLMBackend
 from pipeline import CognitivePipeline, DebugState, PipelineResponse
+from runtime.debug.api import _debug_to_dict
 
 
 class TestCognitivePipeline:
@@ -277,6 +278,37 @@ class TestCognitivePipeline:
         assert "Life History / Evolving Worldview" in backend.last_system_prompt
         assert "Autonomy grows through retained experience" in backend.last_system_prompt
         pipe.close()
+
+    def test_enabled_skill_context_surfaces_in_prompt(self):
+        backend = MockLLMBackend(response="Drafted.")
+        pipe = CognitivePipeline(
+            llm_backend=backend,
+            skill_provider=lambda: {
+                "skills": [
+                    {
+                        "id": "report-writer",
+                        "name": "report-writer",
+                        "description": "Write grounded report drafts.",
+                        "instructions": "Use a concise outline before drafting.",
+                        "required_tools": ["fs.read_file"],
+                        "risk_flags": ["filesystem_write"],
+                    }
+                ]
+            },
+        )
+        result = pipe.process("Draft the report.", user_id="alice")
+
+        assert result.debug.skill_context["skills"][0]["id"] == "report-writer"
+        assert "Enabled Skills" in backend.last_system_prompt
+        assert "Use a concise outline before drafting" in backend.last_system_prompt
+        pipe.close()
+
+    def test_debug_serializes_skill_context(self):
+        debug = DebugState(skill_context={"skills": [{"id": "report-writer"}]})
+
+        data = _debug_to_dict(debug)
+
+        assert data["skill_context"]["skills"][0]["id"] == "report-writer"
 
     def test_insult_classified_as_negative_feedback(self):
         pipe = self._make_pipeline()

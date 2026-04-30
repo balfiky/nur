@@ -286,6 +286,7 @@ class SessionManager:
             tool_executor=tool_executor,
             autonomy_level=self.config.autonomy_level,
             life_history_provider=self._life_history_context_provider,
+            skill_provider=self._skill_context_provider,
         )
 
         # Restore per-session engine state from disk if present. Fall back to the
@@ -328,6 +329,16 @@ class SessionManager:
                 return store.prompt_context()
         except Exception:
             log.exception("Failed to load life history context")
+            return {}
+
+    def _skill_context_provider(self) -> dict[str, Any]:
+        """Load enabled imported skill guidance for prompt generation."""
+        from runtime.skills import enabled_skill_context
+
+        try:
+            return enabled_skill_context(self.config)
+        except Exception:
+            log.exception("Failed to load enabled skill context")
             return {}
 
     async def evict_session(self, session_key: str) -> None:

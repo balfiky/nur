@@ -88,7 +88,7 @@ The full console lets you:
 - Configure LLM provider, model, base URL, and API keys
 - Configure Telegram token, allowlist, polling, and dedupe settings
 - Configure bearer auth, CORS, tools, shell-tool opt-in, and workspace paths
-- Import and audit external Agent Skills
+- Import, audit, and enable external Agent Skills
 - Feed formative text or local text/Markdown files into **Life History**
 - Observe experience count, evolution events, current beliefs, and drive shifts
 - Test LLM, Telegram, and storage settings before relying on them
@@ -101,6 +101,18 @@ The full console lets you:
 Secret values are never returned by admin API responses. Blank secret fields
 mean "keep the current value"; explicit clear checkboxes remove stored YAML
 secrets.
+
+## Skills Admin
+
+The **Skills** page imports local Agent Skill folders or pasted `SKILL.md`
+content. Imported skills are disabled until review. The audit reports metadata,
+tool hints, risk flags, bundled scripts, resource counts, and unsupported
+platform-specific hints.
+
+Enabled skills are injected into generation as bounded private guidance. They
+do not execute bundled scripts or bypass tool policy. If a skill needs web,
+filesystem, shell, or browser actions, those actions still require the normal
+runtime tool settings, workspace restrictions, auth posture, and shell opt-in.
 
 ## First Production Hardening Checklist
 

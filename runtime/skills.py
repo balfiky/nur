@@ -1,8 +1,9 @@
-"""Skill import and audit support.
+"""Skill import, audit, and runtime prompt-context support.
 
-This module intentionally does not inject skills into runtime prompts. It only
-manages local installation metadata and compatibility reports so the admin UI
-can review imported Agent Skills before a later runtime phase enables them.
+Imported Agent Skills are installed locally, audited, and disabled until an
+operator enables them. Enabled skills are exposed to generation as bounded
+private guidance. Skill scripts and resources are never executed by this module;
+real actions still go through Nūr's normal tool gates.
 """
 
 from __future__ import annotations
@@ -49,6 +50,57 @@ def list_skills(config: RuntimeConfig) -> dict[str, Any]:
         registry.get("skills", []),
         key=lambda item: (str(item.get("name", "")).lower(), str(item.get("id", ""))),
     )
+    return {
+        "root": str(root),
+        "count": len(skills),
+        "skills": skills,
+    }
+
+
+def enabled_skill_context(
+    config: RuntimeConfig,
+    *,
+    limit: int = 5,
+    max_instruction_chars: int = 1200,
+) -> dict[str, Any]:
+    """Return bounded instructions for enabled, compatible skills.
+
+    The generator receives this context as private guidance. It is deliberately
+    text-only and omits bundled scripts/resources so importing a community skill
+    cannot bypass runtime tool policy.
+    """
+    root = skills_root(config)
+    registry = _read_registry(root)
+    skills: list[dict[str, Any]] = []
+    for record in registry.get("skills", []):
+        if not record.get("enabled") or record.get("status") != "enabled":
+            continue
+        compatibility = record.get("compatibility") or {}
+        if compatibility.get("errors"):
+            continue
+        skill_root = Path(str(record.get("root") or ""))
+        skill_file = skill_root / SKILL_FILENAME
+        if not skill_file.is_file():
+            continue
+        metadata, body, warnings = _parse_frontmatter(
+            skill_file.read_text(encoding="utf-8", errors="replace")
+        )
+        if warnings:
+            continue
+        skills.append({
+            "id": record.get("id") or "",
+            "name": metadata.get("name") or record.get("name") or record.get("id") or "",
+            "description": (
+                metadata.get("description")
+                or record.get("description")
+                or ""
+            ),
+            "instructions": _trim_runtime_text(body, max_instruction_chars),
+            "required_tools": list(compatibility.get("required_tools") or []),
+            "risk_flags": list(compatibility.get("risk_flags") or []),
+        })
+        if len(skills) >= max(1, limit):
+            break
     return {
         "root": str(root),
         "count": len(skills),
@@ -433,6 +485,16 @@ def _validate_skill_id(skill_id: str) -> str:
     if not _SKILL_ID_RE.fullmatch(skill_id):
         raise SkillError("Invalid skill id.")
     return skill_id
+
+
+def _trim_runtime_text(text: str, limit: int) -> str:
+    clean = "\n".join(
+        line.rstrip()
+        for line in str(text or "").strip().splitlines()
+    )
+    if len(clean) <= limit:
+        return clean
+    return clean[: max(0, limit - 3)].rstrip() + "..."
 
 
 def _dedupe(values: list[str]) -> list[str]:

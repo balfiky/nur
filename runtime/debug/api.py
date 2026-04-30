@@ -183,6 +183,7 @@ def _debug_to_dict(debug) -> dict:
         for m in getattr(debug, "semantic_memories", [])
     ]
     d["life_history_context"] = getattr(debug, "life_history_context", {}) or {}
+    d["skill_context"] = getattr(debug, "skill_context", {}) or {}
     d["relationship_context"] = (
         debug.relationship_context.to_dict()
         if getattr(debug, "relationship_context", None)

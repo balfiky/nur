@@ -27,6 +27,11 @@ All notable changes to Project Nur are documented here.
   five-step flow with structured identity controls and optional first Life
   History intake.
 
+### Skills
+- Wired enabled, audited Agent Skills into generation as bounded private
+  guidance while keeping scripts/resources non-executable and preserving normal
+  tool/auth/sandbox gates.
+
 ### Validation
 - F-009: Rejected invalid admin runtime numeric values before config saves.
 

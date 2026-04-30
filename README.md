@@ -92,6 +92,7 @@ Use Nūr if you want to experiment with:
 - long-running personal assistants
 - relationship-aware agent memory
 - formative experience and worldview tracking
+- imported Agent Skills as bounded runtime guidance
 - inspectable affective state
 - rupture, repair, and commitment tracking
 - safer stateful tool use around LLMs

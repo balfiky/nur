@@ -164,6 +164,7 @@ class DebugState:
     retrieved_memories: list[LongTermEntry] = field(default_factory=list)
     semantic_memories: list[SemanticMemoryEntry] = field(default_factory=list)
     life_history_context: dict[str, Any] = field(default_factory=dict)
+    skill_context: dict[str, Any] = field(default_factory=dict)
     relationship_context: RelationshipContext | None = None
 
     # Step 8: Profiles
@@ -281,6 +282,7 @@ class CognitivePipeline:
         autonomy_level: str = "autonomous",
         features: PipelineFeatures | None = None,
         life_history_provider: Callable[[], dict[str, Any] | None] | None = None,
+        skill_provider: Callable[[], dict[str, Any] | None] | None = None,
     ) -> None:
         """Create a cognitive pipeline.
 
@@ -303,6 +305,8 @@ class CognitivePipeline:
                                    identity-level life-history context for
                                    generation. Runtime sessions wire this to
                                    ``data/shared/life_history.db``.
+            skill_provider: Optional callable returning enabled imported skill
+                            guidance for generation.
         """
         self._features = features or PipelineFeatures()
         # Primary backend (used if no fast backend provided)
@@ -375,6 +379,7 @@ class CognitivePipeline:
         self._tool_runner = getattr(tool_executor, "_tool_runner", None)
         self._autonomy_level = autonomy_level
         self._life_history_provider = life_history_provider
+        self._skill_provider = skill_provider
         # Session-scoped task plan (Phase 7)
         self._active_task_plan: TaskPlan | None = None
         # Proactive behavior tracking (Phase 8)
@@ -529,6 +534,11 @@ class CognitivePipeline:
         life_history_context = self._load_life_history_context()
         debug.life_history_context = life_history_context
         timings["life_history_retrieval"] = (time.perf_counter() - _ts) * 1000
+
+        _ts = time.perf_counter()
+        skill_context = self._load_skill_context()
+        debug.skill_context = skill_context
+        timings["skill_context_retrieval"] = (time.perf_counter() - _ts) * 1000
 
         # ---- Step 11: Contradiction check ----
         contradiction_flags: list[str] = []
@@ -797,6 +807,7 @@ class CognitivePipeline:
             retrieved_memories=retrieved,
             semantic_memories=semantic_memories,
             life_history_context=life_history_context,
+            skill_context=skill_context,
             short_term_history=self.short_term.recent(5),
             contradiction_flags=contradiction_flags,
             contagion=detected,
@@ -847,6 +858,7 @@ class CognitivePipeline:
                 retrieved_memories=ctx.retrieved_memories,
                 semantic_memories=ctx.semantic_memories,
                 life_history_context=ctx.life_history_context,
+                skill_context=ctx.skill_context,
                 short_term_history=ctx.short_term_history,
                 contradiction_flags=ctx.contradiction_flags,
                 contagion=ctx.contagion,
@@ -1048,6 +1060,8 @@ class CognitivePipeline:
         debug.semantic_memories = proactive_semantic
         life_history_context = self._load_life_history_context()
         debug.life_history_context = life_history_context
+        skill_context = self._load_skill_context()
+        debug.skill_context = skill_context
         ctx = PipelineContext(
             modulator_snapshot=self.engine.snapshot(),
             soul_profile=self.soul,
@@ -1056,6 +1070,7 @@ class CognitivePipeline:
             relationship_context=None,
             semantic_memories=proactive_semantic,
             life_history_context=life_history_context,
+            skill_context=skill_context,
             candidate_response=filtered,
             defense_instruction=defense_instruction,
             tool_context_summary=tool_context,
@@ -1097,6 +1112,17 @@ class CognitivePipeline:
             context = self._life_history_provider()
         except Exception as exc:
             log.warning("Life history context unavailable: %s", exc)
+            return {"error": exc.__class__.__name__}
+        return context if isinstance(context, dict) else {}
+
+    def _load_skill_context(self) -> dict[str, Any]:
+        """Read enabled imported skill guidance for generation."""
+        if self._skill_provider is None:
+            return {}
+        try:
+            context = self._skill_provider()
+        except Exception as exc:
+            log.warning("Skill context unavailable: %s", exc)
             return {"error": exc.__class__.__name__}
         return context if isinstance(context, dict) else {}
 

@@ -26,6 +26,7 @@ from runtime.config import RuntimeConfig
 from runtime.sessions.manager import SessionManager
 from runtime.sessions.persistence import load_engine_state, save_engine_state
 from runtime.sessions.user_session import UserSession
+from runtime.skills import import_skill, set_skill_enabled
 from runtime.tools import create_tool_executor
 from pipeline import CognitivePipeline
 
@@ -160,6 +161,34 @@ class TestConsoleEndToEnd:
                     await _send(manager, "hi")
                     assert len(manager.active_sessions) == 1
                     assert "console:user:direct" in manager.active_sessions
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_enabled_skills_reach_session_prompt(self):
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                config = _make_config(tmpdir)
+                import_skill(
+                    config,
+                    skill_markdown="""---
+name: report-writer
+description: Write grounded report drafts.
+---
+
+Use a concise outline before drafting.
+""",
+                )
+                set_skill_enabled(config, "report-writer", True)
+                backend = MockLLMBackend(response="Drafted.")
+                manager = SessionManager(config, backend_factory=lambda: backend)
+                try:
+                    await _send(manager, "Draft the report")
+                    assert "Enabled Skills" in backend.last_system_prompt
+                    assert "Use a concise outline before drafting" in (
+                        backend.last_system_prompt
+                    )
                 finally:
                     await manager.shutdown()
 

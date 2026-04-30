@@ -147,6 +147,19 @@ Turning on tools does not turn on auth, and setting auth does not turn
 on tools. Production deployments should set `api_key` before exposing
 the server and leave tools disabled unless needed.
 
+## Skills
+
+Imported Agent Skills live under `data/skills` with a JSON registry. Code
+entry point: `runtime/skills.py`.
+
+The admin console imports a local skill folder or pasted `SKILL.md`, audits it
+for metadata, tool hints, scripts, risk flags, and unsupported platform
+features, then keeps it disabled until an operator enables it. Once enabled,
+the skill enters generation as bounded private guidance: name, description,
+instructions, tool hints, and risk flags. Scripts and resources are not
+executed by the skills module. Any real action still has to pass through
+normal tool policy, auth, workspace, and shell gates.
+
 ## Admin And Setup Surface
 
 The web UI includes a first-run setup wizard, a permanent settings /

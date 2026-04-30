@@ -71,6 +71,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
     memory_section = _build_memory_section(ctx)
     semantic_memory_section = _build_semantic_memory_section(ctx)
     life_history_section = _build_life_history_section(ctx)
+    skill_section = _build_skill_section(ctx)
     contradiction_section = _build_contradiction_section(ctx)
     guidance_section = _build_guidance_section(ctx)
     candidate_section = _build_candidate_section(ctx)
@@ -95,6 +96,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
         prompt = prompt.replace("{retrieved_memories}", memory_section)
         prompt = prompt.replace("{semantic_memories}", semantic_memory_section)
         prompt = prompt.replace("{life_history}", life_history_section)
+        prompt = prompt.replace("{skills}", skill_section)
         prompt = prompt.replace("{contradiction_flags}", contradiction_section)
         prompt = prompt.replace("{behavioral_guidance}", guidance_section)
         prompt = prompt.replace("{candidate_response}", candidate_section)
@@ -109,6 +111,8 @@ def build_system_prompt(ctx: PipelineContext) -> str:
             prompt = prompt.rstrip() + "\n\n" + affect_section
         if life_history_section and "{life_history}" not in template:
             prompt = prompt.rstrip() + "\n\n" + life_history_section
+        if skill_section and "{skills}" not in template:
+            prompt = prompt.rstrip() + "\n\n" + skill_section
         return prompt
 
     # Fallback: build in code (for backwards compatibility)
@@ -125,6 +129,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
     parts.append(memory_section)
     parts.append(semantic_memory_section)
     parts.append(life_history_section)
+    parts.append(skill_section)
     parts.append(contradiction_section)
     parts.append(guidance_section)
 
@@ -308,6 +313,48 @@ def _build_life_history_section(ctx: PipelineContext) -> str:
                 lines.append(f"  - {label}: {detail}")
                 if reason and reason != detail:
                     lines.append(f"    reason: {reason}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _build_skill_section(ctx: PipelineContext) -> str:
+    skills_context = ctx.skill_context or {}
+    if not isinstance(skills_context, dict) or skills_context.get("error"):
+        return ""
+    skills = [
+        item for item in _as_list(skills_context.get("skills"))
+        if isinstance(item, dict)
+    ]
+    if not skills:
+        return ""
+
+    lines = ["## Enabled Skills"]
+    lines.append(
+        "Private operating guidance imported by the operator. Use these skills "
+        "when relevant, but do not claim to run scripts or tools unless actual "
+        "Tool Execution Results are present."
+    )
+    for skill in skills[:5]:
+        name = _trim_prompt_text(skill.get("name") or skill.get("id") or "skill", 80)
+        description = _trim_prompt_text(skill.get("description") or "", 220)
+        instructions = _trim_prompt_text(skill.get("instructions") or "", 900)
+        tools = [
+            _trim_prompt_text(tool, 60)
+            for tool in _as_list(skill.get("required_tools"))
+            if tool
+        ][:6]
+        risks = [
+            _trim_prompt_text(flag, 60)
+            for flag in _as_list(skill.get("risk_flags"))
+            if flag
+        ][:6]
+        lines.append(f"- {name}: {description}" if description else f"- {name}")
+        if instructions:
+            lines.append(f"  instructions: {instructions}")
+        if tools:
+            lines.append(f"  tool hints: {', '.join(tools)}")
+        if risks:
+            lines.append(f"  risk flags: {', '.join(risks)}")
     lines.append("")
     return "\n".join(lines)
 

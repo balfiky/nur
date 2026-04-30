@@ -139,6 +139,29 @@ class TestBuildSystemPrompt:
         assert "curiosity: 0.62" in prompt
         assert "Ask what an experience should change" in prompt
 
+    def test_includes_enabled_skill_context(self):
+        ctx = PipelineContext(
+            modulator_snapshot={},
+            skill_context={
+                "skills": [
+                    {
+                        "id": "report-writer",
+                        "name": "report-writer",
+                        "description": "Write grounded report drafts.",
+                        "instructions": "Use a concise outline before drafting.",
+                        "required_tools": ["fs.read_file", "web.search"],
+                        "risk_flags": ["network_access"],
+                    }
+                ]
+            },
+        )
+        prompt = build_system_prompt(ctx)
+
+        assert "Enabled Skills" in prompt
+        assert "Write grounded report drafts" in prompt
+        assert "Use a concise outline before drafting" in prompt
+        assert "fs.read_file" in prompt
+
     def test_includes_memories(self):
         ctx = PipelineContext(
             modulator_snapshot={},
