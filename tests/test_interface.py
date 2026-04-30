@@ -292,6 +292,7 @@ class TestIndexPage:
         assert '<meta name="description"' in html
         assert '<header class="header">' in html
         assert '<main class="main">' in html
+        assert 'href="/admin" title="Admin console"' in html
         assert '<h1 class="empty-title" id="emptyTitle">' in html
         assert 'id="msgInput"' in html
         assert 'aria-label="Message composer"' in html

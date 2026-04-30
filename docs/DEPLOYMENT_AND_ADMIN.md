@@ -82,6 +82,11 @@ The chat UI, setup wizard, debug panel, and embedded settings drawer use the
 same light operator palette as the standalone console so configuration and
 observability remain readable during normal use.
 
+The chat header links directly to `/admin` for full-screen operator work. The
+embedded settings drawer remains available for quick edits and setup-wizard
+access, but the full console is the preferred space for skills, life-history
+observability, maintenance, and careful production configuration.
+
 The **Setup Wizard** (accessible from Settings → Setup → Launch Setup Wizard)
 walks through LLM backend, agent identity, optional first formative material,
 and completion in five steps. It is the recommended path for first-time

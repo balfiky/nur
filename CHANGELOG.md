@@ -28,6 +28,10 @@ All notable changes to Project Nur are documented here.
   History intake.
 - Switched the main web shell, setup wizard, debug panel, and embedded settings
   drawer to a light, readable operator palette and widened the embedded drawer.
+- Added a first-class chat-header link to the full `/admin` console and pointed
+  the mock-mode configuration banner at the full admin workspace.
+- Fixed long admin overview values and paths so they wrap inside cards instead
+  of overflowing the observability dashboard.
 
 ### Skills
 - Wired enabled, audited Agent Skills into generation as bounded private

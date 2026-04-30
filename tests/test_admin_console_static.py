@@ -37,6 +37,8 @@ class TestAdminConsoleStatic:
         assert b"--bg: #ffffff" in css.body
         assert b".tool-row" in css.body
         assert b".evolution-grid" in css.body
+        assert b".metric-foot" in css.body
+        assert b"overflow-wrap: anywhere" in css.body
         assert js.status_code == 200
         assert b"fieldSections" in js.body
         assert b"/v1/tools" in js.body

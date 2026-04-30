@@ -32,6 +32,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 .icon-btn:hover { background: var(--surface-2); color: var(--text); }
 .icon-btn.active { background: var(--surface-2); color: var(--primary); border-color: var(--border); }
 .icon-btn svg { width: 20px; height: 20px; }
+a.icon-btn { text-decoration: none; }
 
 /* Main layout */
 .main { display: flex; flex: 1; overflow: hidden; }
@@ -310,6 +311,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
     <button class="icon-btn" id="debugToggle" onclick="toggleDebug()" title="Debug panel">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>
     </button>
+    <a class="icon-btn" href="/admin" title="Admin console" aria-label="Open admin console">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 9h8M8 13h5M8 17h8"/></svg>
+    </a>
     <button class="icon-btn" onclick="openSettings()" title="Settings">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     </button>
@@ -549,7 +553,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 
 <main class="main">
   <div class="chat-area">
-    <div class="mock-banner" id="mockBanner" style="display:none">Running in mock mode — no LLM is connected. <a href="#" onclick="openSettings(); return false;">Configure one in Settings</a> to chat for real.</div>
+    <div class="mock-banner" id="mockBanner" style="display:none">Running in mock mode — no LLM is connected. <a href="/admin">Configure one in Admin</a> to chat for real.</div>
     <div class="messages" id="messages">
       <div class="empty-state" id="emptyState">
         <div class="empty-orb"></div>

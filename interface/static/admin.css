@@ -252,7 +252,7 @@ h4 {
   box-shadow: var(--shadow);
 }
 
-.card { padding: 16px; }
+.card { min-width: 0; padding: 16px; }
 .card > span {
   color: var(--muted);
   display: block;
@@ -264,6 +264,7 @@ h4 {
 .card > strong {
   display: block;
   font-size: 24px;
+  overflow-wrap: anywhere;
 }
 .panel { margin-top: 18px; padding: 18px; }
 
@@ -276,8 +277,9 @@ h4 {
 }
 
 .metric-value {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 750;
+  line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
@@ -285,6 +287,7 @@ h4 {
   color: var(--muted);
   font-size: 13px;
   margin-top: 8px;
+  overflow-wrap: anywhere;
 }
 
 .form-grid {
