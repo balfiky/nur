@@ -71,6 +71,7 @@ Documentation = "https://github.com/balfiky/nur#readme"
 [project.scripts]
 nur = "main:main"
 nur-setup = "interface.setup:main"
+nur-uninstall = "interface.uninstall:main"
 nur-web = "interface.api:main"
 nur-emotional-qa = "evals.emotional_quality:main"
 

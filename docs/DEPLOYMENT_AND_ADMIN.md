@@ -70,6 +70,32 @@ admin console has an **API Token** button for that hardened mode.
 `nur-web` now also accepts `--config /path/to/runtime_config.yaml` when you need
 to run from a systemd working directory that differs from the config location.
 
+## Uninstalling A Local Workspace
+
+For a normal local install, preview removal first:
+
+```bash
+nur-uninstall --dry-run
+```
+
+Then remove the Nūr-created runtime config and data directory:
+
+```bash
+nur-uninstall
+```
+
+The command requires typing `uninstall` before it deletes anything. It removes
+`runtime_config.yaml` and the configured `data_dir`. It does **not** delete a
+custom `tools_workspace` outside `data_dir` unless you pass
+`--remove-external-workspace`, and it does **not** delete
+`$NUR_CONFIG_DIR/soul.yaml` unless you pass `--remove-identity`.
+
+After the workspace is removed, uninstall the Python package if desired:
+
+```bash
+python3 -m pip uninstall project-nur
+```
+
 ## NUR_CONFIG_DIR — keeping your identity across upgrades
 
 When installed from a packaged distribution, `config/soul.yaml` lives inside the

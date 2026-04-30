@@ -126,6 +126,19 @@ nur-web --host 0.0.0.0 --port 8000 --config runtime_config.yaml
 No API token is required by default. If you later set `api_key` in `/admin`,
 the browser admin console has an **API Token** button for that hardened mode.
 
+To remove a local Nūr workspace:
+
+```bash
+nur-uninstall --dry-run
+nur-uninstall
+python3 -m pip uninstall project-nur
+```
+
+`nur-uninstall` removes the runtime config and local data directory after a
+confirmation prompt. It keeps external tool workspaces and `$NUR_CONFIG_DIR`
+identity files unless you explicitly pass the removal flags shown in
+`nur-uninstall --help`.
+
 To keep your customized agent identity across upgrades:
 
 ```bash
@@ -141,6 +154,7 @@ cd nur
 python3 -m pip install -e ".[dev]"
 nur-web                    # web UI at :8000
 nur-setup                  # initialize config/data and launch the web wizard
+nur-uninstall              # remove local config/data after confirmation
 nur                        # console runtime
 ```
 
