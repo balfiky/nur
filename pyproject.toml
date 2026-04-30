@@ -1,6 +1,6 @@
 [project]
 name = "project-nur"
-version = "0.27.0"
+version = "0.27.1"
 description = "Experimental AI assistant runtime with persistent emotional memory"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -57,6 +57,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "build>=1.2",
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "ruff>=0.4",
@@ -74,6 +75,7 @@ nur-setup = "interface.setup:main"
 nur-uninstall = "interface.uninstall:main"
 nur-web = "interface.api:main"
 nur-emotional-qa = "evals.emotional_quality:main"
+nur-validate = "nur_tools.validate:main"
 
 [tool.setuptools]
 py-modules = ["main", "pipeline"]

@@ -10,6 +10,18 @@ _No unreleased changes._
 
 ---
 
+## v0.27.1 — 2026-04-30 (Validation hardening)
+
+### Validation
+- Added `nur-validate`, a stricter repository/release validation command that
+  checks version/changelog consistency, safe runtime defaults, public docs,
+  console-script metadata, package data, wheel contents, critical imports,
+  pytest, and optional release tag/install-smoke readiness.
+- Wired CI to run `python -m nur_tools.validate --mode ci` before the pytest
+  matrix.
+
+---
+
 ## v0.27.0 — 2026-04-30 (Life History, admin, skills, and learning intake)
 
 ### Life History

@@ -15,7 +15,7 @@ A normal assistant can sound warm for one reply. Nūr asks a different question:
 [![CI](https://github.com/balfiky/nur/actions/workflows/ci.yml/badge.svg)](https://github.com/balfiky/nur/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
-[![version](https://img.shields.io/badge/version-0.27.0-informational)](CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-0.27.1-informational)](CHANGELOG.md)
 
 > **Honest scope:** Nūr is a research/product prototype. It does not claim consciousness, sentience, real feelings, therapy, diagnosis, psychological validity, or proven human-likeness.
 > Nūr persists relational and semantic memory under `data/`. Use it with consent when other people are involved, and see [PRIVACY.md](PRIVACY.md) for inspection, export, and deletion.
@@ -172,6 +172,7 @@ nur-web                    # web UI at :8000
 nur-setup                  # terminal setup
 nur-setup --web            # browser setup wizard
 nur-uninstall              # remove local config/data after confirmation
+nur-validate --mode full   # local release-readiness validation
 nur                        # console runtime
 ```
 
@@ -186,6 +187,19 @@ nur                        # console runtime
 | Privacy and data deletion | [PRIVACY.md](PRIVACY.md) |
 | Release history | [CHANGELOG.md](CHANGELOG.md) |
 | Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) |
+
+## Validation
+
+Use `nur-validate` before publishing or tagging releases:
+
+```bash
+nur-validate --mode quick    # static metadata/docs/config checks
+nur-validate --mode full     # quick + pytest + wheel/package-data checks
+nur-validate --mode release  # full + tag and install-smoke checks
+```
+
+CI runs `nur-validate --mode ci` plus the full pytest suite on Python 3.10,
+3.11, and 3.12.
 
 ## Configure An LLM
 
@@ -266,4 +280,4 @@ docs/       Public docs, design docs, diagrams, research notes
 
 ## Current Status
 
-Version `0.27.0`. Reproducible eval evidence is intentionally narrow: relationship memory is load-bearing under the current Phase 11 scenarios. The Life History layer records formative experiences and observable self-change, but does not yet prove an independent or human-like character. The project does not claim human-likeness, therapeutic value, consciousness, or psychological validity.
+Version `0.27.1`. Reproducible eval evidence is intentionally narrow: relationship memory is load-bearing under the current Phase 11 scenarios. The Life History layer records formative experiences and observable self-change, but does not yet prove an independent or human-like character. The project does not claim human-likeness, therapeutic value, consciousness, or psychological validity.

@@ -8,6 +8,7 @@ venv/
 *.egg-info/
 dist/
 build/
+.validate-artifacts/
 *.db
 .pytest_cache/
 .mypy_cache/
