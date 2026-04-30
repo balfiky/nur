@@ -10,6 +10,7 @@ from runtime.config import RuntimeConfig
 from runtime.channels.console import ConsoleChannel
 from runtime.debug.api import create_debug_app
 from runtime.llm.backend import create_llm_backend
+from runtime.security import public_bind_requires_auth
 from runtime.sessions.manager import SessionManager
 from runtime.tools import create_tool_executor
 
@@ -136,7 +137,15 @@ class NurApp:
         """Start the debug API server (runs as a background task)."""
         import uvicorn
 
-        debug_app = create_debug_app(self.session_manager)
+        if public_bind_requires_auth(self.config.debug_host, self.config.api_key):
+            raise RuntimeError(
+                "Refusing to start debug API on a non-loopback host without api_key"
+            )
+
+        debug_app = create_debug_app(
+            self.session_manager,
+            api_key_getter=lambda: self.config.api_key,
+        )
         config = uvicorn.Config(
             debug_app,
             host=self.config.debug_host,

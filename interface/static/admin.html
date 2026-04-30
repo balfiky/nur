@@ -23,6 +23,7 @@
       <button class="nav-item" data-page="models">Models</button>
       <button class="nav-item" data-page="tools">Tools</button>
       <button class="nav-item" data-page="skills">Skills</button>
+      <button class="nav-item" data-page="life">Life</button>
       <button class="nav-item" data-page="identity">Identity</button>
       <button class="nav-item" data-page="access">Access</button>
       <button class="nav-item" data-page="channels">Channels</button>
@@ -147,6 +148,88 @@
           <span class="muted" id="skillsRoot"></span>
         </div>
         <div class="skill-list" id="skillsList"></div>
+      </div>
+    </section>
+
+    <section class="page" id="page-life" aria-labelledby="life-heading">
+      <div class="section-heading">
+        <div>
+          <h2 id="life-heading">Life History</h2>
+          <p>Experience intake, worldview changes, drive shifts, and character evolution.</p>
+        </div>
+        <button class="secondary" id="refreshLifeBtn">Refresh Life</button>
+      </div>
+      <div class="card-grid" id="lifeSummary"></div>
+      <div class="panel">
+        <div class="panel-heading">
+          <h3>Pasted Experience</h3>
+        </div>
+        <div class="form-grid">
+          <label class="field-card">
+            <span>Title</span>
+            <input id="lifeTextTitle" type="text" placeholder="Book excerpt, principle, article">
+          </label>
+          <label class="field-card">
+            <span>Source Type</span>
+            <input id="lifeSourceType" type="text" value="pasted_text">
+          </label>
+          <label class="field-card wide">
+            <span>Participants</span>
+            <input id="lifeParticipants" type="text" placeholder="Bassem, Nūr">
+          </label>
+          <label class="field-card wide">
+            <span>Text</span>
+            <textarea id="lifeText" spellcheck="false" placeholder="Paste material that should become an experience..."></textarea>
+          </label>
+        </div>
+        <div class="button-row">
+          <button class="primary" id="ingestLifeTextBtn" type="button">Digest Text</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-heading">
+          <h3>Local File Experience</h3>
+        </div>
+        <div class="form-grid">
+          <label class="field-card wide">
+            <span>File Path</span>
+            <input id="lifeFilePath" type="text" placeholder="/path/inside/tools/workspace/book.md">
+          </label>
+          <label class="field-card">
+            <span>Title</span>
+            <input id="lifeFileTitle" type="text" placeholder="optional">
+          </label>
+        </div>
+        <div class="button-row">
+          <button class="primary" id="ingestLifeFileBtn" type="button">Digest File</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-heading">
+          <h3>Evolution Timeline</h3>
+          <span class="muted" id="lifeDbPath"></span>
+        </div>
+        <div class="life-list" id="lifeTimeline"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-heading">
+          <h3>Experience Ledger</h3>
+        </div>
+        <div class="life-list" id="lifeExperiences"></div>
+      </div>
+      <div class="two-column">
+        <div class="panel">
+          <div class="panel-heading">
+            <h3>Beliefs</h3>
+          </div>
+          <div class="life-list" id="lifeBeliefs"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-heading">
+            <h3>Drives</h3>
+          </div>
+          <div class="life-list" id="lifeDrives"></div>
+        </div>
       </div>
     </section>
 

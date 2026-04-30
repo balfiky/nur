@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Project Nur web chat and admin console for an AI assistant with persistent emotional state.">
 <title>Nūr</title>
 <link rel="icon" href="data:,">
 <style>
@@ -289,7 +290,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
 </head>
 <body>
 
-<div class="header">
+<header class="header">
   <div class="header-left">
     <span class="logo" id="headerLogo">Nūr</span>
     <div class="mood-indicator">
@@ -305,7 +306,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     </button>
   </div>
-</div>
+</header>
 
 <!-- First-run setup wizard -->
 <div class="wizard-overlay" id="wizardOverlay">
@@ -487,13 +488,13 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
   </aside>
 </div>
 
-<div class="main">
+<main class="main">
   <div class="chat-area">
     <div class="mock-banner" id="mockBanner" style="display:none">Running in mock mode — no LLM is connected. <a href="#" onclick="openSettings(); return false;">Configure one in Settings</a> to chat for real.</div>
     <div class="messages" id="messages">
       <div class="empty-state" id="emptyState">
         <div class="empty-orb"></div>
-        <div class="empty-title" id="emptyTitle">Nūr</div>
+        <h1 class="empty-title" id="emptyTitle">Nūr</h1>
         <div class="empty-sub">An AI that feels. Send a message to begin a conversation.</div>
       </div>
     </div>
@@ -505,8 +506,8 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
     </div>
     <div class="input-container">
       <div class="input-box">
-        <textarea id="msgInput" placeholder="Message Nūr..." rows="1"></textarea>
-        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+        <textarea id="msgInput" placeholder="Message Nūr..." rows="1" aria-label="Message composer"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()" aria-label="Send message" disabled>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         </button>
       </div>
@@ -558,7 +559,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); heig
       <div id="unresolvedItems"></div>
     </div>
   </div>
-</div>
+</main>
 
 <script>
 const messagesEl = document.getElementById('messages');
@@ -576,6 +577,10 @@ let sending = false;
 let lastEmotion = 'neutral';
 let agentName = 'Nūr';
 
+function updateSendButtonState() {
+  sendBtn.disabled = sending || !inputEl.value.trim();
+}
+
 function applyAgentName(name) {
   if (!name || !name.trim()) return;
   agentName = name.trim();
@@ -590,12 +595,12 @@ function applyAgentName(name) {
 }
 
 // ---- API-bearer token (client-side) --------------------------------------
-// Stored in localStorage so the same browser tab keeps working after a
-// reload. Must match RuntimeConfig.api_key on the server when set.
-function getApiToken() { return localStorage.getItem('nur_api_token') || ''; }
+// Stored only for this browser session. Must match RuntimeConfig.api_key on
+// the server when set.
+function getApiToken() { return sessionStorage.getItem('nur_api_token') || ''; }
 function setApiToken(tok) {
-  if (tok) localStorage.setItem('nur_api_token', tok);
-  else localStorage.removeItem('nur_api_token');
+  if (tok) sessionStorage.setItem('nur_api_token', tok);
+  else sessionStorage.removeItem('nur_api_token');
 }
 function authHeaders(extra) {
   const h = extra ? Object.assign({}, extra) : {};
@@ -613,10 +618,12 @@ async function authedFetch(url, opts) {
 inputEl.addEventListener('input', () => {
   inputEl.style.height = 'auto';
   inputEl.style.height = Math.min(inputEl.scrollHeight, 180) + 'px';
+  updateSendButtonState();
 });
 inputEl.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
+updateSendButtonState();
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
 ['cfg-llm_backend','cfg-llm_base_url','cfg-llm_model'].forEach(id => {
   const el = document.getElementById(id);
@@ -631,7 +638,7 @@ async function sendMessage() {
   inputEl.value = '';
   inputEl.style.height = 'auto';
   sending = true;
-  sendBtn.disabled = true;
+  updateSendButtonState();
 
   if (emptyState) emptyState.remove();
   addMessage(text, 'user');
@@ -656,7 +663,7 @@ async function sendMessage() {
     addMessage('Error: ' + err.message, 'assistant');
   } finally {
     sending = false;
-    sendBtn.disabled = false;
+    updateSendButtonState();
     document.documentElement.style.setProperty('--mood-pulse', '3s');
     inputEl.focus();
   }
@@ -873,7 +880,6 @@ async function loadSettings(options = {}) {
   setStatus('Loading...');
   const res = await authedFetch('/admin/config'); if (!res.ok) throw new Error('HTTP ' + res.status);
   applySettings(await res.json());
-  setStatus('');
   if (options.loadSoul !== false) loadSoul().catch(() => {});
 }
 
@@ -1313,7 +1319,24 @@ let wizardPreset = null;
 let wizardSoulDraft = null;
 let wizardConfigSnapshot = null;
 
+function setWizardOpen(open) {
+  if (open) {
+    wizardOverlay.classList.add('open');
+    wizardOverlay.setAttribute('aria-hidden', 'false');
+    const focusTarget = wizardOverlay.querySelector('button, textarea, input, select');
+    if (focusTarget) focusTarget.focus();
+    settingsOverlay.inert = true;
+    settingsOverlay.setAttribute('aria-hidden', 'true');
+  } else {
+    settingsOverlay.inert = false;
+    settingsOverlay.removeAttribute('aria-hidden');
+    wizardOverlay.classList.remove('open');
+    wizardOverlay.setAttribute('aria-hidden', 'true');
+  }
+}
+
 function openWizard() {
+  closeSettings();
   wizardStep = 1;
   wizardPreset = null;
   wizardSoulDraft = null;
@@ -1323,12 +1346,12 @@ function openWizard() {
   ['wiz-llm_base_url','wiz-llm_model','wiz-llm_api_key','wiz-soul-text'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
   ['wiz-llm-result','wiz-soul-result'].forEach(id => { const e = document.getElementById(id); if (e) { e.style.display = 'none'; e.textContent = ''; } });
   wizardGoto(1);
-  wizardOverlay.classList.add('open');
+  setWizardOpen(true);
 }
 
 function wizardDismiss() {
   sessionStorage.setItem('nur_wizard_dismissed', '1');
-  wizardOverlay.classList.remove('open');
+  setWizardOpen(false);
 }
 
 function wizardGoto(n) {
@@ -1497,7 +1520,7 @@ async function wizardFinish() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
     applySettings(data);
-    wizardOverlay.classList.remove('open');
+    setWizardOpen(false);
   } catch (err) {
     wizardShowResult('wiz-llm-result', 'error', 'Could not mark setup complete: ' + err.message);
   }

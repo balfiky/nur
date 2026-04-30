@@ -11,6 +11,8 @@ import re
 
 import requests
 
+from runtime.security import validate_http_url
+
 
 class ChatCompletionsClient:
     """Sync chat-completions client conforming to the LLMBackend protocol.
@@ -31,7 +33,12 @@ class ChatCompletionsClient:
             or os.environ.get("LLM_API_KEY", "")
             or os.environ.get("MINIMAX_API_KEY", "")
         )
-        self._base_url = base_url.rstrip("/").removesuffix("/chat/completions")
+        safe_base_url = validate_http_url(
+            base_url,
+            allow_loopback=True,
+            allow_private_env="NUR_ALLOW_PRIVATE_LLM_URLS",
+        )
+        self._base_url = safe_base_url.rstrip("/").removesuffix("/chat/completions")
         self._model = model
         self._thinking = thinking
         self._session = requests.Session()

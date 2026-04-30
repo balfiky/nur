@@ -21,6 +21,7 @@ Mounted under ``/v1`` via :func:`build_v1_router`.
 from __future__ import annotations
 
 import os
+import secrets
 import shutil
 import sqlite3
 import time
@@ -62,25 +63,49 @@ def _validate_path_token(name: str, value: str) -> None:
 # ---------------------------------------------------------------------------
 
 
+_MAX_CHAT_MESSAGE_CHARS = 16_000
+_MAX_ID_CHARS = 128
+
+
 class V1ChatRequest(BaseModel):
-    message: str = Field(..., description="User message to process")
-    user_id: str = Field("default", description="Stable user identifier")
-    chat_id: str = Field("default", description="Conversation identifier within this user")
-    platform: str = Field("web", description="Channel tag used for session keying")
+    message: str = Field(
+        ...,
+        min_length=1,
+        max_length=_MAX_CHAT_MESSAGE_CHARS,
+        description="User message to process",
+    )
+    user_id: str = Field(
+        "default",
+        min_length=1,
+        max_length=_MAX_ID_CHARS,
+        description="Stable user identifier",
+    )
+    chat_id: str = Field(
+        "default",
+        min_length=1,
+        max_length=_MAX_ID_CHARS,
+        description="Conversation identifier within this user",
+    )
+    platform: str = Field(
+        "web",
+        min_length=1,
+        max_length=_MAX_ID_CHARS,
+        description="Channel tag used for session keying",
+    )
     include_debug: bool = Field(False, description="Include full turn debug payload in the response")
 
 
 class V1RestRequest(BaseModel):
     hours: float = Field(1.0, ge=0.0, le=48.0, description="Simulated hours of rest")
-    user_id: str = Field("default")
-    chat_id: str = Field("default")
-    platform: str = Field("web")
+    user_id: str = Field("default", min_length=1, max_length=_MAX_ID_CHARS)
+    chat_id: str = Field("default", min_length=1, max_length=_MAX_ID_CHARS)
+    platform: str = Field("web", min_length=1, max_length=_MAX_ID_CHARS)
 
 
 class V1EndSessionRequest(BaseModel):
-    user_id: str = Field("default")
-    chat_id: str = Field("default")
-    platform: str = Field("web")
+    user_id: str = Field("default", min_length=1, max_length=_MAX_ID_CHARS)
+    chat_id: str = Field("default", min_length=1, max_length=_MAX_ID_CHARS)
+    platform: str = Field("web", min_length=1, max_length=_MAX_ID_CHARS)
 
 
 # ---------------------------------------------------------------------------
@@ -112,7 +137,7 @@ def build_v1_router(
         authorization: str | None = Header(default=None),
     ) -> None:
         cfg = config_getter()
-        expected = cfg.api_key
+        expected = str(cfg.api_key or "")
         if not expected:
             return  # auth disabled
         if not authorization or not authorization.lower().startswith("bearer "):
@@ -122,7 +147,7 @@ def build_v1_router(
                 headers={"WWW-Authenticate": "Bearer"},
             )
         token = authorization.split(" ", 1)[1].strip()
-        if token != expected:
+        if not secrets.compare_digest(token, expected):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid bearer token",
@@ -175,10 +200,16 @@ def build_v1_router(
     )
     async def chat(req: V1ChatRequest) -> dict[str, Any]:
         mgr = get_manager()
-        response = await mgr.handle_message(
-            req.platform, req.user_id, req.chat_id, req.message,
-        )
-        session = await mgr.ensure_session(req.platform, req.user_id, req.chat_id)
+        try:
+            response = await mgr.handle_message(
+                req.platform, req.user_id, req.chat_id, req.message,
+            )
+            session = await mgr.ensure_session(req.platform, req.user_id, req.chat_id)
+        except RuntimeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(exc),
+            ) from exc
         payload: dict[str, Any] = {
             "response": response,
             "session_key": _session_key(req.platform, req.user_id, req.chat_id),

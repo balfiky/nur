@@ -86,6 +86,9 @@ The full console lets you:
 - Configure LLM provider, model, base URL, and API keys
 - Configure Telegram token, allowlist, polling, and dedupe settings
 - Configure bearer auth, CORS, tools, shell-tool opt-in, and workspace paths
+- Import and audit external Agent Skills
+- Feed formative text or local text/Markdown files into **Life History**
+- Observe experience count, evolution events, current beliefs, and drive shifts
 - Test LLM, Telegram, and storage settings before relying on them
 - Inspect diagnostics: Python version, uptime, active sessions, storage paths
 - Export a redacted runtime config
@@ -134,6 +137,23 @@ Important fields:
 | `tools_enabled` | Master switch for tool execution; off by default. |
 | `tools_workspace` | Filesystem sandbox root for tools; blank means `<data_dir>/workspace`. |
 | `shell_tool_enabled` | Separate opt-in for subprocess execution; keep off by default. |
+
+## Life History Admin
+
+The **Life** page is the first observability surface for Nūr's identity-level
+experience ledger. It supports:
+
+- Pasted text intake for short formative material
+- Local text/Markdown file intake from inside `tools_workspace`
+- An evolution timeline of belief, drive, self-trait, and worldview changes
+- An experience ledger showing what was ingested and why it was salient
+- Current belief and drive summaries
+
+Data is stored in `data/shared/life_history.db`. This is shared assistant
+identity data, not per-user chat memory. User deletion does not remove it.
+For a full identity reset, stop the service and remove both
+`data/shared/self_model.db` and `data/shared/life_history.db` after taking
+any backup you need.
 
 ## Running The Web Server
 

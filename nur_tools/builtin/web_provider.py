@@ -12,6 +12,8 @@ from html import unescape
 
 import requests
 
+from runtime.security import validate_http_url
+
 
 _DEFAULT_TIMEOUT = 15.0
 _USER_AGENT = "Mozilla/5.0 (compatible; Nur/1.0)"
@@ -43,8 +45,13 @@ class RequestsWebProvider:
         the cap is reached — ``resp.content`` would silently ignore the cap
         and buffer the entire body first.
         """
+        safe_url = validate_http_url(
+            url,
+            allow_loopback=False,
+            allow_private_env="NUR_ALLOW_PRIVATE_WEB_FETCH",
+        )
         with self._session.get(
-            url, timeout=self._timeout, stream=True,
+            safe_url, timeout=self._timeout, stream=True,
         ) as resp:
             resp.raise_for_status()
             chunks: list[bytes] = []

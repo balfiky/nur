@@ -128,6 +128,42 @@ class TestChatEndpoint:
         assert "debug" in data
         assert isinstance(data["debug"], dict)
 
+    def test_v1_chat_runtime_backpressure_returns_503(self, client, tmp_path):
+        manager = SessionManager(
+            config=RuntimeConfig(
+                data_dir=str(tmp_path / "limited-v1"),
+                max_active_sessions=0,
+            ),
+            backend_factory=lambda: MockLLMBackend(response="I understand."),
+        )
+        set_session_manager(manager)
+
+        resp = client.post(
+            "/v1/chat",
+            json={"message": "hello", "user_id": "overflow"},
+        )
+
+        assert resp.status_code == 503
+        assert "limit reached" in resp.json()["detail"]
+
+    def test_legacy_chat_runtime_backpressure_returns_503(self, client, tmp_path):
+        manager = SessionManager(
+            config=RuntimeConfig(
+                data_dir=str(tmp_path / "limited-legacy"),
+                max_active_sessions=0,
+            ),
+            backend_factory=lambda: MockLLMBackend(response="I understand."),
+        )
+        set_session_manager(manager)
+
+        resp = client.post(
+            "/chat",
+            json={"message": "hello", "user_id": "overflow"},
+        )
+
+        assert resp.status_code == 503
+        assert "limit reached" in resp.json()["detail"]
+
 
 class TestSessionsEndpoints:
     def test_list_sessions_empty_initially(self, client):
@@ -395,6 +431,30 @@ class TestAdminEndpoints:
         assert setup["required"] is False
         assert setup["completed_at"] is not None
 
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("max_queue_per_user", 0),
+            ("max_active_sessions", 0),
+            ("session_timeout_seconds", 0),
+            ("telegram_poll_timeout", 0),
+            ("dedupe_ttl", -1),
+            ("debug_port", 0),
+            ("debug_port", 65536),
+            ("proactive_idle_threshold", -1),
+            ("proactive_max_per_session", -1),
+            ("proactive_cooldown", -1),
+            ("proactive_check_interval", 0),
+        ],
+    )
+    def test_admin_config_rejects_invalid_runtime_bounds(
+        self, client, temp_config, field, value,
+    ):
+        resp = client.post("/admin/config", json={field: value})
+
+        assert resp.status_code == 422
+        assert RuntimeConfig.from_yaml(str(temp_config)).max_active_sessions == 10
+
     def test_admin_test_llm_reports_missing_provider_config(
         self, client, temp_config, tmp_path,
     ):
@@ -413,7 +473,7 @@ class TestAdminEndpoints:
         assert "missing_provider_base_url" in codes
         assert "missing_provider_model" in codes
 
-    def test_admin_test_llm_can_validate_draft_openai_config(
+    def test_admin_test_llm_requires_live_roundtrip_for_draft_openai_config(
         self, client, temp_config, tmp_path,
     ):
         RuntimeConfig(
@@ -425,16 +485,17 @@ class TestAdminEndpoints:
             "/admin/test/llm",
             json={
                 "llm_backend": "openai_compatible",
-                "llm_base_url": "http://localhost:11434/v1",
+                "llm_base_url": "http://localhost:0/v1",
                 "llm_model": "demo-model",
             },
         )
 
         assert resp.status_code == 200
         data = resp.json()
-        assert data["ok"] is True
+        assert data["ok"] is False
         assert data["live"] is False
         assert data["backend"] == "openai_compatible"
+        assert "Live LLM test was not run" in data["error"]
 
     def test_admin_test_llm_mock_runs_live_sample(
         self, client, temp_config, tmp_path,
@@ -831,18 +892,19 @@ class TestLegacyEndpointAuth:
         assert resp.status_code == 200
 
     def test_websocket_rejects_missing_token(self, authed_client):
-        # Starlette raises WebSocketDisconnect when the server closes the
-        # connection before accepting — which is what /ws does for bad
-        # auth. We just need to see that the handshake did not open.
+        # Browser clients cannot set Authorization headers, so /ws accepts
+        # the socket and requires a token in the first JSON message before
+        # processing any chat payload.
         from starlette.websockets import WebSocketDisconnect
 
         with pytest.raises(WebSocketDisconnect):
-            with authed_client.websocket_connect("/ws"):
-                pass
+            with authed_client.websocket_connect("/ws") as ws:
+                ws.send_text('{"message":"hi","user_id":"x"}')
+                ws.receive_json()
 
-    def test_websocket_accepts_valid_token_via_query(self, authed_client):
-        with authed_client.websocket_connect("/ws?token=test-token-abc") as ws:
-            ws.send_text('{"message":"hi","user_id":"x"}')
+    def test_websocket_accepts_valid_token_in_first_message(self, authed_client):
+        with authed_client.websocket_connect("/ws") as ws:
+            ws.send_text('{"token":"test-token-abc","message":"hi","user_id":"x"}')
             data = ws.receive_json()
             assert "response" in data
 

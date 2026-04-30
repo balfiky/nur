@@ -9,6 +9,8 @@
     skills: [],
     skillsRoot: "",
     skillsLoaded: false,
+    life: null,
+    lifeLoaded: false,
     activePage: "overview",
   };
 
@@ -142,6 +144,21 @@
 
   function pretty(data) {
     return JSON.stringify(data, null, 2);
+  }
+
+  function responseErrorMessage(data, fallback) {
+    const detail = data && data.detail;
+    if (typeof detail === "string") return detail;
+    if (Array.isArray(detail)) {
+      return detail.map((item) => {
+        if (typeof item === "string") return item;
+        const loc = Array.isArray(item.loc) ? item.loc.join(".") : "";
+        const msg = item.msg || JSON.stringify(item);
+        return loc ? `${loc}: ${msg}` : msg;
+      }).join("; ");
+    }
+    if (detail && typeof detail === "object") return JSON.stringify(detail);
+    return fallback;
   }
 
   function setStatus(text, tone) {
@@ -400,7 +417,7 @@
     if (list) list.innerHTML = `<p class="empty-copy">Loading skills...</p>`;
     const res = await authedFetch("/admin/skills");
     const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Skills HTTP " + res.status);
+    if (!res.ok) throw new Error(responseErrorMessage(data, "Skills HTTP " + res.status));
     state.skills = data.skills || [];
     state.skillsRoot = data.root || "";
     state.skillsLoaded = true;
@@ -421,7 +438,7 @@
       }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "Import failed");
+    if (!res.ok) throw new Error(responseErrorMessage(data, "Import failed"));
     document.getElementById("skillMarkdown").value = "";
     document.getElementById("skillNameHint").value = "";
     showToast("Skill imported for review.");
@@ -499,9 +516,160 @@
       method: "POST",
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || `${action} failed`);
+    if (!res.ok) throw new Error(responseErrorMessage(data, `${action} failed`));
     showToast(`Skill ${labelize(action)} complete.`);
     await loadSkills();
+  }
+
+  async function loadLife() {
+    const timeline = document.getElementById("lifeTimeline");
+    if (timeline) timeline.innerHTML = `<p class="empty-copy">Loading life history...</p>`;
+    const res = await authedFetch("/admin/life");
+    const data = await res.json();
+    if (!res.ok) throw new Error(responseErrorMessage(data, "Life HTTP " + res.status));
+    state.life = data;
+    state.lifeLoaded = true;
+    renderLife();
+  }
+
+  async function ingestLifeText() {
+    const title = document.getElementById("lifeTextTitle").value.trim();
+    const sourceType = document.getElementById("lifeSourceType").value.trim() || "pasted_text";
+    const text = document.getElementById("lifeText").value.trim();
+    const participants = splitList(document.getElementById("lifeParticipants").value);
+    const res = await authedFetch("/admin/life/experiences/text", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, source_type: sourceType, text, participants }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(responseErrorMessage(data, "Text digestion failed"));
+    document.getElementById("lifeText").value = "";
+    showToast("Experience digested.");
+    await loadLife();
+  }
+
+  async function ingestLifeFile() {
+    const filePath = document.getElementById("lifeFilePath").value.trim();
+    const title = document.getElementById("lifeFileTitle").value.trim();
+    const participants = splitList(document.getElementById("lifeParticipants").value);
+    const res = await authedFetch("/admin/life/experiences/file", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file_path: filePath, title, participants }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(responseErrorMessage(data, "File digestion failed"));
+    showToast("File experience digested.");
+    await loadLife();
+  }
+
+  function renderLife() {
+    const data = state.life || {};
+    const dbPath = document.getElementById("lifeDbPath");
+    if (dbPath) dbPath.textContent = data.db_path || "";
+    renderLifeSummary(data.counts || {});
+    renderLifeTimeline(data.recent_evolution || []);
+    renderLifeExperiences(data.recent_experiences || []);
+    renderLifeBeliefs(data.beliefs || []);
+    renderLifeDrives(data.drives || []);
+  }
+
+  function renderLifeSummary(counts) {
+    const el = document.getElementById("lifeSummary");
+    if (!el) return;
+    const items = [
+      ["Experiences", counts.experiences || 0],
+      ["Evolution Events", counts.evolution_events || 0],
+      ["Beliefs", counts.beliefs || 0],
+      ["Drives", counts.drives || 0],
+    ];
+    el.innerHTML = items.map(([label, value]) => `
+      <article class="card">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value)}</strong>
+      </article>
+    `).join("");
+  }
+
+  function renderLifeTimeline(events) {
+    const list = document.getElementById("lifeTimeline");
+    if (!list) return;
+    if (!events.length) {
+      list.innerHTML = `<p class="empty-copy">No evolution events yet.</p>`;
+      return;
+    }
+    list.innerHTML = events.map((event) => `
+      <article class="life-row">
+        <div class="life-row-head">
+          <strong>${escapeHtml(labelize(event.domain || "change"))}</strong>
+          <span>${escapeHtml(event.subject || "")}</span>
+        </div>
+        <div class="life-change">${escapeHtml(event.after_state || "")}</div>
+        <div class="life-reason">${escapeHtml(event.reason || "")}</div>
+        <div class="skill-meta">confidence ${Number(event.confidence || 0).toFixed(2)} · experience ${escapeHtml(event.experience_id ?? "")}</div>
+      </article>
+    `).join("");
+  }
+
+  function renderLifeExperiences(experiences) {
+    const list = document.getElementById("lifeExperiences");
+    if (!list) return;
+    if (!experiences.length) {
+      list.innerHTML = `<p class="empty-copy">No experiences recorded yet.</p>`;
+      return;
+    }
+    list.innerHTML = experiences.map((experience) => `
+      <article class="life-row">
+        <div class="life-row-head">
+          <strong>${escapeHtml(experience.source_title || "Experience")}</strong>
+          <span>${escapeHtml(labelize(experience.source_type || ""))}</span>
+        </div>
+        <div class="life-change">${escapeHtml(experience.content_summary || "")}</div>
+        <div class="life-reason">${escapeHtml(experience.emotional_impact || "")}</div>
+        <div class="skill-meta">salience ${Number(experience.salience || 0).toFixed(2)} · confidence ${Number(experience.confidence || 0).toFixed(2)}</div>
+      </article>
+    `).join("");
+  }
+
+  function renderLifeBeliefs(beliefs) {
+    const list = document.getElementById("lifeBeliefs");
+    if (!list) return;
+    if (!beliefs.length) {
+      list.innerHTML = `<p class="empty-copy">No worldview records yet.</p>`;
+      return;
+    }
+    list.innerHTML = beliefs.slice(0, 12).map((belief) => `
+      <article class="life-row compact">
+        <div class="life-row-head">
+          <strong>${escapeHtml(belief.key || "belief")}</strong>
+          <span>${escapeHtml((belief.confidence || 0).toFixed ? belief.confidence.toFixed(2) : belief.confidence)}</span>
+        </div>
+        <div class="life-change">${escapeHtml(belief.statement || "")}</div>
+      </article>
+    `).join("");
+  }
+
+  function renderLifeDrives(drives) {
+    const list = document.getElementById("lifeDrives");
+    if (!list) return;
+    if (!drives.length) {
+      list.innerHTML = `<p class="empty-copy">No drive state found.</p>`;
+      return;
+    }
+    list.innerHTML = drives.map((drive) => {
+      const value = Number(drive.value || 0);
+      return `
+        <article class="life-row compact">
+          <div class="life-row-head">
+            <strong>${escapeHtml(labelize(drive.name || "drive"))}</strong>
+            <span>${value.toFixed(2)}</span>
+          </div>
+          <div class="drive-meter"><span style="width:${Math.max(0, Math.min(100, value * 100))}%"></span></div>
+          <div class="life-reason">${escapeHtml(drive.description || "")}</div>
+        </article>
+      `;
+    }).join("");
   }
 
   async function loadAll() {
@@ -521,6 +689,10 @@
     if (state.activePage === "tools") {
       state.toolsLoaded = false;
       await loadTools();
+    }
+    if (state.activePage === "life") {
+      state.lifeLoaded = false;
+      await loadLife();
     }
     await loadSoul(false);
   }
@@ -716,6 +888,12 @@
         showToast(err.message || String(err), "error");
       });
     }
+    if (page === "life" && !state.lifeLoaded) {
+      loadLife().catch((err) => {
+        document.getElementById("lifeTimeline").innerHTML = `<p class="empty-copy">${escapeHtml(err.message || String(err))}</p>`;
+        showToast(err.message || String(err), "error");
+      });
+    }
   }
 
   function openTokenDialog() {
@@ -772,6 +950,16 @@
       if (!target) return;
       mutateSkill(target.dataset.skillId, target.dataset.skillAction)
         .catch((err) => showToast(err.message || String(err), "error"));
+    });
+    document.getElementById("refreshLifeBtn").addEventListener("click", () => {
+      state.lifeLoaded = false;
+      loadLife().catch((err) => showToast(err.message || String(err), "error"));
+    });
+    document.getElementById("ingestLifeTextBtn").addEventListener("click", () => {
+      ingestLifeText().catch((err) => showToast(err.message || String(err), "error"));
+    });
+    document.getElementById("ingestLifeFileBtn").addEventListener("click", () => {
+      ingestLifeFile().catch((err) => showToast(err.message || String(err), "error"));
     });
     document.getElementById("reloadSoulBtn").addEventListener("click", () => loadSoul(true));
     document.getElementById("saveSoulBtn").addEventListener("click", saveSoul);

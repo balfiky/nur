@@ -15,6 +15,7 @@ Within `data_dir`, Nūr writes:
 | Path | Contents |
 |------|----------|
 | `data/shared/self_model.db` | Shared self-model — observations and defense log for entity `__self__` |
+| `data/shared/life_history.db` | Shared life-history/evolution ledger — formative experiences, belief revisions, drive changes, self-trait observations |
 | `data/<platform>_<user_id>/nur.db` | Per-user SQLite: emotional memory, relationship events, open loops, person/topic profiles, semantic memory |
 | `data/<platform>_<user_id>/sessions/<chat_id>.json` | Per-session engine state: `modulator_snapshot`, `saved_at`, and `unresolved_items` |
 | `data/<platform>_<user_id>/engine_state.json` | Legacy per-user engine-state snapshot (kept for backward-compatible restore) |
@@ -46,6 +47,24 @@ The runtime deliberately splits self-model storage away from per-user data
 | `extracted_traits` | `entity_id` (always `__self__`), `trait`, `score` | Rolled-up self-traits |
 | `defense_events` | `timestamp`, `defense_type`, `raw_intensity`, `expressed_intensity`, `suppression_delta` | Defense-mechanism activations (self-log; no `entity_id` column) |
 
+## Tables Inside the Shared Life-History DB (`data/shared/life_history.db`)
+
+The Life History layer is identity-level data. It may include material pasted
+by an operator or read from a local file, plus Nūr's derived interpretation of
+that material:
+
+| Table | Columns of interest | Purpose |
+|-------|--------------------|---------|
+| `experience_events` | `source_type`, `source_title`, `source_ref`, `participants_json`, `content_summary`, `raw_excerpt`, `salience`, `emotional_impact` | What Nūr encountered and how salient it was |
+| `evolution_events` | `domain`, `subject`, `before_state`, `after_state`, `reason`, `confidence`, `evidence` | What changed after an experience |
+| `beliefs` | `key`, `statement`, `confidence`, `status`, `evidence` | Current worldview/belief records |
+| `belief_revisions` | `before_statement`, `after_statement`, `reason`, `confidence` | Belief revision history |
+| `drive_states` | `name`, `value`, `description` | Current drive/motivation values |
+| `drive_changes` | `drive_name`, `before_value`, `after_value`, `delta`, `reason` | Drive change history |
+
+This database is shared across relationships. Do not paste third-party
+private material into Life History unless you have the right consent.
+
 ## What Is Actually Recorded
 
 **Raw transcripts are not stored by default.** The `memories` table holds
@@ -53,6 +72,9 @@ The runtime deliberately splits self-model storage away from per-user data
 table may quote short user statements verbatim when the user expresses a
 preference or fact (e.g., "I prefer concise replies") — review it before
 sharing a database.
+
+Life History is different: pasted text and local-file excerpts can be stored
+as experience evidence. Treat `data/shared/life_history.db` as sensitive.
 
 ## Consent
 
@@ -93,6 +115,9 @@ user on a given platform in one call:
 - **Does not touch** `data/shared/self_model.db` — the shared self-model
   holds only rows for entity `__self__` and a defense log with no
   per-user column, so it is preserved by design.
+- **Does not touch** `data/shared/life_history.db` — formative experiences
+  and evolution events are assistant-level identity data. They may still
+  mention people if the operator included them in a Life intake.
 
 ```bash
 # With auth disabled (api_key empty):
@@ -136,7 +161,7 @@ This removes `nur.db` and all session JSON in one step.
 
 If you want a full reset of the assistant's self-model (e.g., before
 handing the system to a different operator), also delete
-`data/shared/self_model.db`.
+`data/shared/self_model.db` and `data/shared/life_history.db`.
 
 ## Retention
 
@@ -150,8 +175,10 @@ to your deployment.
 Nūr does not phone home. However, if you configure an external LLM backend
 (MiniMax, OpenAI-compatible, etc.), **every turn sends the assembled
 prompt — which includes retrieved memory, profiles, and relationship
-context — to that provider**. Review the provider's data-handling policy
-before enabling it for real users.
+context — to that provider**. Life History digestion can also call the
+configured LLM backend when available, sending the pasted text or file
+summary being digested. Review the provider's data-handling policy before
+enabling it for real users.
 
 ## Reporting Privacy Issues
 

@@ -6,7 +6,46 @@ All notable changes to Project Nur are documented here.
 
 ## Unreleased
 
+### Life History
+- Added an identity-level Life History / Evolution Core backed by
+  `data/shared/life_history.db`.
+- Added admin intake for pasted formative text and local text/Markdown files
+  inside `tools_workspace`.
+- Added evolution observability in `/admin` → **Life**: experience counts,
+  experience ledger, evolution timeline, current beliefs, and drive values.
+- Added deterministic fallback digestion that can record belief revisions,
+  drive changes, self-trait observations, and future-behavior tendencies.
+
+### Admin
+- Added readable validation/error formatting in the admin console so Pydantic
+  validation failures do not surface as `[object Object]`.
+
+### Validation
+- F-009: Rejected invalid admin runtime numeric values before config saves.
+
+### API
+- F-010: Made LLM connection checks return `ok:false` unless mock or a live
+  round trip succeeds.
+- F-011: Converted chat session backpressure `RuntimeError`s to structured
+  JSON 503 responses.
+
+### A11y
+- F-002: Added an accessible name to the chat message textarea.
+- F-004: Added a semantic `main` landmark to the web shell.
+- F-005: Changed the visual top bar to a semantic `header`.
+- F-006: Added a visible top-level `h1` in the initial chat state.
+- F-007: Added an accessible name to the icon-only send button.
+
+### Polish
+- F-001: Returned a non-empty favicon response from `/favicon.ico`.
+- F-003: Added a document meta description to the web shell.
+- F-008: Disabled the send button while the composer is blank.
+
 ### Documentation
+- Documented the Life History layer across README, overview, architecture,
+  deployment/admin, privacy, and security docs, including the important
+  distinction that `life_history.db` is shared assistant identity data and is
+  not removed by per-user deletion.
 - Consolidated public documentation around canonical reader paths:
   `README.md`, `docs/OVERVIEW.md`, `docs/ARCHITECTURE.md`,
   `docs/DEPLOYMENT_AND_ADMIN.md`, `SECURITY.md`, and `PRIVACY.md`.

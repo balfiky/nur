@@ -61,6 +61,25 @@ Nūr stores relational state:
 
 The LLM still writes the words. Nūr changes the state those words come from.
 
+## Life History And Evolution
+
+Nūr also has an early **Life History** layer for formative material: pasted
+texts, notes, essays, and local text/Markdown files. This is not just a
+summarizer. It records an experience, then writes an inspectable evolution
+trace: belief shifts, drive changes, self-trait observations, and future
+behavior tendencies.
+
+That means the project now has two distinct continuity layers:
+
+- **Relational continuity:** how Nūr remembers people, tension, repair, and
+  unfinished business.
+- **Identity continuity:** how Nūr records experiences that may change its
+  worldview, motivations, and self-model over time.
+
+This layer is intentionally experimental. Today it is observable in
+`/admin` → **Life** and stored under `data/shared/life_history.db`; deeper
+influence on normal chat behavior is still an active development area.
+
 ## Build With It
 
 Use Nūr if you want to experiment with:
@@ -68,6 +87,7 @@ Use Nūr if you want to experiment with:
 - emotionally persistent AI companions
 - long-running personal assistants
 - relationship-aware agent memory
+- formative experience and worldview tracking
 - inspectable affective state
 - rupture, repair, and commitment tracking
 - safer stateful tool use around LLMs
@@ -170,7 +190,7 @@ Before exposing Nūr beyond localhost:
 ## Common Commands
 
 ```bash
-python3 -m pytest                                # full suite (1432 tests, ~50s)
+python3 -m pytest                                # full suite
 python3 -m pytest tests/test_interface.py -q     # focused interface tests
 python3 -m evals --backend mock --tag phase11    # offline behavioral eval pack
 python3 -m build --sdist --wheel                 # build wheel and sdist
@@ -190,4 +210,4 @@ docs/       Public docs, design docs, diagrams, research notes
 
 ## Current Status
 
-Version `0.26.2`. 1464 tests. Reproducible eval evidence is intentionally narrow: relationship memory is load-bearing under the current Phase 11 scenarios. The project does not yet claim human-likeness, therapeutic value, or psychological validity.
+Version `0.26.2`. Reproducible eval evidence is intentionally narrow: relationship memory is load-bearing under the current Phase 11 scenarios. The Life History layer records formative experiences and observable self-change, but does not yet prove an independent or human-like character. The project does not claim human-likeness, therapeutic value, consciousness, or psychological validity.

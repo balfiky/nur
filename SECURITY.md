@@ -37,6 +37,9 @@ extra scrutiny:
   (`relationship_events`), open loops (`open_loops`), and semantic preferences
   (`semantic_memories`). The shared self-model lives in
   `data/shared/self_model.db`. See [PRIVACY.md](PRIVACY.md) for full layout.
+- `runtime/life_history.py` — shared identity-level experience and evolution
+  storage in `data/shared/life_history.db`. Pasted text and local-file
+  excerpts can be persisted as evidence for belief/drive changes.
 - `runtime_config.yaml` — may contain API keys. The secret fields
   (enumerated in `runtime/config.py:_SECRET_FIELDS`) are `telegram_token`,
   `llm_api_key`, `minimax_api_key`, and `api_key`. Keep real values out of
@@ -48,8 +51,9 @@ extra scrutiny:
 - `runtime/channels/telegram.py` — allowlist logic controls who can chat.
   Misconfiguration exposes the system to arbitrary Telegram users.
 - `/admin` — operator console for configuration, diagnostics, redacted export,
-  backup, guarded session reset, and guarded user deletion. Set `api_key`
-  before exposing the server beyond localhost.
+  backup, guarded session reset, guarded user deletion, skill management,
+  and Life History intake/observability. Set `api_key` before exposing the
+  server beyond localhost.
 
 ## Agentic Tool Runtime
 
@@ -62,6 +66,8 @@ default** (`tools_enabled: false`). When you turn them on:
 - Filesystem tools are sandboxed to
   `tools_workspace` — paths that resolve outside that directory are
   refused. The default workspace is `<data_dir>/workspace`.
+- Life History local-file intake also reads only from `tools_workspace`;
+  operators should treat that workspace as readable by the assistant runtime.
 - `shell.run_command` is a **separate** opt-in via `shell_tool_enabled: true`
   because subprocess execution has a larger blast radius than bounded
   file I/O.

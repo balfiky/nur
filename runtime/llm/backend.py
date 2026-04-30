@@ -12,6 +12,7 @@ _THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 
 from core.provider_client import FastChatCompletionsClient
 from core.dual_process.generator import LLMBackend, MockLLMBackend
+from runtime.security import validate_http_url
 
 
 class OpenAICompatibleLLMBackend:
@@ -34,7 +35,12 @@ class OpenAICompatibleLLMBackend:
             raise ValueError("OpenAI-compatible backend requires llm_base_url")
         if not model:
             raise ValueError("OpenAI-compatible backend requires llm_model")
-        self._base_url = base_url.rstrip("/").removesuffix("/chat/completions")
+        safe_base_url = validate_http_url(
+            base_url,
+            allow_loopback=True,
+            allow_private_env="NUR_ALLOW_PRIVATE_LLM_URLS",
+        )
+        self._base_url = safe_base_url.rstrip("/").removesuffix("/chat/completions")
         self._model = model
         self._timeout = timeout
         self._session = requests.Session()

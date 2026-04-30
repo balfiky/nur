@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import platform
+import secrets
 import shutil
 import sys
 import time
@@ -24,6 +25,7 @@ from pipeline import CognitivePipeline
 from runtime.config import RuntimeConfig
 from runtime.debug.api import _debug_to_dict as _serialize_debug
 from runtime.llm.backend import create_llm_backend
+from runtime.security import public_bind_requires_auth
 from runtime.sessions.manager import SessionManager
 from runtime.sessions.user_session import UserSession
 from runtime.tools import create_tool_executor
@@ -137,6 +139,9 @@ app = FastAPI(
     title="Project Nūr",
     version="1.0.0",
     lifespan=_lifespan,
+    docs_url=None if os.environ.get("NUR_DISABLE_DOCS") else "/docs",
+    redoc_url=None if os.environ.get("NUR_DISABLE_DOCS") else "/redoc",
+    openapi_url=None if os.environ.get("NUR_DISABLE_DOCS") else "/openapi.json",
     description=(
         "Project Nūr cognitive API. Legacy endpoints at the root serve the "
         "bundled web UI. The stable integration surface lives under /v1 "
@@ -146,6 +151,24 @@ app = FastAPI(
 
 WEB_PLATFORM = "web"
 RUNTIME_CONFIG_PATH = "runtime_config.yaml"
+_MAX_CHAT_MESSAGE_CHARS = 16_000
+_MAX_ID_CHARS = 128
+_MAX_WS_MESSAGE_CHARS = 20_000
+_HTML_SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "same-origin",
+    "X-Frame-Options": "DENY",
+    "Content-Security-Policy": (
+        "default-src 'self'; "
+        "connect-src 'self' http://127.0.0.1:* http://localhost:*; "
+        "img-src 'self' data:; "
+        "style-src 'self' 'unsafe-inline'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "base-uri 'none'; "
+        "form-action 'self'; "
+        "frame-ancestors 'none'"
+    ),
+}
 
 _session_manager: SessionManager | None = None
 _pipeline_override: CognitivePipeline | None = None
@@ -167,7 +190,7 @@ def _verify_bearer(token: str | None) -> None:
     config is re-read on every call so rotating the key through POST /config
     takes effect immediately.
     """
-    expected = _current_config_for_middleware().api_key
+    expected = str(_current_config_for_middleware().api_key or "")
     if not expected:
         return
     if not token:
@@ -176,7 +199,7 @@ def _verify_bearer(token: str | None) -> None:
             detail="Missing bearer token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if token != expected:
+    if not secrets.compare_digest(token, expected):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid bearer token",
@@ -217,9 +240,9 @@ app.include_router(
 
 
 class ChatRequest(BaseModel):
-    message: str
-    user_id: str = "default"
-    chat_id: str = "default"
+    message: str = Field(..., min_length=1, max_length=_MAX_CHAT_MESSAGE_CHARS)
+    user_id: str = Field("default", min_length=1, max_length=_MAX_ID_CHARS)
+    chat_id: str = Field("default", min_length=1, max_length=_MAX_ID_CHARS)
 
 
 class ChatResponse(BaseModel):
@@ -228,35 +251,35 @@ class ChatResponse(BaseModel):
 
 
 class EndSessionRequest(BaseModel):
-    user_id: str = "default"
-    chat_id: str = "default"
+    user_id: str = Field("default", min_length=1, max_length=_MAX_ID_CHARS)
+    chat_id: str = Field("default", min_length=1, max_length=_MAX_ID_CHARS)
 
 
 class RestRequest(BaseModel):
     hours: float = 1.0
-    user_id: str = "default"
-    chat_id: str = "default"
+    user_id: str = Field("default", min_length=1, max_length=_MAX_ID_CHARS)
+    chat_id: str = Field("default", min_length=1, max_length=_MAX_ID_CHARS)
 
 
 class ConfigUpdateRequest(BaseModel):
     data_dir: str = "data"
-    max_queue_per_user: int = 3
-    max_active_sessions: int = 10
-    session_timeout_seconds: float = 1800.0
+    max_queue_per_user: int = Field(3, ge=1)
+    max_active_sessions: int = Field(10, ge=1)
+    session_timeout_seconds: float = Field(1800.0, ge=1)
     console_enabled: bool = True
     telegram_allowlist: list[str] = Field(default_factory=list)
-    telegram_poll_timeout: int = 30
-    dedupe_ttl: float = 60.0
+    telegram_poll_timeout: int = Field(30, ge=1)
+    dedupe_ttl: float = Field(60.0, ge=0)
     llm_backend: str = "auto"
     llm_base_url: str = ""
     llm_model: str = ""
     debug_host: str = "127.0.0.1"
-    debug_port: int = 8077
+    debug_port: int = Field(8077, ge=1, le=65535)
     proactive_enabled: bool = False
-    proactive_idle_threshold: float = 300.0
-    proactive_max_per_session: int = 3
-    proactive_cooldown: float = 300.0
-    proactive_check_interval: float = 60.0
+    proactive_idle_threshold: float = Field(300.0, ge=0)
+    proactive_max_per_session: int = Field(3, ge=0)
+    proactive_cooldown: float = Field(300.0, ge=0)
+    proactive_check_interval: float = Field(60.0, ge=1)
     telegram_token: str = ""
     llm_api_key: str = ""
     minimax_api_key: str = ""
@@ -334,6 +357,19 @@ class AdminSkillImportRequest(BaseModel):
     source_path: str | None = Field(default=None, max_length=4096)
     skill_markdown: str | None = Field(default=None, max_length=250000)
     name_hint: str = Field(default="", max_length=128)
+
+
+class AdminLifeTextRequest(BaseModel):
+    title: str = Field(..., min_length=1, max_length=180)
+    text: str = Field(..., min_length=1, max_length=250000)
+    source_type: str = Field("pasted_text", min_length=1, max_length=80)
+    participants: list[str] = Field(default_factory=list, max_length=20)
+
+
+class AdminLifeFileRequest(BaseModel):
+    file_path: str = Field(..., min_length=1, max_length=4096)
+    title: str = Field(default="", max_length=180)
+    participants: list[str] = Field(default_factory=list, max_length=20)
 
 
 class AdminSoulDraftRequest(BaseModel):
@@ -460,7 +496,13 @@ def set_pipeline(pipeline: CognitivePipeline | None) -> None:
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
     from fastapi.responses import Response
-    return Response(status_code=204)
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
+        '<rect width="32" height="32" rx="6" fill="#13131d"/>'
+        '<circle cx="16" cy="16" r="8" fill="#b8a0ff"/>'
+        "</svg>"
+    )
+    return Response(content=svg, media_type="image/svg+xml")
 
 
 @app.post("/chat", dependencies=[Depends(_require_bearer)])
@@ -471,15 +513,24 @@ async def chat(req: ChatRequest):
             return ChatResponse(response=result.response, debug=_serialize_debug(result.debug))
 
         manager = get_session_manager()
-        response = await manager.handle_message(
-            WEB_PLATFORM,
-            req.user_id,
-            req.chat_id,
-            req.message,
-        )
+        try:
+            response = await manager.handle_message(
+                WEB_PLATFORM,
+                req.user_id,
+                req.chat_id,
+                req.message,
+            )
+        except RuntimeError as exc:
+            _log.warning("Chat unavailable: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(exc),
+            ) from exc
         session = await manager.ensure_session(WEB_PLATFORM, req.user_id, req.chat_id)
         debug = _serialize_debug(session.last_debug) if session.last_debug else {}
         return ChatResponse(response=response, debug=debug)
+    except HTTPException:
+        raise
     except Exception as exc:
         _log.exception("Chat error")
         from fastapi.responses import JSONResponse
@@ -665,7 +716,7 @@ async def admin_test_llm(req: AdminLLMTestRequest) -> dict:
         }
 
     result = {
-        "ok": True,
+        "ok": False,
         "checked": "llm",
         "live": False,
         "backend": config.llm_backend,
@@ -676,6 +727,7 @@ async def admin_test_llm(req: AdminLLMTestRequest) -> dict:
             backend = create_llm_backend(config)
             sample = backend.generate("Reply with ok.", "health check")
             result.update({
+                "ok": True,
                 "live": True,
                 "sample_response": sample[:200],
             })
@@ -685,6 +737,8 @@ async def admin_test_llm(req: AdminLLMTestRequest) -> dict:
                 "live": True,
                 "error": _redact_error(str(exc), config),
             })
+    else:
+        result["error"] = "Live LLM test was not run; set live=true to verify connectivity."
     return result
 
 
@@ -995,6 +1049,104 @@ async def admin_disable_skill(skill_id: str) -> dict:
     return {"ok": True, "skill": skill}
 
 
+@app.get("/admin/life", dependencies=[Depends(_require_bearer)])
+async def admin_life_overview() -> dict:
+    from runtime.life_history import LifeHistoryError, LifeHistoryStore
+
+    try:
+        with LifeHistoryStore(_load_runtime_config()) as store:
+            return store.overview()
+    except LifeHistoryError as exc:
+        _raise_life_http_error(exc)
+
+
+@app.post("/admin/life/experiences/text", dependencies=[Depends(_require_bearer)])
+async def admin_life_ingest_text(req: AdminLifeTextRequest) -> dict:
+    from runtime.life_history import LifeHistoryError, LifeHistoryStore
+
+    config = _load_runtime_config()
+    backend = _optional_life_llm_backend(config)
+    try:
+        with LifeHistoryStore(config) as store:
+            result = store.ingest_pasted_text(
+                title=req.title,
+                text=req.text,
+                source_type=req.source_type,
+                participants=req.participants,
+                llm_client=backend,
+            )
+    except LifeHistoryError as exc:
+        _raise_life_http_error(exc)
+    finally:
+        _close_optional_backend(backend)
+    return {"ok": True, **result}
+
+
+@app.post("/admin/life/experiences/file", dependencies=[Depends(_require_bearer)])
+async def admin_life_ingest_file(req: AdminLifeFileRequest) -> dict:
+    from runtime.life_history import LifeHistoryError, LifeHistoryStore
+
+    config = _load_runtime_config()
+    backend = _optional_life_llm_backend(config)
+    try:
+        with LifeHistoryStore(config) as store:
+            result = store.ingest_local_file(
+                file_path=req.file_path,
+                title=req.title,
+                participants=req.participants,
+                llm_client=backend,
+            )
+    except LifeHistoryError as exc:
+        _raise_life_http_error(exc)
+    finally:
+        _close_optional_backend(backend)
+    return {"ok": True, **result}
+
+
+@app.get("/admin/life/experiences", dependencies=[Depends(_require_bearer)])
+async def admin_life_experiences(limit: int = 50) -> dict:
+    from runtime.life_history import LifeHistoryError, LifeHistoryStore
+
+    try:
+        with LifeHistoryStore(_load_runtime_config()) as store:
+            return {"experiences": store.list_experiences(limit=limit)}
+    except LifeHistoryError as exc:
+        _raise_life_http_error(exc)
+
+
+@app.get("/admin/life/evolution", dependencies=[Depends(_require_bearer)])
+async def admin_life_evolution(limit: int = 100) -> dict:
+    from runtime.life_history import LifeHistoryError, LifeHistoryStore
+
+    try:
+        with LifeHistoryStore(_load_runtime_config()) as store:
+            return {"evolution_events": store.list_evolution(limit=limit)}
+    except LifeHistoryError as exc:
+        _raise_life_http_error(exc)
+
+
+@app.get("/admin/life/beliefs", dependencies=[Depends(_require_bearer)])
+async def admin_life_beliefs(limit: int = 100) -> dict:
+    from runtime.life_history import LifeHistoryError, LifeHistoryStore
+
+    try:
+        with LifeHistoryStore(_load_runtime_config()) as store:
+            return {"beliefs": store.list_beliefs(limit=limit)}
+    except LifeHistoryError as exc:
+        _raise_life_http_error(exc)
+
+
+@app.get("/admin/life/drives", dependencies=[Depends(_require_bearer)])
+async def admin_life_drives() -> dict:
+    from runtime.life_history import LifeHistoryError, LifeHistoryStore
+
+    try:
+        with LifeHistoryStore(_load_runtime_config()) as store:
+            return {"drives": store.list_drives()}
+    except LifeHistoryError as exc:
+        _raise_life_http_error(exc)
+
+
 @app.post("/session/end", dependencies=[Depends(_require_bearer)])
 async def end_session(req: EndSessionRequest) -> dict:
     if _pipeline_override is not None:
@@ -1033,28 +1185,58 @@ async def rest(req: RestRequest) -> dict:
 async def websocket_chat(ws: WebSocket) -> None:
     # FastAPI does not run route dependencies for WebSocket handlers, so do
     # the bearer-token check inline. Browser WS clients cannot set custom
-    # headers, so also accept the token as a ?token=... query param.
-    expected = _current_config_for_middleware().api_key
+    # headers; if no Authorization header is present, the first received JSON
+    # message must carry {"token": "..."} before any chat payload is handled.
+    expected = str(_current_config_for_middleware().api_key or "")
+    authed = False
     if expected:
         header_token: str | None = None
         auth_header = ws.headers.get("authorization")
         if auth_header and auth_header.lower().startswith("bearer "):
             header_token = auth_header.split(" ", 1)[1].strip()
-        query_token = ws.query_params.get("token")
-        supplied = header_token or query_token
-        if supplied != expected:
-            # Close with a policy-violation code before accepting so
-            # unauthenticated clients cannot hold a connection open.
+        authed = bool(header_token and secrets.compare_digest(header_token, expected))
+        if header_token and not authed:
             await ws.close(code=status.WS_1008_POLICY_VIOLATION)
             return
     await ws.accept()
     try:
-        while True:
+        pending_msg: dict | None = None
+        if expected and not authed:
             raw = await ws.receive_text()
-            msg = json.loads(raw)
+            if len(raw) > _MAX_WS_MESSAGE_CHARS:
+                await ws.close(code=status.WS_1009_MESSAGE_TOO_BIG)
+                return
+            pending_msg = json.loads(raw)
+            supplied = str(pending_msg.pop("token", "") or "")
+            auth_value = str(pending_msg.pop("authorization", "") or "")
+            if not supplied and auth_value.lower().startswith("bearer "):
+                supplied = auth_value.split(" ", 1)[1].strip()
+            if not secrets.compare_digest(supplied, expected):
+                await ws.close(code=status.WS_1008_POLICY_VIOLATION)
+                return
+            if not pending_msg.get("message"):
+                await ws.send_text(json.dumps({"type": "auth", "ok": True}))
+                pending_msg = None
+
+        while True:
+            if pending_msg is not None:
+                msg = pending_msg
+                pending_msg = None
+            else:
+                raw = await ws.receive_text()
+                if len(raw) > _MAX_WS_MESSAGE_CHARS:
+                    await ws.close(code=status.WS_1009_MESSAGE_TOO_BIG)
+                    return
+                msg = json.loads(raw)
             user_id = msg.get("user_id", "default")
             chat_id = msg.get("chat_id", "default")
             user_message = msg.get("message", "")
+            if len(str(user_id)) > _MAX_ID_CHARS or len(str(chat_id)) > _MAX_ID_CHARS:
+                await ws.close(code=status.WS_1008_POLICY_VIOLATION)
+                return
+            if not user_message or len(str(user_message)) > _MAX_CHAT_MESSAGE_CHARS:
+                await ws.close(code=status.WS_1009_MESSAGE_TOO_BIG)
+                return
 
             if _pipeline_override is not None:
                 result = _pipeline_override.process(user_message, user_id=user_id)
@@ -1108,17 +1290,18 @@ def admin_asset(asset_name: str):
 
 
 def _index_response() -> HTMLResponse:
-    static_dir = os.path.join(os.path.dirname(__file__), "static")
-    index_path = os.path.join(static_dir, "index.html")
-    with open(index_path, encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    return _html_static_response("index.html")
 
 
 def _admin_response() -> HTMLResponse:
+    return _html_static_response("admin.html")
+
+
+def _html_static_response(filename: str) -> HTMLResponse:
     static_dir = os.path.join(os.path.dirname(__file__), "static")
-    admin_path = os.path.join(static_dir, "admin.html")
-    with open(admin_path, encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    path = os.path.join(static_dir, filename)
+    with open(path, encoding="utf-8") as f:
+        return HTMLResponse(content=f.read(), headers=_HTML_SECURITY_HEADERS)
 
 
 def _static_asset_response(filename: str, media_type: str):
@@ -1127,13 +1310,37 @@ def _static_asset_response(filename: str, media_type: str):
     static_dir = os.path.join(os.path.dirname(__file__), "static")
     path = os.path.join(static_dir, filename)
     with open(path, "rb") as f:
-        return Response(content=f.read(), media_type=media_type)
+        return Response(
+            content=f.read(),
+            media_type=media_type,
+            headers=_HTML_SECURITY_HEADERS,
+        )
 
 
 def _raise_skill_http_error(exc: Exception) -> None:
     detail = str(exc)
     code = 404 if "not found" in detail.lower() else 400
     raise HTTPException(status_code=code, detail=detail)
+
+
+def _raise_life_http_error(exc: Exception) -> None:
+    detail = str(exc)
+    code = 404 if "not found" in detail.lower() else 400
+    raise HTTPException(status_code=code, detail=detail)
+
+
+def _optional_life_llm_backend(config: RuntimeConfig):
+    """Return an LLM backend for richer digestion, or None for heuristics."""
+    try:
+        return create_llm_backend(config)
+    except Exception:
+        return None
+
+
+def _close_optional_backend(backend) -> None:
+    close = getattr(backend, "close", None)
+    if callable(close):
+        close()
 
 
 def _session_key(user_id: str, chat_id: str) -> str:
@@ -2231,6 +2438,12 @@ def main() -> None:
     import uvicorn
 
     args = _parse_web_args()
+    config = _load_runtime_config()
+    if public_bind_requires_auth(args.host, config.api_key):
+        raise SystemExit(
+            "Refusing to bind nur-web to a non-loopback host without api_key. "
+            "Set api_key in runtime_config.yaml first."
+        )
     uvicorn.run("interface.api:app", host=args.host, port=args.port)
 
 

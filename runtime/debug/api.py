@@ -11,23 +11,46 @@ Endpoints:
 
 from __future__ import annotations
 
+import secrets
 import time
+from collections.abc import Callable
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, status
 
 from runtime.sessions.manager import SessionManager
 
 
-def create_debug_app(session_manager: SessionManager) -> FastAPI:
+def create_debug_app(
+    session_manager: SessionManager,
+    api_key_getter: Callable[[], str] | None = None,
+) -> FastAPI:
     """Build a FastAPI application wired to a live SessionManager."""
 
     app = FastAPI(title="Nūr Runtime Debug", version="0.9.0")
+
+    async def require_auth(authorization: str | None = Header(default=None)) -> None:
+        expected = str(api_key_getter() if api_key_getter is not None else "")
+        if not expected:
+            return
+        if not authorization or not authorization.lower().startswith("bearer "):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Missing bearer token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        token = authorization.split(" ", 1)[1].strip()
+        if not secrets.compare_digest(token, expected):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid bearer token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
     # ------------------------------------------------------------------
     # GET /sessions — list active sessions
     # ------------------------------------------------------------------
 
-    @app.get("/sessions")
+    @app.get("/sessions", dependencies=[Depends(require_auth)])
     async def list_sessions() -> list[dict]:
         sessions = session_manager.active_sessions
         now = time.time()
@@ -48,7 +71,7 @@ def create_debug_app(session_manager: SessionManager) -> FastAPI:
     # GET /sessions/{session_key}/debug — per-session debug view
     # ------------------------------------------------------------------
 
-    @app.get("/sessions/{session_key}/debug")
+    @app.get("/sessions/{session_key}/debug", dependencies=[Depends(require_auth)])
     async def session_debug(session_key: str) -> dict:
         sessions = session_manager.active_sessions
         session = sessions.get(session_key)
@@ -96,7 +119,7 @@ def create_debug_app(session_manager: SessionManager) -> FastAPI:
     # POST /sessions/{session_key}/reset — evict session
     # ------------------------------------------------------------------
 
-    @app.post("/sessions/{session_key}/reset")
+    @app.post("/sessions/{session_key}/reset", dependencies=[Depends(require_auth)])
     async def reset_session(session_key: str) -> dict:
         sessions = session_manager.active_sessions
         if session_key not in sessions:

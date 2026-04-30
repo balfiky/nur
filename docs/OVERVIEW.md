@@ -42,11 +42,20 @@ Concretely, Nūr maintains:
   mechanism the system uses to profile users
 - a relationship layer that tracks rupture, repair, commitments, and
   unresolved loops across sessions
+- a life-history layer for formative material, where texts and files can
+  become experiences that revise beliefs, drives, and self-observations
 - explicit decision points — appraisal, strategy, deliberation,
   defense — each testable in isolation
 
 The LLM still writes the final language. The cognitive layer changes
 what the LLM is told to write against.
+
+The project should not be read as "more memory features piled on top of a
+chatbot." The product narrative is narrower: Nūr is an experiment in
+continuity. Relationship memory asks how an assistant changes toward a
+person. Life history asks how an assistant records experiences that may
+change its own worldview. Both layers are inspectable; neither is evidence
+of consciousness.
 
 ## 2. Theory stance
 
@@ -85,6 +94,16 @@ trust increments from positive events are small; decrements from
 negative events are 7.5× larger at current configuration. Events above
 an intensity threshold bypass confidence filtering and write directly
 to long-term storage.
+
+Life history is a separate identity-level store under
+`data/shared/life_history.db`. It is append-oriented: an experience event
+records what Nūr encountered, and evolution events record what changed
+afterward. The first supported inputs are pasted text and local
+text/Markdown files. Current outputs include belief revisions, drive
+changes, self-trait observations, and future-behavior tendencies. This is
+observable in `/admin` → **Life**. It is not yet a claim that every chat
+turn is fully governed by those revisions; closing that behavior loop is
+future work.
 
 For structural detail — per-turn stage order, LLM call accounting,
 persistence layout, auth/tool gates, and the full component claim map —
@@ -159,6 +178,10 @@ Stated up front so no reader has to infer it:
   follow-on that has not yet been done.
 - **No multi-party conversation support.** Single-user scoping is
   architectural, not incidental.
+- **No completed "self-independent character" loop.** Nūr can now record
+  formative experiences and observe belief/drive changes, but autonomous
+  learning, self-directed goals, and strong runtime behavior changes from
+  the life-history layer are not complete.
 
 ## 7. Running it
 

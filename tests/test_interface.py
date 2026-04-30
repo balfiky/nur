@@ -14,6 +14,7 @@ from interface.api import (
     chat,
     debug,
     end_session,
+    favicon,
     get_config,
     index,
     rest,
@@ -281,6 +282,24 @@ class TestIndexPage:
         assert "clearGenericKey" in html
         assert "wizardPreset === 'local' && !apiKey" in html
         assert "loadSettings({ loadSoul: false })" in html
+
+    async def test_static_shell_has_accessibility_and_metadata_hooks(self):
+        html = index().body.decode()
+        assert '<meta name="description"' in html
+        assert '<header class="header">' in html
+        assert '<main class="main">' in html
+        assert '<h1 class="empty-title" id="emptyTitle">' in html
+        assert 'id="msgInput"' in html
+        assert 'aria-label="Message composer"' in html
+        assert 'id="sendBtn"' in html
+        assert 'aria-label="Send message"' in html
+        assert 'id="sendBtn" onclick="sendMessage()" aria-label="Send message" disabled' in html
+        assert "function updateSendButtonState()" in html
+
+    async def test_favicon_returns_body(self):
+        resp = await favicon()
+        assert resp.status_code == 200
+        assert resp.body
 
     async def test_admin_route_serves_same_shell(self):
         resp = interface_api.admin_index()
@@ -928,8 +947,10 @@ class TestEntryPoints:
             "port": 8000,
         }
 
-    def test_main_honors_host_and_port_flags(self, monkeypatch):
+    def test_main_honors_host_and_port_flags(self, monkeypatch, tmp_path):
         captured: dict[str, object] = {}
+        config_path = tmp_path / "runtime_config.yaml"
+        RuntimeConfig(api_key="test-token").write_yaml(str(config_path))
 
         def fake_run(app_path: str, *, host: str, port: int) -> None:
             captured["host"] = host
@@ -937,6 +958,7 @@ class TestEntryPoints:
 
         monkeypatch.setattr("uvicorn.run", fake_run)
         monkeypatch.setattr("sys.argv", ["nur-web", "--host", "0.0.0.0", "--port", "9001"])
+        monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(config_path))
 
         interface_api.main()
 

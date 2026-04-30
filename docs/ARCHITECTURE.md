@@ -14,6 +14,7 @@ assistant's stance is shaped by explicit state outside the model:
 - short-term and long-term memory
 - relationship-arc memory
 - semantic memory
+- identity-level life history and evolution records
 - self/other/topic profiles
 - bounded deliberation and self-check gates
 - runtime/session safety boundaries
@@ -77,12 +78,46 @@ Persistence is deliberately split:
 | `data/<platform>_<user_id>/nur.db` | per-user long-term emotional, semantic, relationship, and profile data |
 | `data/<platform>_<user_id>/sessions/<chat_id>.json` | per-chat session engine state |
 | `data/shared/self_model.db` | assistant self-model shared across users |
+| `data/shared/life_history.db` | shared experience/evolution ledger for formative material |
 | `runtime_config.yaml` | operator runtime configuration (current working directory) |
 | `$NUR_CONFIG_DIR/soul.yaml` | optional user-owned identity override for wheel installs |
 
 User deletion removes per-user data and evicts active sessions. It
-intentionally does not erase the shared assistant self-model. See
-[PRIVACY.md](../PRIVACY.md) for the deletion contract.
+intentionally does not erase shared assistant identity stores
+(`self_model.db`, `life_history.db`). See [PRIVACY.md](../PRIVACY.md)
+for the deletion contract.
+
+## Life History And Evolution
+
+The Life History subsystem is an identity-level ledger, not per-user chat
+memory. Code entry point: `runtime/life_history.py`.
+
+Supported v1 inputs:
+
+| Input | Path |
+|---|---|
+| Pasted text | `POST /admin/life/experiences/text` |
+| Local text/Markdown file | `POST /admin/life/experiences/file` |
+
+Local file intake is restricted to `RuntimeConfig.resolved_tools_workspace`.
+The canonical store is SQLite at `data/shared/life_history.db`; graph and
+vector stores are intentionally deferred projections, not the source of
+truth.
+
+Core records:
+
+| Record | Purpose |
+|---|---|
+| `experience_events` | what Nūr encountered: title, source, participants, summary, salience, emotional impact |
+| `evolution_events` | what changed afterward: belief, drive, self-trait, worldview/future behavior |
+| `beliefs` / `belief_revisions` | current worldview statements plus before/after revision history |
+| `drive_states` / `drive_changes` | persistent motivation values and their change log |
+
+The admin console exposes this as `/admin` → **Life**: summary counts,
+experience ledger, evolution timeline, beliefs, and drives. This is the
+observability surface for character drift. The current phase records and
+shows evolution; making every generation strongly governed by that layer is
+future work.
 
 ## LLM Boundary
 

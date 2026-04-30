@@ -57,6 +57,17 @@ class TestRequestsWebProviderFetch:
         fake_resp.__enter__.assert_called_once()
         fake_resp.__exit__.assert_called_once()
 
+    def test_fetch_blocks_localhost_url(self):
+        provider = RequestsWebProvider()
+        with patch.object(provider._session, "get") as mock_get:
+            try:
+                provider.fetch("http://127.0.0.1:8080/private")
+            except ValueError as exc:
+                assert "blocked" in str(exc) or "local" in str(exc)
+            else:
+                raise AssertionError("localhost fetch was not blocked")
+        mock_get.assert_not_called()
+
     def test_close_releases_session(self):
         provider = RequestsWebProvider()
         with patch.object(provider._session, "close") as mock_close:
