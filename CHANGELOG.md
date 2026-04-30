@@ -47,9 +47,8 @@ All notable changes to Project Nur are documented here.
 - F-009: Rejected invalid admin runtime numeric values before config saves.
 
 ### API
-- Made `nur-web --host 0.0.0.0` generate and persist a bearer `api_key`
-  automatically when missing, then print the token for the operator instead of
-  failing with a manual YAML-editing requirement.
+- Removed token generation and public-bind startup blocking from `nur-web`;
+  bearer auth remains optional when `api_key` is explicitly configured.
 - F-010: Made LLM connection checks return `ok:false` unless mock or a live
   round trip succeeds.
 - F-011: Converted chat session backpressure `RuntimeError`s to structured
@@ -68,7 +67,8 @@ All notable changes to Project Nur are documented here.
 - F-008: Disabled the send button while the composer is blank.
 
 ### Documentation
-- Documented the auto-generated public-bind API token flow.
+- Documented the no-token default startup path and clarified that `api_key` is
+  optional hardening, not part of normal first-run setup.
 - Replaced the unpublished `pip install project-nur` quickstart path with a
   GitHub/source install path until a public PyPI wheel exists.
 - Documented the Life History layer across README, overview, architecture,

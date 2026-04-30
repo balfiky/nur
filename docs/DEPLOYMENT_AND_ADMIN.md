@@ -46,16 +46,15 @@ nur-web
 Nūr is not published on PyPI yet. `pip install project-nur` will only work
 after a public wheel is released.
 
-For local-only use, the default `nur-web` command binds to `127.0.0.1` and
-does not require an API token. For LAN/public testing:
+For local-only use, the default `nur-web` command binds to `127.0.0.1`. For
+LAN/public testing:
 
 ```bash
 nur-web --host 0.0.0.0 --port 8000
 ```
 
-If `runtime_config.yaml` has no `api_key`, Nūr generates one, saves it, prints
-it once, and continues starting. Paste that value into **/admin → API Token**
-in the browser. Do not expose the service without that token.
+No API token is required by default. If you later set `api_key`, the browser
+admin console has an **API Token** button for that hardened mode.
 
 ## NUR_CONFIG_DIR — keeping your identity across upgrades
 
@@ -144,8 +143,8 @@ runtime tool settings, workspace restrictions, auth posture, and shell opt-in.
 
 Before binding Nūr beyond your own machine:
 
-1. Confirm `api_key` is non-empty. `nur-web --host 0.0.0.0` generates one
-   automatically when missing.
+1. Leave `api_key` empty for the simplest personal setup, or set it only when
+   you deliberately want bearer-token auth.
 2. Keep `cors_origins: []` unless a separate browser origin needs access.
 3. Keep `tools_enabled: false` until you explicitly need agentic tools.
 4. Keep `shell_tool_enabled: false` unless every authenticated user is trusted.
@@ -167,7 +166,7 @@ Important fields:
 
 | Field | Production guidance |
 |-------|---------------------|
-| `api_key` | Bearer token for exposed servers. `nur-web --host 0.0.0.0` generates one automatically when missing. It protects `/admin`, `/chat`, `/config`, `/ws`, and `/v1/*` except health/ready. |
+| `api_key` | Optional bearer token for hardened deployments. Empty means no browser/API token flow. When set, it protects `/admin`, `/chat`, `/config`, `/ws`, and `/v1/*` except health/ready. |
 | `llm_backend` | Use `provider` for hosted gateways, `openai_compatible` for local/remote compatible servers, `mock` for offline tests. |
 | `llm_base_url` / `llm_model` | Required for hosted and OpenAI-compatible backends. |
 | `llm_api_key` | Generic provider/gateway key. Prefer local-only YAML or environment injection. |

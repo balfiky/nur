@@ -674,18 +674,7 @@ function authHeaders(extra) {
 async function authedFetch(url, opts) {
   const o = Object.assign({}, opts || {});
   o.headers = authHeaders(o.headers || {});
-  const res = await fetch(url, o);
-  if (res.status !== 401) return res;
-
-  const token = window.prompt('API token required for this server', getApiToken());
-  if (token === null) return res;
-  const trimmed = token.trim();
-  if (!trimmed) return res;
-  setApiToken(trimmed);
-
-  const retry = Object.assign({}, opts || {});
-  retry.headers = authHeaders(retry.headers || {});
-  return fetch(url, retry);
+  return fetch(url, o);
 }
 
 // Auto-resize textarea

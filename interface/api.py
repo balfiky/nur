@@ -25,7 +25,6 @@ from pipeline import CognitivePipeline
 from runtime.config import RuntimeConfig
 from runtime.debug.api import _debug_to_dict as _serialize_debug
 from runtime.llm.backend import create_llm_backend
-from runtime.security import public_bind_requires_auth
 from runtime.sessions.manager import SessionManager
 from runtime.sessions.user_session import UserSession
 from runtime.tools import create_tool_executor
@@ -1604,15 +1603,15 @@ def _admin_config_warnings(config: RuntimeConfig) -> list[dict]:
         warnings.append(_warning("error", "minimax_api_key", "missing_minimax_key", "MiniMax backend requires minimax_api_key or MINIMAX_API_KEY."))
 
     if config.tools_enabled and not config.api_key:
-        warnings.append(_warning("error", "tools_enabled", "tools_without_auth", "Agentic tools are enabled while api_key is empty. Set api_key before exposing this server."))
+        warnings.append(_warning("warning", "tools_enabled", "tools_without_auth", "Agentic tools are enabled with no bearer auth. Keep this instance on a trusted network."))
     if config.shell_tool_enabled and not config.tools_enabled:
         warnings.append(_warning("error", "shell_tool_enabled", "shell_without_tools", "shell_tool_enabled has no effect unless tools_enabled is true."))
     if config.shell_tool_enabled and not config.api_key:
-        warnings.append(_warning("error", "shell_tool_enabled", "shell_without_auth", "Shell tool execution requires a protected admin/API surface."))
+        warnings.append(_warning("warning", "shell_tool_enabled", "shell_without_auth", "Shell tool execution is enabled with no bearer auth. Keep this instance on a trusted network."))
     if config.autonomy_level == "high_risk":
         warnings.append(_warning("warning", "autonomy_level", "high_risk_autonomy", "High-risk autonomy allows the assistant to act with fewer confirmations inside enabled tool scopes."))
     if config.cors_origins and not config.api_key:
-        warnings.append(_warning("error", "cors_origins", "cors_without_auth", "CORS origins are configured while api_key is empty."))
+        warnings.append(_warning("warning", "cors_origins", "cors_without_auth", "CORS origins are configured while api_key is empty."))
     if config.debug_host not in {"127.0.0.1", "localhost", "::1"} and not config.api_key:
         warnings.append(_warning("error", "api_key", "public_bind_without_auth", "Server bind host is not localhost while api_key is empty."))
 
@@ -2433,39 +2432,11 @@ def _parse_web_args(argv: list[str] | None = None):
     return parser.parse_args(argv)
 
 
-def _ensure_public_bind_auth(host: str, config: RuntimeConfig) -> str | None:
-    """Generate a bearer token before exposing a public bind.
-
-    Starting a web server on ``0.0.0.0`` with auth disabled is the unsafe case.
-    Refusing is safe but hostile for first-run setup, so create the missing
-    token, persist it, and print it once for the operator.
-    """
-    if not public_bind_requires_auth(host, config.api_key):
-        return None
-
-    token = secrets.token_urlsafe(48)
-    config.api_key = token
-    os.makedirs(config.data_dir, exist_ok=True)
-    config.write_yaml(RUNTIME_CONFIG_PATH)
-    return token
-
-
 def main() -> None:
     """Launch the standalone web UI on the configured host/port."""
     import uvicorn
 
     args = _parse_web_args()
-    config = _load_runtime_config()
-    generated_token = _ensure_public_bind_auth(args.host, config)
-    if generated_token:
-        print(
-            "\nGenerated a web/API bearer token because nur-web is binding to "
-            f"{args.host}.\n"
-            f"Saved it to {RUNTIME_CONFIG_PATH} as api_key.\n"
-            "Open /admin, click API Token, and paste this value:\n\n"
-            f"{generated_token}\n",
-            file=sys.stderr,
-        )
     uvicorn.run("interface.api:app", host=args.host, port=args.port)
 
 
