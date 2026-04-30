@@ -32,6 +32,11 @@ All notable changes to Project Nur are documented here.
   guidance while keeping scripts/resources non-executable and preserving normal
   tool/auth/sandbox gates.
 
+### Telegram
+- Added `/help` and `/commands`, expanded `/start` and unknown-command replies
+  with the command list, and replaced the stale `/debug` placeholder with an
+  active-session debug summary.
+
 ### Validation
 - F-009: Rejected invalid admin runtime numeric values before config saves.
 

@@ -131,7 +131,7 @@ class TelegramChannel:
     - Allowlist by numeric user ID (empty = allow all)
     - Per-update dedupe with TTL cache
     - Typing indicators resent every 4 s while Nūr processes
-    - Commands: /status, /mental, /new, /reset, /debug
+    - Commands: /help, /status, /mental, /mood, /new, /reset, /debug
     """
 
     def __init__(
@@ -277,7 +277,9 @@ class TelegramChannel:
     ) -> None:
         cmd = text.split()[0].lower().split("@")[0]  # strip @botname suffix
 
-        if cmd == "/status":
+        if cmd in {"/help", "/commands"}:
+            await self._cmd_help(chat_id)
+        elif cmd == "/status":
             await self._cmd_status(user_id, chat_id)
         elif cmd in {"/mental", "/mood"}:
             await self._cmd_mental(user_id, chat_id)
@@ -288,9 +290,18 @@ class TelegramChannel:
         elif cmd == "/debug":
             await self._cmd_debug(user_id, chat_id)
         elif cmd == "/start":
-            await self._client.send_message(chat_id, "Hello. Send me a message.")
+            await self._client.send_message(
+                chat_id,
+                "Hello. Send me a message.\n\n" + _telegram_help_text(),
+            )
         else:
-            await self._client.send_message(chat_id, f"Unknown command: {cmd}")
+            await self._client.send_message(
+                chat_id,
+                f"Unknown command: {cmd}\n\n" + _telegram_help_text(),
+            )
+
+    async def _cmd_help(self, chat_id: int) -> None:
+        await self._client.send_message(chat_id, _telegram_help_text())
 
     async def _cmd_status(self, user_id: str, chat_id: int) -> None:
         session_key = f"telegram:{user_id}:{chat_id}"
@@ -321,7 +332,14 @@ class TelegramChannel:
             f"Mental state: {label}",
             f"Mental health: {_mental_health_label(stability)} ({stability}/100)",
         ]
-        for mod in ("arousal", "valence", "certainty", "bonding", "energy", "resolution"):
+        for mod in (
+            "arousal",
+            "valence",
+            "certainty",
+            "bonding",
+            "energy",
+            "resolution",
+        ):
             val = snap.get(mod, 0.0)
             lines.append(f"  {mod:11s} {_bar(val)} {val:.2f}")
         lines.append(f"Open loops: {len(active_loops)}")
@@ -375,10 +393,44 @@ class TelegramChannel:
         await self._client.send_message(chat_id, message)
 
     async def _cmd_debug(self, user_id: str, chat_id: int) -> None:
-        await self._client.send_message(
-            chat_id,
-            "Debug API not available yet (Phase 4).",
-        )
+        session_key = f"telegram:{user_id}:{chat_id}"
+        session = self._manager.active_sessions.get(session_key)
+        if session is None:
+            await self._client.send_message(
+                chat_id,
+                "Debug: no active session. Send a message first, or use /mental "
+                "to create and inspect one.",
+            )
+            return
+
+        last_debug = session.last_debug
+        lines = [
+            f"Debug session: {session_key}",
+            f"Emotion: {session.pipeline.engine.to_emotion_label()}",
+            f"Last turn: {'yes' if last_debug else 'none'}",
+        ]
+        if last_debug is not None:
+            lines.append(
+                "Self-check: "
+                f"{'passed' if last_debug.self_check_passed else 'failed'}"
+            )
+            if last_debug.response_strategy:
+                lines.append(f"Strategy: {last_debug.response_strategy}")
+            if last_debug.tool_trace is not None:
+                lines.append(f"Tool loops: {last_debug.tool_trace.loop_count}")
+        await self._client.send_message(chat_id, "\n".join(lines))
+
+
+def _telegram_help_text() -> str:
+    return "\n".join([
+        "Commands:",
+        "/help - show this command list",
+        "/status - show active emotional modulators",
+        "/mental or /mood - create/inspect current mental state",
+        "/new - start a fresh hot conversation",
+        "/reset - digest, save, and close the active session",
+        "/debug - show last-turn debug summary",
+    ])
 
 
 def _remove_file_if_exists(path: str) -> bool:

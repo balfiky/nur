@@ -463,6 +463,7 @@ class TestCommands:
                 channel, manager, client = _make_channel(tmpdir)
                 try:
                     await channel.handle_update(_make_update(text="/mental"))
+                    assert len(client.sent_messages) == 1
                     message = client.sent_messages[-1]["text"].lower()
                     assert "mental state" in message
                     assert "mental health" in message
@@ -499,13 +500,50 @@ class TestCommands:
 
         asyncio.run(run())
 
+    def test_debug_reports_active_session_summary(self):
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                channel, manager, client = _make_channel(tmpdir)
+                try:
+                    await channel.handle_update(
+                        _make_update(update_id=1, text="hello")
+                    )
+                    await channel.handle_update(
+                        _make_update(update_id=2, text="/debug")
+                    )
+                    message = client.sent_messages[-1]["text"].lower()
+                    assert "debug session" in message
+                    assert "telegram:100:100" in message
+                    assert "last turn: yes" in message
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_help_command_lists_telegram_commands(self):
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                channel, manager, client = _make_channel(tmpdir)
+                try:
+                    await channel.handle_update(_make_update(text="/help"))
+                    message = client.sent_messages[0]["text"].lower()
+                    assert "/status" in message
+                    assert "/mental" in message
+                    assert "/new" in message
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
     def test_unknown_command(self):
         async def run():
             with tempfile.TemporaryDirectory() as tmpdir:
                 channel, manager, client = _make_channel(tmpdir)
                 try:
                     await channel.handle_update(_make_update(text="/foo"))
-                    assert "unknown" in client.sent_messages[0]["text"].lower()
+                    message = client.sent_messages[0]["text"].lower()
+                    assert "unknown" in message
+                    assert "/help" in message
                 finally:
                     await manager.shutdown()
 
@@ -533,6 +571,7 @@ class TestCommands:
                 try:
                     await channel.handle_update(_make_update(text="/start"))
                     assert len(client.sent_messages) == 1
+                    assert "/help" in client.sent_messages[0]["text"].lower()
                 finally:
                     await manager.shutdown()
 

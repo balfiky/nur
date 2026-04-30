@@ -152,6 +152,21 @@ Important fields:
 | `tools_workspace` | Filesystem sandbox root for tools; blank means `<data_dir>/workspace`. |
 | `shell_tool_enabled` | Separate opt-in for subprocess execution; keep off by default. |
 
+## Telegram Commands
+
+Telegram command handling is local to the runtime channel and does not trigger
+the typing loop or normal chat generation.
+
+| Command | Behavior |
+|---|---|
+| `/help` or `/commands` | Show the supported command list. |
+| `/start` | Send a short greeting plus the command list. |
+| `/status` | Show the active session's emotional modulators, if one exists. |
+| `/mental` or `/mood` | Create/inspect the current session and report mental-state diagnostics. |
+| `/new` | Start a fresh hot conversation while keeping relationship memory. |
+| `/reset` | Digest, save, and close the active session. |
+| `/debug` | Show a compact last-turn debug summary for the active session. |
+
 ## Life History Admin
 
 The **Life** page is the first observability surface for Nūr's identity-level
