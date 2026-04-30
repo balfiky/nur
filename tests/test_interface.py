@@ -293,6 +293,7 @@ class TestIndexPage:
         assert '<header class="header">' in html
         assert '<main class="main">' in html
         assert 'href="/admin" title="Admin console"' in html
+        assert "API token required for this server" in html
         assert '<h1 class="empty-title" id="emptyTitle">' in html
         assert 'id="msgInput"' in html
         assert 'aria-label="Message composer"' in html
@@ -968,3 +969,24 @@ class TestEntryPoints:
         interface_api.main()
 
         assert captured == {"host": "0.0.0.0", "port": 9001}
+
+    def test_main_generates_api_key_for_public_bind(
+        self, monkeypatch, tmp_path, capsys,
+    ):
+        captured: dict[str, object] = {}
+        config_path = tmp_path / "runtime_config.yaml"
+
+        def fake_run(app_path: str, *, host: str, port: int) -> None:
+            captured["host"] = host
+            captured["port"] = port
+
+        monkeypatch.setattr("uvicorn.run", fake_run)
+        monkeypatch.setattr("sys.argv", ["nur-web", "--host", "0.0.0.0"])
+        monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(config_path))
+
+        interface_api.main()
+
+        saved = RuntimeConfig.from_yaml(str(config_path))
+        assert captured == {"host": "0.0.0.0", "port": 8000}
+        assert saved.api_key
+        assert "Generated a web/API bearer token" in capsys.readouterr().err

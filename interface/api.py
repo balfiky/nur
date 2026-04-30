@@ -2433,16 +2433,38 @@ def _parse_web_args(argv: list[str] | None = None):
     return parser.parse_args(argv)
 
 
+def _ensure_public_bind_auth(host: str, config: RuntimeConfig) -> str | None:
+    """Generate a bearer token before exposing a public bind.
+
+    Starting a web server on ``0.0.0.0`` with auth disabled is the unsafe case.
+    Refusing is safe but hostile for first-run setup, so create the missing
+    token, persist it, and print it once for the operator.
+    """
+    if not public_bind_requires_auth(host, config.api_key):
+        return None
+
+    token = secrets.token_urlsafe(48)
+    config.api_key = token
+    os.makedirs(config.data_dir, exist_ok=True)
+    config.write_yaml(RUNTIME_CONFIG_PATH)
+    return token
+
+
 def main() -> None:
     """Launch the standalone web UI on the configured host/port."""
     import uvicorn
 
     args = _parse_web_args()
     config = _load_runtime_config()
-    if public_bind_requires_auth(args.host, config.api_key):
-        raise SystemExit(
-            "Refusing to bind nur-web to a non-loopback host without api_key. "
-            "Set api_key in runtime_config.yaml first."
+    generated_token = _ensure_public_bind_auth(args.host, config)
+    if generated_token:
+        print(
+            "\nGenerated a web/API bearer token because nur-web is binding to "
+            f"{args.host}.\n"
+            f"Saved it to {RUNTIME_CONFIG_PATH} as api_key.\n"
+            "Open /admin, click API Token, and paste this value:\n\n"
+            f"{generated_token}\n",
+            file=sys.stderr,
         )
     uvicorn.run("interface.api:app", host=args.host, port=args.port)
 

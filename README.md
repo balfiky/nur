@@ -114,6 +114,15 @@ nur-web
 Open http://localhost:8000. A first-run wizard walks you through LLM backend,
 seed identity, and an optional first formative experience.
 
+For a LAN/public bind, run the same command with a public host. Nūr will
+generate and save a bearer token before binding:
+
+```bash
+nur-web --host 0.0.0.0 --port 8000
+```
+
+Paste the printed token into **/admin → API Token** in the browser.
+
 To keep your customized agent identity across upgrades:
 
 ```bash
