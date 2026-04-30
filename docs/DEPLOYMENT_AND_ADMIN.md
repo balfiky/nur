@@ -26,7 +26,20 @@ nur-setup
 ```
 
 That command creates `runtime_config.yaml`, creates data/workspace folders,
-starts the web UI, and opens the first-run wizard in your browser.
+prompts for model backend, identity, Telegram, and tool settings, and exits. It
+does not start a browser.
+
+Start the browser UI when you want it:
+
+```bash
+nur-web --config runtime_config.yaml
+```
+
+If you prefer the browser wizard instead of terminal prompts, run it explicitly:
+
+```bash
+nur-setup --web --config runtime_config.yaml
+```
 
 Open:
 

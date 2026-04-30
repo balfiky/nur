@@ -111,11 +111,22 @@ python3 -m pip install "git+https://github.com/balfiky/nur.git"
 nur-setup
 ```
 
-`nur-setup` creates `runtime_config.yaml`, creates local data/workspace folders,
-opens http://localhost:8000, and starts the first-run wizard. The browser flow
-walks you through LLM backend, seed identity, and optional Life History material.
-You can upload text/Markdown files directly; you do not need to create files
-inside Nūr's data folder.
+`nur-setup` is terminal-native by default. It prompts for model backend,
+identity, Telegram, and tool settings, then creates `runtime_config.yaml`,
+local data/workspace folders, and marks setup complete. It does **not** launch a
+browser.
+
+Start the browser UI only when you ask for it:
+
+```bash
+nur-web --config runtime_config.yaml
+```
+
+If you prefer the browser wizard instead of terminal prompts, run it explicitly:
+
+```bash
+nur-setup --web --config runtime_config.yaml
+```
 
 For a LAN/public bind, run the same command with a public host:
 
@@ -153,7 +164,8 @@ git clone https://github.com/balfiky/nur.git
 cd nur
 python3 -m pip install -e ".[dev]"
 nur-web                    # web UI at :8000
-nur-setup                  # initialize config/data and launch the web wizard
+nur-setup                  # terminal setup
+nur-setup --web            # browser setup wizard
 nur-uninstall              # remove local config/data after confirmation
 nur                        # console runtime
 ```
