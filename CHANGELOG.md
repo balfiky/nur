@@ -6,6 +6,12 @@ All notable changes to Project Nur are documented here.
 
 ## Unreleased
 
+_No unreleased changes._
+
+---
+
+## v0.27.0 — 2026-04-30 (Life History, admin, skills, and learning intake)
+
 ### Life History
 - Added an identity-level Life History / Evolution Core backed by
   `data/shared/life_history.db`.
