@@ -161,7 +161,7 @@ def _configure_llm(config: RuntimeConfig, *, input_fn: InputFn, output_fn: Outpu
             "http://localhost:8002/v1",
             input_fn=input_fn,
         )
-        config.llm_model = _prompt_text("Model name", "qwen3.6-heretic-v1", input_fn=input_fn)
+        config.llm_model = _prompt_required_text("Model name", input_fn=input_fn)
         config.llm_api_key = _prompt_text("API key (blank for local/no-auth)", "", input_fn=input_fn)
         return
 
@@ -320,6 +320,14 @@ def _prompt_text(label: str, default: str, *, input_fn: InputFn) -> str:
     suffix = f" [{default}]" if default else ""
     value = input_fn(f"{label}{suffix}: ").strip()
     return value if value else default
+
+
+def _prompt_required_text(label: str, *, input_fn: InputFn) -> str:
+    while True:
+        value = input_fn(f"{label}: ").strip()
+        if value:
+            return value
+        print(f"{label} is required.")
 
 
 def _prompt_path(label: str, *, default: str, input_fn: InputFn) -> str:

@@ -10,6 +10,15 @@ _No unreleased changes._
 
 ---
 
+## v0.28.3 — 2026-05-01 (Neutral vLLM setup defaults)
+
+### Setup
+- Removed the model-specific vLLM default from the terminal setup flow.
+- Replaced the model-specific vLLM web setup placeholder with neutral guidance
+  to enter the model loaded in the local vLLM server.
+
+---
+
 ## v0.28.2 — 2026-05-01 (Live UAT and native tool-call hardening)
 
 ### Live UAT
