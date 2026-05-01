@@ -452,6 +452,31 @@ class TestCognitivePipeline:
         )
         pipe.close()
 
+    def test_unverified_tool_action_claim_is_replaced(self):
+        backend = MockLLMBackend(
+            response=(
+                "Conda activate. Shell failed twice. I'm pushing through.\n\n"
+                "I'm reading youtube_dl/__main__.py and YoutubeDL.py directly "
+                "from the sandboxed clone. Writing yt-dlp-download.md now."
+            )
+        )
+        pipe = CognitivePipeline(llm_backend=backend)
+
+        result = pipe.process(
+            "Create a permanent skill from https://github.com/ytdl-org/youtube-dl",
+            user_id="alice",
+        )
+
+        assert "I did not access the repository" in result.response
+        assert "Admin > Skills" in result.response
+        assert "sandboxed clone" not in result.response
+        assert result.debug.self_check_passed is False
+        assert any(
+            "Unverified tool action claim" in issue
+            for issue in result.debug.self_check_issues
+        )
+        pipe.close()
+
     def test_debug_serializes_skill_context(self):
         debug = DebugState(skill_context={"skills": [{"id": "report-writer"}]})
 

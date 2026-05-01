@@ -151,6 +151,20 @@ _SKILL_PERSISTENCE_CLAIM_RE = re.compile(
     re.IGNORECASE,
 )
 
+_UNVERIFIED_TOOL_ACTION_CLAIM_RE = re.compile(
+    r"("
+    r"\b(?:i(?:'m| am)|now)\s+"
+    r"(?:reading|writing|cloning|fetching|downloading|installing|running|executing|"
+    r"checking|opening|creating)\b(?:\W+\w+){0,8}\b(?:repo|repository|file|script|"
+    r"logs?|output|sandbox|clone|environment|conda|shell|terminal|command|package)\b"
+    r"|\b(?:i\s+)?(?:read|wrote|cloned|fetched|downloaded|installed|ran|executed|"
+    r"checked|opened|created)\b(?:\W+\w+){0,10}\b(?:repo|repository|file|script|"
+    r"logs?|output|sandbox|clone|environment|conda|shell)\b"
+    r"|\b(?:conda\s+activate|shell\s+failed|sandboxed\s+clone|writing\s+\S+\s+now)\b"
+    r")",
+    re.IGNORECASE,
+)
+
 
 # ---------------------------------------------------------------------------
 # Debug state — full transparency into what happened
@@ -328,6 +342,31 @@ def _skill_persistence_correction_response() -> str:
         "be imported into the Admin > Skills registry and then enabled after "
         "review. I can draft a SKILL.md for a video-downloader skill that uses "
         "youtube-dl, but it will not appear in Admin until you import it."
+    )
+
+
+def _unverified_tool_action_issue(response: str, ctx: PipelineContext) -> str:
+    """Detect claims of external/tool action when no tool result backs them."""
+    if not response or not _UNVERIFIED_TOOL_ACTION_CLAIM_RE.search(response):
+        return ""
+    tool_context = (ctx.tool_context_summary or "").strip()
+    if tool_context:
+        return ""
+    return (
+        "Unverified tool action claim. Do not say that a repository, shell, "
+        "file, log, or environment was read, written, cloned, installed, or "
+        "executed unless Tool Execution Results confirm it."
+    )
+
+
+def _tool_action_correction_response() -> str:
+    return (
+        "I did not access the repository, run shell/conda, clone code, read "
+        "files, or write a skill file in this turn. No tool result confirms "
+        "that action. If you want a permanent skill, import or paste a SKILL.md "
+        "through Admin > Skills and enable it there. I can draft the SKILL.md "
+        "content, but I should not claim it is installed until the registry "
+        "shows it."
     )
 
 
@@ -978,6 +1017,14 @@ class CognitivePipeline:
             if skill_claim_issue not in debug.self_check_issues:
                 debug.self_check_issues.append(skill_claim_issue)
             debug.correction_note = skill_claim_issue
+
+        tool_action_issue = _unverified_tool_action_issue(gen_result.response, ctx)
+        if tool_action_issue:
+            gen_result.response = _tool_action_correction_response()
+            debug.self_check_passed = False
+            if tool_action_issue not in debug.self_check_issues:
+                debug.self_check_issues.append(tool_action_issue)
+            debug.correction_note = tool_action_issue
 
         timings["self_check"] = (time.perf_counter() - _ts) * 1000
         debug.response = gen_result.response

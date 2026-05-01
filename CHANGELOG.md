@@ -10,6 +10,19 @@ _No unreleased changes._
 
 ---
 
+## v0.28.5 — 2026-05-01 (Unverified tool-action claim guard)
+
+### Runtime
+- Added a deterministic post-generation guard for unverified external-action
+  claims. If a response says Nūr read a repository, ran shell/conda, cloned
+  code, inspected logs/output, or wrote a file without Tool Execution Results,
+  the response is replaced with an explicit correction.
+- Added regression coverage for the skill-creation flow where a live model may
+  claim it is reading a sandboxed clone or writing a skill file without actual
+  tool execution.
+
+---
+
 ## v0.28.4 — 2026-05-01 (Model-name leak cleanup)
 
 ### Setup and examples
