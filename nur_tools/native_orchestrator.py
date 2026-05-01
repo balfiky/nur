@@ -22,6 +22,7 @@ from core.dual_process.tool_loop import (
     _apply_emotional_deltas,
     _summarize_for_generator,
     make_tool_decision,
+    run_tool_loop,
 )
 from core.life_influence import (
     LifeInfluence,
@@ -78,6 +79,11 @@ If the user is correcting a previous assistant message or confirming a pending
 tool action, resolve that request from the recent conversation and call the
 needed tool. Do not say you are running, checking, waiting for, or executing
 anything unless you actually call a tool.
+
+Use skill-registry tools when the user asks to create, import, enable, disable,
+audit, inspect, or list Nūr skills, capabilities, modules, or integrations.
+Creating a durable skill requires a skill-registry tool call; do not answer by
+only drafting code or prose.
 """
 
 
@@ -93,6 +99,7 @@ class NativeToolCallRunner:
         api_key: str = "",
         timeout: float = 120.0,
         client: Any | None = None,
+        fallback_to_heuristic: bool = True,
     ) -> None:
         if client is None:
             if not base_url:
@@ -109,6 +116,7 @@ class NativeToolCallRunner:
         self._executor = executor
         self._client = client
         self._model = model
+        self._fallback_to_heuristic = fallback_to_heuristic
         self._safe_to_original: dict[str, str] = {}
         self._original_to_safe: dict[str, str] = {}
 
@@ -175,6 +183,21 @@ class NativeToolCallRunner:
                 message = self._create_tool_choice(messages, tools)
                 tool_calls = _extract_tool_calls(message)
                 if not tool_calls:
+                    fallback = self._heuristic_fallback(
+                        user_message=user_message,
+                        state=state,
+                        person=person,
+                        defense_active=defense_active,
+                        engine=engine,
+                        max_executions=max_executions,
+                        hard_cap=hard_cap,
+                        active_plan=active_plan,
+                        agency_decision=agency_decision,
+                        autonomy_level=autonomy_level,
+                        life_influence=life_influence,
+                    )
+                    if _trace_has_activity(fallback.trace):
+                        return fallback
                     break
 
                 messages.append(_assistant_message_for_history(message, tool_calls))
@@ -183,6 +206,22 @@ class NativeToolCallRunner:
                     if len(executed) >= execution_limit:
                         break
                     if self._is_no_tool_call(call):
+                        if not proposed and not executed:
+                            fallback = self._heuristic_fallback(
+                                user_message=user_message,
+                                state=state,
+                                person=person,
+                                defense_active=defense_active,
+                                engine=engine,
+                                max_executions=max_executions,
+                                hard_cap=hard_cap,
+                                active_plan=active_plan,
+                                agency_decision=agency_decision,
+                                autonomy_level=autonomy_level,
+                                life_influence=life_influence,
+                            )
+                            if _trace_has_activity(fallback.trace):
+                                return fallback
                         return ToolLoopResult(
                             trace=ToolTrace(
                                 proposed_intents=proposed,
@@ -265,6 +304,21 @@ class NativeToolCallRunner:
                 output="",
                 error=f"{type(exc).__name__}: {exc}",
             )
+            fallback = self._heuristic_fallback(
+                user_message=user_message,
+                state=state,
+                person=person,
+                defense_active=defense_active,
+                engine=engine,
+                max_executions=max_executions,
+                hard_cap=hard_cap,
+                active_plan=active_plan,
+                agency_decision=agency_decision,
+                autonomy_level=autonomy_level,
+                life_influence=life_influence,
+            )
+            if _trace_has_activity(fallback.trace):
+                return fallback
             return ToolLoopResult(
                 trace=ToolTrace(executed_results=[failure], loop_count=0),
                 action_variables=action_vars,
@@ -282,6 +336,45 @@ class NativeToolCallRunner:
             action_variables=effective_action_vars,
             tool_context_summary=_summarize_for_generator(observations, executed),
             life_influence_effects=life_effects,
+        )
+
+    def _heuristic_fallback(
+        self,
+        *,
+        user_message: str,
+        state: ModulatorState,
+        person: PersonProfile | None,
+        defense_active: bool,
+        engine: Any,
+        max_executions: int,
+        hard_cap: int,
+        active_plan: TaskPlan | None,
+        agency_decision: AgencyDecision | None,
+        autonomy_level: str,
+        life_influence: LifeInfluence | None,
+    ) -> ToolLoopResult:
+        if not self._fallback_to_heuristic:
+            trust = person.trust if person else 0.5
+            return ToolLoopResult(
+                trace=ToolTrace(),
+                action_variables=derive_action_variables(
+                    state, trust=trust, defense_active=defense_active,
+                ),
+                tool_context_summary="",
+            )
+        return run_tool_loop(
+            user_message=user_message,
+            state=state,
+            person=person,
+            defense_active=defense_active,
+            executor=self._executor,
+            engine=engine,
+            max_executions=max_executions,
+            hard_cap=hard_cap,
+            active_plan=active_plan,
+            agency_decision=agency_decision,
+            autonomy_level=autonomy_level,
+            life_influence=life_influence,
         )
 
     def _maybe_run_active_plan(
@@ -537,6 +630,15 @@ def _extract_tool_calls(message: Any) -> list[Any]:
     if calls is None:
         return []
     return list(calls)
+
+
+def _trace_has_activity(trace: ToolTrace) -> bool:
+    return bool(
+        trace.proposed_intents
+        or trace.executed_results
+        or trace.final_decision is not None
+        or trace.task_trace is not None
+    )
 
 
 def _assistant_message_for_history(message: Any, tool_calls: list[Any]) -> dict[str, Any]:

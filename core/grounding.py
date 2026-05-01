@@ -77,7 +77,10 @@ _REGISTRY_STATE_CLAIM_RE = re.compile(
     r"|"
     r"\b(?:now|already)\b.{0,80}\b(?:part\s+of|available\s+in|added\s+to)\b"
     r".{0,80}\b(?:context|runtime|registry|configuration|toolset|skillset|"
-    r"capability|capabilities)\b",
+    r"capability|capabilities)\b"
+    r"|"
+    r"\b(?:done|completed)\b.{0,80}\b(?:here\s+(?:is|are)|this\s+is)\b"
+    r".{0,80}\b(?:skill|capability|capabilities|module|integration)\b",
     re.IGNORECASE | re.DOTALL,
 )
 
@@ -144,17 +147,28 @@ def extract_action_claims(response: str) -> list[ActionClaim]:
 
 def grounding_correction_response(
     issues: list[GroundingIssue] | None = None,
+    *,
+    tool_trace: Any | None = None,
 ) -> str:
     """Return a generic correction when output overclaims external action."""
+    registry_write = _successful_registry_write(tool_trace)
+    if registry_write:
+        detail = registry_write.get("detail") or "skill registry updated"
+        return (
+            f"{detail}. I did not perform any additional external actions "
+            "claimed in the draft response unless matching Tool Execution "
+            "Results show them. Check Admin > Skills for the imported skill."
+        )
     if any(
         "registry_write" in issue.required_categories
         for issue in (issues or [])
     ):
         return (
             "I did not create, import, or enable a permanent skill in this turn. "
-            "No skill-registry Tool Execution Result ran. To let me do that "
-            "from chat, Agentic Tools must be enabled and the current session "
-            "must be reloaded so the skill-registry tools are available."
+            "No skill-registry Tool Execution Result ran. I need an active "
+            "session with the skill-registry tools loaded; restart/reload the "
+            "runtime or reset the current channel session if you just updated "
+            "the app."
         )
     return (
         "I did not perform that external action in this turn. There is no Tool "
@@ -164,6 +178,36 @@ def grounding_correction_response(
         "permanent skill must be imported and enabled through Admin > Skills "
         "or an executed skill-registry tool."
     )
+
+
+def _successful_registry_write(tool_trace: Any | None) -> dict[str, str] | None:
+    executed = list(getattr(tool_trace, "executed_results", []) or [])
+    for result in executed:
+        tool_name = str(getattr(result, "tool_name", "") or "")
+        if not tool_name.startswith((
+            "skills.create",
+            "skills.import",
+            "skills.enable",
+            "skills.disable",
+        )):
+            continue
+        if not bool(getattr(result, "success", False)):
+            continue
+        metadata = getattr(result, "metadata", {}) or {}
+        skill_id = str(metadata.get("skill_id") or metadata.get("name") or "").strip()
+        enabled = metadata.get("enabled")
+        status = str(metadata.get("status") or "").strip()
+        summary = str(getattr(result, "side_effect_summary", "") or "").strip()
+        if skill_id:
+            detail = f"Skill registry updated: {skill_id}"
+            if enabled is not None:
+                detail += f" enabled={str(bool(enabled)).lower()}"
+            if status:
+                detail += f" status={status}"
+        else:
+            detail = summary or "Skill registry updated"
+        return {"detail": detail}
+    return None
 
 
 def _claim_categories(text: str) -> set[str]:
@@ -179,7 +223,7 @@ def _claim_categories(text: str) -> set[str]:
         r"\b(created?|creating|imported?|importing|enabled?|enabling|"
         r"activated?|activating|installed?|installing|integrated?|integrating|"
         r"registered|registering|added|adding|made\s+permanent|permanent|"
-        r"persistent|persisted|part\s+of|available\s+in)\b",
+        r"persistent|persisted|part\s+of|available\s+in|done|completed)\b",
         lower,
     ):
         categories.add("registry_write")
@@ -268,6 +312,11 @@ def _is_negated_or_evidence_warning(text: str) -> bool:
     if re.search(r"\b(?:i|we)\s+(?:did\s+not|didn't|do\s+not|don't)\b", lower):
         return True
     if re.search(r"\b(?:not|never)\b.{0,20}" + _ACTION_VERBS_RE.pattern, lower):
+        return True
+    if (
+        re.search(r"\b(?:draft|example|sample|template|proposed)\b", lower)
+        and re.search(r"\b(?:skill|capability|module|integration)\b", lower)
+    ):
         return True
     return False
 

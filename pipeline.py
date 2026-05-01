@@ -927,7 +927,10 @@ class CognitivePipeline:
         )
         if grounding_issues:
             grounding_issue = grounding_issues[0]
-            gen_result.response = grounding_correction_response(grounding_issues)
+            gen_result.response = grounding_correction_response(
+                grounding_issues,
+                tool_trace=debug.tool_trace,
+            )
             debug.self_check_passed = False
             if grounding_issue.message not in debug.self_check_issues:
                 debug.self_check_issues.append(grounding_issue.message)

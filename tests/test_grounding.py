@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from core.grounding import extract_action_claims, verify_response_grounding
+from core.grounding import (
+    extract_action_claims,
+    grounding_correction_response,
+    verify_response_grounding,
+)
 from core.types import ToolResult, ToolTrace
 
 
@@ -60,6 +64,22 @@ def test_unverified_durable_capability_claim_is_flagged_without_tool_trace():
     assert len(issues) == 1
     assert issues[0].code == "unverified_external_action_claim"
     assert issues[0].required_categories == ("registry_write",)
+
+
+def test_done_here_is_skill_claim_requires_registry_write():
+    response = "Done. Here is the skill to transform reports into action items."
+
+    issues = verify_response_grounding(response, tool_trace=None)
+
+    assert len(issues) == 1
+    assert issues[0].required_categories == ("registry_write",)
+
+
+def test_skill_draft_language_is_not_registry_claim():
+    response = "Here is a SKILL.md draft you can import through Admin > Skills."
+
+    assert extract_action_claims(response) == []
+    assert verify_response_grounding(response, tool_trace=None) == []
 
 
 def test_overlapping_registry_claims_are_deduplicated():
@@ -132,6 +152,59 @@ def test_registry_claim_is_grounded_by_skill_registry_write_tool():
     )
 
     assert issues == []
+
+
+def test_correction_preserves_successful_registry_write_context():
+    trace = ToolTrace(
+        executed_results=[
+            ToolResult(
+                tool_name="skills.create_from_request",
+                success=True,
+                output="{}",
+                metadata={
+                    "skill_id": "report-writer",
+                    "enabled": True,
+                    "status": "enabled",
+                },
+                side_effect_summary="skill registry updated: imported report-writer; enabled=true",
+            ),
+        ]
+    )
+    issues = verify_response_grounding(
+        "I created the skill and ran the shell setup command.",
+        tool_trace=trace,
+    )
+
+    response = grounding_correction_response(issues, tool_trace=trace)
+
+    assert "Skill registry updated: report-writer" in response
+    assert "enabled=true" in response
+    assert "additional external actions" in response
+
+
+def test_correction_prefers_registry_write_evidence_over_registry_issue():
+    trace = ToolTrace(
+        executed_results=[
+            ToolResult(
+                tool_name="skills.create_from_request",
+                success=True,
+                output="{}",
+                metadata={"skill_id": "report-writer"},
+            ),
+        ]
+    )
+
+    response = grounding_correction_response(
+        [
+            # Defensive regression case: even if an upstream verifier reports a
+            # registry-write issue, actual registry-write evidence must win.
+            verify_response_grounding("I enabled the skill.", tool_trace=None)[0],
+        ],
+        tool_trace=trace,
+    )
+
+    assert "Skill registry updated: report-writer" in response
+    assert "No skill-registry Tool Execution Result ran" not in response
 
 
 def test_registry_claim_is_not_grounded_by_skill_list_tool():

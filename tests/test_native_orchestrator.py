@@ -9,10 +9,12 @@ from typing import Any
 from core.emotional_engine import EmotionalEngine
 from core.life_influence import LifeInfluence
 from core.types import ToolCapability, ToolCategory, ToolResult
-from nur_tools import register_builtins
+from nur_tools import register_builtins, register_skill_builtins
 from nur_tools.executor import ToolExecutor
 from nur_tools.native_orchestrator import NativeToolCallRunner
 from nur_tools.registry import ToolRegistry
+from runtime.config import RuntimeConfig
+from runtime.skills import list_skills
 
 
 class FakeNativeClient:
@@ -82,6 +84,13 @@ def _fake_shell_executor() -> ToolExecutor:
         )
 
     executor.register_handler("shell.run_command", run_command)
+    return executor
+
+
+def _skill_executor(config: RuntimeConfig) -> ToolExecutor:
+    registry = ToolRegistry()
+    executor = ToolExecutor(registry)
+    register_skill_builtins(registry, executor, skill_config=config)
     return executor
 
 
@@ -202,6 +211,38 @@ def test_native_runner_returns_empty_trace_when_model_chooses_no_tool() -> None:
 
     assert result.trace.loop_count == 0
     assert result.tool_context_summary == ""
+
+
+def test_native_runner_falls_back_to_heuristic_for_skill_registry(tmp_path) -> None:
+    config = RuntimeConfig(data_dir=str(tmp_path / "data"), tools_enabled=False)
+    client = FakeNativeClient([
+        _response(_tool_call("control__no_tool", {"reason": "no external tool"})),
+    ])
+    runner = NativeToolCallRunner(
+        executor=_skill_executor(config),
+        base_url="http://localhost:8002/v1",
+        model="test-model",
+        client=client,
+    )
+    engine = EmotionalEngine()
+
+    result = runner.run_tool_loop(
+        user_message=(
+            "Create a skill for yourself to transform incoming reports into "
+            "a concise action checklist."
+        ),
+        state=engine.state,
+        person=None,
+        defense_active=False,
+        engine=engine,
+        max_executions=1,
+        autonomy_level="assisted",
+    )
+
+    assert result.trace.loop_count == 1
+    assert result.trace.executed_results[0].tool_name == "skills.create_from_request"
+    assert result.trace.executed_results[0].success is True
+    assert list_skills(config)["skills"][0]["enabled"] is True
 
 
 def test_native_runner_accepts_life_influence_and_records_action_effect() -> None:
