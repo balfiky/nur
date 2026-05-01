@@ -142,6 +142,33 @@ def test_skill_registry_tool_creates_and_enables_skill(tmp_path):
     assert "action checklist" in context["skills"][0]["instructions"]
 
 
+def test_skill_registry_tools_available_when_external_tools_disabled(tmp_path):
+    config = RuntimeConfig(data_dir=str(tmp_path / "data"), tools_enabled=False)
+    executor = create_tool_executor(config)
+    assert executor is not None
+
+    names = set(executor._registry.names())
+    assert "skills.create_from_request" in names
+    assert "skills.audit" in names
+    assert "web.search" not in names
+    assert "fs.read_file" not in names
+    assert "shell.run_command" not in names
+
+    result = executor.execute(
+        "skills.create_from_request",
+        {
+            "request": (
+                "Create a skill for yourself to transform incoming reports "
+                "into a concise action checklist using the current runtime tools."
+            ),
+            "enable": True,
+        },
+    )
+
+    assert result.success is True
+    assert list_skills(config)["skills"][0]["enabled"] is True
+
+
 def test_skill_registry_tool_imports_markdown_then_enables(tmp_path):
     config = RuntimeConfig(data_dir=str(tmp_path / "data"), tools_enabled=True)
     executor = create_tool_executor(config)

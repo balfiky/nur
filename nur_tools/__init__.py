@@ -85,6 +85,21 @@ def register_builtins(
         executor.register_handler(name, handler)
 
     # Skill registry
+    register_skill_builtins(registry, executor, skill_config=skill_config)
+
+
+def register_skill_builtins(
+    registry: ToolRegistry,
+    executor: ToolExecutor,
+    *,
+    skill_config: RuntimeConfig | None = None,
+) -> None:
+    """Register only the internal skill-registry tools.
+
+    These tools mutate Nūr's imported skill registry, not the host filesystem or
+    shell. Runtime surfaces use this when general agentic tools are disabled so
+    the assistant can still create, audit, enable, and list its own skills.
+    """
     for cap in skills.CAPABILITIES:
         registry.register(cap)
     skill_handlers = skills.create_handlers(skill_config)

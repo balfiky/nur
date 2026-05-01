@@ -21,6 +21,7 @@ from interface.api import app, set_pipeline, set_session_manager
 from interface.client import NurAPIError, NurClient
 from runtime.config import RuntimeConfig
 from runtime.sessions.manager import SessionManager
+from runtime.tools import create_tool_executor
 
 
 @pytest.fixture
@@ -331,6 +332,28 @@ class TestToolsEndpoint:
         assert resp.status_code == 200
         data = resp.json()
         assert data["count"] == 0
+
+    def test_tools_disabled_still_lists_internal_skill_registry(self, tmp_path):
+        set_pipeline(None)
+        cfg = RuntimeConfig(data_dir=str(tmp_path / "data"), tools_enabled=False)
+        manager = SessionManager(
+            config=cfg,
+            backend_factory=lambda: MockLLMBackend(response="I understand."),
+            tool_executor_factory=lambda: create_tool_executor(cfg),
+        )
+        set_session_manager(manager)
+        try:
+            with TestClient(app) as c:
+                resp = c.get("/v1/tools", params={"user_id": "mira"})
+        finally:
+            set_session_manager(None)
+        assert resp.status_code == 200
+        data = resp.json()
+        names = {item["name"] for item in data["tools"]}
+        assert "skills.create_from_request" in names
+        assert "skills.audit" in names
+        assert "web.search" not in names
+        assert "shell.run_command" not in names
 
 
 class TestConfigEndpoint:

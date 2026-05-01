@@ -1677,7 +1677,7 @@ function renderAdminOverview(payload) {
   document.getElementById('adminBackend').textContent = c.llm_backend || 'auto';
   document.getElementById('adminAuth').textContent = (payload.secret_status || {}).api_key ? 'protected' : 'open';
   document.getElementById('adminTelegram').textContent = (payload.secret_status || {}).telegram_token ? 'configured' : 'off';
-  document.getElementById('adminTools').textContent = c.tools_enabled ? ((c.shell_tool_enabled ? 'shell enabled' : 'enabled') + ' / ' + (c.autonomy_level || 'assisted')) : 'off';
+  document.getElementById('adminTools').textContent = c.tools_enabled ? ((c.shell_tool_enabled ? 'shell enabled' : 'enabled') + ' / ' + (c.autonomy_level || 'assisted')) : 'skill registry only';
   document.getElementById('adminOverview').title = warnings.length ? warnings.length + ' warning(s)' : 'No warnings';
 }
 

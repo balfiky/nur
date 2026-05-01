@@ -338,7 +338,7 @@
     const cards = [
       ["LLM", status.llm_configured ? "Configured" : "Not configured", status.llm_backend || "auto"],
       ["Auth", status.auth_enabled ? "Enabled" : "Disabled", status.auth_enabled ? "Bearer token required" : "Open local surface"],
-      ["Tools", tools.enabled ? (tools.shell_enabled ? "Shell enabled" : "Enabled") : "Disabled", tools.workspace || "No workspace"],
+      ["Tools", tools.enabled ? (tools.shell_enabled ? "Shell enabled" : "Enabled") : "Skill registry only", tools.workspace || "No workspace"],
       ["Sessions", String(sessions.active || 0), `Max ${sessions.max_active || 0}`],
       ["Telegram", status.telegram_configured ? "Configured" : "Not configured", "Long polling in web host"],
       ["Setup", setup.completed ? "Complete" : "Incomplete", setup.state_path || ""],
@@ -409,10 +409,6 @@
       return categoryOk && (!query || haystack.includes(query));
     });
 
-    if (!state.config.tools_enabled) {
-      list.innerHTML = `<div class="tool-row"><p class="empty-copy">Tools are disabled in runtime config. Enable Agentic Tools and save to inspect registered capabilities.</p></div>`;
-      return;
-    }
     if (!filtered.length) {
       list.innerHTML = `<div class="tool-row"><p class="empty-copy">${tools.length ? "No tools match the current filter." : "No tools are registered for the current runtime."}</p></div>`;
       return;

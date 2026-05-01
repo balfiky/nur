@@ -99,7 +99,18 @@ def test_tools_toggle_and_read_only_tool_execution(uat_server, page):
         )
     )
     assert disabled["config"]["tools_enabled"] is False
-    assert expect_json(uat_server.get("/v1/tools?platform=web&user_id=tooloff&chat_id=default"))["count"] == 0
+    disabled_tools = expect_json(
+        uat_server.get("/v1/tools?platform=web&user_id=tooloff&chat_id=default")
+    )
+    assert disabled_tools["count"] > 0
+    assert {item["name"] for item in disabled_tools["tools"]} == {
+        "skills.audit",
+        "skills.create_from_request",
+        "skills.disable",
+        "skills.enable",
+        "skills.import_markdown",
+        "skills.list",
+    }
 
     current = expect_json(uat_server.get("/admin/config"))["config"]
     enabled = expect_json(

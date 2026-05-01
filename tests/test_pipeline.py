@@ -520,6 +520,37 @@ class TestCognitivePipeline:
         assert follow_up.debug.skill_context["count"] == 1
         pipe.close()
 
+    def test_skill_registry_tool_runs_even_when_external_tools_disabled(self, tmp_path):
+        config = RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            tools_enabled=False,
+        )
+        executor = create_tool_executor(config)
+        backend = MockLLMBackend(
+            response="Done. The requested capability is now part of my runtime skills."
+        )
+        pipe = CognitivePipeline(
+            llm_backend=backend,
+            tool_executor=executor,
+            skill_provider=lambda: enabled_skill_context(config),
+        )
+
+        result = pipe.process(
+            (
+                "Create a skill for yourself to convert incoming reports into "
+                "a concise action checklist."
+            ),
+            user_id="alice",
+        )
+
+        assert result.debug.tool_trace is not None
+        assert result.debug.tool_trace.executed_results
+        assert result.debug.tool_trace.executed_results[0].tool_name == "skills.create_from_request"
+        assert result.debug.tool_trace.executed_results[0].success is True
+        assert result.debug.self_check_passed is True
+        assert list_skills(config)["skills"][0]["enabled"] is True
+        pipe.close()
+
     def test_debug_serializes_skill_context(self):
         debug = DebugState(skill_context={"skills": [{"id": "report-writer"}]})
 
