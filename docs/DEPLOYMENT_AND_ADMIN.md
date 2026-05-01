@@ -171,6 +171,9 @@ The full console lets you:
 - Observe experience count, evolution events, current beliefs, and drive shifts
 - Test LLM, Telegram, and storage settings before relying on them
 - Inspect diagnostics: Python version, uptime, active sessions, storage paths
+- Apply saved config to the live web session manager and Telegram poller
+- Restart the web server process with typed confirmation when process-bound
+  settings change
 - Export a redacted runtime config
 - Create a local zip backup under `<data_dir>/backups`
 - Reset one active session with typed confirmation
@@ -215,6 +218,13 @@ and no public CORS origins.
 
 `runtime_config.yaml` is the source of truth for deployment settings. The admin
 console reads and writes this file.
+
+Saving config through `/admin` writes `runtime_config.yaml`, evicts active web
+sessions so new pipelines use the saved settings, and restarts the built-in
+Telegram poller. If you edit `runtime_config.yaml` outside the browser, use
+Maintenance -> **Apply Saved Config**. Process-bound settings such as
+`debug_host`, `debug_port`, and `cors_origins` need Maintenance -> **Restart Web
+Server** or a manual service restart.
 
 Important fields:
 
@@ -336,6 +346,7 @@ even though runtime config secrets are redacted.
 
 Destructive admin actions require exact typed confirmations:
 
+- Restart web server: confirmation must be `RESTART`
 - Reset session: confirmation must be `RESET <session_key>`
 - Delete user: confirmation must be `DELETE <platform>:<user_id>`
 

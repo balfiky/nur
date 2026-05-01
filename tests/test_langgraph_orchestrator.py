@@ -8,6 +8,7 @@ from langchain_core.language_models.fake_chat_models import FakeMessagesListChat
 from langchain_core.messages import AIMessage
 
 from core.emotional_engine import EmotionalEngine
+from core.life_influence import LifeInfluence
 from core.types import ToolCapability, ToolCategory, ToolResult
 from nur_tools import register_builtins
 from nur_tools.executor import ToolExecutor
@@ -108,6 +109,45 @@ def test_langgraph_no_tool_call_returns_empty_trace_without_fallback() -> None:
 
     assert result.trace.loop_count == 0
     assert result.tool_context_summary == ""
+
+
+def test_langgraph_runner_accepts_life_influence_and_records_action_effect() -> None:
+    model = FakeMessagesListChatModel(
+        responses=[
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "system__hostname",
+                        "args": {},
+                        "id": "call_1",
+                    },
+                ],
+            ),
+            AIMessage(content="done"),
+        ],
+    )
+    runner = LangGraphToolRunner(
+        executor=_executor(),
+        base_url="http://localhost:8000/v1",
+        model="test",
+        chat_model=model,
+    )
+    engine = EmotionalEngine()
+
+    result = runner.run_tool_loop(
+        user_message="what is your hostname?",
+        state=engine.state,
+        person=None,
+        defense_active=False,
+        engine=engine,
+        autonomy_level="high_risk",
+        life_influence=LifeInfluence(competence_pressure=0.04),
+    )
+
+    assert result.trace.loop_count == 1
+    assert result.life_influence_effects["persistence_delta"] == 0.04
+    assert result.action_variables.persistence_drive > 0.5
 
 
 def test_hybrid_falls_back_to_heuristic_when_model_skips_tool() -> None:

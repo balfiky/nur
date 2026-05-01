@@ -136,6 +136,21 @@ _TOOL_HISTORY_ACTION_HINT_RE = re.compile(
     re.IGNORECASE,
 )
 
+_SKILL_CREATION_REQUEST_RE = re.compile(
+    r"\b(?:create|make|add|install|import|enable|activate)\b(?:\W+\w+){0,8}\W+skill\b|"
+    r"\bskill\b(?:\W+\w+){0,8}\W+(?:permanent|active|admin|yourself|install|import|enable)\b",
+    re.IGNORECASE,
+)
+
+_SKILL_PERSISTENCE_CLAIM_RE = re.compile(
+    r"\bskill(?:\W+\w+){0,5}\W+(?:created|installed|imported|enabled|activated|integrated)\b|"
+    r"\b(?:created|installed|imported|enabled|activated|integrated)\b(?:\W+\w+){0,5}\W+skill\b|"
+    r"\b(?:now|already)\s+(?:part\s+of|in)\s+my\s+permanent\b|"
+    r"\bpermanent\s+operational\s+context\b|"
+    r"\bactive\s+in\s+my\s+processing\s+layer\b",
+    re.IGNORECASE,
+)
+
 
 # ---------------------------------------------------------------------------
 # Debug state — full transparency into what happened
@@ -282,6 +297,38 @@ def _clean_topic_hint(text: str) -> str:
     phrase = re.sub(r"[^a-z0-9' -]", " ", text.lower())
     phrase = " ".join(phrase.split())
     return phrase[:40].strip()
+
+
+def _unverified_skill_persistence_issue(
+    user_message: str,
+    response: str,
+    ctx: PipelineContext,
+) -> str:
+    """Detect claims that a permanent skill was installed without evidence."""
+    if not response or not _SKILL_PERSISTENCE_CLAIM_RE.search(response):
+        return ""
+    if not _SKILL_CREATION_REQUEST_RE.search(user_message):
+        return ""
+    tool_context = (ctx.tool_context_summary or "").lower()
+    if "skill" in tool_context and any(
+        marker in tool_context
+        for marker in ("import", "installed", "enabled", "created")
+    ):
+        return ""
+    return (
+        "Unverified skill persistence claim. Do not say a skill was created, "
+        "installed, enabled, integrated, or made permanent unless the admin "
+        "skill registry or a tool result confirms it."
+    )
+
+
+def _skill_persistence_correction_response() -> str:
+    return (
+        "I did not create or activate a permanent skill. Permanent skills must "
+        "be imported into the Admin > Skills registry and then enabled after "
+        "review. I can draft a SKILL.md for a video-downloader skill that uses "
+        "youtube-dl, but it will not appear in Admin until you import it."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -919,6 +966,18 @@ class CognitivePipeline:
             gen_result.correction_note = check_result.correction_note
             debug.correction_note = check_result.correction_note
             debug.generation_attempts = 2
+
+        skill_claim_issue = _unverified_skill_persistence_issue(
+            user_message,
+            gen_result.response,
+            ctx,
+        )
+        if skill_claim_issue:
+            gen_result.response = _skill_persistence_correction_response()
+            debug.self_check_passed = False
+            if skill_claim_issue not in debug.self_check_issues:
+                debug.self_check_issues.append(skill_claim_issue)
+            debug.correction_note = skill_claim_issue
 
         timings["self_check"] = (time.perf_counter() - _ts) * 1000
         debug.response = gen_result.response

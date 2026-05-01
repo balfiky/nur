@@ -329,6 +329,8 @@ class TestIndexPage:
         assert resp.status_code == 200
         assert "Nūr" in html
         assert "Admin" in html
+        assert "Apply Saved Config" in html
+        assert "Restart Web Server" in html
 
 
 class TestConfigEndpoint:
@@ -458,6 +460,31 @@ class TestConfigEndpoint:
 
         assert result["reloaded_web_manager"] is True
 
+    async def test_update_config_reports_restart_required_fields(self, monkeypatch, tmp_path):
+        path = tmp_path / "runtime_config.yaml"
+        RuntimeConfig(
+            llm_backend="mock",
+            debug_port=8077,
+            llm_model="old-model",
+        ).write_yaml(str(path))
+        monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(path))
+
+        async def fake_restart(_config: RuntimeConfig) -> None:
+            return None
+
+        monkeypatch.setattr(interface_api, "_restart_telegram_channel", fake_restart)
+
+        result = await update_config(ConfigUpdateRequest(
+            llm_backend="mock",
+            debug_port=9001,
+            llm_model="new-model",
+        ))
+
+        apply_state = result["apply_state"]
+        assert apply_state["restart_required"] is True
+        assert apply_state["restart_required_fields"] == ["debug_port"]
+        assert "llm_model" not in apply_state["restart_required_fields"]
+
     async def test_update_config_restarts_telegram_polling(self, monkeypatch, tmp_path):
         path = tmp_path / "runtime_config.yaml"
         RuntimeConfig(
@@ -505,6 +532,58 @@ class TestConfigEndpoint:
 
         assert started is False
         assert interface_api._telegram_task is None
+
+    async def test_admin_runtime_reload_applies_saved_config(self, monkeypatch, tmp_path):
+        path = tmp_path / "runtime_config.yaml"
+        RuntimeConfig(llm_backend="mock").write_yaml(str(path))
+        monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(path))
+
+        captured: list[RuntimeConfig] = []
+
+        async def fake_restart(config: RuntimeConfig) -> None:
+            captured.append(config)
+
+        monkeypatch.setattr(interface_api, "_restart_telegram_channel", fake_restart)
+        set_pipeline(None)
+        manager = SessionManager(
+            RuntimeConfig(data_dir=str(tmp_path / "data")),
+            backend_factory=lambda: MockLLMBackend(response="Test response."),
+        )
+        set_session_manager(manager)
+
+        result = await interface_api.admin_reload_runtime()
+
+        assert result["ok"] is True
+        assert result["action"] == "runtime_reload"
+        assert result["reloaded_web_manager"] is True
+        assert captured and captured[0].llm_backend == "mock"
+
+    async def test_admin_runtime_restart_requires_confirmation(self):
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException) as exc:
+            await interface_api.admin_restart_runtime(
+                interface_api.AdminRuntimeRestartRequest(confirmation="restart")
+            )
+        assert exc.value.status_code == 400
+
+    async def test_admin_runtime_restart_schedules_process_restart(self, monkeypatch):
+        scheduled: list[bool] = []
+
+        def fake_schedule() -> list[str]:
+            scheduled.append(True)
+            return ["python", "nur-web"]
+
+        monkeypatch.setattr(interface_api, "_schedule_process_restart", fake_schedule)
+
+        result = await interface_api.admin_restart_runtime(
+            interface_api.AdminRuntimeRestartRequest(confirmation="RESTART")
+        )
+
+        assert result["scheduled"] is True
+        assert result["runtime_drain"]["telegram_stopped"] is True
+        assert result["argv"] == ["python", "nur-web"]
+        assert scheduled == [True]
 
 
 class TestAdminSoul:

@@ -22,6 +22,7 @@ from runtime.evolution_policy import (
     evaluate_drive_change,
     evaluate_future_behavior,
     make_policy_context,
+    source_trust,
 )
 
 
@@ -1049,7 +1050,13 @@ def _digest_experience(
     if llm_client is not None:
         parsed = _try_llm_digest(title=title, text=text, source_type=source_type, llm_client=llm_client)
         if parsed is not None:
-            return _normalize_digest(parsed, title=title, text=text)
+            digest = _normalize_digest(parsed, title=title, text=text)
+            return _supplement_medium_trust_drives(
+                digest,
+                title=title,
+                text=text,
+                source_type=source_type,
+            )
     return _heuristic_digest(title=title, text=text, source_type=source_type)
 
 
@@ -1195,6 +1202,46 @@ def _normalize_digest(data: dict[str, Any], *, title: str, text: str) -> dict[st
         "self_trait_changes": _as_list(data.get("self_trait_changes")),
         "future_behavior": [str(item) for item in _as_list(data.get("future_behavior"))],
         "title": title,
+    }
+
+
+def _supplement_medium_trust_drives(
+    digest: dict[str, Any],
+    *,
+    title: str,
+    text: str,
+    source_type: str,
+) -> dict[str, Any]:
+    """Fill missing LLM drive changes with deterministic medium-trust signals."""
+    if source_trust(source_type) != "medium":
+        return digest
+    heuristic = _heuristic_digest(title=title, text=text, source_type=source_type)
+    heuristic_drives = [
+        item
+        for item in _as_list(heuristic.get("drive_changes"))
+        if isinstance(item, dict)
+    ]
+    if not heuristic_drives:
+        return digest
+    existing = [
+        item
+        for item in _as_list(digest.get("drive_changes"))
+        if isinstance(item, dict)
+    ]
+    existing_names = {
+        str(item.get("name") or "").strip().lower()
+        for item in existing
+        if _safe_float(item.get("confidence", digest["confidence"]), digest["confidence"]) >= 0.65
+    }
+    drive_changes = list(existing)
+    drive_changes.extend(
+        item
+        for item in heuristic_drives
+        if str(item.get("name") or "").strip().lower() not in existing_names
+    )
+    return {
+        **digest,
+        "drive_changes": drive_changes,
     }
 
 

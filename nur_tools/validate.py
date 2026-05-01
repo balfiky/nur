@@ -27,6 +27,7 @@ EXPECTED_CONSOLE_SCRIPTS = {
     "nur-uninstall": "interface.uninstall:main",
     "nur-web": "interface.api:main",
     "nur-emotional-qa": "evals.emotional_quality:main",
+    "nur-uat": "nur_tools.uat:main",
     "nur-validate": "nur_tools.validate:main",
 }
 EXPECTED_PACKAGE_FILES = {

@@ -428,6 +428,30 @@ class TestCognitivePipeline:
         assert "Use a concise outline before drafting" in backend.last_system_prompt
         pipe.close()
 
+    def test_unverified_permanent_skill_claim_is_replaced(self):
+        backend = MockLLMBackend(
+            response=(
+                "Integrated. The video-downloader skill is now part of my "
+                "permanent operational context."
+            )
+        )
+        pipe = CognitivePipeline(llm_backend=backend)
+
+        result = pipe.process(
+            "Make it a permanent skill for yourself first.",
+            user_id="alice",
+        )
+
+        assert "I did not create or activate a permanent skill" in result.response
+        assert "Admin > Skills" in result.response
+        assert "permanent operational context" not in result.response
+        assert result.debug.self_check_passed is False
+        assert any(
+            "Unverified skill persistence claim" in issue
+            for issue in result.debug.self_check_issues
+        )
+        pipe.close()
+
     def test_debug_serializes_skill_context(self):
         debug = DebugState(skill_context={"skills": [{"id": "report-writer"}]})
 

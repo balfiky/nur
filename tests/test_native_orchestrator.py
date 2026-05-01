@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from core.emotional_engine import EmotionalEngine
+from core.life_influence import LifeInfluence
 from core.types import ToolCapability, ToolCategory, ToolResult
 from nur_tools import register_builtins
 from nur_tools.executor import ToolExecutor
@@ -201,3 +202,31 @@ def test_native_runner_returns_empty_trace_when_model_chooses_no_tool() -> None:
 
     assert result.trace.loop_count == 0
     assert result.tool_context_summary == ""
+
+
+def test_native_runner_accepts_life_influence_and_records_action_effect() -> None:
+    client = FakeNativeClient([
+        _response(_tool_call("system__hostname", {})),
+    ])
+    runner = NativeToolCallRunner(
+        executor=_executor(),
+        base_url="http://localhost:8002/v1",
+        model="test-model",
+        client=client,
+    )
+    engine = EmotionalEngine()
+
+    result = runner.run_tool_loop(
+        user_message="what is your hostname?",
+        state=engine.state,
+        person=None,
+        defense_active=False,
+        engine=engine,
+        max_executions=1,
+        autonomy_level="high_risk",
+        life_influence=LifeInfluence(competence_pressure=0.04),
+    )
+
+    assert result.trace.loop_count == 1
+    assert result.life_influence_effects["persistence_delta"] == 0.04
+    assert result.action_variables.persistence_drive > 0.5

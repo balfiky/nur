@@ -352,8 +352,20 @@
       <div class="action-grid">
         <button class="secondary" id="testStorageBtn">Test Storage</button>
         <button class="secondary" id="diagnosticsBtn">Diagnostics</button>
+        <button class="secondary" id="reloadRuntimeBtn">Apply Saved Config</button>
+        <button class="secondary" id="restartRuntimeBtn">Restart Web Server</button>
         <button class="secondary" id="exportConfigBtn">Export Config</button>
         <button class="secondary" id="backupBtn">Create Backup</button>
+      </div>
+      <div class="panel">
+        <div class="panel-heading">
+          <h3>Config Apply Behavior</h3>
+        </div>
+        <ul class="notes">
+          <li>Save Config writes runtime_config.yaml and reloads web sessions plus Telegram polling.</li>
+          <li>Use Apply Saved Config after editing runtime_config.yaml outside the browser.</li>
+          <li>Debug host, debug port, and CORS changes require Restart Web Server.</li>
+        </ul>
       </div>
       <pre class="output" id="maintenanceOutput" hidden></pre>
     </section>

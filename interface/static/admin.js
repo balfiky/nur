@@ -154,7 +154,7 @@
   function showToast(message, tone) {
     els.toast.textContent = message;
     els.toast.hidden = false;
-    els.toast.style.background = tone === "error" ? "#b42318" : "#172033";
+    els.toast.style.background = tone === "error" ? "#b42318" : (tone === "warn" ? "#b54708" : "#172033");
     clearTimeout(showToast._timer);
     showToast._timer = setTimeout(() => { els.toast.hidden = true; }, 3600);
   }
@@ -917,7 +917,15 @@
         state.toolsLoaded = false;
         await loadTools();
       }
-      showToast(data.message || "Configuration saved.");
+      const applyState = data.apply_state || {};
+      const restartFields = applyState.restart_required_fields || [];
+      if (restartFields.length) {
+        showToast(`Configuration saved. Restart required for ${restartFields.join(", ")}.`, "warn");
+      } else if (applyState.session_manager_reloaded) {
+        showToast("Configuration saved and runtime reloaded.");
+      } else {
+        showToast(data.message || "Configuration saved.");
+      }
     } finally {
       els.saveBtn.disabled = false;
     }
@@ -974,6 +982,33 @@
         }),
       });
       return await res.json();
+    });
+  }
+
+  async function reloadRuntime() {
+    await runJsonAction("maintenanceOutput", async () => {
+      const res = await authedFetch("/admin/runtime/reload", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(responseErrorMessage(data, "Runtime reload failed"));
+      showToast("Saved config applied to runtime.");
+      await refreshStatusOnly();
+      return data;
+    });
+  }
+
+  async function restartRuntime() {
+    const confirmation = window.prompt("Type RESTART to restart the web server process.");
+    if (confirmation === null) return;
+    await runJsonAction("maintenanceOutput", async () => {
+      const res = await authedFetch("/admin/runtime/restart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(responseErrorMessage(data, "Restart failed"));
+      showToast("Web server restart scheduled.");
+      return data;
     });
   }
 
@@ -1141,6 +1176,12 @@
       const res = await authedFetch("/admin/diagnostics");
       return await res.json();
     }));
+    document.getElementById("reloadRuntimeBtn").addEventListener("click", () => {
+      reloadRuntime().catch((err) => showToast(err.message || String(err), "error"));
+    });
+    document.getElementById("restartRuntimeBtn").addEventListener("click", () => {
+      restartRuntime().catch((err) => showToast(err.message || String(err), "error"));
+    });
     document.getElementById("exportConfigBtn").addEventListener("click", () => runJsonAction("maintenanceOutput", async () => {
       const res = await authedFetch("/admin/export/config");
       return await res.json();

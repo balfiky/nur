@@ -23,6 +23,11 @@ from core.dual_process.tool_loop import (
     _summarize_for_generator,
     make_tool_decision,
 )
+from core.life_influence import (
+    LifeInfluence,
+    action_variable_deltas,
+    apply_life_influence_to_action_variables,
+)
 from core.task_planning import (
     execute_plan,
     is_continue_request,
@@ -122,11 +127,14 @@ class NativeToolCallRunner:
         active_plan: TaskPlan | None = None,
         agency_decision: AgencyDecision | None = None,
         autonomy_level: str = "autonomous",
+        life_influence: LifeInfluence | None = None,
     ) -> ToolLoopResult:
         trust = person.trust if person else 0.5
         action_vars = derive_action_variables(
             state, trust=trust, defense_active=defense_active,
         )
+        effective_action_vars = action_vars
+        life_effects: dict[str, float] = {}
 
         plan_result = self._maybe_run_active_plan(
             user_message=user_message,
@@ -142,6 +150,7 @@ class NativeToolCallRunner:
             trust=trust,
             agency_decision=agency_decision,
             autonomy_level=autonomy_level,
+            life_influence=life_influence,
         )
         if not capabilities:
             return ToolLoopResult(
@@ -208,9 +217,17 @@ class NativeToolCallRunner:
                     proposed.append(intent)
                     capability = self._executor._registry.get(intent.tool_name)
                     category = capability.category if capability else ToolCategory.READ_ONLY
+                    adjusted_action_vars = _with_life_influence(
+                        action_vars,
+                        life_influence,
+                        category,
+                    )
+                    effective_action_vars = adjusted_action_vars
+                    life_effects.update(_action_effects(action_vars, adjusted_action_vars))
+                    _apply_action_variables_to_intent(intent, adjusted_action_vars)
                     decision = make_tool_decision(
                         intent,
-                        action_vars,
+                        adjusted_action_vars,
                         category,
                         trust,
                         agency_decision=agency_decision,
@@ -227,10 +244,11 @@ class NativeToolCallRunner:
                                 observations=observations,
                                 loop_count=len(executed),
                             ),
-                            action_variables=action_vars,
+                            action_variables=adjusted_action_vars,
                             tool_context_summary=_summarize_for_generator(
                                 observations, executed,
                             ),
+                            life_influence_effects=life_effects,
                         )
 
                     result = self._executor.execute(intent.tool_name, intent.arguments)
@@ -263,8 +281,9 @@ class NativeToolCallRunner:
                 observations=observations,
                 loop_count=len(executed),
             ),
-            action_variables=action_vars,
+            action_variables=effective_action_vars,
             tool_context_summary=_summarize_for_generator(observations, executed),
+            life_influence_effects=life_effects,
         )
 
     def _maybe_run_active_plan(
@@ -314,23 +333,29 @@ class NativeToolCallRunner:
         trust: float,
         agency_decision: AgencyDecision | None,
         autonomy_level: str,
+        life_influence: LifeInfluence | None = None,
     ) -> list[Any]:
         capabilities: list[Any] = []
         for capability in self._executor._registry.list_tools():
+            adjusted_action_vars = _with_life_influence(
+                action_vars,
+                life_influence,
+                capability.category,
+            )
             intent = ToolIntent(
                 tool_name=capability.name,
                 arguments={},
                 reason="Tool availability policy",
                 expected_outcome="Allow model-native tool selection",
-                urgency=action_vars.action_urgency,
-                risk_tolerance=action_vars.risk_tolerance,
-                autonomy_bias=action_vars.autonomy_bias,
-                clarification_threshold=action_vars.clarification_threshold,
-                persistence_drive=action_vars.persistence_drive,
+                urgency=adjusted_action_vars.action_urgency,
+                risk_tolerance=adjusted_action_vars.risk_tolerance,
+                autonomy_bias=adjusted_action_vars.autonomy_bias,
+                clarification_threshold=adjusted_action_vars.clarification_threshold,
+                persistence_drive=adjusted_action_vars.persistence_drive,
             )
             decision = make_tool_decision(
                 intent,
-                action_vars,
+                adjusted_action_vars,
                 capability.category,
                 trust,
                 agency_decision=agency_decision,
@@ -566,3 +591,36 @@ def _get_value(obj: Any, key: str) -> Any:
     if isinstance(obj, dict):
         return obj.get(key)
     return getattr(obj, key, None)
+
+
+def _with_life_influence(
+    action_vars: ActionVariables,
+    life_influence: LifeInfluence | None,
+    category: ToolCategory,
+) -> ActionVariables:
+    if life_influence is None or life_influence.is_neutral:
+        return action_vars
+    return apply_life_influence_to_action_variables(
+        action_vars,
+        life_influence,
+        read_only_action=category == ToolCategory.READ_ONLY,
+    )
+
+
+def _action_effects(before: ActionVariables, after: ActionVariables) -> dict[str, float]:
+    return {
+        key: value
+        for key, value in action_variable_deltas(before, after).items()
+        if value != 0.0
+    }
+
+
+def _apply_action_variables_to_intent(
+    intent: ToolIntent,
+    action_vars: ActionVariables,
+) -> None:
+    intent.urgency = action_vars.action_urgency
+    intent.risk_tolerance = action_vars.risk_tolerance
+    intent.autonomy_bias = action_vars.autonomy_bias
+    intent.clarification_threshold = action_vars.clarification_threshold
+    intent.persistence_drive = action_vars.persistence_drive

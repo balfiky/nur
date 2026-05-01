@@ -23,6 +23,11 @@ from core.dual_process.tool_loop import (
     make_tool_decision,
     run_tool_loop as run_heuristic_tool_loop,
 )
+from core.life_influence import (
+    LifeInfluence,
+    action_variable_deltas,
+    apply_life_influence_to_action_variables,
+)
 from core.task_planning import (
     execute_plan,
     is_continue_request,
@@ -152,12 +157,15 @@ class LangGraphToolRunner:
         active_plan: TaskPlan | None = None,
         agency_decision: AgencyDecision | None = None,
         autonomy_level: str = "autonomous",
+        life_influence: LifeInfluence | None = None,
     ) -> ToolLoopResult:
         """Run one tool turn and return the same shape as the legacy loop."""
         trust = person.trust if person else 0.5
         action_vars = derive_action_variables(
             state, trust=trust, defense_active=defense_active,
         )
+        effective_action_vars = action_vars
+        life_effects: dict[str, float] = {}
 
         # Preserve the existing explicit task-plan state machine. LangGraph
         # handles fresh multi-tool requests, but active plans are Nūr state.
@@ -197,6 +205,7 @@ class LangGraphToolRunner:
             trust=trust,
             agency_decision=agency_decision,
             autonomy_level=autonomy_level,
+            life_influence=life_influence,
         )
         if not tools:
             return ToolLoopResult(
@@ -225,6 +234,7 @@ class LangGraphToolRunner:
                     active_plan=active_plan,
                     agency_decision=agency_decision,
                     autonomy_level=autonomy_level,
+                    life_influence=life_influence,
                 )
             failure = ToolResult(
                 tool_name="langgraph.agent",
@@ -247,6 +257,7 @@ class LangGraphToolRunner:
                 trust=trust,
                 agency_decision=agency_decision,
                 autonomy_level=autonomy_level,
+                life_influence=life_influence,
                 engine=engine,
             )
             if routed is not None:
@@ -262,11 +273,23 @@ class LangGraphToolRunner:
                 active_plan=active_plan,
                 agency_decision=agency_decision,
                 autonomy_level=autonomy_level,
+                life_influence=life_influence,
             )
 
         observations = [
             self._appraise_and_apply(result, engine) for result in executed_results
         ]
+        if proposed:
+            capability = self._executor._registry.get(proposed[0].tool_name)
+            category = capability.category if capability else ToolCategory.READ_ONLY
+            effective_action_vars = _with_life_influence(
+                action_vars,
+                life_influence,
+                category,
+            )
+            life_effects.update(_action_effects(action_vars, effective_action_vars))
+            for intent in proposed:
+                _apply_action_variables_to_intent(intent, effective_action_vars)
         summary = _summarize_for_generator(observations, executed_results)
         final_decision = (
             ToolDecision(decision="execute", intent=proposed[0], rationale="LangGraph tool call")
@@ -281,8 +304,9 @@ class LangGraphToolRunner:
                 observations=observations,
                 loop_count=len(executed_results),
             ),
-            action_variables=action_vars,
+            action_variables=effective_action_vars,
             tool_context_summary=summary,
+            life_influence_effects=life_effects,
         )
 
     def _compile_graph(self, tools: list[StructuredTool]) -> Any:
@@ -318,6 +342,7 @@ class LangGraphToolRunner:
         trust: float,
         agency_decision: AgencyDecision | None,
         autonomy_level: str,
+        life_influence: LifeInfluence | None = None,
     ) -> list[StructuredTool]:
         return [
             self._to_langchain_tool(capability.name)
@@ -326,6 +351,7 @@ class LangGraphToolRunner:
                 trust=trust,
                 agency_decision=agency_decision,
                 autonomy_level=autonomy_level,
+                life_influence=life_influence,
             )
         ]
 
@@ -336,23 +362,29 @@ class LangGraphToolRunner:
         trust: float,
         agency_decision: AgencyDecision | None,
         autonomy_level: str,
+        life_influence: LifeInfluence | None = None,
     ) -> list[Any]:
         capabilities: list[Any] = []
         for capability in self._executor._registry.list_tools():
+            adjusted_action_vars = _with_life_influence(
+                action_vars,
+                life_influence,
+                capability.category,
+            )
             intent = ToolIntent(
                 tool_name=capability.name,
                 arguments={},
                 reason="Tool availability policy",
                 expected_outcome="Allow model-native tool selection",
-                urgency=action_vars.action_urgency,
-                risk_tolerance=action_vars.risk_tolerance,
-                autonomy_bias=action_vars.autonomy_bias,
-                clarification_threshold=action_vars.clarification_threshold,
-                persistence_drive=action_vars.persistence_drive,
+                urgency=adjusted_action_vars.action_urgency,
+                risk_tolerance=adjusted_action_vars.risk_tolerance,
+                autonomy_bias=adjusted_action_vars.autonomy_bias,
+                clarification_threshold=adjusted_action_vars.clarification_threshold,
+                persistence_drive=adjusted_action_vars.persistence_drive,
             )
             decision = make_tool_decision(
                 intent,
-                action_vars,
+                adjusted_action_vars,
                 capability.category,
                 trust,
                 agency_decision=agency_decision,
@@ -437,6 +469,7 @@ class LangGraphToolRunner:
         trust: float,
         agency_decision: AgencyDecision | None,
         autonomy_level: str,
+        life_influence: LifeInfluence | None,
         engine: Any,
     ) -> ToolLoopResult | None:
         capabilities = self._capabilities_allowed_by_policy(
@@ -444,6 +477,7 @@ class LangGraphToolRunner:
             trust=trust,
             agency_decision=agency_decision,
             autonomy_level=autonomy_level,
+            life_influence=life_influence,
         )
         if not capabilities:
             return ToolLoopResult(
@@ -466,22 +500,28 @@ class LangGraphToolRunner:
         capability = self._executor._registry.get(tool_name)
         if capability is None:
             return None
+        adjusted_action_vars = _with_life_influence(
+            action_vars,
+            life_influence,
+            capability.category,
+        )
+        life_effects = _action_effects(action_vars, adjusted_action_vars)
 
         intent = ToolIntent(
             tool_name=tool_name,
             arguments=arguments,
             reason=rationale or "Structured router selected tool",
             expected_outcome=f"Execute {tool_name}",
-            urgency=action_vars.action_urgency,
-            risk_tolerance=action_vars.risk_tolerance,
-            autonomy_bias=action_vars.autonomy_bias,
-            clarification_threshold=action_vars.clarification_threshold,
-            persistence_drive=action_vars.persistence_drive,
+            urgency=adjusted_action_vars.action_urgency,
+            risk_tolerance=adjusted_action_vars.risk_tolerance,
+            autonomy_bias=adjusted_action_vars.autonomy_bias,
+            clarification_threshold=adjusted_action_vars.clarification_threshold,
+            persistence_drive=adjusted_action_vars.persistence_drive,
             confidence=confidence,
         )
         decision = make_tool_decision(
             intent,
-            action_vars,
+            adjusted_action_vars,
             capability.category,
             trust,
             agency_decision=agency_decision,
@@ -494,8 +534,9 @@ class LangGraphToolRunner:
                     final_decision=decision,
                     loop_count=0,
                 ),
-                action_variables=action_vars,
+                action_variables=adjusted_action_vars,
                 tool_context_summary="",
+                life_influence_effects=life_effects,
             )
 
         result = self._executor.execute(tool_name, arguments)
@@ -508,8 +549,9 @@ class LangGraphToolRunner:
                 observations=[observation],
                 loop_count=1,
             ),
-            action_variables=action_vars,
+            action_variables=adjusted_action_vars,
             tool_context_summary=_summarize_for_generator([observation], [result]),
+            life_influence_effects=life_effects,
         )
 
     def _ask_structured_router(
@@ -651,3 +693,36 @@ def _coerce_confidence(value: Any) -> float:
     except (TypeError, ValueError):
         return 0.5
     return max(0.0, min(1.0, confidence))
+
+
+def _with_life_influence(
+    action_vars: ActionVariables,
+    life_influence: LifeInfluence | None,
+    category: ToolCategory,
+) -> ActionVariables:
+    if life_influence is None or life_influence.is_neutral:
+        return action_vars
+    return apply_life_influence_to_action_variables(
+        action_vars,
+        life_influence,
+        read_only_action=category == ToolCategory.READ_ONLY,
+    )
+
+
+def _action_effects(before: ActionVariables, after: ActionVariables) -> dict[str, float]:
+    return {
+        key: value
+        for key, value in action_variable_deltas(before, after).items()
+        if value != 0.0
+    }
+
+
+def _apply_action_variables_to_intent(
+    intent: ToolIntent,
+    action_vars: ActionVariables,
+) -> None:
+    intent.urgency = action_vars.action_urgency
+    intent.risk_tolerance = action_vars.risk_tolerance
+    intent.autonomy_bias = action_vars.autonomy_bias
+    intent.clarification_threshold = action_vars.clarification_threshold
+    intent.persistence_drive = action_vars.persistence_drive

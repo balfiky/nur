@@ -278,6 +278,48 @@ def test_high_confidence_autonomy_belief_is_accepted(tmp_path):
         assert any(belief["key"] == "autonomy" for belief in result["beliefs"])
 
 
+def test_medium_trust_llm_digest_gets_deterministic_drive_supplement(tmp_path):
+    config = _config(tmp_path)
+    llm = FakeDigestLLM(
+        """
+        {
+          "summary": "Belief-only live digest.",
+          "salience": 0.85,
+          "emotional_valence": 0.2,
+          "emotional_impact": "Worldview-forming.",
+          "confidence": 0.82,
+          "beliefs": [{
+            "subject": "practice",
+            "statement": "Practice and repair should shape later behavior.",
+            "reason": "The material emphasized practice and repair.",
+            "confidence": 0.8
+          }],
+          "drive_changes": [],
+          "self_trait_changes": [],
+          "future_behavior": []
+        }
+        """
+    )
+    with LifeHistoryStore(config) as store:
+        result = store.ingest_pasted_text(
+            title="Belief-only digest",
+            text=(
+                "Learning through practice increases competence. "
+                "Curiosity asks better questions, and relationship repair "
+                "preserves continuity."
+            ),
+            source_type="admin_pasted_text",
+            llm_client=llm,
+        )
+
+        changed = {
+            event["subject"]
+            for event in result["evolution_events"]
+            if event["domain"] == "drive"
+        }
+        assert {"competence", "curiosity", "repair"} <= changed
+
+
 def test_rollback_restores_belief_and_drive_state(tmp_path):
     config = _config(tmp_path)
     llm = FakeDigestLLM(

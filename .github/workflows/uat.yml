@@ -1,0 +1,100 @@
+name: UAT
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mock-uat:
+    name: Browser/Admin UAT (mock)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install package and UAT dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,uat]"
+          python -m playwright install --with-deps chromium
+
+      - name: Run mock UAT
+        run: python -m nur_tools.uat --artifacts reports/uat/mock
+
+      - name: Upload mock UAT artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nur-uat-mock
+          path: reports/uat/mock
+
+  live-uat:
+    name: Browser/Admin UAT (live backend)
+    runs-on: ubuntu-latest
+    # GitHub does not expose repository secrets to forked pull requests.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    env:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
+      NUR_UAT_BACKEND: ${{ vars.NUR_UAT_BACKEND }}
+      NUR_UAT_MODEL: ${{ vars.NUR_UAT_MODEL }}
+      NUR_UAT_BASE_URL: ${{ vars.NUR_UAT_BASE_URL }}
+      NUR_UAT_API_KEY_ENV: ${{ vars.NUR_UAT_API_KEY_ENV }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install package and UAT dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,uat]"
+          python -m playwright install --with-deps chromium
+
+      - name: Run live UAT without mock fallback
+        run: |
+          backend="${NUR_UAT_BACKEND:-openai_compatible}"
+          key_env="${NUR_UAT_API_KEY_ENV:-}"
+          if [ -z "$key_env" ]; then
+            if [ "$backend" = "minimax" ]; then
+              key_env="MINIMAX_API_KEY"
+            else
+              key_env="LLM_API_KEY"
+            fi
+          fi
+          if [ -z "${!key_env}" ]; then
+            echo "::error::Live UAT requires \$$key_env. Configure repository secrets/variables or run trusted PRs only."
+            exit 1
+          fi
+          python -m nur_tools.uat \
+            --live \
+            --backend "$backend" \
+            --model "${NUR_UAT_MODEL:-}" \
+            --base-url "${NUR_UAT_BASE_URL:-}" \
+            --api-key-env "$key_env" \
+            --artifacts reports/uat/live
+
+      - name: Upload live UAT artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nur-uat-live
+          path: reports/uat/live

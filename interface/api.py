@@ -361,6 +361,10 @@ class AdminBackupRequest(BaseModel):
     include_data: bool = True
 
 
+class AdminRuntimeRestartRequest(BaseModel):
+    confirmation: str
+
+
 class AdminSessionResetRequest(BaseModel):
     session_key: str
     confirmation: str
@@ -590,8 +594,6 @@ async def get_config() -> dict:
 
 @app.post("/config", dependencies=[Depends(_require_bearer)])
 async def update_config(req: ConfigUpdateRequest) -> dict:
-    global _session_manager
-
     existing = _load_runtime_config()
     config = RuntimeConfig(
         data_dir=req.data_dir.strip() or "data",
@@ -660,21 +662,21 @@ async def update_config(req: ConfigUpdateRequest) -> dict:
     elif req.api_key.strip():
         config.api_key = req.api_key.strip()
 
+    changed_fields = _changed_config_fields(existing, config)
+    restart_required_fields = sorted(
+        field for field in changed_fields if field in _RESTART_REQUIRED_FIELDS
+    )
     config.write_yaml(RUNTIME_CONFIG_PATH)
 
-    reloaded_web_manager = False
-    if _session_manager is not None:
-        await _session_manager.shutdown()
-        _session_manager = None
-        reloaded_web_manager = True
-
-    await _restart_telegram_channel(config)
+    reload_result = await _reload_runtime_from_config(config)
 
     return _config_payload(
         config,
         saved=True,
         message="Configuration saved to runtime_config.yaml",
-        reloaded_web_manager=reloaded_web_manager,
+        reloaded_web_manager=bool(reload_result["reloaded_web_manager"]),
+        restart_required_fields=restart_required_fields,
+        runtime_reload=reload_result,
     )
 
 
@@ -709,6 +711,10 @@ async def admin_update_config(req: AdminConfigUpdateRequest) -> dict:
         saved=True,
         message=result.get("message"),
         reloaded_web_manager=bool(result.get("reloaded_web_manager")),
+        restart_required_fields=(
+            result.get("apply_state", {}).get("restart_required_fields", [])
+        ),
+        runtime_reload=result.get("runtime_reload", {}),
     )
 
 
@@ -821,6 +827,49 @@ async def admin_diagnostics() -> dict:
     config = _load_runtime_config()
     manager = get_session_manager()
     return _admin_diagnostics_payload(config, manager)
+
+
+@app.post("/admin/runtime/reload", dependencies=[Depends(_require_bearer)])
+async def admin_reload_runtime() -> dict:
+    """Apply the saved runtime config without a full process restart.
+
+    This evicts active web sessions so the next turn rebuilds pipelines from
+    ``runtime_config.yaml`` and restarts the standalone Telegram poller.
+    Host/port/CORS still require a web-server process restart.
+    """
+    config = _load_runtime_config()
+    result = await _reload_runtime_from_config(config)
+    return {
+        "ok": True,
+        "action": "runtime_reload",
+        "message": "Saved runtime config applied to web sessions and Telegram polling.",
+        **result,
+        "restart_required_fields": sorted(_RESTART_REQUIRED_FIELDS),
+        "restart_note": (
+            "debug_host, debug_port, and cors_origins are bound by the web "
+            "server process and require Restart Web Server."
+        ),
+    }
+
+
+@app.post("/admin/runtime/restart", dependencies=[Depends(_require_bearer)])
+async def admin_restart_runtime(req: AdminRuntimeRestartRequest) -> dict:
+    """Schedule a local process restart after the HTTP response is sent."""
+    if req.confirmation.strip() != "RESTART":
+        raise HTTPException(
+            status_code=400,
+            detail="Confirmation must exactly match: RESTART",
+        )
+    drain_result = await _drain_runtime_before_process_restart()
+    argv = _schedule_process_restart()
+    return {
+        "ok": True,
+        "action": "process_restart",
+        "scheduled": True,
+        "message": "Web server restart scheduled.",
+        "runtime_drain": drain_result,
+        "argv": argv,
+    }
 
 
 @app.get("/admin/export/config", dependencies=[Depends(_require_bearer)])
@@ -1595,17 +1644,103 @@ def _load_runtime_config() -> RuntimeConfig:
     return RuntimeConfig.from_yaml(RUNTIME_CONFIG_PATH)
 
 
+def _changed_config_fields(before: RuntimeConfig, after: RuntimeConfig) -> list[str]:
+    """Return dataclass fields whose persisted values changed."""
+    before_data = before.to_yaml_dict()
+    after_data = after.to_yaml_dict()
+    return sorted(
+        field_name
+        for field_name in after_data
+        if before_data.get(field_name) != after_data.get(field_name)
+    )
+
+
+async def _reload_runtime_from_config(config: RuntimeConfig) -> dict:
+    """Apply saved config to reloadable in-process runtime surfaces."""
+    global _session_manager, _pipeline_override
+
+    active_sessions_evicted = 0
+    reloaded_web_manager = False
+
+    if _pipeline_override is not None:
+        _pipeline_override.close()
+        _pipeline_override = None
+        reloaded_web_manager = True
+
+    if _session_manager is not None:
+        active_sessions_evicted = len(_session_manager.active_sessions)
+        await _session_manager.shutdown()
+        _session_manager = None
+        reloaded_web_manager = True
+
+    await _restart_telegram_channel(config)
+    return {
+        "reloaded_web_manager": reloaded_web_manager,
+        "active_sessions_evicted": active_sessions_evicted,
+        "telegram_restarted": True,
+    }
+
+
+async def _drain_runtime_before_process_restart() -> dict:
+    """Persist hot state and stop background runtime work before exec."""
+    global _session_manager, _pipeline_override
+
+    active_sessions_evicted = 0
+    closed_pipeline_override = False
+
+    if _pipeline_override is not None:
+        _pipeline_override.close()
+        _pipeline_override = None
+        closed_pipeline_override = True
+
+    if _session_manager is not None:
+        active_sessions_evicted = len(_session_manager.active_sessions)
+        await _session_manager.shutdown()
+        _session_manager = None
+
+    await _stop_telegram_channel()
+    return {
+        "closed_pipeline_override": closed_pipeline_override,
+        "active_sessions_evicted": active_sessions_evicted,
+        "telegram_stopped": True,
+    }
+
+
+def _restart_argv() -> list[str]:
+    """Best-effort command line for re-execing the current Python process."""
+    original = getattr(sys, "orig_argv", None)
+    if original and len(original) > 1:
+        return [sys.executable, *list(original[1:])]
+    return [sys.executable, *sys.argv]
+
+
+def _schedule_process_restart(delay_seconds: float = 0.35) -> list[str]:
+    """Schedule an in-place process restart after the response can flush."""
+    argv = _restart_argv()
+
+    async def _restart() -> None:
+        await asyncio.sleep(delay_seconds)
+        os.execv(sys.executable, argv)
+
+    asyncio.create_task(_restart())
+    return argv
+
+
 def _config_payload(
     config: RuntimeConfig,
     *,
     saved: bool,
     message: str | None = None,
     reloaded_web_manager: bool = False,
+    restart_required_fields: list[str] | None = None,
+    runtime_reload: dict | None = None,
 ) -> dict:
     """Serialize runtime config for the settings UI."""
     public = config.to_public_dict()
     state = _read_admin_state(config)
     public["setup_completed"] = bool(state.get("setup_completed"))
+    restart_required_fields = sorted(restart_required_fields or [])
+    runtime_reload = runtime_reload or {}
     return {
         "config": public,
         "secret_status": config.secret_status(),
@@ -1613,10 +1748,20 @@ def _config_payload(
         "saved": saved,
         "message": message,
         "reloaded_web_manager": reloaded_web_manager,
+        "runtime_reload": runtime_reload,
+        "apply_state": {
+            "saved_to_disk": saved,
+            "session_manager_reloaded": reloaded_web_manager,
+            "telegram_restarted": bool(runtime_reload.get("telegram_restarted", False)),
+            "active_sessions_evicted": int(runtime_reload.get("active_sessions_evicted", 0)),
+            "restart_required": bool(restart_required_fields),
+            "restart_required_fields": restart_required_fields,
+        },
         "notes": [
             "Secret fields are never returned; leave them blank to keep the current value.",
             "Saving through this UI updates runtime_config.yaml.",
             "The standalone web server reloads its web manager and Telegram poller after save.",
+            "debug_host, debug_port, and cors_origins require restarting the web server process.",
             "Changes for nur / python3 main.py still apply after restarting that runtime.",
         ],
     }
@@ -1689,6 +1834,8 @@ def _admin_config_payload(
     saved: bool,
     message: str | None = None,
     reloaded_web_manager: bool = False,
+    restart_required_fields: list[str] | None = None,
+    runtime_reload: dict | None = None,
 ) -> dict:
     """Serialize config and metadata for the production admin console."""
     return {
@@ -1697,6 +1844,8 @@ def _admin_config_payload(
             saved=saved,
             message=message,
             reloaded_web_manager=reloaded_web_manager,
+            restart_required_fields=restart_required_fields,
+            runtime_reload=runtime_reload,
         ),
         "field_metadata": _admin_field_metadata(config),
         "warnings": _admin_config_warnings(config),

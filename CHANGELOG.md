@@ -10,6 +10,33 @@ _No unreleased changes._
 
 ---
 
+## v0.28.2 — 2026-05-01 (Live UAT and native tool-call hardening)
+
+### Live UAT
+- Added clean-setup user-acceptance coverage for browser/admin flows,
+  configuration application, skills import/enablement, Life History intake,
+  Telegram introspection, persistence across restart, emotional/relationship
+  state changes, tools toggles, and live OpenAI-compatible backends.
+- Added the `nur-uat` command, UAT docs, and CI workflow coverage for the mock
+  acceptance suite.
+
+### Runtime fixes
+- Fixed OpenAI-compatible native tool-call orchestration and LangGraph-backed
+  orchestration so they accept LifeInfluence from the pipeline, apply bounded
+  action-variable adjustments, and report LifeInfluence effects in debug output.
+- Added deterministic medium-trust Life History drive supplementation when a
+  live LLM digest returns beliefs or self-observations but omits obvious drive
+  changes from the source material.
+
+### Admin and reliability
+- Added immediate config apply/reload/restart affordances in the admin console
+  for runtime settings that do not require a process restart and clear
+  restart-required reporting for fields that do.
+- Added a generator guard so normal conversation cannot falsely claim that a
+  permanent skill was created or enabled outside the admin Skills workflow.
+
+---
+
 ## v0.28.1 — 2026-05-01 (Web and Telegram introspection polish)
 
 ### Web/debug presentation
