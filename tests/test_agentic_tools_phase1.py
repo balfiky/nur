@@ -446,11 +446,13 @@ class TestBuiltinRegistration:
         assert "shell.run_command" in names
         assert "web.search" in names
         assert "web.fetch" in names
+        assert "skills.create_from_request" in names
+        assert "skills.enable" in names
 
     def test_total_builtin_count(self):
         reg, exe = _make_executor_with_builtins()
-        # 4 system + 6 fs + 1 shell + 3 web + 5 browser + 3 calendar
-        assert len(reg) == 22
+        # 4 system + 6 fs + 1 shell + 3 web + 5 browser + 3 calendar + 5 skills
+        assert len(reg) == 27
 
     def test_categories_assigned(self):
         reg, _ = _make_executor_with_builtins()
@@ -463,6 +465,7 @@ class TestBuiltinRegistration:
         assert reg.get("shell.run_command").category == ToolCategory.DESTRUCTIVE
         assert reg.get("web.search").category == ToolCategory.READ_ONLY
         assert reg.get("web.search").requires_network is True
+        assert reg.get("skills.create_from_request").category == ToolCategory.COGNITIVE
 
     def test_executor_can_run_registered_tools(self, tmp_path):
         """End-to-end: register builtins then execute a filesystem tool."""

@@ -11,6 +11,7 @@ from runtime.skills import (
     list_skills,
     set_skill_enabled,
 )
+from runtime.tools import create_tool_executor
 
 
 VALID_SKILL = """---
@@ -110,3 +111,49 @@ This should not enter runtime context.
     assert len(skill["instructions"]) <= 48
     assert "fs.read_file" in skill["required_tools"]
     assert "unused" not in {item["id"] for item in context["skills"]}
+
+
+def test_skill_registry_tool_creates_and_enables_skill(tmp_path):
+    config = RuntimeConfig(data_dir=str(tmp_path / "data"), tools_enabled=True)
+    executor = create_tool_executor(config)
+    assert executor is not None
+
+    result = executor.execute(
+        "skills.create_from_request",
+        {
+            "request": (
+                "Create a skill for yourself to transform incoming reports "
+                "into a concise action checklist using the current runtime tools."
+            ),
+            "enable": True,
+        },
+    )
+
+    assert result.success is True
+    assert "skill registry updated" in result.side_effect_summary
+    listing = list_skills(config)
+    assert listing["count"] == 1
+    record = listing["skills"][0]
+    assert record["enabled"] is True
+    assert record["status"] == "enabled"
+
+    context = enabled_skill_context(config)
+    assert context["count"] == 1
+    assert "action checklist" in context["skills"][0]["instructions"]
+
+
+def test_skill_registry_tool_imports_markdown_then_enables(tmp_path):
+    config = RuntimeConfig(data_dir=str(tmp_path / "data"), tools_enabled=True)
+    executor = create_tool_executor(config)
+    assert executor is not None
+
+    imported = executor.execute(
+        "skills.import_markdown",
+        {"skill_markdown": VALID_SKILL, "enable": False},
+    )
+    assert imported.success is True
+    assert list_skills(config)["skills"][0]["enabled"] is False
+
+    enabled = executor.execute("skills.enable", {"skill_id": "disk-helper"})
+    assert enabled.success is True
+    assert list_skills(config)["skills"][0]["enabled"] is True

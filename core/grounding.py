@@ -149,7 +149,8 @@ def grounding_correction_response() -> str:
         "Execution Result showing that I read files, cloned or fetched a "
         "repository, ran a command, installed a package, inspected logs/output, "
         "or wrote anything. I can draft instructions or a SKILL.md, but a "
-        "permanent skill must be imported and enabled through Admin > Skills."
+        "permanent skill must be imported and enabled through Admin > Skills "
+        "or an executed skill-registry tool."
     )
 
 
@@ -186,6 +187,15 @@ def _tool_evidence_categories(tool_trace: Any | None) -> set[str]:
             categories.add("read")
         elif tool_name.startswith(("fs.write", "fs.delete")):
             categories.add("write")
+        elif tool_name.startswith((
+            "skills.create",
+            "skills.import",
+            "skills.enable",
+            "skills.disable",
+        )):
+            categories.add("registry_write")
+        elif tool_name.startswith("skills.list"):
+            categories.add("read")
         elif tool_name.startswith("shell."):
             categories.update({"read", "write", "execute"})
         else:

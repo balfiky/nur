@@ -258,7 +258,7 @@ class TestBuildSystemPrompt:
         assert "Never invent tool results" in prompt
         assert "Only present command output" in prompt
         assert "do not say you are running" in prompt
-        assert "Skill creation/import/enabling is an admin registry action" in prompt
+        assert "Skill creation/import/enabling is a registry action" in prompt
 
 
 # =========================================================================

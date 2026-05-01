@@ -113,3 +113,38 @@ def test_write_claim_is_not_grounded_by_read_only_web_result():
 
     assert len(issues) == 1
     assert "write" in issues[0].required_categories
+
+
+def test_registry_claim_is_grounded_by_skill_registry_write_tool():
+    trace = ToolTrace(
+        executed_results=[
+            ToolResult(
+                tool_name="skills.create_from_request",
+                success=True,
+                output="{}",
+            ),
+        ]
+    )
+
+    issues = verify_response_grounding(
+        "Added. The requested capability is now part of my durable runtime context.",
+        tool_trace=trace,
+    )
+
+    assert issues == []
+
+
+def test_registry_claim_is_not_grounded_by_skill_list_tool():
+    trace = ToolTrace(
+        executed_results=[
+            ToolResult(tool_name="skills.list", success=True, output="{}"),
+        ]
+    )
+
+    issues = verify_response_grounding(
+        "I enabled the skill in my registry.",
+        tool_trace=trace,
+    )
+
+    assert len(issues) == 1
+    assert issues[0].required_categories == ("registry_write",)

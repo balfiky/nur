@@ -6,6 +6,9 @@ from core.dual_process.generator import MockLLMBackend
 from core.pipeline_features import PipelineFeatures
 from pipeline import CognitivePipeline, DebugState, PipelineResponse
 from runtime.debug.api import _debug_to_dict
+from runtime.config import RuntimeConfig
+from runtime.skills import enabled_skill_context, list_skills
+from runtime.tools import create_tool_executor
 
 
 class TestCognitivePipeline:
@@ -443,7 +446,7 @@ class TestCognitivePipeline:
         )
 
         assert "I did not perform that external action" in result.response
-        assert "Admin > Skills" in result.response
+        assert "skill-registry tool" in result.response
         assert "durable runtime context" not in result.response
         assert result.debug.self_check_passed is False
         assert any(
@@ -467,13 +470,55 @@ class TestCognitivePipeline:
         )
 
         assert "I did not perform that external action" in result.response
-        assert "Admin > Skills" in result.response
+        assert "skill-registry tool" in result.response
         assert "cloned checkout" not in result.response
         assert result.debug.self_check_passed is False
         assert any(
             "Unverified external-action claim" in issue
             for issue in result.debug.self_check_issues
         )
+        pipe.close()
+
+    def test_permanent_skill_claim_is_grounded_by_skill_registry_tool(self, tmp_path):
+        config = RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            tools_enabled=True,
+            autonomy_level="autonomous",
+        )
+        executor = create_tool_executor(config)
+        backend = MockLLMBackend(
+            response=(
+                "Added. The requested capability is now part of my durable "
+                "runtime context."
+            )
+        )
+        pipe = CognitivePipeline(
+            llm_backend=backend,
+            tool_executor=executor,
+            skill_provider=lambda: enabled_skill_context(config),
+        )
+
+        result = pipe.process(
+            (
+                "Create a skill for yourself to convert incoming reports into "
+                "a concise action checklist."
+            ),
+            user_id="alice",
+        )
+
+        assert result.debug.tool_trace is not None
+        assert result.debug.tool_trace.executed_results
+        assert result.debug.tool_trace.executed_results[0].tool_name == "skills.create_from_request"
+        assert result.debug.tool_trace.executed_results[0].success is True
+        assert result.response == (
+            "Added. The requested capability is now part of my durable "
+            "runtime context."
+        )
+        assert result.debug.self_check_passed is True
+        assert list_skills(config)["skills"][0]["enabled"] is True
+
+        follow_up = pipe.process("Use the new skill for the next report.", user_id="alice")
+        assert follow_up.debug.skill_context["count"] == 1
         pipe.close()
 
     def test_debug_serializes_skill_context(self):

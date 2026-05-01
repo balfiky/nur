@@ -88,6 +88,8 @@ class TestDetectToolIntent:
             "fs.read_file", "fs.list_dir", "fs.search_text", "fs.glob_paths",
             "fs.write_file", "fs.delete_path", "shell.run_command",
             "web.search", "web.fetch", "web.extract_text",
+            "skills.list", "skills.create_from_request", "skills.enable",
+            "skills.disable",
         }
 
     def test_no_tool_for_conversational(self):
@@ -254,6 +256,25 @@ class TestDetectToolIntent:
         intent = detect_tool_intent("cat /tmp/data.log", self._available())
         assert intent is not None
         assert intent.tool_name == "fs.read_file"
+
+    def test_create_skill_request(self):
+        intent = detect_tool_intent(
+            "Create a skill for yourself to convert meeting notes into tasks.",
+            self._available(),
+        )
+        assert intent is not None
+        assert intent.tool_name == "skills.create_from_request"
+        assert "meeting notes" in intent.arguments["request"]
+        assert intent.arguments["enable"] is True
+
+    def test_enable_skill_request(self):
+        intent = detect_tool_intent(
+            "Enable skill report-writer",
+            self._available(),
+        )
+        assert intent is not None
+        assert intent.tool_name == "skills.enable"
+        assert intent.arguments["skill_id"] == "report-writer"
 
 
 # ===================================================================

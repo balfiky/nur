@@ -129,6 +129,7 @@ _TOOL_FOLLOWUP_COMMAND_RE = re.compile(
 _TOOL_HISTORY_ACTION_HINT_RE = re.compile(
     r"\b(?:hostname|host\s*name|machine\s+name|uname|/etc/hostname|"
     r"disk|drive|filesystem|storage|space|df\s+-h|"
+    r"skill|capability|capabilities|module|integration|registry|"
     r"search|web|internet|fetch|read\s+file|list\s+files|"
     r"cat\s+/|grep|calendar|events?|"
     r"(?:run|execute|issue)\s+(?:the\s+)?(?:command\s+)?[A-Za-z0-9_./~+-]|"

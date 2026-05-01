@@ -53,6 +53,7 @@ def create_tool_executor(
         web_provider=web_provider,
         fs_workspace=config.resolved_tools_workspace,
         include_shell=config.shell_tool_enabled,
+        skill_config=config,
     )
     executor._owned_resources = [web_provider]
     if config.llm_base_url.strip() and config.llm_model.strip():

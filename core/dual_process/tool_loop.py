@@ -84,6 +84,55 @@ class ToolLoopResult:
 
 # Patterns: (compiled_regex, tool_name, arg_extractor_name)
 _TOOL_PATTERNS: list[tuple[re.Pattern, str, str]] = [
+    # Skill registry — generic self-capability import/enabling.
+    (
+        re.compile(
+            r"\b(?:list|show)\s+(?:the\s+)?"
+            r"(?:imported\s+|enabled\s+|runtime\s+)?skills?\b",
+            re.I,
+        ),
+        "skills.list",
+        "empty",
+    ),
+    (
+        re.compile(
+            r"\b(?:enable|activate)\s+(?:the\s+)?"
+            r"(?:skill|capability|module|integration)\s+"
+            r"([A-Za-z0-9][A-Za-z0-9._-]{0,79})\b",
+            re.I,
+        ),
+        "skills.enable",
+        "skill_id",
+    ),
+    (
+        re.compile(
+            r"\b(?:disable|deactivate)\s+(?:the\s+)?"
+            r"(?:skill|capability|module|integration)\s+"
+            r"([A-Za-z0-9][A-Za-z0-9._-]{0,79})\b",
+            re.I,
+        ),
+        "skills.disable",
+        "skill_id",
+    ),
+    (
+        re.compile(
+            r"\b(?:create|make|add|build|import|install|register)\b"
+            r".{0,120}\b(?:skill|capability|module|integration)\b",
+            re.I | re.S,
+        ),
+        "skills.create_from_request",
+        "skill_request",
+    ),
+    (
+        re.compile(
+            r"\b(?:make|save|turn)\b.{0,60}\b(?:this|it)\b.{0,60}"
+            r"\b(?:permanent|persistent|persisted)\b.{0,60}"
+            r"\b(?:skill|capability|module|integration)?\b",
+            re.I | re.S,
+        ),
+        "skills.create_from_request",
+        "skill_request",
+    ),
     # Filesystem — specific path first
     (re.compile(r"\bread(?:ing)?\s+(?:the\s+)?file\s+(\S+)", re.I), "fs.read_file", "path"),
     (re.compile(r"\b(?:show|cat|display)\s+(?:the\s+)?(?:contents?\s+of\s+)?(\S+\.\w+)", re.I), "fs.read_file", "path"),
@@ -188,6 +237,16 @@ def _extract_args(
 
     if extractor == "default_root":
         return {"path": "/"}
+    elif extractor == "empty":
+        return {}
+    elif extractor == "skill_request":
+        request = re.sub(r"\s+", " ", match.string or "").strip()
+        return {
+            "request": request,
+            "name_hint": _extract_skill_name_hint(request),
+            "source_url": _extract_source_url(request),
+            "enable": True,
+        } if request else None
     elif extractor == "default_cwd":
         return {"path": "."}
     elif extractor == "cmd_hostname":
@@ -225,6 +284,8 @@ def _extract_args(
         return {"date": groups[0]}
     elif extractor == "title_date" and len(groups) >= 2:
         return {"title": groups[0], "start": groups[1], "end": groups[1]}
+    elif extractor == "skill_id":
+        return {"skill_id": groups[0]}
     return None
 
 
@@ -234,6 +295,20 @@ def _clean_search_query(text: str) -> str:
     query = query.strip("`\"' ")
     query = query.rstrip("?.! ")
     return query
+
+
+def _extract_source_url(text: str) -> str:
+    match = re.search(r"https?://\S+", text or "", flags=re.I)
+    return match.group(0).rstrip(").,;") if match else ""
+
+
+def _extract_skill_name_hint(text: str) -> str:
+    match = re.search(
+        r"\b(?:called|named)\s+([A-Za-z0-9][A-Za-z0-9 _.-]{1,80})",
+        text or "",
+        flags=re.I,
+    )
+    return match.group(1).strip() if match else ""
 
 
 _NON_COMMAND_STARTS = {
@@ -755,6 +830,9 @@ def _format_result_metadata(metadata: dict[str, Any]) -> str:
         "result_count",
         "bytes_written",
         "exit_code",
+        "skill_id",
+        "status",
+        "enabled",
         "truncated",
     ):
         if key in metadata:

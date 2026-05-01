@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from nur_tools.registry import ToolRegistry
 from nur_tools.executor import ToolExecutor
-from nur_tools.builtin import filesystem, shell, system_info, web_search
+from nur_tools.builtin import filesystem, shell, skills, system_info, web_search
 from nur_tools.builtin import browser as browser_mod
 from nur_tools.builtin import calendar as calendar_mod
 from nur_tools.builtin.web_search import WebProvider
@@ -12,6 +12,7 @@ from nur_tools.builtin.browser import BrowserProvider
 from nur_tools.builtin.calendar import CalendarProvider
 from nur_tools.mcp.adapter import register_mcp_tools
 from nur_tools.mcp.client import MCPClient
+from runtime.config import RuntimeConfig
 
 
 def register_builtins(
@@ -23,6 +24,7 @@ def register_builtins(
     *,
     fs_workspace: str | None = None,
     include_shell: bool = True,
+    skill_config: RuntimeConfig | None = None,
 ) -> None:
     """Register all builtin tool capabilities and handlers.
 
@@ -37,6 +39,9 @@ def register_builtins(
         include_shell: Whether to register ``shell.run_command``. Defaults to
             True to preserve existing test wiring; production callers gate
             this on an explicit config flag.
+        skill_config: Optional RuntimeConfig-like object for skill registry
+            tools. When omitted, the skill tool module uses default runtime
+            paths, preserving legacy zero-arg test wiring.
     """
     # System inspection
     for cap in system_info.CAPABILITIES:
@@ -77,4 +82,11 @@ def register_builtins(
         registry.register(cap)
     calendar_handlers = calendar_mod.create_handlers(calendar_provider)
     for name, handler in calendar_handlers.items():
+        executor.register_handler(name, handler)
+
+    # Skill registry
+    for cap in skills.CAPABILITIES:
+        registry.register(cap)
+    skill_handlers = skills.create_handlers(skill_config)
+    for name, handler in skill_handlers.items():
         executor.register_handler(name, handler)
