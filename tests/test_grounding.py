@@ -31,6 +31,16 @@ def test_unverified_external_action_claim_is_flagged_without_tool_trace():
     assert issues[0].evidence_categories == ()
 
 
+def test_unverified_durable_capability_claim_is_flagged_without_tool_trace():
+    response = "Added. The requested capability is now part of my durable runtime context."
+
+    issues = verify_response_grounding(response, tool_trace=None)
+
+    assert len(issues) == 1
+    assert issues[0].code == "unverified_external_action_claim"
+    assert issues[0].required_categories == ("registry_write",)
+
+
 def test_read_claim_is_grounded_by_read_tool_result():
     trace = ToolTrace(
         executed_results=[

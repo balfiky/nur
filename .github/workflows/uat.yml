@@ -5,6 +5,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      run_live:
+        description: "Run live backend UAT. Requires configured live backend secrets."
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -43,8 +49,19 @@ jobs:
   live-uat:
     name: Browser/Admin UAT (live backend)
     runs-on: ubuntu-latest
-    # GitHub does not expose repository secrets to forked pull requests.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    # Live UAT is intentionally opt-in. Mock UAT is the required push/PR gate;
+    # live UAT depends on repository secrets and should not fail every push when
+    # those secrets are absent.
+    if: >-
+      (
+        (github.event_name == 'workflow_dispatch' && inputs.run_live) ||
+        vars.NUR_RUN_LIVE_UAT == '1' ||
+        vars.NUR_RUN_LIVE_UAT == 'true'
+      ) &&
+      (
+        github.event_name != 'pull_request' ||
+        github.event.pull_request.head.repo.full_name == github.repository
+      )
     env:
       LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
       MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}

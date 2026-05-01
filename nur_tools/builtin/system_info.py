@@ -49,7 +49,7 @@ CAPABILITIES: list[ToolCapability] = [
         description=(
             "List installed operating-system packages from the host package "
             "database. Use for apt/dpkg package inventory questions such as "
-            "packages starting with a prefix like nvidia."
+            "packages starting with a requested prefix."
         ),
         category=ToolCategory.READ_ONLY,
         arg_schema={
@@ -57,7 +57,7 @@ CAPABILITIES: list[ToolCapability] = [
                 "type": "string",
                 "required": False,
                 "default": "",
-                "description": "Optional package-name prefix, for example nvidia",
+                "description": "Optional package-name prefix",
             },
             "limit": {
                 "type": "integer",

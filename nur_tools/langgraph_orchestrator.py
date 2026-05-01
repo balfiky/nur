@@ -64,13 +64,12 @@ runtime facts from memory. If a tool is needed, call the tool. If no tool is
 needed, return a short final answer without a tool call.
 
 For machine inspection requests, prefer first-class system tools when present:
-system__hostname for hostname, system__disk_usage for disk usage,
+system__hostname for host identity, system__disk_usage for storage usage,
 system__uname for OS/kernel, and system__installed_packages for installed
 package inventory. Use shell__run_command only for explicit shell commands or
 machine inspection that has no first-class tool.
-For Amazon/product links or follow-ups like "their links", "all", or "give me
-the Amazon links", use recent conversation to identify the referenced items and
-call web__search with a targeted query such as site:amazon.com plus the title.
+For product, document, or other referenced links, use recent conversation to
+identify the referenced items and call web__search with a targeted query.
 Do not claim cleanup, deletion, or state changes unless a tool call actually
 performed that action.
 """
@@ -99,8 +98,8 @@ for a state-changing command.
 Examples:
 - disk usage, storage fullness, drive capacity -> system.disk_usage {"path": "/"}
 - hostname, machine name, node name -> system.hostname {}
-- installed apt/dpkg packages starting with nvidia -> system.installed_packages {"prefix": "nvidia"}
-- Amazon/product links for a previous book result -> web.search {"query": "site:amazon.com <book title>"}
+- installed package prefix request -> system.installed_packages {"prefix": "<prefix>"}
+- referenced product/document links -> web.search {"query": "<targeted referenced item query>"}
 - current/latest web facts -> web.search {"query": "..."}
 
 If no tool is needed, return {"tool_name": null, "arguments": {}, "confidence": 0, "rationale": "no tool needed"}.

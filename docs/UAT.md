@@ -99,10 +99,21 @@ nur-uat --pytest-args -- -k chat # pass extra args to pytest
 
 ## CI
 
-The UAT workflow runs the mock pass and uploads artifacts. The live pass is a
-separate job with no mock fallback; it requires repository secrets for the
-selected backend. Pull requests from forks may not have access to those secrets,
-so run `nur-uat --live` locally or through a trusted branch before release.
+The UAT workflow runs the mock pass and uploads artifacts on push and pull
+request. The live pass is opt-in because it requires repository secrets and may
+spend provider quota.
+
+Run live UAT in CI by either:
+
+- manually starting the UAT workflow with `run_live=true`, or
+- setting repository variable `NUR_RUN_LIVE_UAT` to `1` or `true`.
+
+Live UAT has no mock fallback. It requires repository variables such as
+`NUR_UAT_BACKEND`, `NUR_UAT_MODEL`, and `NUR_UAT_BASE_URL`, plus the matching
+secret selected by `NUR_UAT_API_KEY_ENV` or the default `LLM_API_KEY` /
+`MINIMAX_API_KEY`. Pull requests from forks may not have access to those
+secrets, so run `nur-uat --live` locally or through a trusted branch before
+release.
 
 UAT remains structural/inspectable. It does not claim human-likeness or measure
 subjective response quality.

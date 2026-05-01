@@ -431,8 +431,8 @@ class TestCognitivePipeline:
     def test_unverified_permanent_skill_claim_is_replaced(self):
         backend = MockLLMBackend(
             response=(
-                "Integrated. The requested skill is now part of my permanent "
-                "operational context."
+                "Added. The requested capability is now part of my durable "
+                "runtime context."
             )
         )
         pipe = CognitivePipeline(llm_backend=backend)
@@ -442,12 +442,12 @@ class TestCognitivePipeline:
             user_id="alice",
         )
 
-        assert "I did not create or activate a permanent skill" in result.response
+        assert "I did not perform that external action" in result.response
         assert "Admin > Skills" in result.response
-        assert "permanent operational context" not in result.response
+        assert "durable runtime context" not in result.response
         assert result.debug.self_check_passed is False
         assert any(
-            "Unverified skill persistence claim" in issue
+            "Unverified external-action claim" in issue
             for issue in result.debug.self_check_issues
         )
         pipe.close()

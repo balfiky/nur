@@ -32,7 +32,7 @@ _ACTION_VERBS_RE = re.compile(
     r"cloned?|cloning|fetched?|fetching|downloaded?|downloading|installed?|installing|"
     r"ran|running|executed?|executing|checked?|checking|opened?|opening|"
     r"searched?|searching|listed?|listing|inspected?|inspecting|loaded?|loading|"
-    r"called?|calling"
+    r"called?|calling|integrated?|integrating|registered|registering|added|adding"
     r")\b",
     re.IGNORECASE,
 )
@@ -41,7 +41,8 @@ _EXTERNAL_OBJECT_RE = re.compile(
     r"\b("
     r"repo(?:sitory)?|checkout|file|folder|directory|script|logs?|output|"
     r"workspace|environment|shell|terminal|command|process|package|dependency|"
-    r"url|web(?:site)?|page|api|endpoint|server|database|registry|skill"
+    r"url|web(?:site)?|page|api|endpoint|server|database|registry|skill|"
+    r"capability|capabilities|module|integration|toolset|skillset"
     r")\b",
     re.IGNORECASE,
 )
@@ -52,13 +53,31 @@ _FIRST_PERSON_ACTION_RE = re.compile(
     r"cloned?|cloning|fetched?|fetching|downloaded?|downloading|installed?|installing|"
     r"ran|running|executed?|executing|checked?|checking|opened?|opening|"
     r"searched?|searching|listed?|listing|inspected?|inspecting|loaded?|loading|"
-    r"called?|calling)\b.{0,100}",
+    r"called?|calling|integrated?|integrating|registered|registering|added|adding)"
+    r"\b.{0,100}",
     re.IGNORECASE | re.DOTALL,
 )
 
 _STATUS_CLAIM_RE = re.compile(
     r"\b(?:tool|shell|terminal|command|process|install|download|clone|fetch|write|read)"
     r"\b.{0,60}\b(?:failed|succeeded|completed|returned|produced|output|logs?)\b",
+    re.IGNORECASE | re.DOTALL,
+)
+
+_REGISTRY_STATE_CLAIM_RE = re.compile(
+    r"\b(?:created?|creating|imported?|importing|enabled?|enabling|"
+    r"activated?|activating|installed?|installing|integrated?|integrating|"
+    r"registered|registering|added|adding|made\s+permanent)\b"
+    r".{0,100}\b(?:skill|capability|capabilities|module|integration|"
+    r"registry|toolset|skillset)\b"
+    r"|"
+    r"\b(?:skill|capability|capabilities|module|integration|toolset|skillset)"
+    r"\b.{0,100}\b(?:created?|imported?|enabled?|activated?|installed?|"
+    r"integrated?|registered|added|permanent|persistent|persisted)\b"
+    r"|"
+    r"\b(?:now|already)\b.{0,80}\b(?:part\s+of|available\s+in|added\s+to)\b"
+    r".{0,80}\b(?:context|runtime|registry|configuration|toolset|skillset|"
+    r"capability|capabilities)\b",
     re.IGNORECASE | re.DOTALL,
 )
 
@@ -107,7 +126,7 @@ def extract_action_claims(response: str) -> list[ActionClaim]:
         return []
     claims: list[ActionClaim] = []
     seen: set[str] = set()
-    for pattern in (_FIRST_PERSON_ACTION_RE, _STATUS_CLAIM_RE):
+    for pattern in (_FIRST_PERSON_ACTION_RE, _STATUS_CLAIM_RE, _REGISTRY_STATE_CLAIM_RE):
         for match in pattern.finditer(response):
             text = _compact(match.group(0))
             if text in seen or not _EXTERNAL_OBJECT_RE.search(text):
@@ -142,7 +161,13 @@ def _claim_categories(text: str) -> set[str]:
         categories.add("write")
     if re.search(r"\b(ran|running|executed?|executing|shell|terminal|command|process|package|dependency)\b", lower):
         categories.add("execute")
-    if re.search(r"\b(skill|registry)\b", lower) and re.search(r"\b(created?|creating|imported?|enabled?|activated?|installed?)\b", lower):
+    if re.search(r"\b(skill|capability|capabilities|module|integration|registry|toolset|skillset)\b", lower) and re.search(
+        r"\b(created?|creating|imported?|importing|enabled?|enabling|"
+        r"activated?|activating|installed?|installing|integrated?|integrating|"
+        r"registered|registering|added|adding|made\s+permanent|permanent|"
+        r"persistent|persisted|part\s+of|available\s+in)\b",
+        lower,
+    ):
         categories.add("registry_write")
     return categories
 
@@ -191,6 +216,19 @@ def _is_negated_or_evidence_warning(text: str) -> bool:
     if "no tool execution result" in lower:
         return True
     if "without tool execution result" in lower:
+        return True
+    if re.search(
+        r"\b(?:must|should|needs?\s+to|has\s+to|can|could)\s+be\s+"
+        r"(?:created|imported|enabled|activated|installed|integrated|"
+        r"registered|added)\b",
+        lower,
+    ):
+        return True
+    if re.search(
+        r"\bif\s+you\b.{0,60}\b(?:create|import|enable|activate|install|"
+        r"integrate|register|add)\b",
+        lower,
+    ):
         return True
     if re.search(r"\b(?:i|we)\s+(?:did\s+not|didn't|do\s+not|don't)\b", lower):
         return True
