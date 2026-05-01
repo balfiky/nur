@@ -391,6 +391,27 @@ class TestAdminEndpoints:
         assert "tools_without_auth" in codes
         assert "cors_without_auth" in codes
 
+    def test_admin_persona_state_lists_active_web_sessions(self, client):
+        empty = client.get("/admin/persona/state")
+        assert empty.status_code == 200
+        assert empty.json()["sessions"] == []
+
+        client.post(
+            "/v1/chat",
+            json={"message": "hello from the web channel", "user_id": "dash", "chat_id": "webtab"},
+        )
+
+        resp = client.get("/admin/persona/state")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["count"] == 1
+        assert data["channel_counts"] == {"web": 1}
+        session = data["sessions"][0]
+        assert session["session_key"] == "web:dash:webtab"
+        assert session["platform"] == "web"
+        assert session["persona_view"]["active"] is True
+        assert session["persona_view"]["emotions"]["simple_label"]
+
     def test_admin_config_preserves_secret_when_blank(
         self, client, temp_config, tmp_path,
     ):
@@ -436,6 +457,7 @@ class TestAdminEndpoints:
     def test_admin_routes_require_auth_when_key_configured(self, authed_client):
         assert authed_client.get("/admin/status").status_code == 401
         assert authed_client.get("/admin/config").status_code == 401
+        assert authed_client.get("/admin/persona/state").status_code == 401
         assert authed_client.post(
             "/admin/config", json={"clear_api_key": True},
         ).status_code == 401
@@ -445,6 +467,12 @@ class TestAdminEndpoints:
             headers={"Authorization": "Bearer test-token-abc"},
         )
         assert ok.status_code == 200
+
+        persona = authed_client.get(
+            "/admin/persona/state",
+            headers={"Authorization": "Bearer test-token-abc"},
+        )
+        assert persona.status_code == 200
 
     def test_admin_setup_state_can_be_completed(
         self, client, temp_config, tmp_path,

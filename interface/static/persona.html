@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Project Nur unified runtime persona dashboard across Web, Telegram, and future channels.">
+<title>Nūr Persona Dashboard</title>
+<link rel="stylesheet" href="/admin/assets/persona.css">
+</head>
+<body>
+<main class="persona-shell">
+  <header class="persona-topbar">
+    <a class="brand" href="/admin">
+      <span class="brand-mark">N</span>
+      <span>
+        <strong>Nūr</strong>
+        <small>Unified Persona Dashboard</small>
+      </span>
+    </a>
+    <div class="topbar-actions">
+      <span class="status-pill" id="dashboardStatus">Loading</span>
+      <label class="auto-refresh">
+        <input id="autoRefresh" type="checkbox" aria-label="Auto refresh persona dashboard" checked>
+        <span>Auto refresh</span>
+      </label>
+      <button class="secondary" id="tokenBtn">API Token</button>
+      <button class="primary" id="refreshBtn">Refresh</button>
+    </div>
+  </header>
+
+  <section class="summary-grid" id="summaryGrid" aria-label="Runtime summary"></section>
+
+  <section class="dashboard-grid">
+    <aside class="panel session-panel" aria-labelledby="sessionsHeading">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Runtime Sessions</p>
+          <h1 id="sessionsHeading">Channels</h1>
+        </div>
+      </div>
+      <div class="session-list" id="sessionList"></div>
+    </aside>
+
+    <section class="panel detail-panel" aria-labelledby="personaHeading">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow" id="selectedChannel">No channel selected</p>
+          <h1 id="personaHeading">Persona State</h1>
+        </div>
+      </div>
+
+      <div id="emptyState" class="empty-state" hidden>
+        <h2>No active persona state yet</h2>
+        <p>Send a message from Web, Telegram, or another runtime channel. This dashboard will read the active session without creating one.</p>
+      </div>
+
+      <div id="personaDetail" hidden>
+        <section class="hero-card">
+          <div>
+            <p class="eyebrow">Emotional Status</p>
+            <div class="emotion-label" id="emotionLabel">neutral</div>
+            <p class="muted" id="emotionSub">No turn processed.</p>
+          </div>
+          <div class="driver-chips" id="emotionDrivers"></div>
+        </section>
+
+        <section class="panel-section">
+          <div class="section-heading">
+            <h2>Mental Model</h2>
+            <span class="muted">six-modulator state translated into plain labels</span>
+          </div>
+          <div class="mod-grid" id="modulatorGrid"></div>
+        </section>
+
+        <section class="two-col">
+          <article class="panel-section">
+            <div class="section-heading">
+              <h2>Perception</h2>
+            </div>
+            <div class="kv-list" id="perceptionList"></div>
+          </article>
+
+          <article class="panel-section">
+            <div class="section-heading">
+              <h2>Relationship</h2>
+            </div>
+            <div class="kv-list" id="relationshipList"></div>
+            <div class="timeline" id="relationshipTimeline"></div>
+          </article>
+        </section>
+
+        <section class="two-col">
+          <article class="panel-section">
+            <div class="section-heading">
+              <h2>Life</h2>
+            </div>
+            <div class="kv-list" id="lifeList"></div>
+            <div class="pressure-list" id="lifePressures"></div>
+          </article>
+
+          <article class="panel-section">
+            <div class="section-heading">
+              <h2>Memory</h2>
+            </div>
+            <div class="kv-list" id="memoryList"></div>
+            <div class="memory-list" id="memorySummaries"></div>
+          </article>
+        </section>
+
+        <section class="two-col">
+          <article class="panel-section">
+            <div class="section-heading">
+              <h2>Skills & Tools</h2>
+            </div>
+            <div class="kv-list" id="skillsList"></div>
+          </article>
+
+          <article class="panel-section">
+            <div class="section-heading">
+              <h2>Why This Response?</h2>
+            </div>
+            <div class="explain-list" id="explanationList"></div>
+          </article>
+        </section>
+      </div>
+    </section>
+  </section>
+</main>
+
+<dialog id="tokenDialog">
+  <form method="dialog" class="token-form">
+    <h2>API Token</h2>
+    <p class="muted">If auth is enabled, enter the bearer token for this browser session.</p>
+    <input id="apiTokenInput" type="password" autocomplete="off" placeholder="Bearer token">
+    <div class="button-row">
+      <button class="secondary" value="cancel">Cancel</button>
+      <button class="primary" id="saveTokenBtn" value="default">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+<script src="/admin/assets/persona.js"></script>
+</body>
+</html>

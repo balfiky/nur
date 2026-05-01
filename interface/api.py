@@ -38,6 +38,7 @@ from interface.v1 import build_v1_router, _count_user_rows, _validate_path_token
 from pipeline import CognitivePipeline
 from runtime.config import RuntimeConfig
 from runtime.debug.api import _debug_to_dict as _serialize_debug
+from runtime.debug.persona_view import build_persona_view
 from runtime.llm.backend import create_llm_backend
 from runtime.sessions.manager import SessionManager
 from runtime.sessions.user_session import UserSession
@@ -686,6 +687,16 @@ async def admin_status() -> dict:
     config = _load_runtime_config()
     manager = get_session_manager()
     return _admin_status_payload(config, manager)
+
+
+@app.get("/admin/persona/state", dependencies=[Depends(_require_bearer)])
+async def admin_persona_state() -> dict:
+    """Unified runtime persona dashboard state across all active channels.
+
+    This is read-only observability over the shared SessionManager. It does
+    not create sessions, call the pipeline, or mutate memory/emotional state.
+    """
+    return _admin_persona_payload(get_session_manager())
 
 
 @app.get("/admin/config", dependencies=[Depends(_require_bearer)])
@@ -1451,11 +1462,23 @@ def admin_index() -> HTMLResponse:
     return _admin_response()
 
 
+@app.get("/persona")
+def persona_index() -> HTMLResponse:
+    return _persona_response()
+
+
+@app.get("/dashboard")
+def dashboard_index() -> HTMLResponse:
+    return _persona_response()
+
+
 @app.get("/admin/assets/{asset_name}", include_in_schema=False)
 def admin_asset(asset_name: str):
     media_types = {
         "admin.css": "text/css",
         "admin.js": "application/javascript",
+        "persona.css": "text/css",
+        "persona.js": "application/javascript",
     }
     media_type = media_types.get(asset_name)
     if media_type is None:
@@ -1469,6 +1492,10 @@ def _index_response() -> HTMLResponse:
 
 def _admin_response() -> HTMLResponse:
     return _html_static_response("admin.html")
+
+
+def _persona_response() -> HTMLResponse:
+    return _html_static_response("persona.html")
 
 
 def _html_static_response(filename: str) -> HTMLResponse:
@@ -1888,6 +1915,42 @@ def _admin_status_payload(config: RuntimeConfig, manager: SessionManager) -> dic
         "setup": _admin_setup_status(config),
         "warnings": _admin_config_warnings(config),
     }
+
+
+def _admin_persona_payload(manager: SessionManager) -> dict:
+    """Build the standalone persona dashboard payload from active sessions."""
+    now = time.time()
+    sessions = []
+    channel_counts: dict[str, int] = {}
+    for session_key, session in sorted(manager.active_sessions.items()):
+        platform, user_id, chat_id = _split_session_key(session_key)
+        channel_counts[platform] = channel_counts.get(platform, 0) + 1
+        sessions.append({
+            "session_key": session_key,
+            "platform": platform,
+            "user_id": user_id or session.user_id,
+            "chat_id": chat_id,
+            "rel_key": session.rel_key,
+            "last_activity": session.last_activity,
+            "idle_seconds": round(now - session.last_activity, 1),
+            "has_last_turn": session.last_debug is not None,
+            "persona_view": build_persona_view(session=session, session_key=session_key),
+        })
+    return {
+        "generated_at": now,
+        "count": len(sessions),
+        "channel_counts": channel_counts,
+        "sessions": sessions,
+    }
+
+
+def _split_session_key(session_key: str) -> tuple[str, str, str]:
+    parts = str(session_key or "").split(":", 2)
+    if len(parts) == 3:
+        return parts[0], parts[1], parts[2]
+    if len(parts) == 2:
+        return parts[0], parts[1], ""
+    return str(session_key or ""), "", ""
 
 
 def _admin_field_metadata(config: RuntimeConfig) -> list[dict]:

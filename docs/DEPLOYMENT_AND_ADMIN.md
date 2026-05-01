@@ -156,6 +156,13 @@ embedded settings drawer remains available for quick edits and setup-wizard
 access, but the full console is the preferred space for skills, life-history
 observability, maintenance, and careful production configuration.
 
+The standalone `/persona` route, also available as `/dashboard`, serves a
+channel-independent persona dashboard. It reads active sessions from the
+shared runtime manager, so Web, Telegram, console, and future channel sessions
+appear in one place. Refreshing the dashboard is observability only: it does
+not create sessions, call the pipeline, or mutate emotional state, memory,
+Life History, or skills.
+
 The **Setup Wizard** (accessible from Settings → Setup → Launch Setup Wizard)
 walks through LLM backend, agent identity, optional first formative material,
 and completion in five steps. It is the recommended path for first-time
@@ -169,6 +176,8 @@ The full console lets you:
 - Upload, import, audit, and enable external Agent Skills
 - Feed pasted or uploaded formative text/Markdown files into **Life History**
 - Observe experience count, evolution events, current beliefs, and drive shifts
+- Open `/persona` to inspect unified emotional, perception, relationship,
+  Life, memory, skills, and tool state across active channels
 - Test LLM, Telegram, and storage settings before relying on them
 - Inspect diagnostics: Python version, uptime, active sessions, storage paths
 - Apply saved config to the live web session manager and Telegram poller

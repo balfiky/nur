@@ -18,6 +18,10 @@ def test_chat_and_admin_controls_have_accessible_names(uat_server, page):
             "/admin",
             ["#saveBtn", "#refreshAllBtn", "#runtimeForm", "#maintenanceOutput"],
         ),
+        (
+            "/persona",
+            ["#refreshBtn", "#autoRefresh", "#sessionList", "#modulatorGrid"],
+        ),
     ]:
         page.goto(uat_server.base_url + path)
         for selector in required:

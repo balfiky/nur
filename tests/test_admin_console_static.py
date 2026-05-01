@@ -31,10 +31,29 @@ class TestAdminConsoleStatic:
         assert 'id="lifeTimeline"' in html
         assert 'id="lifeExperiences"' in html
         assert 'id="rollbackLifeBatchBtn"' in html
+        assert 'href="/persona"' in html
+
+    def test_persona_route_serves_unified_dashboard(self):
+        resp = interface_api.persona_index()
+        alias = interface_api.dashboard_index()
+        html = resp.body.decode()
+
+        assert resp.status_code == 200
+        assert alias.status_code == 200
+        assert alias.body == resp.body
+        assert "Unified Persona Dashboard" in html
+        assert 'id="sessionList"' in html
+        assert 'id="modulatorGrid"' in html
+        assert 'id="perceptionList"' in html
+        assert 'id="lifePressures"' in html
+        assert 'id="skillsList"' in html
+        assert 'src="/admin/assets/persona.js"' in html
 
     def test_admin_assets_are_whitelisted(self):
         css = interface_api.admin_asset("admin.css")
         js = interface_api.admin_asset("admin.js")
+        persona_css = interface_api.admin_asset("persona.css")
+        persona_js = interface_api.admin_asset("persona.js")
 
         assert css.status_code == 200
         assert b"--bg: #ffffff" in css.body
@@ -52,6 +71,11 @@ class TestAdminConsoleStatic:
         assert b"/admin/life/experiences/upload" in js.body
         assert b"/admin/life/rollback" in js.body
         assert b"renderLifeSnapshot" in js.body
+        assert persona_css.status_code == 200
+        assert b".dashboard-grid" in persona_css.body
+        assert persona_js.status_code == 200
+        assert b"/admin/persona/state" in persona_js.body
+        assert b"renderPersona" in persona_js.body
 
     def test_unknown_admin_asset_404s(self):
         with pytest.raises(HTTPException) as exc:

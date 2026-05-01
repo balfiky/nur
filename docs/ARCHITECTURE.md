@@ -159,6 +159,14 @@ explanations, state deltas when a previous turn is available, and a compact
 pipeline remains the owner of appraisal, memory retrieval, strategy selection,
 and LifeInfluence.
 
+The standalone `/persona` dashboard, also available as `/dashboard`, uses the
+same `persona_view` shape through `/admin/persona/state`, but it reads the
+shared runtime session manager instead of any one chat channel. It lists active
+Web, Telegram, console, or future channel sessions and renders the selected
+session's emotion, perception, relationship, Life, memory, skills, tools, and
+explanation state. The endpoint does not create sessions, call the pipeline, or
+mutate cognition.
+
 Telegram exposes the same boundary through non-mutating introspection commands:
 `/state`, `/why`, `/memory`, `/loops`, `/repair`, and `/persona`. They inspect
 the active session's last debug state only; they do not create sessions, call

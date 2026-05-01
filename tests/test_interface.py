@@ -271,6 +271,7 @@ class TestIndexPage:
         assert "What Nūr Remembers" in html
         assert 'id="personaPanel"' in html
         assert "updatePersonaPanel" in html
+        assert 'href="/persona" title="Persona dashboard"' in html
         assert 'id="delta-arousal"' in html
         assert "updateRelationshipState" in html
         assert "updateMemoryInspector" in html
@@ -312,6 +313,7 @@ class TestIndexPage:
         assert '<header class="header">' in html
         assert '<main class="main">' in html
         assert 'href="/admin" title="Admin console"' in html
+        assert 'aria-label="Open persona dashboard"' in html
         assert '<h1 class="empty-title" id="emptyTitle">' in html
         assert 'id="msgInput"' in html
         assert 'aria-label="Message composer"' in html
@@ -333,6 +335,60 @@ class TestIndexPage:
         assert "Admin" in html
         assert "Apply Saved Config" in html
         assert "Restart Web Server" in html
+
+    async def test_persona_route_serves_independent_dashboard(self):
+        resp = interface_api.persona_index()
+        html = resp.body.decode()
+        assert resp.status_code == 200
+        assert "Unified Persona Dashboard" in html
+        assert "/admin/persona/state" not in html
+        assert 'src="/admin/assets/persona.js"' in html
+
+
+class TestPersonaDashboard:
+    async def test_admin_persona_state_observes_all_active_channels(self):
+        set_pipeline(None)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = SessionManager(
+                RuntimeConfig(data_dir=tmpdir),
+                backend_factory=lambda: MockLLMBackend(response="Test response."),
+            )
+            set_session_manager(manager)
+            try:
+                await manager.handle_message("web", "alice", "browser", "hello")
+                await manager.handle_message("telegram", "alice", "100", "I am worried")
+
+                data = await interface_api.admin_persona_state()
+
+                assert data["count"] == 2
+                assert data["channel_counts"] == {"telegram": 1, "web": 1}
+                keys = {item["session_key"] for item in data["sessions"]}
+                assert keys == {"web:alice:browser", "telegram:alice:100"}
+                telegram = next(
+                    item for item in data["sessions"]
+                    if item["platform"] == "telegram"
+                )
+                assert telegram["persona_view"]["active"] is True
+                assert telegram["persona_view"]["emotions"]["simple_label"]
+            finally:
+                await manager.shutdown()
+
+    async def test_admin_persona_state_does_not_create_sessions(self):
+        set_pipeline(None)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = SessionManager(
+                RuntimeConfig(data_dir=tmpdir),
+                backend_factory=lambda: MockLLMBackend(response="Test response."),
+            )
+            set_session_manager(manager)
+            try:
+                data = await interface_api.admin_persona_state()
+
+                assert data["count"] == 0
+                assert data["sessions"] == []
+                assert manager.active_sessions == {}
+            finally:
+                await manager.shutdown()
 
 
 class TestConfigEndpoint:
