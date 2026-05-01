@@ -445,8 +445,8 @@ class TestCognitivePipeline:
             user_id="alice",
         )
 
-        assert "I did not perform that external action" in result.response
-        assert "skill-registry tool" in result.response
+        assert "I did not create, import, or enable" in result.response
+        assert "No skill-registry Tool Execution Result ran" in result.response
         assert "durable runtime context" not in result.response
         assert result.debug.self_check_passed is False
         assert any(
@@ -470,7 +470,6 @@ class TestCognitivePipeline:
         )
 
         assert "I did not perform that external action" in result.response
-        assert "skill-registry tool" in result.response
         assert "cloned checkout" not in result.response
         assert result.debug.self_check_passed is False
         assert any(

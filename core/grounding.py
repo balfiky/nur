@@ -142,8 +142,20 @@ def extract_action_claims(response: str) -> list[ActionClaim]:
     return claims
 
 
-def grounding_correction_response() -> str:
+def grounding_correction_response(
+    issues: list[GroundingIssue] | None = None,
+) -> str:
     """Return a generic correction when output overclaims external action."""
+    if any(
+        "registry_write" in issue.required_categories
+        for issue in (issues or [])
+    ):
+        return (
+            "I did not create, import, or enable a permanent skill in this turn. "
+            "No skill-registry Tool Execution Result ran. To let me do that "
+            "from chat, Agentic Tools must be enabled and the current session "
+            "must be reloaded so the skill-registry tools are available."
+        )
     return (
         "I did not perform that external action in this turn. There is no Tool "
         "Execution Result showing that I read files, cloned or fetched a "
@@ -194,7 +206,7 @@ def _tool_evidence_categories(tool_trace: Any | None) -> set[str]:
             "skills.disable",
         )):
             categories.add("registry_write")
-        elif tool_name.startswith("skills.list"):
+        elif tool_name.startswith(("skills.list", "skills.audit")):
             categories.add("read")
         elif tool_name.startswith("shell."):
             categories.update({"read", "write", "execute"})

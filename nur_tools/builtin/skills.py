@@ -18,6 +18,7 @@ from nur_tools.executor import ToolHandler
 from runtime.config import RuntimeConfig
 from runtime.skills import (
     SkillError,
+    audit_installed_skill,
     import_skill,
     list_skills,
     set_skill_enabled,
@@ -53,6 +54,12 @@ CAPABILITIES: list[ToolCapability] = [
         },
     ),
     ToolCapability(
+        name="skills.audit",
+        description="Inspect compatibility audit details for an imported skill",
+        category=ToolCategory.COGNITIVE,
+        arg_schema={"skill_id": {"type": "string", "required": False}},
+    ),
+    ToolCapability(
         name="skills.enable",
         description="Enable an imported skill by id",
         category=ToolCategory.COGNITIVE,
@@ -77,6 +84,7 @@ def create_handlers(config: RuntimeConfig | None = None) -> dict[str, ToolHandle
             lambda args: _create_from_request(runtime_config, args)
         ),
         "skills.import_markdown": lambda args: _import_markdown(runtime_config, args),
+        "skills.audit": lambda args: _audit(runtime_config, args),
         "skills.enable": lambda args: _set_enabled(runtime_config, args, True),
         "skills.disable": lambda args: _set_enabled(runtime_config, args, False),
     }
@@ -112,9 +120,36 @@ def _create_from_request(config: RuntimeConfig, args: dict[str, Any]) -> ToolRes
     name_hint = _clean_text(args.get("name_hint"), limit=120)
     source_url = _clean_text(args.get("source_url"), limit=400)
     enable = bool(args.get("enable", True))
+    skill_name = _infer_skill_name(request, name_hint)
+    existing = _find_existing_skill(config, skill_name)
+    if existing and enable:
+        try:
+            record = (
+                existing if existing.get("enabled")
+                else set_skill_enabled(config, str(existing["id"]), True)
+            )
+        except SkillError:
+            record = existing
+        if record.get("enabled"):
+            payload = _record_payload(record)
+            return ToolResult(
+                tool_name="skills.create_from_request",
+                success=True,
+                output=_json_output(payload),
+                metadata={
+                    "skill_id": payload["id"],
+                    "name": payload["name"],
+                    "enabled": payload["enabled"],
+                    "status": payload["status"],
+                },
+                side_effect_summary=(
+                    "skill registry unchanged: "
+                    f"{payload['id']} was already available"
+                ),
+            )
     markdown = _skill_markdown_from_request(
         request,
-        name_hint=name_hint,
+        name_hint=skill_name,
         source_url=source_url,
     )
     return _import_markdown(
@@ -147,7 +182,35 @@ def _import_markdown(
             name_hint=name_hint,
         )
         if enable:
-            record = set_skill_enabled(config, str(record["id"]), True)
+            try:
+                record = set_skill_enabled(config, str(record["id"]), True)
+            except SkillError as exc:
+                payload = _record_payload(record)
+                audit = record.get("compatibility") or {}
+                errors = list(audit.get("errors") or [])
+                warnings = list(audit.get("warnings") or [])
+                return ToolResult(
+                    tool_name=tool_name,
+                    success=False,
+                    output=_json_output({
+                        **payload,
+                        "errors": errors,
+                        "warnings": warnings,
+                    }),
+                    error=str(exc),
+                    metadata={
+                        "skill_id": payload["id"],
+                        "name": payload["name"],
+                        "enabled": payload["enabled"],
+                        "status": payload["status"],
+                        "error_count": len(errors),
+                        "warning_count": len(warnings),
+                    },
+                    side_effect_summary=(
+                        "skill registry updated: "
+                        f"imported {payload['id']}; enable failed"
+                    ),
+                )
     except SkillError as exc:
         return _error(tool_name, str(exc))
 
@@ -166,6 +229,44 @@ def _import_markdown(
             "skill registry updated: "
             f"imported {payload['id']}; enabled={str(payload['enabled']).lower()}"
         ),
+    )
+
+
+def _audit(config: RuntimeConfig, args: dict[str, Any]) -> ToolResult:
+    skill_id = _clean_text(args.get("skill_id"), limit=120)
+    if not skill_id:
+        skill_id = _latest_relevant_skill_id(config)
+    if not skill_id:
+        return _error("skills.audit", "No imported skills to audit.")
+    try:
+        record = audit_installed_skill(config, skill_id)
+    except SkillError as exc:
+        return _error("skills.audit", str(exc))
+    payload = _record_payload(record)
+    audit = record.get("compatibility") or {}
+    errors = list(audit.get("errors") or [])
+    warnings = list(audit.get("warnings") or [])
+    output = {
+        **payload,
+        "compatible": bool(audit.get("compatible")),
+        "errors": errors,
+        "warnings": warnings,
+        "required_tools": list(audit.get("required_tools") or []),
+        "risk_flags": list(audit.get("risk_flags") or []),
+    }
+    return ToolResult(
+        tool_name="skills.audit",
+        success=True,
+        output=_json_output(output),
+        metadata={
+            "skill_id": payload["id"],
+            "name": payload["name"],
+            "enabled": payload["enabled"],
+            "status": payload["status"],
+            "error_count": len(errors),
+            "warning_count": len(warnings),
+        },
+        side_effect_summary="skill audit inspected",
     )
 
 
@@ -313,6 +414,32 @@ def _record_payload(record: dict[str, Any]) -> dict[str, Any]:
         "enabled": bool(record.get("enabled")),
         "status": str(record.get("status") or ""),
     }
+
+
+def _find_existing_skill(config: RuntimeConfig, skill_name: str) -> dict[str, Any] | None:
+    target = _slugify(skill_name)
+    if not target:
+        return None
+    for record in list_skills(config).get("skills", []):
+        if _slugify(record.get("id", "")) == target or _slugify(record.get("name", "")) == target:
+            return record
+    return None
+
+
+def _latest_relevant_skill_id(config: RuntimeConfig) -> str:
+    skills = list(list_skills(config).get("skills", []) or [])
+    if not skills:
+        return ""
+    problematic = [
+        record for record in skills
+        if record.get("status") != "enabled" or not record.get("enabled")
+    ]
+    candidates = problematic or skills
+    latest = max(
+        candidates,
+        key=lambda record: float(record.get("updated_at") or record.get("installed_at") or 0.0),
+    )
+    return str(latest.get("id") or "")
 
 
 def _error(tool_name: str, message: str) -> ToolResult:

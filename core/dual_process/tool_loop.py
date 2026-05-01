@@ -116,6 +116,25 @@ _TOOL_PATTERNS: list[tuple[re.Pattern, str, str]] = [
     ),
     (
         re.compile(
+            r"\b(?:audit|inspect|check|show)\b.{0,80}"
+            r"\b(?:audit\s+log|audit|problem|errors?|warnings?|status|"
+            r"skill|capability|module|integration)\b",
+            re.I | re.S,
+        ),
+        "skills.audit",
+        "optional_skill_id",
+    ),
+    (
+        re.compile(
+            r"\bwhat(?:'s|\s+is)\s+(?:the\s+)?problem\b.{0,100}"
+            r"\b(?:skill|audit|import|registry)\b",
+            re.I | re.S,
+        ),
+        "skills.audit",
+        "optional_skill_id",
+    ),
+    (
+        re.compile(
             r"\b(?:create|make|add|build|import|install|register)\b"
             r".{0,120}\b(?:skill|capability|module|integration)\b",
             re.I | re.S,
@@ -247,6 +266,8 @@ def _extract_args(
             "source_url": _extract_source_url(request),
             "enable": True,
         } if request else None
+    elif extractor == "optional_skill_id":
+        return {"skill_id": _extract_skill_id_hint(match.string or "")}
     elif extractor == "default_cwd":
         return {"path": "."}
     elif extractor == "cmd_hostname":
@@ -305,6 +326,16 @@ def _extract_source_url(text: str) -> str:
 def _extract_skill_name_hint(text: str) -> str:
     match = re.search(
         r"\b(?:called|named)\s+([A-Za-z0-9][A-Za-z0-9 _.-]{1,80})",
+        text or "",
+        flags=re.I,
+    )
+    return match.group(1).strip() if match else ""
+
+
+def _extract_skill_id_hint(text: str) -> str:
+    match = re.search(
+        r"\b(?:skill|capability|module|integration)\s+"
+        r"([A-Za-z0-9][A-Za-z0-9._-]{0,79})\b",
         text or "",
         flags=re.I,
     )
@@ -502,7 +533,16 @@ def _summarize_for_generator(observations: list[ToolObservation], results: list[
                 details.append(output)
             parts.append(f"[{res.tool_name}] " + " | ".join(details))
         else:
-            parts.append(f"[{res.tool_name}] Failed: {res.error}")
+            details = [f"Failed: {res.error}"]
+            if res.side_effect_summary and res.side_effect_summary != "none":
+                details.append(res.side_effect_summary)
+            metadata = _format_result_metadata(res.metadata)
+            if metadata:
+                details.append(metadata)
+            output = _format_result_output(res)
+            if output:
+                details.append(output)
+            parts.append(f"[{res.tool_name}] " + " | ".join(details))
 
     return "\n".join(parts)
 
@@ -517,6 +557,9 @@ def _format_result_output(result: ToolResult, limit: int = 1200) -> str:
         "web.search",
         "web.fetch",
         "web.extract_text",
+        "skills.audit",
+        "skills.create_from_request",
+        "skills.import_markdown",
     } or not result.output:
         return ""
     text = result.output.strip()
@@ -833,6 +876,8 @@ def _format_result_metadata(metadata: dict[str, Any]) -> str:
         "skill_id",
         "status",
         "enabled",
+        "error_count",
+        "warning_count",
         "truncated",
     ):
         if key in metadata:

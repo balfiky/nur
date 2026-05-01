@@ -89,7 +89,7 @@ class TestDetectToolIntent:
             "fs.write_file", "fs.delete_path", "shell.run_command",
             "web.search", "web.fetch", "web.extract_text",
             "skills.list", "skills.create_from_request", "skills.enable",
-            "skills.disable",
+            "skills.disable", "skills.audit",
         }
 
     def test_no_tool_for_conversational(self):
@@ -175,6 +175,20 @@ class TestDetectToolIntent:
         )
         assert "check disk space now" in msg
         assert "give me raw output" in msg
+
+    def test_skill_confirmation_followup_reuses_previous_skill_request(self):
+        msg = _message_for_tool_detection(
+            "please do",
+            [
+                {
+                    "role": "user",
+                    "content": "Create a skill for yourself to summarize reports.",
+                },
+                {"role": "assistant", "content": "I can draft that."},
+            ],
+        )
+        assert "Create a skill for yourself" in msg
+        assert "please do" in msg
 
     def test_model_tool_routing_includes_history_for_references(self):
         msg = _message_for_model_tool_routing(
@@ -275,6 +289,15 @@ class TestDetectToolIntent:
         assert intent is not None
         assert intent.tool_name == "skills.enable"
         assert intent.arguments["skill_id"] == "report-writer"
+
+    def test_audit_skill_request(self):
+        intent = detect_tool_intent(
+            "Can you check the audit log and tell me the problem?",
+            self._available(),
+        )
+        assert intent is not None
+        assert intent.tool_name == "skills.audit"
+        assert intent.arguments["skill_id"] == ""
 
 
 # ===================================================================

@@ -119,7 +119,8 @@ _TOOL_FOLLOWUP_COMMAND_RE = re.compile(
     r"("
     r"\b(?:issue|run|execute|use)\s+(?:the\s+)?"
     r"(?:needed|required|necessary|right)\s+command\b"
-    r"|^\s*(?:go|do\s+it|run\s+it|check\s+again|try\s+again|"
+    r"|^\s*(?:go|do\s+it|do\s+that|please\s+do|run\s+it|check\s+again|try\s+again|"
+    r"create\s+it|make\s+it|i\s+want\s+you\s+to\s+create\s+it|for\s+yourself|"
     r"now\s+check\s+again|give\s+me\s+(?:the\s+)?(?:raw\s+)?output\b.*|"
     r"show\s+me\s+(?:the\s+)?output\b.*)\s*[.!?]*\s*$"
     r")",
@@ -926,7 +927,7 @@ class CognitivePipeline:
         )
         if grounding_issues:
             grounding_issue = grounding_issues[0]
-            gen_result.response = grounding_correction_response()
+            gen_result.response = grounding_correction_response(grounding_issues)
             debug.self_check_passed = False
             if grounding_issue.message not in debug.self_check_issues:
                 debug.self_check_issues.append(grounding_issue.message)

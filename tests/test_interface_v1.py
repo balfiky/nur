@@ -563,6 +563,45 @@ class TestAdminEndpoints:
         assert data["backend"] == "openai_compatible"
         assert "Live LLM test was not run" in data["error"]
 
+    def test_admin_test_llm_openai_compatible_no_key_can_run_live(
+        self, client, temp_config, tmp_path, monkeypatch,
+    ):
+        RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            llm_backend="mock",
+        ).write_yaml(str(temp_config))
+
+        class _FakeBackend:
+            def generate(self, system, user):
+                return "ok"
+
+        captured = []
+
+        def _fake_create_backend(config):
+            captured.append(config)
+            return _FakeBackend()
+
+        monkeypatch.setattr(interface_api, "create_llm_backend", _fake_create_backend)
+
+        resp = client.post(
+            "/admin/test/llm",
+            json={
+                "llm_backend": "openai_compatible",
+                "llm_base_url": "https://gateway.example/v1",
+                "llm_model": "demo-model",
+                "llm_api_key": "",
+                "live": True,
+            },
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ok"] is True
+        assert data["live"] is True
+        assert data["sample_response"] == "ok"
+        assert data["warnings"] == []
+        assert captured and captured[0].llm_api_key == ""
+
     def test_admin_test_llm_mock_runs_live_sample(
         self, client, temp_config, tmp_path,
     ):

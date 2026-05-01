@@ -157,3 +157,47 @@ def test_skill_registry_tool_imports_markdown_then_enables(tmp_path):
     enabled = executor.execute("skills.enable", {"skill_id": "disk-helper"})
     assert enabled.success is True
     assert list_skills(config)["skills"][0]["enabled"] is True
+
+
+def test_skill_registry_tool_reports_invalid_enable_audit(tmp_path):
+    config = RuntimeConfig(data_dir=str(tmp_path / "data"), tools_enabled=True)
+    executor = create_tool_executor(config)
+    assert executor is not None
+
+    result = executor.execute(
+        "skills.import_markdown",
+        {
+            "skill_markdown": "---\nname: broken\n---\nMissing description.",
+            "enable": True,
+        },
+    )
+
+    assert result.success is False
+    assert result.metadata["skill_id"] == "broken"
+    assert result.metadata["status"] == "invalid"
+    assert result.metadata["error_count"] >= 1
+    assert "enable failed" in result.side_effect_summary
+
+    audit = executor.execute("skills.audit", {})
+    assert audit.success is True
+    assert audit.metadata["skill_id"] == "broken"
+    assert audit.metadata["error_count"] >= 1
+    assert "description" in audit.output
+
+
+def test_skill_registry_tool_reuses_enabled_existing_skill(tmp_path):
+    config = RuntimeConfig(data_dir=str(tmp_path / "data"), tools_enabled=True)
+    executor = create_tool_executor(config)
+    assert executor is not None
+    args = {
+        "request": "Create a skill for yourself to summarize reports.",
+        "enable": True,
+    }
+
+    first = executor.execute("skills.create_from_request", args)
+    second = executor.execute("skills.create_from_request", args)
+
+    assert first.success is True
+    assert second.success is True
+    assert list_skills(config)["count"] == 1
+    assert "already available" in second.side_effect_summary

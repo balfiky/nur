@@ -447,12 +447,13 @@ class TestBuiltinRegistration:
         assert "web.search" in names
         assert "web.fetch" in names
         assert "skills.create_from_request" in names
+        assert "skills.audit" in names
         assert "skills.enable" in names
 
     def test_total_builtin_count(self):
         reg, exe = _make_executor_with_builtins()
-        # 4 system + 6 fs + 1 shell + 3 web + 5 browser + 3 calendar + 5 skills
-        assert len(reg) == 27
+        # 4 system + 6 fs + 1 shell + 3 web + 5 browser + 3 calendar + 6 skills
+        assert len(reg) == 28
 
     def test_categories_assigned(self):
         reg, _ = _make_executor_with_builtins()

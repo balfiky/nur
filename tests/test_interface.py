@@ -298,7 +298,10 @@ class TestIndexPage:
         assert "Mark first-run setup complete" in html
         assert '<link rel="icon" href="data:,' in html
         assert "clearGenericKey" in html
-        assert "wizardPreset === 'local' || wizardPreset === 'vllm'" in html
+        assert "hosted:      { backend: 'openai_compatible'" in html
+        assert "Hosted OpenAI-compatible gateway" in html
+        assert "live: true" in html
+        assert "['local', 'vllm', 'hosted'].includes(wizardPreset)" in html
         assert "loadSettings({ loadSoul: false })" in html
         assert "Character Mode" in html
         assert 'id="wiz-soul-name" type="text" value="Nūr"' in html

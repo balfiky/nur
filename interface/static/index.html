@@ -364,13 +364,15 @@ a.icon-btn { text-decoration: none; }
         <span class="wizard-step" data-step="4">4</span>
         <span class="wizard-divider"></span>
         <span class="wizard-step" data-step="5">5</span>
+        <span class="wizard-divider"></span>
+        <span class="wizard-step" data-step="6">6</span>
       </div>
     </div>
 
     <div class="wizard-panel" id="wizPanel-1">
       <h2 class="wizard-title">Welcome</h2>
       <p class="wizard-sub">You're about to run an AI with persistent emotional state.</p>
-      <p class="wizard-body">Before your first conversation, set the response model, the seed identity, and optionally one formative experience. The identity is the authored character. Life History is what the character begins having encountered.</p>
+      <p class="wizard-body">Before your first conversation, set the response model, runtime channels, tool execution level, seed identity, and optionally one formative experience. The identity is the authored character. Life History is what the character begins having encountered.</p>
       <div class="wizard-actions">
         <button class="secondary" onclick="wizardDismiss()">Skip for now</button>
         <button class="primary" onclick="wizardGoto(2)">Get Started</button>
@@ -401,6 +403,32 @@ a.icon-btn { text-decoration: none; }
     </div>
 
     <div class="wizard-panel" id="wizPanel-3" style="display:none">
+      <h2 class="wizard-title">Runtime & Channels</h2>
+      <p class="wizard-sub">Choose which surfaces and actions are available from the start.</p>
+      <div class="wizard-fields">
+        <div class="wizard-grid">
+          <div><label for="wiz-console_enabled">Console Channel</label><select id="wiz-console_enabled"><option value="true">Enabled</option><option value="false">Disabled</option></select></div>
+          <div><label for="wiz-api_key">Web/API Bearer Token</label><input id="wiz-api_key" type="password" placeholder="Optional token for HTTP/API access"></div>
+          <div class="full"><label for="wiz-telegram_token">Telegram Bot Token</label><input id="wiz-telegram_token" type="password" placeholder="Optional; leave blank to skip Telegram"></div>
+          <div class="full"><label for="wiz-telegram_allowlist">Telegram Allowlist</label><textarea id="wiz-telegram_allowlist" rows="3" placeholder="One Telegram user ID per line. Blank allows any Telegram user if token is configured."></textarea></div>
+          <div><label for="wiz-telegram_poll_timeout">Telegram Poll Timeout (s)</label><input id="wiz-telegram_poll_timeout" type="number" min="1" value="30"></div>
+          <div><label for="wiz-dedupe_ttl">Message Dedupe TTL (s)</label><input id="wiz-dedupe_ttl" type="number" min="0" step="1" value="60"></div>
+        </div>
+        <div class="wizard-grid">
+          <div><label for="wiz-tools_enabled">Agentic Tools</label><select id="wiz-tools_enabled"><option value="false">Disabled</option><option value="true">Enabled</option></select></div>
+          <div><label for="wiz-autonomy_level">Tool Autonomy</label><select id="wiz-autonomy_level"><option value="off">Off</option><option value="assisted">Assisted</option><option value="autonomous">Autonomous</option><option value="high_risk">High-risk local</option></select></div>
+          <div><label for="wiz-shell_tool_enabled">Shell Tool</label><select id="wiz-shell_tool_enabled"><option value="false">Disabled</option><option value="true">Enabled</option></select></div>
+          <div class="full"><label for="wiz-tools_workspace">Tools Workspace</label><input id="wiz-tools_workspace" type="text" placeholder="Blank uses data/workspace"></div>
+        </div>
+      </div>
+      <div class="admin-test-result" id="wiz-runtime-result" style="display:none"></div>
+      <div class="wizard-actions">
+        <button class="secondary" onclick="wizardGoto(2)">← Back</button>
+        <button class="primary" onclick="wizardSaveRuntimeChannels()">Save & Continue</button>
+      </div>
+    </div>
+
+    <div class="wizard-panel" id="wizPanel-4" style="display:none">
       <h2 class="wizard-title">Identity</h2>
       <p class="wizard-sub">Choose the base character. These are starting weights, not a permanent cage.</p>
       <div class="wizard-fields">
@@ -439,12 +467,12 @@ a.icon-btn { text-decoration: none; }
       </div>
       <div class="admin-test-result" id="wiz-soul-result" style="display:none"></div>
       <div class="wizard-actions">
-        <button class="secondary" onclick="wizardGoto(2)">← Back</button>
+        <button class="secondary" onclick="wizardGoto(3)">← Back</button>
         <button class="primary" onclick="wizardSaveSoul()">Save & Continue</button>
       </div>
     </div>
 
-    <div class="wizard-panel" id="wizPanel-4" style="display:none">
+    <div class="wizard-panel" id="wizPanel-5" style="display:none">
       <h2 class="wizard-title">First Experience</h2>
       <p class="wizard-sub">Optional. Add a principle, short book excerpt, project note, or origin story that should become Life History.</p>
       <div class="wizard-fields">
@@ -457,18 +485,18 @@ a.icon-btn { text-decoration: none; }
       </div>
       <div class="admin-test-result" id="wiz-life-result" style="display:none"></div>
       <div class="wizard-actions">
-        <button class="secondary" onclick="wizardGoto(3)">← Back</button>
+        <button class="secondary" onclick="wizardGoto(4)">← Back</button>
         <button class="secondary wizard-skip" onclick="wizardSkipLife()">Skip</button>
         <button class="primary" onclick="wizardSaveLife()">Digest & Continue</button>
       </div>
     </div>
 
-    <div class="wizard-panel" id="wizPanel-5" style="display:none">
+    <div class="wizard-panel" id="wizPanel-6" style="display:none">
       <h2 class="wizard-title">You're all set</h2>
       <p class="wizard-sub">Here's what's configured:</p>
       <div class="wizard-summary" id="wiz-summary"></div>
       <div class="wizard-actions">
-        <button class="secondary" onclick="wizardGoto(4)">← Back</button>
+        <button class="secondary" onclick="wizardGoto(5)">← Back</button>
         <button class="primary" onclick="wizardFinish()">Start chatting</button>
       </div>
     </div>
@@ -1352,6 +1380,7 @@ async function testLLM() {
     llm_api_key: gv('cfg-llm_api_key'), minimax_api_key: gv('cfg-minimax_api_key'),
     clear_llm_api_key: document.getElementById('cfg-clear_llm_api_key').checked,
     clear_minimax_api_key: document.getElementById('cfg-clear_minimax_api_key').checked,
+    live: true,
   });
 }
 
@@ -1690,7 +1719,7 @@ const wizardOverlay = document.getElementById('wizardOverlay');
 const WIZARD_PRESET_CONFIG = {
   local:       { backend: 'openai_compatible', base_url: 'http://localhost:11434/v1',    model: 'llama3.2',           model_placeholder: 'e.g. llama3.2',              label: 'Ollama / LM Studio',         key_label: 'API Key (usually blank for local)', key_placeholder: 'Often blank' },
   vllm:        { backend: 'openai_compatible', base_url: 'http://localhost:8002/v1',     model: '',                   model_placeholder: 'Name of the model loaded in vLLM', label: 'vLLM',                  key_label: 'API Key (usually blank for vLLM)',   key_placeholder: 'Often blank' },
-  hosted:      { backend: 'provider',          base_url: 'https://api.openai.com/v1',    model: 'gpt-4o-mini',        model_placeholder: 'e.g. gpt-4o-mini',           label: 'Hosted provider',            key_label: 'API Key (required)',                key_placeholder: 'sk-...' },
+  hosted:      { backend: 'openai_compatible', base_url: 'https://api.openai.com/v1',    model: 'gpt-4o-mini',        model_placeholder: 'e.g. gpt-4o-mini',           label: 'Hosted OpenAI-compatible gateway', key_label: 'API Key (blank if gateway needs none)', key_placeholder: 'Optional' },
   openrouter:  { backend: 'provider',          base_url: 'https://openrouter.ai/api/v1', model: 'openai/gpt-4o-mini', model_placeholder: 'e.g. openai/gpt-4o-mini',    label: 'OpenRouter',                 key_label: 'OpenRouter API Key (required)',     key_placeholder: 'sk-or-v1-...' },
   mock:        { backend: 'mock',              base_url: '',                             model: '',                   model_placeholder: '',                            label: 'Mock (no LLM)',              key_label: '',                                   key_placeholder: '' },
 };
@@ -1789,14 +1818,24 @@ function openWizard() {
   // Reset form state so reopening feels fresh, but keep captured config snapshot.
   document.querySelectorAll('.wizard-preset').forEach(el => el.classList.remove('selected'));
   document.getElementById('wizLLMFields').style.display = 'none';
-  ['wiz-llm_base_url','wiz-llm_model','wiz-llm_api_key','wiz-soul-notes','wiz-life-title','wiz-life-participants','wiz-life-text','wiz-life-upload'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  [
+    'wiz-llm_base_url','wiz-llm_model','wiz-llm_api_key',
+    'wiz-api_key','wiz-telegram_token','wiz-telegram_allowlist','wiz-tools_workspace',
+    'wiz-soul-notes','wiz-life-title','wiz-life-participants','wiz-life-text','wiz-life-upload'
+  ].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  sv('wiz-console_enabled', 'true');
+  sv('wiz-telegram_poll_timeout', '30');
+  sv('wiz-dedupe_ttl', '60');
+  sv('wiz-tools_enabled', 'false');
+  sv('wiz-autonomy_level', 'assisted');
+  sv('wiz-shell_tool_enabled', 'false');
   const soulName = document.getElementById('wiz-soul-name');
   if (soulName) soulName.value = 'Nūr';
   const lifeTitle = document.getElementById('wiz-life-title');
   if (lifeTitle) lifeTitle.value = 'Initial formative context';
   wizardApplyArchetype('steady');
   wizardUpdateSliderLabels();
-  ['wiz-llm-result','wiz-soul-result','wiz-life-result'].forEach(id => { const e = document.getElementById(id); if (e) { e.style.display = 'none'; e.textContent = ''; } });
+  ['wiz-llm-result','wiz-runtime-result','wiz-soul-result','wiz-life-result'].forEach(id => { const e = document.getElementById(id); if (e) { e.style.display = 'none'; e.textContent = ''; } });
   wizardGoto(1);
   setWizardOpen(true);
 }
@@ -1808,7 +1847,7 @@ function wizardDismiss() {
 
 function wizardGoto(n) {
   wizardStep = n;
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= 6; i++) {
     const p = document.getElementById('wizPanel-' + i);
     if (p) p.style.display = (i === n) ? '' : 'none';
     const stepEl = document.querySelector('.wizard-step[data-step="' + i + '"]');
@@ -1817,7 +1856,7 @@ function wizardGoto(n) {
       stepEl.classList.toggle('done', i < n);
     }
   }
-  if (n === 5) wizardRenderSummary();
+  if (n === 6) wizardRenderSummary();
 }
 
 function wizardSelectPreset(preset) {
@@ -1862,6 +1901,7 @@ async function wizardTestLLM() {
         minimax_api_key: '',
         clear_llm_api_key: false,
         clear_minimax_api_key: false,
+        live: true,
       }),
     });
     const data = await res.json();
@@ -1893,8 +1933,8 @@ async function wizardSaveLLM() {
     wizardConfigSnapshot = curJson.config || {};
     const cfg = WIZARD_PRESET_CONFIG[wizardPreset];
     const apiKey = wizardPreset === 'mock' ? '' : gv('wiz-llm_api_key').trim();
-    const localNoKey = (wizardPreset === 'local' || wizardPreset === 'vllm') && !apiKey;
-    const clearGenericKey = wizardPreset === 'mock' || localNoKey;
+    const optionalKeyNoKey = ['local', 'vllm', 'hosted'].includes(wizardPreset) && !apiKey;
+    const clearGenericKey = wizardPreset === 'mock' || optionalKeyNoKey;
     const payload = Object.assign({}, wizardConfigSnapshot, {
       llm_backend: cfg.backend,
       llm_base_url: wizardPreset === 'mock' ? '' : gv('wiz-llm_base_url'),
@@ -1914,10 +1954,62 @@ async function wizardSaveLLM() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
     applySettings(data);
-    wizardShowResult('wiz-llm-result', 'ok', 'Saved. Continuing to identity...');
+    wizardPopulateRuntimeFields(data.config || {});
+    wizardShowResult('wiz-llm-result', 'ok', 'Saved. Continuing to runtime...');
     setTimeout(() => wizardGoto(3), 400);
   } catch (err) {
     wizardShowResult('wiz-llm-result', 'error', 'Save failed: ' + err.message);
+  }
+}
+
+function wizardPopulateRuntimeFields(config) {
+  const c = config || {};
+  sv('wiz-console_enabled', String(c.console_enabled !== false));
+  sv('wiz-telegram_poll_timeout', String(c.telegram_poll_timeout ?? 30));
+  sv('wiz-dedupe_ttl', String(c.dedupe_ttl ?? 60));
+  sv('wiz-telegram_allowlist', (c.telegram_allowlist || []).join('\n'));
+  sv('wiz-tools_enabled', String(!!c.tools_enabled));
+  sv('wiz-autonomy_level', c.autonomy_level || 'assisted');
+  sv('wiz-tools_workspace', c.tools_workspace || '');
+  sv('wiz-shell_tool_enabled', String(!!c.shell_tool_enabled));
+  sv('wiz-api_key', '');
+  sv('wiz-telegram_token', '');
+}
+
+async function wizardSaveRuntimeChannels() {
+  wizardShowResult('wiz-runtime-result', '', 'Saving runtime and channel settings...');
+  try {
+    const cur = await authedFetch('/admin/config');
+    const curJson = await cur.json();
+    if (!cur.ok) throw new Error(curJson.detail || 'HTTP ' + cur.status);
+    const payload = Object.assign({}, curJson.config || {}, {
+      console_enabled: gb('wiz-console_enabled'),
+      telegram_token: gv('wiz-telegram_token'),
+      telegram_allowlist: lines('wiz-telegram_allowlist'),
+      telegram_poll_timeout: gi('wiz-telegram_poll_timeout') || 30,
+      dedupe_ttl: gf('wiz-dedupe_ttl') || 60,
+      api_key: gv('wiz-api_key'),
+      tools_enabled: gb('wiz-tools_enabled'),
+      autonomy_level: gv('wiz-autonomy_level') || 'assisted',
+      tools_workspace: gv('wiz-tools_workspace'),
+      shell_tool_enabled: gb('wiz-shell_tool_enabled'),
+      llm_api_key: '',
+      minimax_api_key: '',
+      clear_telegram_token: false,
+      clear_llm_api_key: false,
+      clear_minimax_api_key: false,
+      clear_api_key: false,
+    });
+    const res = await authedFetch('/admin/config', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
+    applySettings(data);
+    wizardShowResult('wiz-runtime-result', 'ok', 'Runtime and channel settings saved.');
+    setTimeout(() => wizardGoto(4), 250);
+  } catch (err) {
+    wizardShowResult('wiz-runtime-result', 'error', 'Save failed: ' + err.message);
   }
 }
 
@@ -2000,7 +2092,7 @@ async function wizardSaveSoul() {
     wizardSoulDraft = payload;
     applyAgentName(payload.name);
     wizardShowResult('wiz-soul-result', 'ok', 'Identity saved.');
-    setTimeout(() => wizardGoto(4), 250);
+    setTimeout(() => wizardGoto(5), 250);
   } catch (err) {
     wizardShowResult('wiz-soul-result', 'error', 'Save failed: ' + err.message);
   }
@@ -2008,7 +2100,7 @@ async function wizardSaveSoul() {
 
 function wizardSkipLife() {
   wizardLifeStatus = 'skipped';
-  wizardGoto(5);
+  wizardGoto(6);
 }
 
 async function wizardSaveLife() {
@@ -2050,7 +2142,7 @@ async function wizardSaveLife() {
     wizardLifeStatus = 'digested';
     if (uploadInput) uploadInput.value = '';
     wizardShowResult('wiz-life-result', 'ok', 'First experience digested into Life History.');
-    setTimeout(() => wizardGoto(5), 250);
+    setTimeout(() => wizardGoto(6), 250);
   } catch (err) {
     wizardShowResult('wiz-life-result', 'error', 'Life History save failed: ' + err.message);
   }
@@ -2063,6 +2155,10 @@ function wizardRenderSummary() {
   el.innerHTML =
     '<div>Agent name: <strong>' + esc(agentName) + '</strong></div>' +
     '<div>LLM backend: <strong>' + esc(llmLine) + '</strong></div>' +
+    '<div>Console: <strong>' + esc(gv('wiz-console_enabled') === 'true' ? 'Enabled' : 'Disabled') + '</strong></div>' +
+    '<div>Telegram: <strong>' + esc(gv('wiz-telegram_token') ? 'Configured' : 'Not configured') + '</strong></div>' +
+    '<div>Tools: <strong>' + esc(gv('wiz-tools_enabled') === 'true' ? ('Enabled / ' + (gv('wiz-autonomy_level') || 'assisted')) : 'Disabled') + '</strong></div>' +
+    '<div>Shell tool: <strong>' + esc(gv('wiz-shell_tool_enabled') === 'true' ? 'Enabled' : 'Disabled') + '</strong></div>' +
     '<div>Character mode: <strong>' + esc((WIZARD_ARCHETYPE_CONFIG[gv('wiz-soul-archetype')] || {}).label || 'Custom') + '</strong></div>' +
     '<div>First experience: <strong>' + esc(wizardLifeStatus === 'digested' ? 'Digested into Life History' : 'Skipped') + '</strong></div>' +
     (preset && preset.base_url ? '<div>Endpoint: <strong>' + esc(gv('wiz-llm_base_url') || preset.base_url) + '</strong></div>' : '') +

@@ -108,8 +108,8 @@ def test_conversation_cannot_fake_permanent_skill_creation(tmp_path):
     pipe = CognitivePipeline(llm_backend=backend)
     try:
         result = pipe.process("Make it a permanent skill for yourself first.", user_id="uat")
-        assert "I did not perform that external action" in result.response
-        assert "skill-registry tool" in result.response
+        assert "I did not create, import, or enable" in result.response
+        assert "No skill-registry Tool Execution Result ran" in result.response
         assert any("Unverified external-action claim" in item for item in result.debug.self_check_issues)
     finally:
         pipe.close()
