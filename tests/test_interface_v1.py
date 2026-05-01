@@ -128,8 +128,43 @@ class TestChatEndpoint:
         assert "debug" in data
         assert isinstance(data["debug"], dict)
         assert "relationship_view" in data["debug"]
+        assert "persona_view" in data["debug"]
+        assert data["debug"]["persona_view"]["emotions"]["primary"]
         assert "explanation" in data["debug"]
         assert data["debug"]["relationship_view"]["modulators"]["arousal"]["delta"] is None
+
+    def test_persona_state_does_not_create_session_when_inactive(self, client):
+        resp = client.get(
+            "/v1/persona/state",
+            params={"platform": "telegram", "user_id": "nobody", "chat_id": "default"},
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["active"] is False
+        assert data["session_key"] == "telegram:nobody:default"
+
+        sessions = client.get("/v1/sessions").json()
+        assert sessions["count"] == 0
+
+    def test_persona_state_returns_active_session_view(self, client):
+        client.post(
+            "/v1/chat",
+            json={"message": "I am scared about work", "user_id": "persona"},
+        )
+
+        resp = client.get(
+            "/v1/persona/state",
+            params={"platform": "web", "user_id": "persona", "chat_id": "default"},
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["active"] is True
+        assert data["emotions"]["simple_label"]
+        assert "perception" in data
+        assert "skills_tools" in data
+        assert "explanation" in data
 
     def test_v1_chat_runtime_backpressure_returns_503(self, client, tmp_path):
         manager = SessionManager(

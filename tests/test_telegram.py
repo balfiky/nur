@@ -657,12 +657,53 @@ class TestCommands:
                     session.last_debug.relationship_context = _relationship_context()  # type: ignore[union-attr]
 
                     for update_id, command in enumerate(
-                        ["/state", "/why", "/memory", "/loops", "/repair"],
+                        ["/state", "/why", "/memory", "/loops", "/repair", "/persona", "/persona all"],
                         start=2,
                     ):
                         await channel.handle_update(_make_update(update_id=update_id, text=command))
 
-                    assert len(client.sent_messages) == 6
+                    assert len(client.sent_messages) == 8
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_persona_command_reports_unified_state(self):
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                channel, manager, client = _make_channel(tmpdir)
+                try:
+                    await channel.handle_update(_make_update(update_id=1, text="I am scared about work"))
+                    await channel.handle_update(_make_update(update_id=2, text="/persona"))
+                    summary = client.sent_messages[-1]["text"].lower()
+                    assert "persona:" in summary
+                    assert "emotion:" in summary
+                    assert "perception:" in summary
+                    assert "skills/tools:" in summary
+
+                    await channel.handle_update(_make_update(update_id=3, text="/persona emotions"))
+                    emotions = client.sent_messages[-1]["text"].lower()
+                    assert "persona emotions" in emotions
+                    assert "primary:" in emotions
+                    assert "drivers:" in emotions
+
+                    await channel.handle_update(_make_update(update_id=4, text="/persona life"))
+                    life = client.sent_messages[-1]["text"].lower()
+                    assert "persona life" in life
+                    assert "active pressures" in life
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_persona_no_session_does_not_create_session(self):
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                channel, manager, client = _make_channel(tmpdir)
+                try:
+                    await channel.handle_update(_make_update(text="/persona"))
+                    assert manager.active_sessions == {}
+                    assert "no active session" in client.sent_messages[-1]["text"].lower()
                 finally:
                     await manager.shutdown()
 
@@ -683,6 +724,7 @@ class TestCommands:
                     assert "/memory" in message
                     assert "/loops" in message
                     assert "/repair" in message
+                    assert "/persona" in message
                 finally:
                     await manager.shutdown()
 

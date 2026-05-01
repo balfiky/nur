@@ -146,16 +146,23 @@ modulator values and known deltas, trust, relationship loops/events,
 LifeInfluence pressures/effects, and memory-use counts. It does not query
 stores, call an LLM, mutate state, or make cognitive decisions.
 
+`runtime.debug.persona_view` sits above that relationship view as the unified
+user-facing observability shape. It translates the six modulators into
+plain-language emotion labels, adds perception/appraisal, relationship,
+Life History, memory, skills, tools, and deterministic explanation summaries,
+and keeps the same presentation-only boundary.
+
 The bundled web debug panel consumes the serialized debug payload to show
-relationship state, deterministic "Why this response?" explanations, state
-deltas when a previous turn is available, and a compact "What Nūr remembers"
-view. These surfaces are observability/UI only; the pipeline remains the owner
-of appraisal, memory retrieval, strategy selection, and LifeInfluence.
+persona state, relationship state, deterministic "Why this response?"
+explanations, state deltas when a previous turn is available, and a compact
+"What Nūr remembers" view. These surfaces are observability/UI only; the
+pipeline remains the owner of appraisal, memory retrieval, strategy selection,
+and LifeInfluence.
 
 Telegram exposes the same boundary through non-mutating introspection commands:
-`/state`, `/why`, `/memory`, `/loops`, and `/repair`. They inspect the active
-session's last debug state only; they do not create sessions, call the pipeline,
-write memory, or change emotional state.
+`/state`, `/why`, `/memory`, `/loops`, `/repair`, and `/persona`. They inspect
+the active session's last debug state only; they do not create sessions, call
+the pipeline, write memory, or change emotional state.
 
 ## LLM Boundary
 

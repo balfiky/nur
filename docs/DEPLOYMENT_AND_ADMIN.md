@@ -256,6 +256,12 @@ the typing loop or normal chat generation.
 | `/new` | Start a fresh hot conversation while keeping relationship memory. Clears the active hot transcript. |
 | `/reset` | Digest, save, and close the active session. Clears the active hot transcript. |
 | `/debug` | Show a compact last-turn debug summary for the active session. |
+| `/state` | Show compact current emotion, strategy, modulators, and open-loop count without processing a turn. |
+| `/why` | Show the deterministic explanation for the last response. |
+| `/memory` | Show current-turn relationship, long-term, and semantic memory counts. |
+| `/loops` | List active relationship loops from the last debug state. |
+| `/repair` | Show recent rupture, repair, recurring-tension, and commitment context. |
+| `/persona [section]` | Unified persona observability view. Optional sections: `emotions`, `perception`, `life`, `memory`, `skills`, `tools`, `all`. |
 
 Telegram keeps the active hot transcript under
 `<data_dir>/telegram_<user_id>/sessions/<chat_id>.history.json` and restores it

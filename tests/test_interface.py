@@ -269,6 +269,8 @@ class TestIndexPage:
         assert "Relationship State" in html
         assert "Why This Response?" in html
         assert "What Nūr Remembers" in html
+        assert 'id="personaPanel"' in html
+        assert "updatePersonaPanel" in html
         assert 'id="delta-arousal"' in html
         assert "updateRelationshipState" in html
         assert "updateMemoryInspector" in html

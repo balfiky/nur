@@ -188,6 +188,15 @@ a.icon-btn { text-decoration: none; }
 .debug-card strong { color: var(--text); font-size: 11px; }
 .debug-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 7px; }
 .debug-chip { font-size: 10px; color: var(--text-dim); background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 3px 8px; }
+.persona-hero { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 10px; }
+.persona-emotion { font-size: 22px; line-height: 1.1; font-weight: 700; color: var(--text); text-transform: capitalize; }
+.persona-sub { font-size: 11px; color: var(--text-faint); margin-top: 4px; }
+.persona-drivers { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+.persona-row { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--text-dim); padding: 4px 0; border-bottom: 1px solid var(--border); }
+.persona-row:last-child { border-bottom: none; }
+.persona-bar { height: 6px; background: var(--bg); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+.persona-bar span { display: block; height: 100%; border-radius: 4px; background: var(--primary); }
+.persona-pressure .persona-bar span { background: #ff922b; }
 .explain-box { font-size: 12px; color: var(--text-dim); line-height: 1.55; display: grid; gap: 7px; }
 .explain-box strong { color: var(--text); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
 
@@ -604,6 +613,7 @@ a.icon-btn { text-decoration: none; }
 
   <!-- Debug panel -->
   <div class="debug-panel" id="debugPanel">
+    <div class="debug-section"><h3>Persona</h3><div id="personaPanel"><span class="debug-none">&mdash;</span></div></div>
     <div class="debug-section">
       <h3>Modulators</h3>
       <div id="gauges">
@@ -841,6 +851,7 @@ function updateDebug(d) {
   const whyBtn = document.getElementById('whyBtn');
   if (whyBtn) whyBtn.disabled = !lastExplanation;
   updateExplanation(lastExplanation);
+  updatePersonaPanel(d.persona_view || null, d, lastDebugPayload);
 
   const mods = ['arousal', 'valence', 'certainty', 'bonding', 'energy', 'resolution'];
   const relationshipView = d.relationship_view || {};
@@ -889,6 +900,70 @@ function updateDebug(d) {
   document.getElementById('unresolvedCount').textContent = d.unresolved_count || 0;
   updateUnresolvedItems(d.unresolved_items);
   lastDebugPayload = d;
+}
+
+function updatePersonaPanel(view, currentDebug, previousDebug) {
+  const el = document.getElementById('personaPanel');
+  if (!el) return;
+  if (!view || view.active === false) {
+    el.innerHTML = '<span class="debug-none">No persona state yet.</span>';
+    return;
+  }
+  const emotions = view.emotions || {};
+  const relationship = view.relationship || {};
+  const perception = view.perception || {};
+  const life = view.life || {};
+  const memory = view.memory || {};
+  const skillsTools = view.skills_tools || {};
+  const drivers = (emotions.drivers || []).slice(0, 4);
+  const mods = emotions.modulators || {};
+  const pressures = Object.entries(life.active_pressures || {});
+  const clientDeltas = computeClientModulatorDeltas(currentDebug || {}, previousDebug || null);
+
+  let html = '<div class="persona-hero">' +
+    '<div class="persona-emotion">' + esc(emotions.simple_label || emotions.primary || 'neutral') + '</div>' +
+    '<div class="persona-sub">best-fit state: ' + esc(emotions.primary || 'neutral') +
+    ' · intensity ' + formatNumber(emotions.intensity) +
+    ' · confidence ' + formatNumber(emotions.confidence) + '</div>' +
+    '<div class="persona-drivers">' +
+    (drivers.length ? drivers.map(d => '<span class="debug-chip">' + esc(d) + '</span>').join('') : '<span class="debug-chip">balanced state</span>') +
+    '</div></div>';
+
+  html += personaRow('Perception', perception.summary || 'No perception recorded.');
+  html += personaRow('Strategy', (relationship.strategy || 'none') + (relationship.strategy_reason ? ' · ' + relationship.strategy_reason : ''));
+  html += personaRow('Open loops', String(relationship.open_loop_count || 0));
+  html += personaRow('Memory used', 'relationship ' + yesNo(memory.relationship_context_used) + ' · long-term ' + (memory.long_term_count || 0) + ' · semantic ' + (memory.semantic_count || 0));
+  html += personaRow('Skills/tools', (skillsTools.enabled_skill_count || 0) + ' skill(s) · ' + (skillsTools.tools_used || 0) + ' tool(s) used');
+
+  html += '<div class="debug-item" style="margin-top:9px"><span class="dl">Emotion drivers</span></div>';
+  for (const key of ['arousal', 'valence', 'certainty', 'bonding', 'energy', 'resolution']) {
+    const item = mods[key] || {};
+    html += personaBar(key, item.value, item.level, item.delta ?? clientDeltas[key]);
+  }
+  if (pressures.length) {
+    html += '<div class="debug-item" style="margin-top:9px"><span class="dl">Life pressures</span></div>';
+    for (const [key, value] of pressures.slice(0, 5)) {
+      html += personaBar(key.replace(/_pressure$/, ''), Math.abs(Number(value) || 0) * 20, signed(Number(value) || 0), null, true);
+    }
+  }
+  el.innerHTML = html;
+}
+
+function personaRow(label, value) {
+  return '<div class="persona-row"><span>' + esc(label) + '</span><span>' + esc(value || '\u2014') + '</span></div>';
+}
+
+function personaBar(label, value, detail, delta, pressure) {
+  const v = Math.max(0, Math.min(1, Number(value) || 0));
+  const deltaText = typeof delta === 'number' ? ' ' + signed(delta) : '';
+  return '<div class="debug-card ' + (pressure ? 'persona-pressure' : '') + '">' +
+    '<strong>' + esc(label) + '</strong> <span class="dl">' + esc(detail || '') + esc(deltaText) + '</span>' +
+    '<div class="persona-bar"><span style="width:' + (v * 100).toFixed(0) + '%"></span></div>' +
+    '</div>';
+}
+
+function yesNo(value) {
+  return value ? 'yes' : 'no';
 }
 
 function updateExplanation(explanation) {

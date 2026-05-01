@@ -33,6 +33,7 @@ from pydantic import BaseModel, Field
 from config.loader import get_config
 from runtime.config import RuntimeConfig
 from runtime.debug.api import _debug_to_dict
+from runtime.debug.persona_view import build_persona_view
 from runtime.sessions.manager import SessionManager
 from runtime.sessions.user_session import UserSession
 
@@ -188,6 +189,29 @@ def build_v1_router(
             "active_sessions": len(mgr.active_sessions),
             "max_active_sessions": cfg.max_active_sessions,
         }
+
+    @router.get(
+        "/persona/state",
+        summary="Presentation-only persona state for an active session",
+        dependencies=[Depends(require_auth)],
+    )
+    async def persona_state(
+        platform: str = Query("web", min_length=1, max_length=_MAX_ID_CHARS),
+        user_id: str = Query("default", min_length=1, max_length=_MAX_ID_CHARS),
+        chat_id: str = Query("default", min_length=1, max_length=_MAX_ID_CHARS),
+    ) -> dict[str, Any]:
+        _validate_path_token("platform", platform)
+        _validate_path_token("user_id", user_id)
+        _validate_path_token("chat_id", chat_id)
+        mgr = get_manager()
+        session_key = _session_key(platform, user_id, chat_id)
+        session = mgr.active_sessions.get(session_key)
+        if session is None:
+            return build_persona_view(
+                session_key=session_key,
+                inactive_reason="No active session. Send a message first.",
+            )
+        return build_persona_view(session=session, session_key=session_key)
 
     # ------------------------------------------------------------------
     # Chat

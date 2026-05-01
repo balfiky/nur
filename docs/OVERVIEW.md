@@ -76,12 +76,13 @@ Two runtime hosts (`nur` for console/Telegram/debug, `nur-web` for the
 FastAPI service) share one session manager and one cognitive pipeline.
 Persistence, LLM, and tool execution sit at the edges.
 The web debug panel consumes serialized debug state to show the
-relationship view, deterministic "Why this response?" explanation, known
-state deltas, and compact current-turn memory summaries. These are
-presentation surfaces over the pipeline's state, not separate cognition.
+persona view, relationship view, deterministic "Why this response?"
+explanation, known state deltas, and compact current-turn memory summaries.
+These are presentation surfaces over the pipeline's state, not separate
+cognition.
 Telegram mirrors that principle with non-mutating introspection commands
-(`/state`, `/why`, `/memory`, `/loops`, `/repair`) that read active-session
-debug state without creating sessions or changing cognition.
+(`/state`, `/why`, `/memory`, `/loops`, `/repair`, `/persona`) that read
+active-session debug state without creating sessions or changing cognition.
 
 ![Runtime architecture](diagrams/runtime-architecture.png)
 

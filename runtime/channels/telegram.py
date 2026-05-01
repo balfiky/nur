@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 import httpx
 
 from runtime.debug.explain import explain_turn
+from runtime.debug.persona_view import build_persona_view
 from runtime.debug.relationship_view import build_relationship_view
 from runtime.sessions.manager import SessionManager
 
@@ -301,6 +302,8 @@ class TelegramChannel:
             await self._cmd_loops(user_id, chat_id)
         elif cmd == "/repair":
             await self._cmd_repair(user_id, chat_id)
+        elif cmd == "/persona":
+            await self._cmd_persona(text, user_id, chat_id)
         elif cmd == "/start":
             await self._client.send_message(
                 chat_id,
@@ -560,6 +563,40 @@ class TelegramChannel:
         lines.append(f"open loops remain: {len(loops)}")
         await self._client.send_message(chat_id, "\n".join(lines))
 
+    async def _cmd_persona(self, text: str, user_id: str, chat_id: int) -> None:
+        session = self._active_session(user_id, chat_id)
+        if session is None:
+            await self._client.send_message(chat_id, "No active session. Send a message first.")
+            return
+
+        parts = text.split(maxsplit=1)
+        section = parts[1].strip().lower() if len(parts) > 1 else "summary"
+        if section not in {"summary", "emotions", "emotion", "perception", "life", "skills", "tools", "memory", "all"}:
+            section = "summary"
+        view = build_persona_view(session=session, session_key=f"telegram:{user_id}:{chat_id}")
+
+        if section in {"emotions", "emotion"}:
+            message = _format_persona_emotions(view)
+        elif section == "perception":
+            message = _format_persona_perception(view)
+        elif section == "life":
+            message = _format_persona_life(view)
+        elif section in {"skills", "tools"}:
+            message = _format_persona_skills_tools(view)
+        elif section == "memory":
+            message = _format_persona_memory(view)
+        elif section == "all":
+            message = "\n\n".join([
+                _format_persona_summary(view),
+                _format_persona_perception(view),
+                _format_persona_life(view),
+                _format_persona_memory(view),
+                _format_persona_skills_tools(view),
+            ])
+        else:
+            message = _format_persona_summary(view)
+        await self._client.send_message(chat_id, message)
+
     def _active_session(self, user_id: str, chat_id: int):
         session_key = f"telegram:{user_id}:{chat_id}"
         return self._manager.active_sessions.get(session_key)
@@ -579,7 +616,125 @@ def _telegram_help_text() -> str:
         "/memory - summarize current-turn memory context",
         "/loops - list active relationship loops",
         "/repair - show recent rupture/repair context",
+        "/persona - unified persona state; add emotions, perception, life, memory, skills, or all",
     ])
+
+
+def _format_persona_summary(view: dict) -> str:
+    emotions = view.get("emotions", {}) or {}
+    relationship = view.get("relationship", {}) or {}
+    perception = view.get("perception", {}) or {}
+    life = view.get("life", {}) or {}
+    skills_tools = view.get("skills_tools", {}) or {}
+    drivers = ", ".join((emotions.get("drivers") or [])[:3]) or "balanced state"
+    lines = [
+        "Persona:",
+        f"emotion: {emotions.get('simple_label') or emotions.get('primary') or 'neutral'}"
+        f" ({emotions.get('primary') or 'neutral'})",
+        f"drivers: {drivers}",
+        f"strategy: {relationship.get('strategy') or 'none'}",
+        f"perception: {perception.get('summary') or 'No perception recorded.'}",
+        f"open loops: {relationship.get('open_loop_count', 0)}",
+        f"life pressures: {len(life.get('active_pressures') or {})}",
+        f"skills/tools: {skills_tools.get('enabled_skill_count', 0)} skill(s), "
+        f"{skills_tools.get('tools_used', 0)} tool(s) used",
+    ]
+    return "\n".join(lines)
+
+
+def _format_persona_emotions(view: dict) -> str:
+    emotions = view.get("emotions", {}) or {}
+    mods = emotions.get("modulators", {}) or {}
+    secondary = ", ".join(emotions.get("secondary") or []) or "none"
+    lines = [
+        "Persona emotions:",
+        f"primary: {emotions.get('primary') or 'neutral'}",
+        f"simple: {emotions.get('simple_label') or 'neutral'}",
+        f"secondary: {secondary}",
+        f"intensity: {float(emotions.get('intensity') or 0.0):.2f}",
+        f"confidence: {float(emotions.get('confidence') or 0.0):.2f}",
+        "drivers: " + (", ".join(emotions.get("drivers") or []) or "balanced state"),
+    ]
+    for name in ("arousal", "valence", "certainty", "bonding", "energy", "resolution"):
+        item = mods.get(name, {}) or {}
+        lines.append(
+            f"{name}: {float(item.get('value') or 0.0):.2f}"
+            f" ({item.get('level') or 'medium'})"
+        )
+    return "\n".join(lines)
+
+
+def _format_persona_perception(view: dict) -> str:
+    perception = view.get("perception", {}) or {}
+    lines = [
+        "Persona perception:",
+        perception.get("summary") or "No perception recorded.",
+        f"target: {perception.get('target') or 'none'}",
+        f"social move: {perception.get('social_move') or 'none'}",
+        f"intent: {perception.get('intent') or 'none'}",
+        f"vulnerability: {float(perception.get('vulnerability') or 0.0):.2f}",
+        f"action need: {float(perception.get('action_need') or 0.0):.2f}",
+    ]
+    return "\n".join(lines)
+
+
+def _format_persona_life(view: dict) -> str:
+    life = view.get("life", {}) or {}
+    pressures = life.get("active_pressures") or {}
+    effects = life.get("effects") or {}
+    pressure_text = ", ".join(
+        f"{key.replace('_pressure', '')} {float(value):+.2f}"
+        for key, value in pressures.items()
+    ) or "none"
+    effect_text = ", ".join(str(key) for key in effects.keys()) or "none"
+    lines = [
+        "Persona life:",
+        f"context available: {'yes' if life.get('context_available') else 'no'}",
+        f"beliefs: {life.get('belief_count', 0)}",
+        f"drives: {life.get('drive_count', 0)}",
+        f"recent evolution: {life.get('recent_evolution_count', 0)}",
+        f"active pressures: {pressure_text}",
+        f"bounded effects: {effect_text}",
+    ]
+    return "\n".join(lines)
+
+
+def _format_persona_memory(view: dict) -> str:
+    memory = view.get("memory", {}) or {}
+    lines = [
+        "Persona memory:",
+        f"relationship used: {'yes' if memory.get('relationship_context_used') else 'no'}",
+        f"open loops: {memory.get('open_loop_count', 0)}",
+        f"recent relationship events: {memory.get('recent_event_count', 0)}",
+        f"long-term memories: {memory.get('long_term_count', 0)}",
+        f"semantic memories: {memory.get('semantic_count', 0)}",
+    ]
+    for summary in (memory.get("long_term_summaries") or [])[:2]:
+        if summary:
+            lines.append(f"long-term: {summary}")
+    for summary in (memory.get("semantic_summaries") or [])[:2]:
+        if summary:
+            lines.append(f"semantic: {summary}")
+    return "\n".join(lines)
+
+
+def _format_persona_skills_tools(view: dict) -> str:
+    skills_tools = view.get("skills_tools", {}) or {}
+    skills = skills_tools.get("enabled_skills") or []
+    tool_names = skills_tools.get("tool_names") or []
+    lines = [
+        "Persona skills/tools:",
+        f"enabled skills: {skills_tools.get('enabled_skill_count', 0)}",
+        f"tools considered: {skills_tools.get('tools_considered', 0)}",
+        f"tools used: {skills_tools.get('tools_used', 0)}",
+        skills_tools.get("summary") or "No tools were considered.",
+    ]
+    for skill in skills[:3]:
+        name = skill.get("name") or skill.get("id") or "skill"
+        lines.append(f"skill: {name}")
+    if tool_names:
+        lines.append("used: " + ", ".join(tool_names[:5]))
+    return "\n".join(lines)
 
 
 def _remove_file_if_exists(path: str) -> bool:
