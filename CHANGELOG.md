@@ -10,6 +10,33 @@ _No unreleased changes._
 
 ---
 
+## v0.28.1 — 2026-05-01 (Web and Telegram introspection polish)
+
+### Web/debug presentation
+- Added a presentation-only relationship view serializer for debug payloads.
+- Updated the existing web debug panel to show relationship state, known
+  modulator deltas, deterministic "Why this response?" explanations, and a
+  compact "What Nūr remembers" view without splitting or rewriting the UI.
+
+### Telegram
+- Added non-mutating introspection commands: `/state`, `/why`, `/memory`,
+  `/loops`, and `/repair`.
+- Kept these commands read-only over active session debug state; they do not
+  create sessions, call the cognitive pipeline, write memory, or change
+  emotional state.
+
+### Relationship and LifeInfluence tests
+- Added focused relationship-memory coverage for topic-specific open loops,
+  mismatched repairs, recurring tension, explicit commitment resolution, and
+  old rupture recall.
+- Added longitudinal multi-turn pipeline tests for rupture/repair arcs,
+  repeated tension, commitment resolution, LifeInfluence strategy tie-breaks,
+  and preference-plus-loop retrieval.
+- Expanded LifeInfluence verification around proactive scoring, action-variable
+  deltas, semantic salience, neutral context, and disabled-context behavior.
+
+---
+
 ## v0.28.0 — 2026-05-01 (LifeInfluence and structural eval evidence)
 
 ### Cognitive runtime
