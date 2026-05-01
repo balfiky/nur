@@ -40,7 +40,7 @@ def test_terminal_setup_writes_config_identity_and_completion(tmp_path):
         "",        # data directory
         "2",       # vLLM
         "",        # base URL
-        "qwen-test",
+        "local-test-model",
         "",        # API key
         "n",       # Telegram
         "n",       # tools
@@ -58,10 +58,10 @@ def test_terminal_setup_writes_config_identity_and_completion(tmp_path):
     )
 
     saved = RuntimeConfig.from_yaml(str(config_path))
-    assert config.llm_model == "qwen-test"
+    assert config.llm_model == "local-test-model"
     assert saved.llm_backend == "openai_compatible"
     assert saved.llm_base_url == "http://localhost:8002/v1"
-    assert saved.llm_model == "qwen-test"
+    assert saved.llm_model == "local-test-model"
     assert (tmp_path / "data" / "workspace").is_dir()
     assert "name: Jarvis" in (identity_dir / "soul.yaml").read_text(encoding="utf-8")
 

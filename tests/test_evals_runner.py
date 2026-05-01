@@ -52,7 +52,7 @@ class TestBackendFactory:
     def test_provider_needs_base_url(self):
         with pytest.raises(MissingBackendConfigError, match="--base-url"):
             build_backend_factory(
-                BackendSpec(type="provider", requested_model="qwen")
+                BackendSpec(type="provider", requested_model="local-model")
             )
 
     def test_provider_needs_model(self):
@@ -64,7 +64,7 @@ class TestBackendFactory:
     def test_openai_compat_needs_base_url(self):
         with pytest.raises(MissingBackendConfigError, match="--base-url"):
             build_backend_factory(
-                BackendSpec(type="openai_compat", requested_model="qwen")
+                BackendSpec(type="openai_compat", requested_model="local-model")
             )
 
     def test_openai_compat_needs_model(self):

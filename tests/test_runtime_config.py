@@ -38,7 +38,7 @@ class TestConfigFromYaml:
                     "telegram_token: abc123\n"
                     "telegram_allowlist: [100, 200]\n"
                     "llm_base_url: http://localhost:8000/v1\n"
-                    "llm_model: Qwen/Qwen3-30B-A3B\n"
+                    "llm_model: Local/ReasoningModel\n"
                     "llm_api_key: local-key\n"
                     "llm_backend: minimax\n"
                     "minimax_api_key: sk-test\n"
@@ -55,7 +55,7 @@ class TestConfigFromYaml:
             assert config.telegram_token == "abc123"
             assert config.telegram_allowlist == {"100", "200"}
             assert config.llm_base_url == "http://localhost:8000/v1"
-            assert config.llm_model == "Qwen/Qwen3-30B-A3B"
+            assert config.llm_model == "Local/ReasoningModel"
             assert config.llm_api_key == "local-key"
             assert config.llm_backend == "minimax"
             assert config.minimax_api_key == "sk-test"
@@ -137,11 +137,11 @@ class TestBackendSelection:
         return resp
 
     @patch("requests.Session.post")
-    def test_openai_compatible_disables_qwen_thinking(self, mock_post):
+    def test_openai_compatible_disables_template_thinking(self, mock_post):
         mock_post.return_value = self._mock_response("ok")
         backend = OpenAICompatibleLLMBackend(
             base_url="http://localhost:8000/v1",
-            model="Qwen/Test",
+            model="Local/ReasoningModel",
             api_key="k",
         )
         backend.generate("sys", "msg")
@@ -192,7 +192,7 @@ class TestBackendSelection:
         config = RuntimeConfig(
             llm_backend="openai_compatible",
             llm_base_url="http://localhost:8000/v1",
-            llm_model="Qwen/Test",
+            llm_model="Local/ReasoningModel",
         )
         backend = create_llm_backend(config)
         assert isinstance(backend, OpenAICompatibleLLMBackend)
@@ -208,7 +208,7 @@ class TestBackendSelection:
         config = RuntimeConfig(
             llm_backend="auto",
             llm_base_url="http://localhost:8000/v1",
-            llm_model="Qwen/Test",
+            llm_model="Local/ReasoningModel",
         )
         backend = create_llm_backend(config)
         assert isinstance(backend, OpenAICompatibleLLMBackend)

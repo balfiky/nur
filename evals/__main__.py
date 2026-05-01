@@ -4,7 +4,7 @@ Usage:
     python -m evals --backend mock
     python -m evals --backend provider --base-url https://provider.example/v1 --model your-model
     python -m evals --backend minimax --tag phase11
-    python -m evals --backend openai_compat --base-url http://localhost:8080/v1 --model qwen2.5
+    python -m evals --backend openai_compat --base-url http://localhost:8080/v1 --model local-model
 
     python -m evals --backend mock --list
     python -m evals --backend minimax --tag phase11 --report reports/phase11.json

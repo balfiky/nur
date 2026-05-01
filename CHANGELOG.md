@@ -10,6 +10,14 @@ _No unreleased changes._
 
 ---
 
+## v0.28.4 — 2026-05-01 (Model-name leak cleanup)
+
+### Setup and examples
+- Removed remaining model-family-specific examples from current eval usage
+  text and tests, replacing them with neutral local model names.
+
+---
+
 ## v0.28.3 — 2026-05-01 (Neutral vLLM setup defaults)
 
 ### Setup
