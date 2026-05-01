@@ -56,8 +56,10 @@ from core.types import (
     PipelineContext,
     PersonProfile,
     RelationshipContext,
+    ResponseStrategy,
     SemanticMemoryEntry,
     SelfProfile,
+    StrategyDecisionTrace,
     ToolCategory,
     TopicProfile,
     ToolTrace,
@@ -66,7 +68,7 @@ from core.types import (
 )
 from core.appraisal import appraise_message
 from core.affect import decide_agency, resolve_affect
-from core.strategy import select_strategy, STRATEGY_INSTRUCTIONS
+from core.strategy import select_strategy_with_trace, STRATEGY_INSTRUCTIONS
 from core.emotional_engine import EmotionalEngine, SPIKE_INTENSITY_THRESHOLD
 from core.memory.short_term import ShortTermMemory
 from core.memory.long_term import LongTermMemory
@@ -77,6 +79,7 @@ from core.memory.semantic import (
     create_semantic_memory,
     derive_semantic_entries,
 )
+from core.life_influence import LifeInfluence, curiosity_salience_bonus, derive_life_influence
 from core.pipeline_features import PipelineFeatures
 from core.contagion import detect_emotion
 from core.profiles.base import ProfileStore
@@ -164,6 +167,8 @@ class DebugState:
     retrieved_memories: list[LongTermEntry] = field(default_factory=list)
     semantic_memories: list[SemanticMemoryEntry] = field(default_factory=list)
     life_history_context: dict[str, Any] = field(default_factory=dict)
+    life_influence: LifeInfluence = field(default_factory=LifeInfluence)
+    life_influence_effects: dict[str, Any] = field(default_factory=dict)
     skill_context: dict[str, Any] = field(default_factory=dict)
     relationship_context: RelationshipContext | None = None
 
@@ -206,6 +211,7 @@ class DebugState:
     action_variables: ActionVariables | None = None
     tool_memory_effects: ToolMemoryEffects | None = None
     task_trace: TaskTrace | None = None
+    strategy_trace: StrategyDecisionTrace | None = None
 
     # Phase 11.3: Response strategy
     response_strategy: str = ""
@@ -252,6 +258,30 @@ def _message_for_model_tool_routing(
             lines.append(f"{role}: {content}")
     lines.append(f"Current user message: {user_message}")
     return "\n".join(lines)
+
+
+def _relationship_topic_hint(text: str) -> str:
+    """Small topic hint so relationship-memory loops can be prioritized."""
+    lower = text.lower()
+    match = re.search(r"\b(?:about|regarding|around|on)\s+([a-z0-9' -]{2,40})", lower)
+    if match:
+        return _clean_topic_hint(match.group(1))
+    words = re.findall(r"[a-z0-9']+", lower)
+    stopwords = {
+        "the", "and", "that", "this", "with", "your", "you", "for", "from",
+        "have", "been", "just", "really", "very", "again", "still", "please",
+        "drop", "topic", "issue", "thing", "can", "could", "would", "what",
+        "when", "where", "why", "how", "any", "follow", "up",
+        "unresolved", "resolved", "matters", "matter", "pattern",
+    }
+    informative = [word for word in words if len(word) > 2 and word not in stopwords]
+    return " ".join(informative[:3])
+
+
+def _clean_topic_hint(text: str) -> str:
+    phrase = re.sub(r"[^a-z0-9' -]", " ", text.lower())
+    phrase = " ".join(phrase.split())
+    return phrase[:40].strip()
 
 
 # ---------------------------------------------------------------------------
@@ -504,7 +534,7 @@ class CognitivePipeline:
         person = self.person_profiles.get_or_create(user_id)
         self_prof = self.self_profile.get_profile()
         active_topics = self._detect_topics(user_message)
-        relationship_topic = active_topics[0].topic if active_topics else ""
+        relationship_topic = active_topics[0].topic if active_topics else _relationship_topic_hint(user_message)
         _ts = time.perf_counter()
         relationship_context = self.relationship_memory.build_context(
             user_id,
@@ -533,6 +563,8 @@ class CognitivePipeline:
         _ts = time.perf_counter()
         life_history_context = self._load_life_history_context()
         debug.life_history_context = life_history_context
+        life_influence = derive_life_influence(life_history_context)
+        debug.life_influence = life_influence
         timings["life_history_retrieval"] = (time.perf_counter() - _ts) * 1000
 
         _ts = time.perf_counter()
@@ -646,6 +678,7 @@ class CognitivePipeline:
                     active_plan=self._active_task_plan,
                     agency_decision=agency_decision,
                     autonomy_level=self._autonomy_level,
+                    life_influence=life_influence,
                 )
             else:
                 tool_user_message = _message_for_tool_detection(
@@ -662,10 +695,13 @@ class CognitivePipeline:
                     active_plan=self._active_task_plan,
                     agency_decision=agency_decision,
                     autonomy_level=self._autonomy_level,
+                    life_influence=life_influence,
                 )
             debug.tool_trace = tool_loop_result.trace
             debug.action_variables = tool_loop_result.action_variables
             tool_context_summary = tool_loop_result.tool_context_summary
+            if tool_loop_result.life_influence_effects:
+                debug.life_influence_effects.update(tool_loop_result.life_influence_effects)
 
             # Track task trace and active plan (Phase 7)
             task_trace = tool_loop_result.trace.task_trace
@@ -781,13 +817,18 @@ class CognitivePipeline:
         debug.defense_activation = defense
 
         # ---- Step 13b: RESPONSE STRATEGY (0 LLM calls) ----
-        strategy = select_strategy(
+        strategy_trace = select_strategy_with_trace(
             appraisal=appraisal,
             modulators=self.engine.snapshot(),
             person=person,
             relationship=relationship_context,
+            life_influence=life_influence,
         )
+        debug.strategy_trace = strategy_trace
+        strategy = ResponseStrategy(strategy_trace.selected)
         debug.response_strategy = strategy.value
+        if strategy_trace.matched_rule.startswith("life_"):
+            debug.life_influence_effects["strategy_tiebreak_used"] = True
 
         # ---- Step 14: MASTER LLM (1 LLM call) ----
         _ts = time.perf_counter()
@@ -917,13 +958,16 @@ class CognitivePipeline:
         )
 
         # ---- Semantic memory writes ----
-        self._record_semantic_memory(
+        salience_delta = self._record_semantic_memory(
             user_message=user_message,
             assistant_response=gen_result.response,
             user_id=user_id,
             topic=relationship_topic,
             event=event,
+            life_influence=life_influence,
         )
+        if salience_delta:
+            debug.life_influence_effects["memory_salience_delta"] = salience_delta
 
         # ---- Persist defense event ----
         if defense:
@@ -966,6 +1010,10 @@ class CognitivePipeline:
         debug = DebugState(user_message="[proactive]", user_id=user_id)
         person = self.person_profiles.get_or_create(user_id)
         self_prof = self.self_profile.get_profile()
+        life_history_context = self._load_life_history_context()
+        life_influence = derive_life_influence(life_history_context)
+        debug.life_history_context = life_history_context
+        debug.life_influence = life_influence
 
         # Elapsed decay — same as process() Step 0
         now = time.time()
@@ -988,8 +1036,15 @@ class CognitivePipeline:
             max_proactive=max_proactive,
             idle_threshold=idle_threshold,
             cooldown=cooldown,
+            life_influence=life_influence,
         )
         debug.proactive_trace = trace
+        if trace.life_influence_score_deltas:
+            debug.life_influence_effects["proactive_score_deltas"] = dict(trace.life_influence_score_deltas)
+            debug.life_influence_effects["proactive_score_delta"] = round(
+                sum(trace.life_influence_score_deltas.values()),
+                6,
+            )
 
         if action is None:
             return None
@@ -1010,6 +1065,7 @@ class CognitivePipeline:
                     engine=self.engine,
                     active_plan=self._active_task_plan,
                     autonomy_level=self._autonomy_level,
+                    life_influence=life_influence,
                 )
             else:
                 tool_loop_result = run_tool_loop(
@@ -1020,10 +1076,13 @@ class CognitivePipeline:
                     executor=self._tool_executor,
                     engine=self.engine,
                     active_plan=self._active_task_plan,
+                    life_influence=life_influence,
                 )
             tool_context = tool_loop_result.tool_context_summary
             debug.tool_trace = tool_loop_result.trace
             debug.action_variables = tool_loop_result.action_variables
+            if tool_loop_result.life_influence_effects:
+                debug.life_influence_effects.update(tool_loop_result.life_influence_effects)
 
             # Update plan state
             task_trace = tool_loop_result.trace.task_trace
@@ -1058,8 +1117,6 @@ class CognitivePipeline:
             limit=self._semantic_cfg.retrieval_limit,
         )
         debug.semantic_memories = proactive_semantic
-        life_history_context = self._load_life_history_context()
-        debug.life_history_context = life_history_context
         skill_context = self._load_skill_context()
         debug.skill_context = skill_context
         ctx = PipelineContext(
@@ -1106,6 +1163,8 @@ class CognitivePipeline:
 
     def _load_life_history_context(self) -> dict[str, Any]:
         """Read compact identity-level life context for generation."""
+        if not self._features.life_history_context:
+            return {}
         if self._life_history_provider is None:
             return {}
         try:
@@ -1134,8 +1193,13 @@ class CognitivePipeline:
         user_id: str,
         topic: str,
         event: EmotionalEvent,
-    ) -> None:
+        life_influence: LifeInfluence | None = None,
+    ) -> float:
         """Persist semantic memories derived from the completed turn."""
+        salience_delta = 0.0
+        if life_influence is not None:
+            raw_text = f"User: {user_message}\nAssistant: {assistant_response}"
+            salience_delta = curiosity_salience_bonus(life_influence, raw_text)
         for entry in derive_semantic_entries(
             config=self._semantic_cfg,
             user_id=user_id,
@@ -1143,8 +1207,10 @@ class CognitivePipeline:
             assistant_response=assistant_response,
             topic=topic,
             event_intensity=event.intensity,
+            life_influence=life_influence,
         ):
             self.semantic_memory.store(entry)
+        return round(salience_delta, 6)
 
     # ------------------------------------------------------------------
     # Self-observation recording (v2 — Phase 3)

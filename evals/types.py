@@ -102,6 +102,9 @@ class EvalScenario:
     # Tool executor: whether to wire a ToolExecutor for this scenario
     with_tools: bool = False
 
+    # Optional static Life History context for structural LifeInfluence evals.
+    life_history_context: dict[str, Any] | None = None
+
 
 # ---------------------------------------------------------------------------
 # Results

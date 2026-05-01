@@ -18,10 +18,15 @@ Full LLM-driven structured proposals are a future enhancement.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from core.action_variables import derive_action_variables
+from core.life_influence import (
+    LifeInfluence,
+    action_variable_deltas,
+    apply_life_influence_to_action_variables,
+)
 from core.task_planning import (
     detect_multi_step_intent,
     execute_plan,
@@ -70,6 +75,7 @@ class ToolLoopResult:
     trace: ToolTrace
     action_variables: ActionVariables
     tool_context_summary: str  # summarized for the generator — not raw output
+    life_influence_effects: dict[str, float] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -450,6 +456,27 @@ def _format_result_output(result: ToolResult, limit: int = 1200) -> str:
 # Main tool loop
 # ---------------------------------------------------------------------------
 
+def _with_life_influence(
+    action_vars: ActionVariables,
+    life_influence: LifeInfluence | None,
+    category: ToolCategory,
+) -> ActionVariables:
+    if life_influence is None or life_influence.is_neutral:
+        return action_vars
+    return apply_life_influence_to_action_variables(
+        action_vars,
+        life_influence,
+        read_only_action=category == ToolCategory.READ_ONLY,
+    )
+
+
+def _action_effects(before: ActionVariables, after: ActionVariables) -> dict[str, float]:
+    return {
+        key: value for key, value in action_variable_deltas(before, after).items()
+        if value != 0.0
+    }
+
+
 def run_tool_loop(
     user_message: str,
     state: ModulatorState,
@@ -462,6 +489,7 @@ def run_tool_loop(
     active_plan: TaskPlan | None = None,
     agency_decision: AgencyDecision | None = None,
     autonomy_level: str = "autonomous",
+    life_influence: LifeInfluence | None = None,
 ) -> ToolLoopResult:
     """Run the cognitive tool loop.
 
@@ -513,21 +541,23 @@ def run_tool_loop(
         first_step = plan.steps[0]
         cap = executor._registry.get(first_step.tool_name)
         first_category = cap.category if cap else ToolCategory.READ_ONLY
+        plan_action_vars = _with_life_influence(action_vars, life_influence, first_category)
+        life_effects = _action_effects(action_vars, plan_action_vars)
         # Build a synthetic intent for arbiter
         synthetic_intent = ToolIntent(
             tool_name=first_step.tool_name,
             arguments=first_step.arguments,
             reason=f"Multi-step plan: {plan.goal[:80]}",
             expected_outcome=f"Execute {len(plan.steps)}-step plan",
-            urgency=action_vars.action_urgency,
-            risk_tolerance=action_vars.risk_tolerance,
-            autonomy_bias=action_vars.autonomy_bias,
-            clarification_threshold=action_vars.clarification_threshold,
-            persistence_drive=action_vars.persistence_drive,
+            urgency=plan_action_vars.action_urgency,
+            risk_tolerance=plan_action_vars.risk_tolerance,
+            autonomy_bias=plan_action_vars.autonomy_bias,
+            clarification_threshold=plan_action_vars.clarification_threshold,
+            persistence_drive=plan_action_vars.persistence_drive,
         )
         decision = make_tool_decision(
             synthetic_intent,
-            action_vars,
+            plan_action_vars,
             first_category,
             trust,
             agency_decision=agency_decision,
@@ -542,13 +572,14 @@ def run_tool_loop(
                     loop_count=0,
                     task_trace=TaskTrace(plan=plan, plan_outcome=""),
                 ),
-                action_variables=action_vars,
+                action_variables=plan_action_vars,
                 tool_context_summary="",
+                life_influence_effects=life_effects,
             )
 
         # Execute the plan
         task_trace = execute_plan(
-            plan, executor, action_vars, engine=engine,
+            plan, executor, plan_action_vars, engine=engine,
         )
         executed_results, observations = _collect_plan_results(plan)
         summary = _summarize_plan_for_generator(plan, task_trace)
@@ -562,8 +593,9 @@ def run_tool_loop(
                 loop_count=task_trace.steps_executed,
                 task_trace=task_trace,
             ),
-            action_variables=action_vars,
+            action_variables=plan_action_vars,
             tool_context_summary=summary,
+            life_influence_effects=life_effects,
         )
 
     # 3. Single-step: detect tool intent
@@ -587,6 +619,16 @@ def run_tool_loop(
     # 4. Action arbiter
     capability = executor._registry.get(intent.tool_name)
     category = capability.category if capability else ToolCategory.READ_ONLY
+    action_vars = _with_life_influence(action_vars, life_influence, category)
+    life_effects = _action_effects(
+        derive_action_variables(state, trust=trust, defense_active=defense_active),
+        action_vars,
+    )
+    intent.urgency = action_vars.action_urgency
+    intent.risk_tolerance = action_vars.risk_tolerance
+    intent.autonomy_bias = action_vars.autonomy_bias
+    intent.clarification_threshold = action_vars.clarification_threshold
+    intent.persistence_drive = action_vars.persistence_drive
 
     decision = make_tool_decision(
         intent,
@@ -612,6 +654,7 @@ def run_tool_loop(
             ),
             action_variables=action_vars,
             tool_context_summary="",
+            life_influence_effects=life_effects,
         )
 
     # 5. Execute + appraise loop (bounded)
@@ -649,6 +692,7 @@ def run_tool_loop(
         ),
         action_variables=action_vars,
         tool_context_summary=summary,
+        life_influence_effects=life_effects,
     )
 
 

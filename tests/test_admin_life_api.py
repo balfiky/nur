@@ -114,3 +114,28 @@ def test_admin_life_upload_intake_does_not_require_workspace(monkeypatch, tmp_pa
         assert "plain text" in rejected.json()["detail"]
     set_pipeline(None)
     set_session_manager(None)
+
+
+def test_admin_life_rollback_batch(monkeypatch, tmp_path):
+    client, _workspace = _client(monkeypatch, tmp_path)
+    with client:
+        resp = client.post(
+            "/admin/life/experiences/text",
+            json={
+                "title": "Rollback Fragment",
+                "text": "Autonomy and learning should shape identity.",
+            },
+        )
+        assert resp.status_code == 200
+        batch_id = resp.json()["policy"]["batch_id"]
+
+        rolled = client.post("/admin/life/rollback", json={"batch_id": batch_id})
+        assert rolled.status_code == 200
+        assert rolled.json()["ok"] is True
+        assert rolled.json()["evolution_events_removed"] >= 1
+
+        overview = client.get("/admin/life")
+        assert overview.status_code == 200
+        assert overview.json()["counts"]["evolution_events"] == 0
+    set_pipeline(None)
+    set_session_manager(None)

@@ -49,8 +49,26 @@ EXPECTED_DOCS = {
     "PRIVACY.md",
     "SECURITY.md",
     "docs/OVERVIEW.md",
+    "docs/STUDY_GUIDE.md",
     "docs/ARCHITECTURE.md",
     "docs/DEPLOYMENT_AND_ADMIN.md",
+}
+STALE_PHRASES = {
+    "five-modulator": ("CHANGELOG.md",),
+    "v0.26.1": ("CHANGELOG.md",),
+    "1383 tests": ("CHANGELOG.md",),
+    "pip install project-nur": ("CHANGELOG.md", "docs/DEPLOYMENT_AND_ADMIN.md"),
+}
+DRIFT_CHECK_LIVE_FILES = {
+    "README.md",
+    "CONTRIBUTING.md",
+    "docs/OVERVIEW.md",
+    "docs/ARCHITECTURE.md",
+    "docs/DEPLOYMENT_AND_ADMIN.md",
+}
+DRIFT_CHECK_EXCLUDED_FILES = {
+    "nur_tools/validate.py",
+    "tests/test_validate.py",
 }
 FORBIDDEN_WHEEL_PREFIXES = ("tools/",)
 
@@ -95,6 +113,7 @@ def main(argv: list[str] | None = None) -> None:
         ("package data source files", lambda: _check_package_data_sources(root)),
         ("console script metadata", lambda: _check_console_scripts(root)),
         ("public documentation surface", lambda: _check_docs(root)),
+        ("documentation drift phrases", lambda: _check_docs_drift(root)),
         ("CI workflow coverage", lambda: _check_ci_workflow(root)),
         ("whitespace diff", lambda: _check_git_diff_whitespace(root)),
         ("critical imports", lambda: _check_critical_imports()),
@@ -346,6 +365,34 @@ def _check_docs(root: Path) -> str:
     for path in sorted(EXPECTED_DOCS - {"README.md"}):
         _require(path in readme, f"README does not link {path}.")
     return f"{len(EXPECTED_DOCS)} public docs"
+
+
+def _check_docs_drift(root: Path) -> str:
+    offenders: list[str] = []
+    paths = [root / rel for rel in sorted(DRIFT_CHECK_LIVE_FILES)]
+    core_dir = root / "core"
+    if core_dir.is_dir():
+        paths.extend(sorted(core_dir.rglob("*.py")))
+    for path in paths:
+        if not path.is_file():
+            continue
+        if any(part.startswith(".") for part in path.relative_to(root).parts):
+            continue
+        if path.suffix.lower() not in {".md", ".py", ".html", ".css", ".js", ".yaml", ".yml", ".toml"}:
+            continue
+        rel = path.relative_to(root).as_posix()
+        if rel in DRIFT_CHECK_EXCLUDED_FILES:
+            continue
+        text = _read(path)
+        for phrase, allowed_paths in STALE_PHRASES.items():
+            if phrase not in text:
+                continue
+            if rel in allowed_paths:
+                continue
+            offenders.append(f"{rel}: {phrase}")
+    if offenders:
+        raise ValidationFailure("stale phrases found: " + ", ".join(offenders[:10]))
+    return f"{len(STALE_PHRASES)} phrase checks"
 
 
 def _check_ci_workflow(root: Path) -> str:

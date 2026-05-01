@@ -17,6 +17,7 @@ from collections.abc import Callable
 
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 
+from runtime.debug.explain import explain_turn
 from runtime.sessions.manager import SessionManager
 
 
@@ -183,6 +184,10 @@ def _debug_to_dict(debug) -> dict:
         for m in getattr(debug, "semantic_memories", [])
     ]
     d["life_history_context"] = getattr(debug, "life_history_context", {}) or {}
+    life_influence = getattr(debug, "life_influence", None)
+    d["life_influence"] = life_influence.to_dict() if life_influence else {}
+    d["life_influence_effects"] = getattr(debug, "life_influence_effects", {}) or {}
+    d["explanation"] = explain_turn(debug)
     d["skill_context"] = getattr(debug, "skill_context", {}) or {}
     d["relationship_context"] = (
         debug.relationship_context.to_dict()
@@ -218,6 +223,8 @@ def _debug_to_dict(debug) -> dict:
 
     # Response strategy
     d["response_strategy"] = getattr(debug, "response_strategy", "") or ""
+    strategy_trace = getattr(debug, "strategy_trace", None)
+    d["strategy_trace"] = strategy_trace.to_dict() if strategy_trace else None
     d["affect_state"] = (
         debug.affect_state.to_dict()
         if getattr(debug, "affect_state", None)
@@ -450,6 +457,7 @@ def _debug_to_dict(debug) -> dict:
             ),
             "suppressed_reasons": pt.suppressed_reasons,
             "limits_applied": pt.limits_applied,
+            "life_influence_score_deltas": getattr(pt, "life_influence_score_deltas", {}),
             "idle_seconds": pt.idle_seconds,
             "proactive_count": pt.proactive_count,
             "timestamp": pt.timestamp,

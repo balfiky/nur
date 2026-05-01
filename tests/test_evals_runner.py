@@ -21,6 +21,7 @@ from evals.backends import (
 )
 from evals.provenance import (
     FINGERPRINT_FILES,
+    _repo_root,
     build_provenance,
     collect_git_info,
     fingerprint_files,
@@ -152,6 +153,18 @@ class TestProvenance:
         result = fingerprint_files(["this/file/does/not/exist.md", "config/soul.yaml"])
         assert "this/file/does/not/exist.md" not in result
         assert "config/soul.yaml" in result
+
+    def test_repo_root_detects_source_archive_without_git(self, tmp_path):
+        source = tmp_path / "source"
+        (source / "config").mkdir(parents=True)
+        (source / "evals").mkdir()
+        (source / "pyproject.toml").write_text('[project]\nname = "project-nur"\n', encoding="utf-8")
+        (source / "config" / "soul.yaml").write_text("identity: test\n", encoding="utf-8")
+        (source / "pipeline.py").write_text("# pipeline marker\n", encoding="utf-8")
+        probe = source / "evals" / "provenance.py"
+        probe.write_text("# probe\n", encoding="utf-8")
+
+        assert _repo_root(probe) == str(source)
 
     def test_build_provenance_populates_known_fields(self):
         prov = build_provenance(

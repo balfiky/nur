@@ -375,10 +375,20 @@ def _write_relationship_updates(
             existing_loop = relationship_memory.active_loops(
                 source_person, topic=topic, limit=10,
             )
+            recent_related = relationship_memory.recent_events(
+                source_person, topic=topic, limit=20,
+            )
             is_recurring = any(
                 loop.related_key == related_key
                 or (topic and loop.topic == topic)
                 for loop in existing_loop
+            ) or any(
+                event.event_kind in {"rupture", "recurring_tension", "repair"}
+                and (
+                    event.related_key == related_key
+                    or (topic and event.topic == topic)
+                )
+                for event in recent_related
             )
             event_kind = "recurring_tension" if is_recurring else "rupture"
             summary = _relationship_summary(event_kind, topic)

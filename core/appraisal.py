@@ -79,6 +79,7 @@ _NEGATIVE_EVAL_MARKERS = (
 )
 _BETRAYAL_MARKERS = (
     "betray",
+    "betrayed",
     "lied",
     "deceived",
     "cheated",
@@ -127,6 +128,8 @@ _POSITIVE_MARKERS = (
     "beautiful",
     "impressive",
     "outstanding",
+    "helped",
+    "helpful",
 )
 _NEGATIVE_MARKERS = (
     "angry",
@@ -178,20 +181,32 @@ _CONNECTION_MARKERS = (
     "good to see you",
 )
 _NOT_AT_ASSISTANT_MARKERS = (
+    "not angry at you",
+    "not mad at you",
+    "not upset with you",
+    "not upset at you",
     "not at you",
     "not your fault",
     "not blaming you",
     "this isn't about you",
     "not on you",
+    "not you",
 )
 _ASSISTANT_ARTIFACT_MARKERS = (
     "your answer",
+    "your previous answer",
+    "previous answer",
     "this answer",
     "your response",
+    "previous response",
     "that response",
     "your help",
     "your advice",
     "how you handled",
+)
+_SARCASM_MARKERS = (
+    "thanks for nothing",
+    "thank you for nothing",
 )
 _SELF_TARGET_MARKERS = (
     "my fault",
@@ -228,11 +243,23 @@ _SURPRISE_MARKERS = (
 
 
 def _contains_any(text: str, markers: tuple[str, ...]) -> bool:
-    return any(marker in text for marker in markers)
+    return any(_contains_marker(text, marker) for marker in markers)
 
 
 def _count_hits(text: str, markers: tuple[str, ...]) -> int:
-    return sum(1 for marker in markers if marker in text)
+    return sum(1 for marker in markers if _contains_marker(text, marker))
+
+
+def _contains_marker(text: str, marker: str) -> bool:
+    marker = marker.strip().lower()
+    if not marker:
+        return False
+    pattern = re.escape(marker)
+    if marker[0].isalnum():
+        pattern = r"\b" + pattern
+    if marker[-1].isalnum():
+        pattern += r"\b"
+    return bool(re.search(pattern, text))
 
 
 def appraise_message(text: str, detected: DetectedEmotion) -> AppraisalFrame:
@@ -243,6 +270,7 @@ def appraise_message(text: str, detected: DetectedEmotion) -> AppraisalFrame:
 
     gratitude = _contains_any(lower, _GRATITUDE_MARKERS)
     apology = _contains_any(lower, _APOLOGY_MARKERS)
+    sarcasm = _contains_any(lower, _SARCASM_MARKERS)
     insult = _contains_any(lower, _INSULT_MARKERS)
     hostility = _contains_any(lower, _HOSTILE_MARKERS)
     profanity = _contains_any(lower, _PROFANITY_MARKERS)
@@ -283,6 +311,7 @@ def appraise_message(text: str, detected: DetectedEmotion) -> AppraisalFrame:
         not explicit_not_at_assistant
         and (
             hostility
+            or sarcasm
             or (second_person and (insult or hostility or profanity or betrayal or negative_eval))
             or (assistant_artifact and (negative_eval or betrayal))
             or (
@@ -303,12 +332,15 @@ def appraise_message(text: str, detected: DetectedEmotion) -> AppraisalFrame:
         not explicit_not_at_assistant
         and (gratitude or assistant_addressed_apology or (second_person and positive_hits > 0))
     )
+    hard_attack = sarcasm or insult or hostility or profanity or betrayal
 
     reasons: list[str] = []
     if explicit_not_at_assistant:
         reasons.append("explicitly not directed at assistant")
     if targeted_negative:
         reasons.append("assistant-targeted negative evaluation")
+    if sarcasm:
+        reasons.append("sarcastic gratitude marker")
     if targeted_positive:
         reasons.append("assistant-targeted affiliative move")
     if vulnerable:
@@ -331,12 +363,16 @@ def appraise_message(text: str, detected: DetectedEmotion) -> AppraisalFrame:
     else:
         primary_target = "unknown"
 
-    if gratitude:
-        social_move = "gratitude"
-    elif apology:
-        social_move = "apology"
+    if sarcasm and (second_person or not external_context):
+        social_move = "attack"
+    elif targeted_negative and assistant_artifact and not hard_attack:
+        social_move = "complaint"
     elif targeted_negative:
         social_move = "attack"
+    elif gratitude:
+        social_move = "gratitude"
+    elif apology and not (insult or hostility):
+        social_move = "apology"
     elif vulnerable and (support_request or detected.valence < 0.4):
         social_move = "vulnerability"
     elif support_request or action_request:
@@ -365,6 +401,8 @@ def appraise_message(text: str, detected: DetectedEmotion) -> AppraisalFrame:
 
     if social_move == "attack":
         blame = 0.9
+    elif primary_target == "assistant" and social_move == "complaint":
+        blame = 0.65
     elif primary_target == "external" and negative_hits > 0:
         blame = 0.6
     elif primary_target == "self":

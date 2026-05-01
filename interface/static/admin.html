@@ -252,6 +252,22 @@
       </div>
       <div class="panel">
         <div class="panel-heading">
+          <h3>Rollback Evolution Batch</h3>
+          <span class="muted">Revert one applied belief/drive batch</span>
+        </div>
+        <div class="form-grid">
+          <label class="field-card wide">
+            <span>Batch ID</span>
+            <input id="lifeRollbackBatchId" type="text" placeholder="life-...">
+            <small class="field-help">Batch IDs appear on timeline rows and experience ledger entries.</small>
+          </label>
+        </div>
+        <div class="button-row">
+          <button class="secondary" id="rollbackLifeBatchBtn" type="button">Rollback Batch</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-heading">
           <h3>Evolution Timeline</h3>
           <span class="muted" id="lifeDbPath"></span>
         </div>

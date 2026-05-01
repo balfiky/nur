@@ -391,6 +391,10 @@ class AdminLifeFileRequest(BaseModel):
     participants: list[str] = Field(default_factory=list, max_length=20)
 
 
+class AdminLifeRollbackRequest(BaseModel):
+    batch_id: str = Field(..., min_length=1, max_length=80)
+
+
 class AdminSoulDraftRequest(BaseModel):
     """LLM-assisted soul drafting from a natural-language description."""
 
@@ -1254,6 +1258,18 @@ async def admin_life_drives() -> dict:
             return {"drives": store.list_drives()}
     except LifeHistoryError as exc:
         _raise_life_http_error(exc)
+
+
+@app.post("/admin/life/rollback", dependencies=[Depends(_require_bearer)])
+async def admin_life_rollback(req: AdminLifeRollbackRequest) -> dict:
+    from runtime.life_history import LifeHistoryError, LifeHistoryStore
+
+    try:
+        with LifeHistoryStore(_load_runtime_config()) as store:
+            result = store.rollback_batch(req.batch_id)
+    except LifeHistoryError as exc:
+        _raise_life_http_error(exc)
+    return {"ok": True, **result}
 
 
 @app.post("/session/end", dependencies=[Depends(_require_bearer)])

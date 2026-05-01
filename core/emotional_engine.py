@@ -85,7 +85,7 @@ def _load_constants() -> tuple[
 
 
 class EmotionalEngine:
-    """Maintains and updates the five-modulator emotional state."""
+    """Maintains and updates the six-modulator emotional state."""
 
     def __init__(
         self,

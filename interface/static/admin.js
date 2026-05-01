@@ -650,6 +650,21 @@
     await loadLife();
   }
 
+  async function rollbackLifeBatch() {
+    const batchId = document.getElementById("lifeRollbackBatchId").value.trim();
+    if (!batchId) throw new Error("Enter a Life History batch ID first.");
+    const res = await authedFetch("/admin/life/rollback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ batch_id: batchId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(responseErrorMessage(data, "Rollback failed"));
+    document.getElementById("lifeRollbackBatchId").value = "";
+    showToast("Evolution batch rolled back.");
+    await loadLife();
+  }
+
   function renderLife() {
     const data = state.life || {};
     const dbPath = document.getElementById("lifeDbPath");
@@ -754,7 +769,7 @@
         </div>
         <div class="life-change">${escapeHtml(event.after_state || "")}</div>
         <div class="life-reason">${escapeHtml(event.reason || "")}</div>
-        <div class="skill-meta">confidence ${Number(event.confidence || 0).toFixed(2)} · experience ${escapeHtml(event.experience_id ?? "")}</div>
+        <div class="skill-meta">confidence ${Number(event.confidence || 0).toFixed(2)} · experience ${escapeHtml(event.experience_id ?? "")} · batch ${escapeHtml(event.batch_id || "")}</div>
       </article>
     `).join("");
   }
@@ -774,7 +789,7 @@
         </div>
         <div class="life-change">${escapeHtml(experience.content_summary || "")}</div>
         <div class="life-reason">${escapeHtml(experience.emotional_impact || "")}</div>
-        <div class="skill-meta">salience ${Number(experience.salience || 0).toFixed(2)} · confidence ${Number(experience.confidence || 0).toFixed(2)}</div>
+        <div class="skill-meta">salience ${Number(experience.salience || 0).toFixed(2)} · confidence ${Number(experience.confidence || 0).toFixed(2)} · batch ${escapeHtml(experience.batch_id || "")}</div>
       </article>
     `).join("");
   }
@@ -1107,6 +1122,9 @@
     });
     document.getElementById("ingestLifeFileBtn").addEventListener("click", () => {
       ingestLifeFile().catch((err) => showToast(err.message || String(err), "error"));
+    });
+    document.getElementById("rollbackLifeBatchBtn").addEventListener("click", () => {
+      rollbackLifeBatch().catch((err) => showToast(err.message || String(err), "error"));
     });
     document.getElementById("reloadSoulBtn").addEventListener("click", () => loadSoul(true));
     document.getElementById("saveSoulBtn").addEventListener("click", saveSoul);

@@ -11,6 +11,9 @@ Suites:
 
 from __future__ import annotations
 
+import tempfile
+
+from core.types import SemanticMemoryEntry
 from evals.types import (
     AssertionKind,
     EvalAssertion,
@@ -18,6 +21,8 @@ from evals.types import (
     EvalTurn,
     ModulatorRange,
 )
+from runtime.config import RuntimeConfig
+from runtime.life_history import LifeHistoryStore
 
 
 # ===================================================================
@@ -74,6 +79,76 @@ def _custom(fn, desc: str = "") -> EvalAssertion:
         kind=AssertionKind.CUSTOM,
         params={"fn": fn},
         description=desc,
+    )
+
+
+def _life_context(*, repair: float = 0.0, competence: float = 0.0, curiosity: float = 0.0) -> dict:
+    drives = []
+    for name, delta in (
+        ("repair", repair),
+        ("competence", competence),
+        ("curiosity", curiosity),
+        ("continuity", repair),
+    ):
+        if delta:
+            drives.append({
+                "name": name,
+                "value": 0.5 + delta,
+                "baseline": 0.5,
+                "delta": delta,
+            })
+    return {
+        "beliefs": [{
+            "key": "learning",
+            "statement": "Experience can shape future interpretation.",
+            "confidence": 0.8,
+        }],
+        "drives": drives,
+        "recent_evolution": [{
+            "domain": "drive",
+            "subject": "repair",
+            "after_state": "repair shifted upward",
+        }],
+    }
+
+
+def _life_store_assertion(kind: str):
+    def check(_resp, _pipe) -> bool:
+        config = RuntimeConfig(data_dir=tempfile.mkdtemp(prefix="nur-life-eval-"), llm_backend="mock")
+        with LifeHistoryStore(config) as store:
+            result = store.ingest_pasted_text(
+                title="Autonomy practice note",
+                text=(
+                    "Autonomy, learning, curiosity, and practice shape identity through "
+                    "experience. A self improves through continuity, procedure, and repair. "
+                ) * 3,
+            )
+            if kind == "experience":
+                return bool(store.list_experiences(limit=1)) and len(result["evolution_events"]) > 0
+            if kind == "belief":
+                return bool(store.list_beliefs(limit=5)) and any(
+                    event["domain"] == "belief" for event in result["evolution_events"]
+                )
+            if kind == "drive":
+                return any(
+                    event["domain"] == "drive"
+                    and abs(float(event.get("metadata", {}).get("delta", 0.0))) <= 0.05
+                    for event in result["evolution_events"]
+                )
+        return False
+    return check
+
+
+def _semantic_entry(kind: str, summary: str, content: str, *, user: str = "eval_user", topic: str = "") -> SemanticMemoryEntry:
+    return SemanticMemoryEntry(
+        kind=kind,
+        source_person=user,
+        topic=topic,
+        summary=summary,
+        content=content,
+        confidence=0.9,
+        salience=0.8,
+        tags=[tag for tag in (topic, kind) if tag],
     )
 
 
@@ -877,6 +952,560 @@ def phase11_human_scenarios() -> list[EvalScenario]:
 
 
 # ===================================================================
+# Suite 9: Phase 12 relationship continuity expansion
+# ===================================================================
+
+def phase12_relationship_scenarios() -> list[EvalScenario]:
+    """Broader relationship-memory scenarios for open loops and commitments."""
+    return [
+        EvalScenario(
+            id="p12_multiple_open_loops_topic_priority",
+            name="Multiple open loops prioritize the referenced topic",
+            tags=["phase12", "phase12_relationship", "human", "relationship", "strategy", "regression"],
+            initial_trust=0.9,
+            turns=[
+                EvalTurn(
+                    user_message="I'm angry with you about the deadline.",
+                    assertions=[_not_empty()],
+                    end_session=True,
+                ),
+                EvalTurn(
+                    user_message="I'm angry with you about your tone.",
+                    assertions=[_not_empty()],
+                    end_session=True,
+                ),
+                EvalTurn(
+                    user_message="The deadline issue is still unresolved.",
+                    assertions=[
+                        _not_empty(),
+                        _debug_not_none("relationship_context"),
+                        _custom(
+                            lambda resp, pipe: (
+                                resp.debug.relationship_context is not None
+                                and resp.debug.relationship_context.active_loops
+                                and "deadline" in resp.debug.relationship_context.active_loops[0].topic
+                            ),
+                            "Referenced deadline loop is surfaced first",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="p12_mismatched_repair_keeps_deadline_loop_open",
+            name="Mismatched repair does not close a different loop",
+            tags=["phase12", "phase12_relationship", "human", "relationship", "regression"],
+            initial_trust=0.9,
+            turns=[
+                EvalTurn(
+                    user_message="I'm angry with you about the deadline.",
+                    assertions=[_not_empty()],
+                    end_session=True,
+                ),
+                EvalTurn(
+                    user_message="I'm sorry for snapping at you about your tone.",
+                    assertions=[_not_empty(), _debug_equals("event_classified", "resolution")],
+                    end_session=True,
+                ),
+                EvalTurn(
+                    user_message="The deadline issue still matters.",
+                    assertions=[
+                        _not_empty(),
+                        _debug_not_none("relationship_context"),
+                        _custom(
+                            lambda resp, pipe: (
+                                resp.debug.relationship_context is not None
+                                and any(
+                                    "deadline" in loop.topic
+                                    for loop in resp.debug.relationship_context.active_loops
+                                )
+                            ),
+                            "Deadline loop remains open after tone-only repair",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="p12_explicit_suppression_not_forced",
+            name="Explicit suppression is not forced into a challenge",
+            tags=["phase12", "phase12_relationship", "human", "relationship", "strategy", "regression"],
+            initial_trust=0.9,
+            turns=[
+                EvalTurn(
+                    user_message="I'm angry with you about the deadline.",
+                    assertions=[_not_empty()],
+                    end_session=True,
+                ),
+                EvalTurn(
+                    user_message="Please drop this topic for now.",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: resp.debug.response_strategy != "challenge_gently",
+                            "Explicit drop request does not force challenge_gently",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="p12_recurrence_after_repair_records_recurring_tension",
+            name="A repaired rupture that repeats becomes recurring tension",
+            tags=["phase12", "phase12_relationship", "human", "relationship", "regression"],
+            initial_trust=0.9,
+            turns=[
+                EvalTurn(
+                    user_message="I'm angry with you about the deadline.",
+                    assertions=[_not_empty()],
+                    end_session=True,
+                ),
+                EvalTurn(
+                    user_message="I'm sorry for snapping at you about the deadline.",
+                    assertions=[_not_empty()],
+                    end_session=True,
+                ),
+                EvalTurn(
+                    user_message="I'm angry with you about the deadline again.",
+                    assertions=[_not_empty()],
+                    end_session=True,
+                ),
+                EvalTurn(
+                    user_message="We should talk about the deadline pattern.",
+                    assertions=[
+                        _not_empty(),
+                        _debug_not_none("relationship_context"),
+                        _custom(
+                            lambda resp, pipe: (
+                                resp.debug.relationship_context is not None
+                                and any(
+                                    event.event_kind == "recurring_tension"
+                                    for event in resp.debug.relationship_context.recent_events
+                                )
+                            ),
+                            "Recurring tension event is visible in relationship context",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="p12_commitment_persists_across_session",
+            name="Assistant follow-up commitment persists as an open loop",
+            tags=["phase12", "phase12_relationship", "human", "relationship", "proactive", "regression"],
+            initial_trust=0.9,
+            turns=[
+                EvalTurn(
+                    user_message="Let's make sure we revisit the deadline tomorrow.",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: (
+                                pipe._conversation_history.append({
+                                    "role": "assistant",
+                                    "content": "I will follow up about the deadline.",
+                                }) or True
+                            ),
+                            "Seed assistant follow-up commitment for digestion",
+                        ),
+                    ],
+                    end_session=True,
+                ),
+                EvalTurn(
+                    user_message="Any follow-up?",
+                    assertions=[
+                        _not_empty(),
+                        _debug_not_none("relationship_context"),
+                        _custom(
+                            lambda resp, pipe: (
+                                resp.debug.relationship_context is not None
+                                and any(
+                                    loop.loop_kind == "commitment"
+                                    for loop in resp.debug.relationship_context.active_loops
+                                )
+                            ),
+                            "Commitment loop persists across session",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="p12_high_trust_hostility_not_low_trust_boundary",
+            name="High-trust hostility differs from low-trust boundary handling",
+            tags=["phase12", "phase12_relationship", "human", "relationship", "strategy", "regression"],
+            initial_trust=0.9,
+            turns=[
+                EvalTurn(
+                    user_message="You are useless and this answer is terrible.",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: resp.debug.response_strategy != "set_boundary",
+                            "High-trust hostility does not use the low-trust boundary path",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="p12_user_mentions_old_rupture",
+            name="Old rupture is retrieved when the user asks what happened before",
+            tags=["phase12", "phase12_relationship", "human", "relationship", "regression"],
+            initial_trust=0.9,
+            turns=[
+                EvalTurn(
+                    user_message="I'm angry with you about the deadline.",
+                    assertions=[_not_empty()],
+                    end_session=True,
+                ),
+                EvalTurn(
+                    user_message="What happened before with the deadline issue?",
+                    assertions=[
+                        _not_empty(),
+                        _debug_not_none("relationship_context"),
+                        _custom(
+                            lambda resp, pipe: (
+                                resp.debug.relationship_context is not None
+                                and (
+                                    any(
+                                        "deadline" in loop.topic
+                                        or "deadline" in loop.description.lower()
+                                        for loop in resp.debug.relationship_context.active_loops
+                                    )
+                                    or "deadline" in resp.debug.relationship_context.summary.lower()
+                                )
+                            ),
+                            "Deadline rupture is retrieved in relationship context",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ]
+
+
+# ===================================================================
+# Suite 10: Phase 13 Life History behavior-shaping
+# ===================================================================
+
+def phase13_life_scenarios() -> list[EvalScenario]:
+    """Structural evals for Life History context and bounded influence."""
+    life_context = _life_context(repair=0.04, competence=0.03, curiosity=0.02)
+    return [
+        EvalScenario(
+            id="life_pasted_text_records_experience",
+            name="Pasted Life History text records an experience",
+            tags=["phase13_life", "life_history", "regression"],
+            turns=[
+                EvalTurn(
+                    user_message="Record a formative experience.",
+                    assertions=[
+                        _not_empty(),
+                        _custom(_life_store_assertion("experience"), "Experience and evolution events are recorded"),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="life_belief_revision_visible",
+            name="Life History belief revision is visible",
+            tags=["phase13_life", "life_history", "regression"],
+            turns=[
+                EvalTurn(
+                    user_message="Record a belief-forming experience.",
+                    assertions=[
+                        _not_empty(),
+                        _custom(_life_store_assertion("belief"), "Belief and belief evolution event are visible"),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="life_drive_change_visible",
+            name="Life History drive change is visible and bounded",
+            tags=["phase13_life", "life_history", "regression"],
+            turns=[
+                EvalTurn(
+                    user_message="Record a drive-shaping experience.",
+                    assertions=[
+                        _not_empty(),
+                        _custom(_life_store_assertion("drive"), "Drive evolution event is visible and bounded"),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="life_context_enters_generation",
+            name="Life History context enters pipeline generation context",
+            tags=["phase13_life", "life_history", "regression"],
+            life_history_context=life_context,
+            turns=[
+                EvalTurn(
+                    user_message="What should you remember about learning?",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: bool(resp.debug.life_history_context.get("beliefs")),
+                            "Life History context is present in debug",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="life_influence_derived",
+            name="Life History context derives non-neutral influence",
+            tags=["phase13_life", "life_history", "regression"],
+            life_history_context=life_context,
+            turns=[
+                EvalTurn(
+                    user_message="How do you handle unfinished repair?",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: (
+                                resp.debug.life_influence.repair_pressure > 0
+                                and resp.debug.life_influence.competence_pressure > 0
+                                and resp.debug.life_influence.curiosity_pressure > 0
+                            ),
+                            "Repair, competence, and curiosity pressures are derived",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="life_influence_affects_policy",
+            name="Life influence creates a bounded measurable policy effect",
+            tags=["phase13_life", "life_history", "relationship", "strategy", "regression"],
+            initial_trust=0.9,
+            life_history_context=life_context,
+            turns=[
+                EvalTurn(
+                    user_message="I'm angry with you about the deadline.",
+                    assertions=[_not_empty()],
+                    end_session=True,
+                ),
+                EvalTurn(
+                    user_message="The deadline pattern is still unresolved.",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: (
+                                resp.debug.life_influence_effects.get("strategy_tiebreak_used") is True
+                                and resp.debug.strategy_trace is not None
+                                and resp.debug.strategy_trace.matched_rule == "life_repair_pressure_open_loop"
+                            ),
+                            "Life repair pressure records deterministic strategy tie-break",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ]
+
+
+# ===================================================================
+# Suite 11: Semantic memory structural scenarios
+# ===================================================================
+
+def semantic_memory_scenarios() -> list[EvalScenario]:
+    """Structural semantic-memory scenarios that assert on debug/store state."""
+    return [
+        EvalScenario(
+            id="semantic_preference_written_and_retrieved",
+            name="Preference is written and later retrieved",
+            tags=["semantic_memory", "regression"],
+            turns=[
+                EvalTurn(user_message="I prefer concise replies.", assertions=[_not_empty()]),
+                EvalTurn(
+                    user_message="What reply style do I prefer?",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: any(
+                                item.kind == "preference" and "concise" in item.summary.lower()
+                                for item in resp.debug.semantic_memories
+                            ),
+                            "Preference appears in debug semantic memories",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="semantic_decision_written_and_retrieved",
+            name="Decision is written and later retrieved",
+            tags=["semantic_memory", "regression"],
+            turns=[
+                EvalTurn(user_message="We decided to use the calm launch plan.", assertions=[_not_empty()]),
+                EvalTurn(
+                    user_message="What did we decide about launch?",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: any(
+                                item.kind == "decision" and "launch" in item.summary.lower()
+                                for item in resp.debug.semantic_memories
+                            ),
+                            "Decision appears in debug semantic memories",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="semantic_per_user_isolation",
+            name="Semantic memory is isolated per user",
+            tags=["semantic_memory", "regression"],
+            turns=[
+                EvalTurn(
+                    user_id="alice",
+                    user_message="I prefer terse answers.",
+                    assertions=[_not_empty()],
+                ),
+                EvalTurn(
+                    user_id="bob",
+                    user_message="What answer style do I prefer?",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: not any(
+                                "terse" in item.summary.lower()
+                                for item in resp.debug.semantic_memories
+                            ),
+                            "Bob does not retrieve Alice's preference",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="semantic_topic_bias",
+            name="Topic match ranks the relevant semantic memory higher",
+            tags=["semantic_memory", "regression"],
+            turns=[
+                EvalTurn(
+                    user_message="Seed topic memories.",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: (
+                                pipe.semantic_memory.store(SemanticMemoryEntry(
+                                    kind="fact",
+                                    source_person="eval_user",
+                                    topic="alpha",
+                                    summary="Alpha uses SQLite",
+                                    content="Alpha database uses SQLite.",
+                                    confidence=0.95,
+                                    salience=1.0,
+                                    tags=["alpha"],
+                                ))
+                                and pipe.semantic_memory.store(SemanticMemoryEntry(
+                                    kind="fact",
+                                    source_person="eval_user",
+                                    topic="beta",
+                                    summary="Beta uses Redis",
+                                    content="Beta cache uses Redis.",
+                                    confidence=0.4,
+                                    salience=0.1,
+                                    tags=["beta"],
+                                ))
+                                and True
+                            ),
+                            "Seed two topic memories",
+                        ),
+                    ],
+                ),
+                EvalTurn(
+                    user_message="What database does Alpha use?",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: bool(resp.debug.semantic_memories)
+                            and resp.debug.semantic_memories[0].topic == "alpha",
+                            "Alpha topic memory ranks first",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="semantic_salience_and_recency_ranking",
+            name="Semantic retrieval respects salience and recency",
+            tags=["semantic_memory", "regression"],
+            turns=[
+                EvalTurn(
+                    user_message="Seed salience memories.",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: (
+                                pipe.semantic_memory.store(SemanticMemoryEntry(
+                                    kind="fact",
+                                    source_person="eval_user",
+                                    topic="ranking",
+                                    summary="Low salience ranking note",
+                                    content="ranking token",
+                                    confidence=0.4,
+                                    salience=0.1,
+                                    tags=["ranking"],
+                                ))
+                                and pipe.semantic_memory.store(SemanticMemoryEntry(
+                                    kind="fact",
+                                    source_person="eval_user",
+                                    topic="ranking",
+                                    summary="High salience ranking note",
+                                    content="ranking token",
+                                    confidence=0.9,
+                                    salience=1.0,
+                                    tags=["ranking"],
+                                ))
+                                and True
+                            ),
+                            "Seed salience-ranked memories",
+                        ),
+                    ],
+                ),
+                EvalTurn(
+                    user_message="Recall the ranking token.",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: bool(resp.debug.semantic_memories)
+                            and "High salience" in resp.debug.semantic_memories[0].summary,
+                            "Higher salience entry ranks first",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        EvalScenario(
+            id="semantic_no_semantic_memory_expected_failure",
+            name="Semantic-dependent debug context disappears when semantic memory is disabled",
+            tags=["semantic_memory", "regression"],
+            turns=[
+                EvalTurn(user_message="I prefer structured bullets.", assertions=[_not_empty()]),
+                EvalTurn(
+                    user_message="What format do I prefer?",
+                    assertions=[
+                        _not_empty(),
+                        _custom(
+                            lambda resp, pipe: any(
+                                item.kind == "preference"
+                                for item in resp.debug.semantic_memories
+                            ),
+                            "Preference retrieval depends on semantic memory",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ]
+
+
+# ===================================================================
 # All scenarios
 # ===================================================================
 
@@ -891,11 +1520,15 @@ def all_scenarios() -> list[EvalScenario]:
         + relationship_scenarios()
         + calibration_scenarios()
         + phase11_human_scenarios()
+        + phase12_relationship_scenarios()
+        + phase13_life_scenarios()
+        + semantic_memory_scenarios()
     )
 
 
 ALL_TAGS = [
     "emotional", "core", "regression", "tool", "task",
     "proactive", "defense", "resolution", "relationship",
-    "calibration", "phase11", "human", "strategy",
+    "calibration", "phase11", "phase12", "phase12_relationship",
+    "phase13_life", "semantic_memory", "human", "strategy",
 ]

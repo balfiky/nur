@@ -67,13 +67,23 @@ def _git(*args: str) -> str:
         return ""
 
 
-def _repo_root() -> str:
-    """Best-effort repo root: walk up from this file looking for .git."""
-    here = Path(__file__).resolve()
-    for parent in (here, *here.parents):
+def _repo_root(start: Path | None = None) -> str:
+    """Best-effort repo root for git checkouts and source archives."""
+    here = (start or Path(__file__)).resolve()
+    candidates = (here, *here.parents)
+    for parent in candidates:
         if (parent / ".git").exists():
             return str(parent)
-    return str(here.parent)
+        pyproject = parent / "pyproject.toml"
+        if pyproject.is_file():
+            try:
+                if 'name = "project-nur"' in pyproject.read_text(encoding="utf-8"):
+                    return str(parent)
+            except OSError:
+                pass
+        if (parent / "config" / "soul.yaml").is_file() and (parent / "pipeline.py").is_file():
+            return str(parent)
+    return str(here.parent if here.is_file() else here)
 
 
 def collect_git_info() -> tuple[str, str, bool]:

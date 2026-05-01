@@ -129,6 +129,15 @@ also load a compact prompt slice from this store — current beliefs, shifted
 drives, and recent evolution events — so normal chat can be shaped by
 identity-level experience without sending raw source material every turn.
 
+Life History also has a deterministic behavior-shaping path through
+`core.life_influence.LifeInfluence`. The pipeline derives bounded pressure
+values from the compact Life History context and records explicit debug
+effects when those pressures affect strategy tie-breaks, proactive scoring,
+action variables, or semantic-memory salience. When
+`PipelineFeatures.life_history_context` is disabled, the context is empty,
+the influence is neutral, no Life History text enters generation, and no
+LifeInfluence effects are recorded.
+
 ## LLM Boundary
 
 Provider-neutral interface with five backend modes: `mock`, `provider`,
@@ -195,6 +204,18 @@ run. Evidence discussion is in [OVERVIEW.md §4–6](OVERVIEW.md#4-evaluation).
 
 Entry point: `python3 -m evals`. Pre-registered hypothesis table lives
 in `evals/ablation_hypotheses.py`.
+
+Current structural evidence artifacts include:
+
+| Artifact | Scenario tag | Structural claim |
+|---|---|---|
+| `reports/ablation/summary.json` | `phase11` | relationship memory remains load-bearing for the original cross-turn suite |
+| `reports/ablation/relationship_phase12_summary.json` | `phase12_relationship` | expanded open-loop, repair, recurrence, commitment, and old-rupture retrieval coverage |
+| `reports/ablation/life_history_summary.json` | `phase13_life` | Life History context and `LifeInfluence` produce bounded, inspectable policy effects |
+| `reports/ablation/semantic_memory_summary.json` | `semantic_memory` | semantic preferences, decisions, isolation, ranking, and disabled-memory failures are covered structurally |
+
+These artifacts validate deterministic internal behavior. They do not
+constitute a blinded human-likeness or user-experience study.
 
 ## Component Claim Map
 

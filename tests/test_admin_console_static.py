@@ -30,6 +30,7 @@ class TestAdminConsoleStatic:
         assert 'id="lifeDriveDrift"' in html
         assert 'id="lifeTimeline"' in html
         assert 'id="lifeExperiences"' in html
+        assert 'id="rollbackLifeBatchBtn"' in html
 
     def test_admin_assets_are_whitelisted(self):
         css = interface_api.admin_asset("admin.css")
@@ -41,6 +42,7 @@ class TestAdminConsoleStatic:
         assert b".evolution-grid" in css.body
         assert b".metric-foot" in css.body
         assert b"overflow-wrap: anywhere" in css.body
+        assert b"prefers-reduced-motion" in css.body
         assert js.status_code == 200
         assert b"fieldSections" in js.body
         assert b"/v1/tools" in js.body
@@ -48,6 +50,7 @@ class TestAdminConsoleStatic:
         assert b"/admin/skills/import/upload" in js.body
         assert b"/admin/life" in js.body
         assert b"/admin/life/experiences/upload" in js.body
+        assert b"/admin/life/rollback" in js.body
         assert b"renderLifeSnapshot" in js.body
 
     def test_unknown_admin_asset_404s(self):

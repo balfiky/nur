@@ -23,7 +23,7 @@ empirical validation are especially welcome.
 git clone https://github.com/balfiky/nur.git
 cd nur
 python3 -m pip install -e ".[dev]"
-python3 -m pytest -q        # 1383 tests, ~45s
+python3 -m pytest -q        # full suite; see CI for the current collected count
 ```
 
 Optional:

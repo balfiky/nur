@@ -138,6 +138,18 @@ Each outcome is labeled against a hypothesis table authored before the
 run (`expected_failure`, `unexpected_failure`, `no_effect`,
 `newly_passing`). Every prediction held.
 
+Additional structural suites now cover the newer cognitive layers:
+
+| Suite | Baseline | Diagnostic ablation result | Report |
+|---|---:|---|---|
+| Phase 12 relationship | 7/7 | `no_relationship_memory` fails 5 expected cross-session/open-loop cases | `reports/ablation/relationship_phase12_summary.json` |
+| Phase 13 Life History | 6/6 | `no_life_history_context` fails 3 expected context/influence cases | `reports/ablation/life_history_summary.json` |
+| Semantic memory | 6/6 | `no_semantic_memory` fails 5 expected preference/decision/retrieval cases | `reports/ablation/semantic_memory_summary.json` |
+
+These are still structural assertions over debug state, stored records,
+strategy traces, and ablation labels. They are not user-perceived
+human-likeness measurements.
+
 ## 5. What the evidence supports
 
 ![Component claim map](diagrams/component-claim-map.png)
@@ -147,8 +159,17 @@ The honest reading:
 - **Relationship memory is load-bearing on the present suite.** Disabling
   it breaks exactly the two scenarios that depend on cross-turn open-loop
   state and no others. Zero unexpected failures.
-- **Semantic memory is a negative control here.** Zero effect is the
-  expected answer because the current scenarios do not exercise it.
+- **Relationship memory remains load-bearing under the expanded Phase 12
+  suite.** The dedicated report shows expected failures only for the
+  relationship/open-loop/commitment cases.
+- **Life History now has bounded structural influence.** The Phase 13 suite
+  verifies that Life History context can produce neutral, bounded,
+  inspectable `LifeInfluence` pressure on strategy tie-breaks, action
+  variables, proactive scoring, and semantic salience. This proves a
+  deterministic structural path, not human-like agency.
+- **Semantic memory has its own structural suite.** Preference, decision,
+  per-user isolation, topic ranking, and salience/recency behavior are now
+  tested directly; it remains a negative control for pure relationship suites.
 - **Inner dialogue and defense are present but not falsifiable by this
   suite.** Phase 11 scenarios grade structural assertions (strategy
   selection, modulator direction, memory writes); these components

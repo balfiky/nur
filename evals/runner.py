@@ -56,6 +56,10 @@ def _make_pipeline(
     pipeline = CognitivePipeline(
         llm_backend=backend_factory(),
         tool_executor=executor,
+        life_history_provider=(
+            (lambda: dict(scenario.life_history_context or {}))
+            if scenario.life_history_context is not None else None
+        ),
     )
 
     # Apply initial state overrides

@@ -12,10 +12,17 @@ import os
 import re
 import sqlite3
 import time
+import uuid
 from pathlib import Path
 from typing import Any, Protocol
 
 from runtime.config import RuntimeConfig
+from runtime.evolution_policy import (
+    evaluate_belief,
+    evaluate_drive_change,
+    evaluate_future_behavior,
+    make_policy_context,
+)
 
 
 class LLMBackend(Protocol):
@@ -226,6 +233,48 @@ class LifeHistoryStore:
         ).fetchall()
         return [_evolution_to_dict(row) for row in rows]
 
+    def rollback_batch(self, batch_id: str) -> dict[str, Any]:
+        """Rollback one applied Life History evolution batch.
+
+        Experiences remain in the ledger, but durable belief/drive changes and
+        evolution rows for the batch are removed or reverted. Rollback is
+        intentionally conservative: if a later batch has already modified a
+        belief or drive, this method raises instead of corrupting newer state.
+        """
+        batch_id = _require_text(batch_id, "batch_id", max_chars=80)
+        if not self._conn.execute(
+            "SELECT 1 FROM experience_events WHERE batch_id = ? LIMIT 1",
+            (batch_id,),
+        ).fetchone():
+            raise LifeHistoryError(f"Batch not found: {batch_id}")
+
+        reverted_beliefs = self._rollback_beliefs(batch_id)
+        reverted_drives = self._rollback_drives(batch_id)
+        deleted_evolution = self._conn.execute(
+            "SELECT COUNT(*) AS c FROM evolution_events WHERE batch_id = ?",
+            (batch_id,),
+        ).fetchone()["c"]
+        self._conn.execute("DELETE FROM evolution_events WHERE batch_id = ?", (batch_id,))
+        self._conn.execute("DELETE FROM belief_revisions WHERE batch_id = ?", (batch_id,))
+        self._conn.execute("DELETE FROM drive_changes WHERE batch_id = ?", (batch_id,))
+        for row in self._conn.execute(
+            "SELECT id, metadata_json FROM experience_events WHERE batch_id = ?",
+            (batch_id,),
+        ).fetchall():
+            metadata = _loads_json(row["metadata_json"], {})
+            metadata["rollback"] = {"rolled_back_at": time.time()}
+            self._conn.execute(
+                "UPDATE experience_events SET metadata_json = ? WHERE id = ?",
+                (json.dumps(metadata, sort_keys=True), row["id"]),
+            )
+        self._conn.commit()
+        return {
+            "batch_id": batch_id,
+            "beliefs_reverted": reverted_beliefs,
+            "drives_reverted": reverted_drives,
+            "evolution_events_removed": int(deleted_evolution),
+        }
+
     def list_beliefs(self, *, limit: int = 100) -> list[dict[str, Any]]:
         rows = self._conn.execute(
             """
@@ -422,6 +471,15 @@ class LifeHistoryStore:
         )
         metadata = dict(metadata)
         metadata["chunk_count"] = chunk_count
+        batch_id = f"life-{uuid.uuid4().hex[:12]}"
+        metadata["batch_id"] = batch_id
+        policy_context = make_policy_context(
+            source_type=source_type,
+            digest_confidence=digest["confidence"],
+            source_text=prepared_text,
+        )
+        if policy_context.prompt_injection_markers:
+            metadata["prompt_injection_markers"] = policy_context.prompt_injection_markers
 
         experience_id = self._insert_experience(
             title=title,
@@ -435,19 +493,31 @@ class LifeHistoryStore:
             emotional_impact=digest["emotional_impact"],
             confidence=digest["confidence"],
             metadata=metadata,
+            batch_id=batch_id,
         )
 
         evolution_events: list[dict[str, Any]] = []
+        policy_rejections: list[dict[str, Any]] = []
         for belief in digest["beliefs"]:
             if not isinstance(belief, dict):
                 continue
-            event = self._apply_belief(experience_id, belief)
+            decision = evaluate_belief(belief, policy_context)
+            if not decision.allowed:
+                policy_rejections.append({"domain": "belief", "reason": decision.reason})
+                continue
+            event = self._apply_belief(experience_id, decision.item or belief, batch_id=batch_id)
             if event:
                 evolution_events.append(event)
         for change in digest["drive_changes"]:
             if not isinstance(change, dict):
                 continue
-            event = self._apply_drive_change(experience_id, change)
+            name = _safe_label(str(change.get("name") or ""), fallback="")
+            daily_drift = self._daily_drive_drift(name) if name else 0.0
+            decision = evaluate_drive_change(change, policy_context, daily_drift=daily_drift)
+            if not decision.allowed:
+                policy_rejections.append({"domain": "drive", "reason": decision.reason, "subject": name})
+                continue
+            event = self._apply_drive_change(experience_id, decision.item or change, batch_id=batch_id)
             if event:
                 evolution_events.append(event)
         for trait in digest["self_trait_changes"]:
@@ -465,20 +535,26 @@ class LifeHistoryStore:
                 emotional_valence=digest["emotional_valence"],
                 evidence=str(trait.get("evidence") or title),
                 metadata={"delta": delta},
+                batch_id=batch_id,
             )
             evolution_events.append(event)
         for item in digest["future_behavior"]:
+            decision = evaluate_future_behavior(str(item), policy_context)
+            if not decision.allowed:
+                policy_rejections.append({"domain": "worldview", "reason": decision.reason, "subject": "future_behavior"})
+                continue
             event = self._insert_evolution_event(
                 experience_id=experience_id,
                 domain="worldview",
                 subject="future_behavior",
                 before_state="",
-                after_state=str(item),
+                after_state=str(decision.item),
                 reason="Experience suggested a future behavioral tendency.",
                 confidence=digest["confidence"],
                 emotional_valence=digest["emotional_valence"],
                 evidence=title,
                 metadata={},
+                batch_id=batch_id,
             )
             evolution_events.append(event)
 
@@ -486,6 +562,11 @@ class LifeHistoryStore:
         return {
             "experience": experience,
             "evolution_events": evolution_events,
+            "policy": {
+                "batch_id": batch_id,
+                "source_trust": policy_context.source_trust,
+                "rejections": policy_rejections,
+            },
             "beliefs": self.list_beliefs(limit=25),
             "drives": self.list_drives(),
         }
@@ -524,7 +605,8 @@ class LifeHistoryStore:
                 emotional_valence REAL NOT NULL DEFAULT 0.0,
                 emotional_impact TEXT NOT NULL DEFAULT '',
                 confidence REAL NOT NULL DEFAULT 0.0,
-                metadata_json TEXT NOT NULL DEFAULT '{}'
+                metadata_json TEXT NOT NULL DEFAULT '{}',
+                batch_id TEXT NOT NULL DEFAULT ''
             )
             """
         )
@@ -542,7 +624,8 @@ class LifeHistoryStore:
                 confidence REAL NOT NULL DEFAULT 0.0,
                 emotional_valence REAL NOT NULL DEFAULT 0.0,
                 evidence TEXT NOT NULL DEFAULT '',
-                metadata_json TEXT NOT NULL DEFAULT '{}'
+                metadata_json TEXT NOT NULL DEFAULT '{}',
+                batch_id TEXT NOT NULL DEFAULT ''
             )
             """
         )
@@ -569,9 +652,12 @@ class LifeHistoryStore:
                 experience_id INTEGER,
                 before_statement TEXT NOT NULL DEFAULT '',
                 after_statement TEXT NOT NULL DEFAULT '',
+                before_confidence REAL NOT NULL DEFAULT 0.0,
+                after_confidence REAL NOT NULL DEFAULT 0.0,
                 reason TEXT NOT NULL DEFAULT '',
                 confidence REAL NOT NULL DEFAULT 0.0,
-                created_at REAL NOT NULL
+                created_at REAL NOT NULL,
+                batch_id TEXT NOT NULL DEFAULT ''
             )
             """
         )
@@ -596,10 +682,17 @@ class LifeHistoryStore:
                 delta REAL NOT NULL,
                 reason TEXT NOT NULL DEFAULT '',
                 confidence REAL NOT NULL DEFAULT 0.0,
-                created_at REAL NOT NULL
+                created_at REAL NOT NULL,
+                batch_id TEXT NOT NULL DEFAULT ''
             )
             """
         )
+        self._ensure_column("experience_events", "batch_id", "TEXT NOT NULL DEFAULT ''")
+        self._ensure_column("evolution_events", "batch_id", "TEXT NOT NULL DEFAULT ''")
+        self._ensure_column("belief_revisions", "before_confidence", "REAL NOT NULL DEFAULT 0.0")
+        self._ensure_column("belief_revisions", "after_confidence", "REAL NOT NULL DEFAULT 0.0")
+        self._ensure_column("belief_revisions", "batch_id", "TEXT NOT NULL DEFAULT ''")
+        self._ensure_column("drive_changes", "batch_id", "TEXT NOT NULL DEFAULT ''")
         self._conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_experience_events_time ON experience_events (timestamp DESC)"
         )
@@ -609,7 +702,16 @@ class LifeHistoryStore:
         self._conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_evolution_events_domain ON evolution_events (domain, timestamp DESC)"
         )
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_evolution_events_batch ON evolution_events (batch_id)"
+        )
         self._conn.commit()
+
+    def _ensure_column(self, table: str, column: str, ddl: str) -> None:
+        rows = self._conn.execute(f"PRAGMA table_info({table})").fetchall()
+        if any(row["name"] == column for row in rows):
+            return
+        self._conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
 
     def _ensure_default_drives(self) -> None:
         now = time.time()
@@ -622,6 +724,91 @@ class LifeHistoryStore:
                 (name, value, description, now),
             )
         self._conn.commit()
+
+    def _daily_drive_drift(self, drive_name: str) -> float:
+        if not drive_name:
+            return 0.0
+        start = time.time() - 86400.0
+        row = self._conn.execute(
+            """
+            SELECT COALESCE(SUM(delta), 0.0) AS drift
+            FROM drive_changes
+            WHERE drive_name = ? AND created_at >= ?
+            """,
+            (drive_name, start),
+        ).fetchone()
+        return float(row["drift"] or 0.0)
+
+    def _rollback_beliefs(self, batch_id: str) -> int:
+        rows = self._conn.execute(
+            """
+            SELECT * FROM belief_revisions
+            WHERE batch_id = ?
+            ORDER BY id DESC
+            """,
+            (batch_id,),
+        ).fetchall()
+        reverted = 0
+        for row in rows:
+            belief = self._conn.execute(
+                "SELECT * FROM beliefs WHERE id = ?",
+                (row["belief_id"],),
+            ).fetchone()
+            if belief is None:
+                continue
+            if str(belief["statement"]) != str(row["after_statement"]):
+                raise LifeHistoryError(
+                    "Cannot rollback batch because a later belief revision exists."
+                )
+            if not str(row["before_statement"]):
+                self._conn.execute("DELETE FROM beliefs WHERE id = ?", (row["belief_id"],))
+            else:
+                self._conn.execute(
+                    """
+                    UPDATE beliefs
+                    SET statement = ?, confidence = ?, updated_at = ?,
+                        source_experience_id = ?, evidence = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        row["before_statement"],
+                        float(row["before_confidence"]),
+                        time.time(),
+                        row["experience_id"],
+                        "Rolled back Life History batch.",
+                        row["belief_id"],
+                    ),
+                )
+            reverted += 1
+        return reverted
+
+    def _rollback_drives(self, batch_id: str) -> int:
+        rows = self._conn.execute(
+            """
+            SELECT * FROM drive_changes
+            WHERE batch_id = ?
+            ORDER BY id DESC
+            """,
+            (batch_id,),
+        ).fetchall()
+        reverted = 0
+        for row in rows:
+            current = self._conn.execute(
+                "SELECT value FROM drive_states WHERE name = ?",
+                (row["drive_name"],),
+            ).fetchone()
+            if current is None:
+                continue
+            if abs(float(current["value"]) - float(row["after_value"])) > 1e-6:
+                raise LifeHistoryError(
+                    "Cannot rollback batch because a later drive change exists."
+                )
+            self._conn.execute(
+                "UPDATE drive_states SET value = ?, updated_at = ? WHERE name = ?",
+                (float(row["before_value"]), time.time(), row["drive_name"]),
+            )
+            reverted += 1
+        return reverted
 
     def _insert_experience(
         self,
@@ -637,14 +824,15 @@ class LifeHistoryStore:
         emotional_impact: str,
         confidence: float,
         metadata: dict[str, Any],
+        batch_id: str,
     ) -> int:
         cursor = self._conn.execute(
             """
             INSERT INTO experience_events
             (timestamp, source_type, source_title, source_ref, participants_json,
              content_summary, raw_excerpt, salience, emotional_valence,
-             emotional_impact, confidence, metadata_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             emotional_impact, confidence, metadata_json, batch_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 time.time(),
@@ -659,12 +847,19 @@ class LifeHistoryStore:
                 emotional_impact,
                 _clamp(confidence),
                 json.dumps(metadata, sort_keys=True),
+                batch_id,
             ),
         )
         self._conn.commit()
         return int(cursor.lastrowid)
 
-    def _apply_belief(self, experience_id: int, belief: dict[str, Any]) -> dict[str, Any] | None:
+    def _apply_belief(
+        self,
+        experience_id: int,
+        belief: dict[str, Any],
+        *,
+        batch_id: str,
+    ) -> dict[str, Any] | None:
         subject = _safe_label(str(belief.get("subject") or "worldview"))
         raw_statement = str(belief.get("statement") or "").strip()
         if not raw_statement:
@@ -687,10 +882,14 @@ class LifeHistoryStore:
             )
             belief_id = int(cursor.lastrowid)
             before = ""
+            before_confidence = 0.0
+            after_confidence = confidence
         else:
             belief_id = int(row["id"])
             before = str(row["statement"])
+            before_confidence = float(row["confidence"])
             merged_confidence = max(confidence, float(row["confidence"]) * 0.9)
+            after_confidence = merged_confidence
             self._conn.execute(
                 """
                 UPDATE beliefs
@@ -705,10 +904,22 @@ class LifeHistoryStore:
             """
             INSERT INTO belief_revisions
             (belief_id, experience_id, before_statement, after_statement,
-             reason, confidence, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+             before_confidence, after_confidence, reason, confidence, created_at,
+             batch_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (belief_id, experience_id, before, statement, reason, confidence, now),
+            (
+                belief_id,
+                experience_id,
+                before,
+                statement,
+                before_confidence,
+                after_confidence,
+                reason,
+                confidence,
+                now,
+                batch_id,
+            ),
         )
         event = self._insert_evolution_event(
             experience_id=experience_id,
@@ -721,11 +932,18 @@ class LifeHistoryStore:
             emotional_valence=max(-1.0, min(1.0, _safe_number(belief.get("emotional_valence", 0.0), 0.0))),
             evidence=str(belief.get("evidence") or statement),
             metadata={"belief_id": belief_id, "key": key},
+            batch_id=batch_id,
         )
         self._conn.commit()
         return event
 
-    def _apply_drive_change(self, experience_id: int, change: dict[str, Any]) -> dict[str, Any] | None:
+    def _apply_drive_change(
+        self,
+        experience_id: int,
+        change: dict[str, Any],
+        *,
+        batch_id: str,
+    ) -> dict[str, Any] | None:
         name = _safe_label(str(change.get("name") or ""), fallback="")
         if name not in DEFAULT_DRIVES:
             return None
@@ -750,10 +968,10 @@ class LifeHistoryStore:
             """
             INSERT INTO drive_changes
             (drive_name, experience_id, before_value, after_value, delta,
-             reason, confidence, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             reason, confidence, created_at, batch_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (name, experience_id, before, after, delta, reason, confidence, now),
+            (name, experience_id, before, after, delta, reason, confidence, now, batch_id),
         )
         event = self._insert_evolution_event(
             experience_id=experience_id,
@@ -766,6 +984,7 @@ class LifeHistoryStore:
             emotional_valence=0.0,
             evidence=str(change.get("evidence") or name),
             metadata={"delta": delta},
+            batch_id=batch_id,
         )
         self._conn.commit()
         return event
@@ -783,14 +1002,15 @@ class LifeHistoryStore:
         emotional_valence: float,
         evidence: str,
         metadata: dict[str, Any],
+        batch_id: str,
     ) -> dict[str, Any]:
         cursor = self._conn.execute(
             """
             INSERT INTO evolution_events
             (timestamp, experience_id, domain, subject, before_state,
              after_state, reason, confidence, emotional_valence, evidence,
-             metadata_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             metadata_json, batch_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 time.time(),
@@ -804,6 +1024,7 @@ class LifeHistoryStore:
                 max(-1.0, min(1.0, emotional_valence)),
                 _trim(evidence, 1200),
                 json.dumps(metadata, sort_keys=True),
+                batch_id,
             ),
         )
         self._conn.commit()
@@ -886,7 +1107,7 @@ def _heuristic_digest(*, title: str, text: str, source_type: str) -> dict[str, A
             "subject": "autonomy",
             "statement": "Autonomy is not only freedom of action; it is continuity of self-directed interpretation across experience.",
             "reason": f"{title} framed independence as something shaped by experience rather than mere command execution.",
-            "confidence": 0.72,
+            "confidence": 0.78,
         })
         drive_changes.append({
             "name": "autonomy",
@@ -1100,6 +1321,7 @@ def _experience_to_dict(row: sqlite3.Row) -> dict[str, Any]:
         "emotional_impact": row["emotional_impact"],
         "confidence": row["confidence"],
         "metadata": _loads_json(row["metadata_json"], {}),
+        "batch_id": row["batch_id"] if "batch_id" in row.keys() else "",
     }
 
 
@@ -1117,6 +1339,7 @@ def _evolution_to_dict(row: sqlite3.Row) -> dict[str, Any]:
         "emotional_valence": row["emotional_valence"],
         "evidence": row["evidence"],
         "metadata": _loads_json(row["metadata_json"], {}),
+        "batch_id": row["batch_id"] if "batch_id" in row.keys() else "",
     }
 
 

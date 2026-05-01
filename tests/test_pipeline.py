@@ -3,6 +3,7 @@ import pytest
 
 from config.loader import get_config
 from core.dual_process.generator import MockLLMBackend
+from core.pipeline_features import PipelineFeatures
 from pipeline import CognitivePipeline, DebugState, PipelineResponse
 from runtime.debug.api import _debug_to_dict
 
@@ -277,6 +278,36 @@ class TestCognitivePipeline:
         assert result.debug.life_history_context["beliefs"][0]["key"] == "autonomy"
         assert "Life History / Evolving Worldview" in backend.last_system_prompt
         assert "Autonomy grows through retained experience" in backend.last_system_prompt
+        assert result.debug.life_influence.curiosity_pressure == pytest.approx(0.05)
+        pipe.close()
+
+    def test_life_history_context_feature_toggle_removes_context_and_influence(self):
+        backend = MockLLMBackend(response="I understand.")
+        pipe = CognitivePipeline(
+            llm_backend=backend,
+            life_history_provider=lambda: {
+                "beliefs": [{"key": "repair", "statement": "Repair matters.", "confidence": 0.8}],
+                "drives": [{"name": "repair", "delta": 0.05}],
+                "recent_evolution": [],
+            },
+            features=PipelineFeatures(life_history_context=False),
+        )
+        result = pipe.process("What changed?", user_id="alice")
+
+        assert result.debug.life_history_context == {}
+        assert result.debug.life_influence.is_neutral
+        assert result.debug.life_influence_effects == {}
+        assert "Life History / Evolving Worldview" not in backend.last_system_prompt
+        pipe.close()
+
+    def test_strategy_trace_is_serialized_and_matches_response_strategy(self):
+        pipe = self._make_pipeline()
+        result = pipe.process("I am scared about work.", user_id="alice")
+        payload = _debug_to_dict(result.debug)
+
+        assert result.debug.strategy_trace is not None
+        assert result.debug.strategy_trace.selected == result.debug.response_strategy
+        assert payload["strategy_trace"]["selected"] == payload["response_strategy"]
         pipe.close()
 
     def test_enabled_skill_context_surfaces_in_prompt(self):

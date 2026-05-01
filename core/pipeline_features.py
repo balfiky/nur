@@ -31,6 +31,7 @@ class PipelineFeatures:
     inner_dialogue: bool = True
     defense: bool = True
     semantic_memory: bool = True
+    life_history_context: bool = True
 
     def disabled_labels(self) -> list[str]:
         """Names of components that are currently disabled (for reports)."""
@@ -43,6 +44,8 @@ class PipelineFeatures:
             labels.append("defense")
         if not self.semantic_memory:
             labels.append("semantic_memory")
+        if not self.life_history_context:
+            labels.append("life_history_context")
         return labels
 
     def is_baseline(self) -> bool:

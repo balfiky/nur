@@ -62,6 +62,24 @@ class LongTermMemory:
                 last_accessed REAL NOT NULL
             )
         """)
+        self._conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_memories_source_person_time
+            ON memories (source_person, timestamp DESC)
+            """
+        )
+        self._conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_memories_topic_time
+            ON memories (topic, timestamp DESC)
+            """
+        )
+        self._conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_memories_spike_time
+            ON memories (spike, timestamp DESC)
+            """
+        )
         self._conn.commit()
 
     # ------------------------------------------------------------------
@@ -129,7 +147,7 @@ class LongTermMemory:
 
         Spike memories get a flat activation bonus.
         """
-        rows = self._conn.execute("SELECT * FROM memories").fetchall()
+        rows = self._candidate_rows(topic=topic, source_person=source_person, limit=max(limit * 20, 500))
         now = time.time()
 
         scored: list[tuple[float, LongTermEntry]] = []
@@ -159,6 +177,65 @@ class LongTermMemory:
             self._mark_accessed_batch(ids_to_mark)
 
         return [entry for _, entry in top]
+
+    def _candidate_rows(
+        self,
+        *,
+        topic: str,
+        source_person: str,
+        limit: int = 500,
+    ) -> list[sqlite3.Row]:
+        """Return a bounded candidate set before ACT-R scoring."""
+        candidate_by_id: dict[int, sqlite3.Row] = {}
+
+        def add_rows(rows: list[sqlite3.Row]) -> None:
+            for row in rows:
+                candidate_by_id[int(row["id"])] = row
+                if len(candidate_by_id) >= limit:
+                    return
+
+        if source_person:
+            add_rows(self._conn.execute(
+                """
+                SELECT * FROM memories
+                WHERE source_person = ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+                """,
+                (source_person, limit),
+            ).fetchall())
+
+        add_rows(self._conn.execute(
+            """
+            SELECT * FROM memories
+            WHERE spike = 1
+            ORDER BY timestamp DESC
+            LIMIT ?
+            """,
+            (max(50, limit // 5),),
+        ).fetchall())
+
+        if topic:
+            add_rows(self._conn.execute(
+                """
+                SELECT * FROM memories
+                WHERE topic LIKE ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+                """,
+                (f"%{topic}%", max(100, limit // 3)),
+            ).fetchall())
+
+        add_rows(self._conn.execute(
+            """
+            SELECT * FROM memories
+            ORDER BY timestamp DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall())
+
+        return list(candidate_by_id.values())[:limit]
 
     def _compute_activation(
         self,

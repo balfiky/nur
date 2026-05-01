@@ -330,6 +330,50 @@ class TestLongTermMemory:
         assert len(ltm.by_topic("work")) == 1
         ltm.close()
 
+    def test_retrieve_preselects_bounded_candidates(self):
+        ltm = LongTermMemory()
+        now = time.time()
+        for i in range(700):
+            ltm.store(LongTermEntry(
+                summary=f"Memory {i}",
+                emotional_valence=0.0,
+                trust_delta=0.0,
+                confidence=0.8,
+                source_person="alice" if i % 2 == 0 else "bob",
+                topic="work" if i % 5 == 0 else "other",
+                timestamp=now - i,
+            ))
+        rows = ltm._candidate_rows(topic="work", source_person="alice", limit=500)
+        assert len(rows) <= 500
+        assert any(row["source_person"] == "alice" for row in rows)
+        assert any(row["topic"] == "work" for row in rows)
+        ltm.close()
+
+    def test_retrieve_large_store_preserves_spike_priority(self, tmp_path):
+        ltm = LongTermMemory(db_path=str(tmp_path / "mem.db"))
+        now = time.time()
+        for i in range(10_000):
+            ltm.store(LongTermEntry(
+                summary=f"Ordinary {i}",
+                emotional_valence=0.0,
+                trust_delta=0.0,
+                confidence=0.8,
+                timestamp=now - i - 10,
+            ))
+        ltm.store_spike(LongTermEntry(
+            summary="Important spike",
+            emotional_valence=-0.9,
+            trust_delta=-0.1,
+            confidence=0.9,
+            timestamp=now - 5,
+        ))
+        start = time.perf_counter()
+        results = ltm.retrieve(ModulatorState(), limit=5)
+        elapsed = time.perf_counter() - start
+        assert results[0].summary == "Important spike"
+        assert elapsed < 0.5
+        ltm.close()
+
 
 # =========================================================================
 # Digestion

@@ -16,6 +16,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
+from core.life_influence import LifeInfluence
 from core.types import (
     ModulatorState,
     PersonProfile,
@@ -119,6 +120,7 @@ def _score_trigger(
     trigger: ProactiveTrigger,
     state: ModulatorState,
     person: PersonProfile,
+    life_influence: LifeInfluence | None = None,
 ) -> float:
     """Score a trigger, influenced by current modulator state.
 
@@ -147,6 +149,12 @@ def _score_trigger(
     # Negative mood amplifies the sense of unfinished business
     if state.valence < 0.3:
         score += _LOW_VALENCE_BOOST
+
+    if life_influence is not None:
+        if trigger.source == ProactiveTriggerSource.UNRESOLVED_ITEM:
+            score += max(0.0, life_influence.repair_pressure)
+        if trigger.source == ProactiveTriggerSource.COMMITMENT:
+            score += max(0.0, life_influence.continuity_pressure)
 
     return max(0.0, min(1.0, score))
 
@@ -224,6 +232,7 @@ def evaluate_proactive(
     idle_threshold: float = DEFAULT_IDLE_THRESHOLD,
     cooldown: float = DEFAULT_COOLDOWN,
     activation_threshold: float = DEFAULT_ACTIVATION_THRESHOLD,
+    life_influence: LifeInfluence | None = None,
 ) -> tuple[ProactiveAction | None, ProactiveTrace]:
     """Evaluate whether Nūr should initiate proactive behavior.
 
@@ -291,7 +300,12 @@ def evaluate_proactive(
     # Score each trigger
     scored: list[tuple[float, ProactiveTrigger]] = []
     for t in triggers:
-        score = _score_trigger(t, state, person)
+        base_score = _score_trigger(t, state, person, None)
+        score = _score_trigger(t, state, person, life_influence)
+        delta = round(score - base_score, 6)
+        if delta != 0.0:
+            key = f"{t.source.value if hasattr(t.source, 'value') else str(t.source)}:{t.item_id or t.description[:40]}"
+            trace.life_influence_score_deltas[key] = delta
         scored.append((score, t))
 
     # Sort by score descending

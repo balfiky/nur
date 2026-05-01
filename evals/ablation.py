@@ -98,6 +98,10 @@ def _features_wrapped_runner(
             llm_backend=factory(),
             tool_executor=executor,
             features=features,
+            life_history_provider=(
+                (lambda: dict(scenario.life_history_context or {}))
+                if scenario.life_history_context is not None else None
+            ),
         )
 
         # Apply initial-state overrides (same as runner's version)

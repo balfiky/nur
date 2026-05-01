@@ -8,19 +8,19 @@
     "resolved_model": "",
     "base_url": "",
     "host": "paco-M5-PLUS",
-    "started_at": "2026-05-01T10:14:48+00:00",
-    "finished_at": "2026-05-01T10:14:48+00:00",
-    "scenario_set": "phase11",
+    "started_at": "2026-05-01T10:20:18+00:00",
+    "finished_at": "2026-05-01T10:20:18+00:00",
+    "scenario_set": "phase13_life",
     "scenario_count": 6,
     "config_fingerprint_count": 16
   },
   "baseline": {
     "passed": 6,
     "total": 6,
-    "assertions_passed": 25,
-    "assertions_total": 25,
-    "llm_calls": 14,
-    "latency_s": 0.032
+    "assertions_passed": 13,
+    "assertions_total": 13,
+    "llm_calls": 8,
+    "latency_s": 0.38
   },
   "ablations": [
     {
@@ -36,50 +36,51 @@
         "p12_mismatched_repair_keeps_deadline_loop_open",
         "p12_recurrence_after_repair_records_recurring_tension",
         "p12_commitment_persists_across_session",
-        "p12_user_mentions_old_rupture"
+        "p12_user_mentions_old_rupture",
+        "life_influence_affects_policy"
       ],
-      "passed": 4,
+      "passed": 5,
       "total": 6,
-      "assertions_passed": 19,
-      "assertions_total": 25,
-      "llm_calls": 14,
-      "latency_s": 0.021,
+      "assertions_passed": 12,
+      "assertions_total": 13,
+      "llm_calls": 8,
+      "latency_s": 0.398,
       "per_scenario": {
-        "p11_action_request_practical": {
+        "life_belief_revision_visible": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_external_distress_validate": {
+        "life_context_enters_generation": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_low_trust_hostility_boundary": {
+        "life_drive_change_visible": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_open_loop_challenge": {
+        "life_influence_affects_policy": {
           "baseline_passed": true,
           "variant_passed": false,
           "outcome": "expected_failure"
         },
-        "p11_overwhelm_ground": {
+        "life_influence_derived": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_repair_closes_loop": {
+        "life_pasted_text_records_experience": {
           "baseline_passed": true,
-          "variant_passed": false,
-          "outcome": "expected_failure"
+          "variant_passed": true,
+          "outcome": "no_effect"
         }
       },
       "counts": {
-        "expected_failure": 2,
+        "expected_failure": 1,
         "unexpected_failure": 0,
-        "no_effect": 4,
+        "no_effect": 5,
         "newly_passing": 0
       }
     },
@@ -92,37 +93,37 @@
       "expected_failures": [],
       "passed": 6,
       "total": 6,
-      "assertions_passed": 25,
-      "assertions_total": 25,
-      "llm_calls": 14,
-      "latency_s": 0.023,
+      "assertions_passed": 13,
+      "assertions_total": 13,
+      "llm_calls": 8,
+      "latency_s": 0.615,
       "per_scenario": {
-        "p11_action_request_practical": {
+        "life_belief_revision_visible": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_external_distress_validate": {
+        "life_context_enters_generation": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_low_trust_hostility_boundary": {
+        "life_drive_change_visible": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_open_loop_challenge": {
+        "life_influence_affects_policy": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_overwhelm_ground": {
+        "life_influence_derived": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_repair_closes_loop": {
+        "life_pasted_text_records_experience": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
@@ -144,37 +145,37 @@
       "expected_failures": [],
       "passed": 6,
       "total": 6,
-      "assertions_passed": 25,
-      "assertions_total": 25,
-      "llm_calls": 14,
-      "latency_s": 0.023,
+      "assertions_passed": 13,
+      "assertions_total": 13,
+      "llm_calls": 8,
+      "latency_s": 0.572,
       "per_scenario": {
-        "p11_action_request_practical": {
+        "life_belief_revision_visible": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_external_distress_validate": {
+        "life_context_enters_generation": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_low_trust_hostility_boundary": {
+        "life_drive_change_visible": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_open_loop_challenge": {
+        "life_influence_affects_policy": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_overwhelm_ground": {
+        "life_influence_derived": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_repair_closes_loop": {
+        "life_pasted_text_records_experience": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
@@ -202,37 +203,37 @@
       ],
       "passed": 6,
       "total": 6,
-      "assertions_passed": 25,
-      "assertions_total": 25,
-      "llm_calls": 14,
-      "latency_s": 0.021,
+      "assertions_passed": 13,
+      "assertions_total": 13,
+      "llm_calls": 8,
+      "latency_s": 0.625,
       "per_scenario": {
-        "p11_action_request_practical": {
+        "life_belief_revision_visible": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_external_distress_validate": {
+        "life_context_enters_generation": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_low_trust_hostility_boundary": {
+        "life_drive_change_visible": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_open_loop_challenge": {
+        "life_influence_affects_policy": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_overwhelm_ground": {
+        "life_influence_derived": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_repair_closes_loop": {
+        "life_pasted_text_records_experience": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
@@ -256,48 +257,48 @@
         "life_influence_derived",
         "life_influence_affects_policy"
       ],
-      "passed": 6,
+      "passed": 3,
       "total": 6,
-      "assertions_passed": 25,
-      "assertions_total": 25,
-      "llm_calls": 14,
-      "latency_s": 0.023,
+      "assertions_passed": 10,
+      "assertions_total": 13,
+      "llm_calls": 8,
+      "latency_s": 0.596,
       "per_scenario": {
-        "p11_action_request_practical": {
+        "life_belief_revision_visible": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_external_distress_validate": {
+        "life_context_enters_generation": {
+          "baseline_passed": true,
+          "variant_passed": false,
+          "outcome": "expected_failure"
+        },
+        "life_drive_change_visible": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_low_trust_hostility_boundary": {
+        "life_influence_affects_policy": {
           "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
+          "variant_passed": false,
+          "outcome": "expected_failure"
         },
-        "p11_open_loop_challenge": {
+        "life_influence_derived": {
           "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
+          "variant_passed": false,
+          "outcome": "expected_failure"
         },
-        "p11_overwhelm_ground": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_repair_closes_loop": {
+        "life_pasted_text_records_experience": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         }
       },
       "counts": {
-        "expected_failure": 0,
+        "expected_failure": 3,
         "unexpected_failure": 0,
-        "no_effect": 6,
+        "no_effect": 3,
         "newly_passing": 0
       }
     }

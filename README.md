@@ -181,6 +181,7 @@ nur                        # console runtime
 | Need | Document |
 |---|---|
 | Product/concept overview | [docs/OVERVIEW.md](docs/OVERVIEW.md) |
+| Reviewer study guide | [docs/STUDY_GUIDE.md](docs/STUDY_GUIDE.md) |
 | Runtime architecture | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 | Install, admin, deployment | [docs/DEPLOYMENT_AND_ADMIN.md](docs/DEPLOYMENT_AND_ADMIN.md) |
 | Security model | [SECURITY.md](SECURITY.md) |

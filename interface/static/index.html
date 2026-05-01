@@ -178,6 +178,8 @@ a.icon-btn { text-decoration: none; }
 .debug-flag { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px; background: rgba(255,107,107,0.12); color: #ff6b6b; margin: 2px; }
 .debug-mem { font-size: 11px; color: var(--text-dim); padding: 5px 0; border-bottom: 1px solid var(--border); }
 .debug-none { font-size: 12px; color: var(--text-faint); }
+.explain-box { font-size: 12px; color: var(--text-dim); line-height: 1.55; display: grid; gap: 7px; }
+.explain-box strong { color: var(--text); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
 
 /* v2 inner dialogue */
 .dialogue-round { font-size: 11px; background: var(--bg); border-left: 2px solid var(--primary); padding: 8px 10px; margin-bottom: 8px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
@@ -296,6 +298,10 @@ a.icon-btn { text-decoration: none; }
   .input-container { padding: 12px 16px 16px; }
   .settings-grid { grid-template-columns: 1fr; }
   .settings-grid.three, .admin-overview { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.001ms !important; }
+  .mood-orb, .empty-orb, .typing-dots span { animation: none !important; }
 }
 </style>
 </head>
@@ -579,6 +585,7 @@ a.icon-btn { text-decoration: none; }
         </button>
       </div>
       <div class="session-actions">
+        <button class="session-btn" id="whyBtn" onclick="showWhyResponse()" disabled>Why this response?</button>
         <button class="session-btn" onclick="endSession()">End Session</button>
         <button class="session-btn" onclick="applyRest()">Rest (1hr)</button>
       </div>
@@ -603,6 +610,7 @@ a.icon-btn { text-decoration: none; }
       <div class="debug-item"><span class="dl">Intensity</span> <span id="eventIntensity">&mdash;</span></div>
       <div class="debug-item"><span class="dl">Spike</span> <span id="eventSpike">&mdash;</span></div>
     </div>
+    <div class="debug-section"><h3>Explanation</h3><div id="turnExplanation"><span class="debug-none">&mdash;</span></div></div>
     <div class="debug-section"><h3>Person</h3>
       <div class="debug-item"><span class="dl">Trust</span> <span id="personTrust">&mdash;</span></div>
       <div class="debug-item"><span class="dl">Interactions</span> <span id="personInteractions">&mdash;</span></div>
@@ -643,6 +651,7 @@ const chatId = getOrCreateId('nur_chat_id', sessionStorage);
 let sending = false;
 let lastEmotion = 'neutral';
 let agentName = 'Nūr';
+let lastExplanation = null;
 
 function updateSendButtonState() {
   sendBtn.disabled = sending || !inputEl.value.trim();
@@ -815,6 +824,10 @@ function updateMood(d) {
 
 function updateDebug(d) {
   updateMood(d);
+  lastExplanation = d.explanation || null;
+  const whyBtn = document.getElementById('whyBtn');
+  if (whyBtn) whyBtn.disabled = !lastExplanation;
+  updateExplanation(lastExplanation);
 
   const mods = ['arousal', 'valence', 'certainty', 'bonding', 'energy', 'resolution'];
   for (const m of mods) {
@@ -855,6 +868,43 @@ function updateDebug(d) {
   updateDefense(d.defense_activation);
   document.getElementById('unresolvedCount').textContent = d.unresolved_count || 0;
   updateUnresolvedItems(d.unresolved_items);
+}
+
+function updateExplanation(explanation) {
+  const el = document.getElementById('turnExplanation');
+  if (!el) return;
+  if (!explanation) {
+    el.innerHTML = '<span class="debug-none">\u2014</span>';
+    return;
+  }
+  el.innerHTML = '<div class="explain-box">' +
+    explanationLine('Interpretation', explanation.interpretation) +
+    explanationLine('Strategy', explanation.strategy) +
+    explanationLine('State', explanation.state) +
+    explanationLine('Memory', explanation.memory) +
+    explanationLine('Life History', explanation.life_history) +
+    explanationLine('Tools', explanation.tools) +
+    explanationLine('Limits', explanation.limits) +
+    '</div>';
+}
+
+function explanationLine(label, value) {
+  return '<div><strong>' + esc(label) + '</strong><br>' + esc(value || '') + '</div>';
+}
+
+function showWhyResponse() {
+  if (!lastExplanation) return;
+  const text = [
+    '**Why this response?**',
+    lastExplanation.interpretation,
+    lastExplanation.strategy,
+    lastExplanation.state,
+    lastExplanation.memory,
+    lastExplanation.life_history,
+    lastExplanation.tools,
+    lastExplanation.limits,
+  ].filter(Boolean).join('\n\n');
+  addMessage(text, 'assistant', lastEmotion);
 }
 
 function updateAnticipation(ant) {

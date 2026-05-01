@@ -8,19 +8,19 @@
     "resolved_model": "",
     "base_url": "",
     "host": "paco-M5-PLUS",
-    "started_at": "2026-05-01T10:14:48+00:00",
-    "finished_at": "2026-05-01T10:14:48+00:00",
-    "scenario_set": "phase11",
+    "started_at": "2026-05-01T10:21:26+00:00",
+    "finished_at": "2026-05-01T10:21:26+00:00",
+    "scenario_set": "semantic_memory",
     "scenario_count": 6,
     "config_fingerprint_count": 16
   },
   "baseline": {
     "passed": 6,
     "total": 6,
-    "assertions_passed": 25,
-    "assertions_total": 25,
-    "llm_calls": 14,
-    "latency_s": 0.032
+    "assertions_passed": 20,
+    "assertions_total": 20,
+    "llm_calls": 12,
+    "latency_s": 0.035
   },
   "ablations": [
     {
@@ -36,50 +36,51 @@
         "p12_mismatched_repair_keeps_deadline_loop_open",
         "p12_recurrence_after_repair_records_recurring_tension",
         "p12_commitment_persists_across_session",
-        "p12_user_mentions_old_rupture"
+        "p12_user_mentions_old_rupture",
+        "life_influence_affects_policy"
       ],
-      "passed": 4,
+      "passed": 6,
       "total": 6,
-      "assertions_passed": 19,
-      "assertions_total": 25,
-      "llm_calls": 14,
-      "latency_s": 0.021,
+      "assertions_passed": 20,
+      "assertions_total": 20,
+      "llm_calls": 12,
+      "latency_s": 0.024,
       "per_scenario": {
-        "p11_action_request_practical": {
+        "semantic_decision_written_and_retrieved": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_external_distress_validate": {
+        "semantic_no_semantic_memory_expected_failure": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_low_trust_hostility_boundary": {
+        "semantic_per_user_isolation": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_open_loop_challenge": {
-          "baseline_passed": true,
-          "variant_passed": false,
-          "outcome": "expected_failure"
-        },
-        "p11_overwhelm_ground": {
+        "semantic_preference_written_and_retrieved": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_repair_closes_loop": {
+        "semantic_salience_and_recency_ranking": {
           "baseline_passed": true,
-          "variant_passed": false,
-          "outcome": "expected_failure"
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "semantic_topic_bias": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
         }
       },
       "counts": {
-        "expected_failure": 2,
+        "expected_failure": 0,
         "unexpected_failure": 0,
-        "no_effect": 4,
+        "no_effect": 6,
         "newly_passing": 0
       }
     },
@@ -92,37 +93,37 @@
       "expected_failures": [],
       "passed": 6,
       "total": 6,
-      "assertions_passed": 25,
-      "assertions_total": 25,
-      "llm_calls": 14,
-      "latency_s": 0.023,
+      "assertions_passed": 20,
+      "assertions_total": 20,
+      "llm_calls": 12,
+      "latency_s": 0.026,
       "per_scenario": {
-        "p11_action_request_practical": {
+        "semantic_decision_written_and_retrieved": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_external_distress_validate": {
+        "semantic_no_semantic_memory_expected_failure": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_low_trust_hostility_boundary": {
+        "semantic_per_user_isolation": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_open_loop_challenge": {
+        "semantic_preference_written_and_retrieved": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_overwhelm_ground": {
+        "semantic_salience_and_recency_ranking": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_repair_closes_loop": {
+        "semantic_topic_bias": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
@@ -144,37 +145,37 @@
       "expected_failures": [],
       "passed": 6,
       "total": 6,
-      "assertions_passed": 25,
-      "assertions_total": 25,
-      "llm_calls": 14,
-      "latency_s": 0.023,
+      "assertions_passed": 20,
+      "assertions_total": 20,
+      "llm_calls": 12,
+      "latency_s": 0.026,
       "per_scenario": {
-        "p11_action_request_practical": {
+        "semantic_decision_written_and_retrieved": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_external_distress_validate": {
+        "semantic_no_semantic_memory_expected_failure": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_low_trust_hostility_boundary": {
+        "semantic_per_user_isolation": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_open_loop_challenge": {
+        "semantic_preference_written_and_retrieved": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_overwhelm_ground": {
+        "semantic_salience_and_recency_ranking": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_repair_closes_loop": {
+        "semantic_topic_bias": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
@@ -200,48 +201,48 @@
         "semantic_salience_and_recency_ranking",
         "semantic_no_semantic_memory_expected_failure"
       ],
-      "passed": 6,
+      "passed": 1,
       "total": 6,
-      "assertions_passed": 25,
-      "assertions_total": 25,
-      "llm_calls": 14,
-      "latency_s": 0.021,
+      "assertions_passed": 13,
+      "assertions_total": 20,
+      "llm_calls": 12,
+      "latency_s": 0.024,
       "per_scenario": {
-        "p11_action_request_practical": {
+        "semantic_decision_written_and_retrieved": {
+          "baseline_passed": true,
+          "variant_passed": false,
+          "outcome": "expected_failure"
+        },
+        "semantic_no_semantic_memory_expected_failure": {
+          "baseline_passed": true,
+          "variant_passed": false,
+          "outcome": "expected_failure"
+        },
+        "semantic_per_user_isolation": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_external_distress_validate": {
+        "semantic_preference_written_and_retrieved": {
           "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
+          "variant_passed": false,
+          "outcome": "expected_failure"
         },
-        "p11_low_trust_hostility_boundary": {
+        "semantic_salience_and_recency_ranking": {
           "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
+          "variant_passed": false,
+          "outcome": "expected_failure"
         },
-        "p11_open_loop_challenge": {
+        "semantic_topic_bias": {
           "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_overwhelm_ground": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_repair_closes_loop": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
+          "variant_passed": false,
+          "outcome": "expected_failure"
         }
       },
       "counts": {
-        "expected_failure": 0,
+        "expected_failure": 5,
         "unexpected_failure": 0,
-        "no_effect": 6,
+        "no_effect": 1,
         "newly_passing": 0
       }
     },
@@ -258,37 +259,37 @@
       ],
       "passed": 6,
       "total": 6,
-      "assertions_passed": 25,
-      "assertions_total": 25,
-      "llm_calls": 14,
-      "latency_s": 0.023,
+      "assertions_passed": 20,
+      "assertions_total": 20,
+      "llm_calls": 12,
+      "latency_s": 0.026,
       "per_scenario": {
-        "p11_action_request_practical": {
+        "semantic_decision_written_and_retrieved": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_external_distress_validate": {
+        "semantic_no_semantic_memory_expected_failure": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_low_trust_hostility_boundary": {
+        "semantic_per_user_isolation": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_open_loop_challenge": {
+        "semantic_preference_written_and_retrieved": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_overwhelm_ground": {
+        "semantic_salience_and_recency_ranking": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_repair_closes_loop": {
+        "semantic_topic_bias": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"

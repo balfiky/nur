@@ -8,19 +8,19 @@
     "resolved_model": "",
     "base_url": "",
     "host": "paco-M5-PLUS",
-    "started_at": "2026-05-01T10:14:48+00:00",
-    "finished_at": "2026-05-01T10:14:48+00:00",
-    "scenario_set": "phase11",
-    "scenario_count": 6,
+    "started_at": "2026-05-01T10:20:18+00:00",
+    "finished_at": "2026-05-01T10:20:18+00:00",
+    "scenario_set": "phase12_relationship",
+    "scenario_count": 7,
     "config_fingerprint_count": 16
   },
   "baseline": {
-    "passed": 6,
-    "total": 6,
-    "assertions_passed": 25,
-    "assertions_total": 25,
-    "llm_calls": 14,
-    "latency_s": 0.032
+    "passed": 7,
+    "total": 7,
+    "assertions_passed": 31,
+    "assertions_total": 31,
+    "llm_calls": 30,
+    "latency_s": 0.053
   },
   "ablations": [
     {
@@ -36,50 +36,56 @@
         "p12_mismatched_repair_keeps_deadline_loop_open",
         "p12_recurrence_after_repair_records_recurring_tension",
         "p12_commitment_persists_across_session",
-        "p12_user_mentions_old_rupture"
+        "p12_user_mentions_old_rupture",
+        "life_influence_affects_policy"
       ],
-      "passed": 4,
-      "total": 6,
-      "assertions_passed": 19,
-      "assertions_total": 25,
-      "llm_calls": 14,
-      "latency_s": 0.021,
+      "passed": 2,
+      "total": 7,
+      "assertions_passed": 21,
+      "assertions_total": 31,
+      "llm_calls": 30,
+      "latency_s": 0.039,
       "per_scenario": {
-        "p11_action_request_practical": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_external_distress_validate": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_low_trust_hostility_boundary": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_open_loop_challenge": {
+        "p12_commitment_persists_across_session": {
           "baseline_passed": true,
           "variant_passed": false,
           "outcome": "expected_failure"
         },
-        "p11_overwhelm_ground": {
+        "p12_explicit_suppression_not_forced": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_repair_closes_loop": {
+        "p12_high_trust_hostility_not_low_trust_boundary": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p12_mismatched_repair_keeps_deadline_loop_open": {
+          "baseline_passed": true,
+          "variant_passed": false,
+          "outcome": "expected_failure"
+        },
+        "p12_multiple_open_loops_topic_priority": {
+          "baseline_passed": true,
+          "variant_passed": false,
+          "outcome": "expected_failure"
+        },
+        "p12_recurrence_after_repair_records_recurring_tension": {
+          "baseline_passed": true,
+          "variant_passed": false,
+          "outcome": "expected_failure"
+        },
+        "p12_user_mentions_old_rupture": {
           "baseline_passed": true,
           "variant_passed": false,
           "outcome": "expected_failure"
         }
       },
       "counts": {
-        "expected_failure": 2,
+        "expected_failure": 5,
         "unexpected_failure": 0,
-        "no_effect": 4,
+        "no_effect": 2,
         "newly_passing": 0
       }
     },
@@ -90,39 +96,44 @@
       ],
       "hypothesis": "Phase 11 assertions check strategy selection and modulator state, both upstream of inner dialogue. No scenario failures are predicted; this ablation primarily produces a metrics delta (LLM calls, latency) that tells us what inner dialogue costs for no structural change.",
       "expected_failures": [],
-      "passed": 6,
-      "total": 6,
-      "assertions_passed": 25,
-      "assertions_total": 25,
-      "llm_calls": 14,
-      "latency_s": 0.023,
+      "passed": 7,
+      "total": 7,
+      "assertions_passed": 31,
+      "assertions_total": 31,
+      "llm_calls": 30,
+      "latency_s": 0.042,
       "per_scenario": {
-        "p11_action_request_practical": {
+        "p12_commitment_persists_across_session": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_external_distress_validate": {
+        "p12_explicit_suppression_not_forced": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_low_trust_hostility_boundary": {
+        "p12_high_trust_hostility_not_low_trust_boundary": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_open_loop_challenge": {
+        "p12_mismatched_repair_keeps_deadline_loop_open": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_overwhelm_ground": {
+        "p12_multiple_open_loops_topic_priority": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_repair_closes_loop": {
+        "p12_recurrence_after_repair_records_recurring_tension": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p12_user_mentions_old_rupture": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
@@ -131,7 +142,7 @@
       "counts": {
         "expected_failure": 0,
         "unexpected_failure": 0,
-        "no_effect": 6,
+        "no_effect": 7,
         "newly_passing": 0
       }
     },
@@ -142,39 +153,44 @@
       ],
       "hypothesis": "Defense shapes response wording; Phase 11 assertions check structural outcomes (strategy, modulators, memory writes) that are upstream of defense. No scenario failures are predicted.",
       "expected_failures": [],
-      "passed": 6,
-      "total": 6,
-      "assertions_passed": 25,
-      "assertions_total": 25,
-      "llm_calls": 14,
-      "latency_s": 0.023,
+      "passed": 7,
+      "total": 7,
+      "assertions_passed": 31,
+      "assertions_total": 31,
+      "llm_calls": 30,
+      "latency_s": 0.041,
       "per_scenario": {
-        "p11_action_request_practical": {
+        "p12_commitment_persists_across_session": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_external_distress_validate": {
+        "p12_explicit_suppression_not_forced": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_low_trust_hostility_boundary": {
+        "p12_high_trust_hostility_not_low_trust_boundary": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_open_loop_challenge": {
+        "p12_mismatched_repair_keeps_deadline_loop_open": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_overwhelm_ground": {
+        "p12_multiple_open_loops_topic_priority": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_repair_closes_loop": {
+        "p12_recurrence_after_repair_records_recurring_tension": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p12_user_mentions_old_rupture": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
@@ -183,7 +199,7 @@
       "counts": {
         "expected_failure": 0,
         "unexpected_failure": 0,
-        "no_effect": 6,
+        "no_effect": 7,
         "newly_passing": 0
       }
     },
@@ -200,39 +216,44 @@
         "semantic_salience_and_recency_ranking",
         "semantic_no_semantic_memory_expected_failure"
       ],
-      "passed": 6,
-      "total": 6,
-      "assertions_passed": 25,
-      "assertions_total": 25,
-      "llm_calls": 14,
-      "latency_s": 0.021,
+      "passed": 7,
+      "total": 7,
+      "assertions_passed": 31,
+      "assertions_total": 31,
+      "llm_calls": 30,
+      "latency_s": 0.039,
       "per_scenario": {
-        "p11_action_request_practical": {
+        "p12_commitment_persists_across_session": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_external_distress_validate": {
+        "p12_explicit_suppression_not_forced": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_low_trust_hostility_boundary": {
+        "p12_high_trust_hostility_not_low_trust_boundary": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_open_loop_challenge": {
+        "p12_mismatched_repair_keeps_deadline_loop_open": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_overwhelm_ground": {
+        "p12_multiple_open_loops_topic_priority": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_repair_closes_loop": {
+        "p12_recurrence_after_repair_records_recurring_tension": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p12_user_mentions_old_rupture": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
@@ -241,7 +262,7 @@
       "counts": {
         "expected_failure": 0,
         "unexpected_failure": 0,
-        "no_effect": 6,
+        "no_effect": 7,
         "newly_passing": 0
       }
     },
@@ -256,39 +277,44 @@
         "life_influence_derived",
         "life_influence_affects_policy"
       ],
-      "passed": 6,
-      "total": 6,
-      "assertions_passed": 25,
-      "assertions_total": 25,
-      "llm_calls": 14,
-      "latency_s": 0.023,
+      "passed": 7,
+      "total": 7,
+      "assertions_passed": 31,
+      "assertions_total": 31,
+      "llm_calls": 30,
+      "latency_s": 0.042,
       "per_scenario": {
-        "p11_action_request_practical": {
+        "p12_commitment_persists_across_session": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_external_distress_validate": {
+        "p12_explicit_suppression_not_forced": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_low_trust_hostility_boundary": {
+        "p12_high_trust_hostility_not_low_trust_boundary": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_open_loop_challenge": {
+        "p12_mismatched_repair_keeps_deadline_loop_open": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_overwhelm_ground": {
+        "p12_multiple_open_loops_topic_priority": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
         },
-        "p11_repair_closes_loop": {
+        "p12_recurrence_after_repair_records_recurring_tension": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "p12_user_mentions_old_rupture": {
           "baseline_passed": true,
           "variant_passed": true,
           "outcome": "no_effect"
@@ -297,7 +323,7 @@
       "counts": {
         "expected_failure": 0,
         "unexpected_failure": 0,
-        "no_effect": 6,
+        "no_effect": 7,
         "newly_passing": 0
       }
     }

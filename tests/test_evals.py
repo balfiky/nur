@@ -11,6 +11,7 @@ import time
 
 import pytest
 
+from evals.ablation_hypotheses import ABLATIONS
 from evals.types import (
     AssertionKind,
     AssertionResult,
@@ -35,6 +36,9 @@ from evals.scenarios import (
     defense_resolution_scenarios,
     relationship_scenarios,
     calibration_scenarios,
+    phase12_relationship_scenarios,
+    phase13_life_scenarios,
+    semantic_memory_scenarios,
 )
 
 
@@ -115,6 +119,30 @@ class TestEvalTypes:
         assert m.llm_call_count == 0
         assert m.tool_call_count == 0
         assert m.total_latency_ms == 0.0
+
+    def test_phase12_relationship_scenarios_registered(self):
+        scenarios = phase12_relationship_scenarios()
+        assert len(scenarios) == 7
+        assert all("phase12" in scenario.tags for scenario in scenarios)
+        assert all("phase12_relationship" in scenario.tags for scenario in scenarios)
+
+    def test_phase13_life_scenarios_registered(self):
+        scenarios = phase13_life_scenarios()
+        assert len(scenarios) == 6
+        assert all("phase13_life" in scenario.tags for scenario in scenarios)
+
+    def test_semantic_memory_scenarios_registered(self):
+        scenarios = semantic_memory_scenarios()
+        assert len(scenarios) == 6
+        assert all("semantic_memory" in scenario.tags for scenario in scenarios)
+
+    def test_ablation_expected_failure_labels_cover_new_suites(self):
+        by_label = {item.label: item for item in ABLATIONS}
+
+        assert "life_influence_derived" in by_label["no_life_history_context"].expected_failures
+        assert "life_influence_affects_policy" in by_label["no_life_history_context"].expected_failures
+        assert "semantic_preference_written_and_retrieved" in by_label["no_semantic_memory"].expected_failures
+        assert "p12_user_mentions_old_rupture" in by_label["no_relationship_memory"].expected_failures
 
 
 # ===================================================================
@@ -340,6 +368,12 @@ class TestScenarioDefinitions:
     def test_phase11_count(self):
         assert len(phase11_human_scenarios()) >= 5
 
+    def test_phase13_life_count(self):
+        assert len(phase13_life_scenarios()) == 6
+
+    def test_semantic_memory_count(self):
+        assert len(semantic_memory_scenarios()) == 6
+
 
 # ===================================================================
 # Integration: run scenarios through real pipeline
@@ -508,6 +542,23 @@ class TestPhase11Scenarios:
         assert result.passed, _failures(result)
 
 
+class TestLifeAndSemanticScenarios:
+    def test_life_influence_derived_scenario(self):
+        scenario = next(s for s in phase13_life_scenarios() if s.id == "life_influence_derived")
+        result = run_scenario(scenario)
+        assert result.passed, _failures(result)
+
+    def test_life_influence_affects_policy_scenario(self):
+        scenario = next(s for s in phase13_life_scenarios() if s.id == "life_influence_affects_policy")
+        result = run_scenario(scenario)
+        assert result.passed, _failures(result)
+
+    def test_semantic_preference_scenario(self):
+        scenario = next(s for s in semantic_memory_scenarios() if s.id == "semantic_preference_written_and_retrieved")
+        result = run_scenario(scenario)
+        assert result.passed, _failures(result)
+
+
 class TestRunnerBatch:
     """Test batch runner and tag filtering."""
 
@@ -535,6 +586,22 @@ class TestRunnerBatch:
         assert report.total_scenarios >= 5
         for r in report.results:
             assert "phase11" in r.tags
+
+    def test_run_by_phase13_life_tag(self):
+        report = run_by_tag(all_scenarios(), "phase13_life")
+        assert report.total_scenarios == 6
+        assert report.failed_scenarios == 0, [
+            (result.scenario_id, _failures(result))
+            for result in report.results if not result.passed
+        ]
+
+    def test_run_by_semantic_memory_tag(self):
+        report = run_by_tag(all_scenarios(), "semantic_memory")
+        assert report.total_scenarios == 6
+        assert report.failed_scenarios == 0, [
+            (result.scenario_id, _failures(result))
+            for result in report.results if not result.passed
+        ]
 
 
 class TestMetricsCollection:

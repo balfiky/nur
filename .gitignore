@@ -30,3 +30,6 @@ reports/*
 !reports/ablation/
 reports/ablation/*
 !reports/ablation/summary.json
+!reports/ablation/life_history_summary.json
+!reports/ablation/semantic_memory_summary.json
+!reports/ablation/relationship_phase12_summary.json

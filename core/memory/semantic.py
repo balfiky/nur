@@ -16,6 +16,7 @@ import time
 from typing import Any
 
 from config.loader import SemanticMemoryConfig
+from core.life_influence import LifeInfluence, curiosity_salience_bonus
 from core.schema import ensure_schema_version
 from core.types import SemanticMemoryEntry
 
@@ -373,12 +374,15 @@ def derive_semantic_entries(
     assistant_response: str,
     topic: str = "",
     event_intensity: float = 0.0,
+    life_influence: LifeInfluence | None = None,
 ) -> list[SemanticMemoryEntry]:
     """Create canonical semantic-memory records from a completed turn."""
     entries: list[SemanticMemoryEntry] = []
     now = time.time()
-    base_salience = max(0.2, min(1.0, 0.35 + event_intensity * 0.5))
     raw_text = f"User: {user_message}\nAssistant: {assistant_response}"
+    base_salience = max(0.2, min(1.0, 0.35 + event_intensity * 0.5))
+    if life_influence is not None:
+        base_salience = min(1.0, base_salience + curiosity_salience_bonus(life_influence, raw_text))
 
     if config.write_raw_turns:
         entries.append(

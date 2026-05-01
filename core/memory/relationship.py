@@ -150,6 +150,7 @@ class RelationshipMemory:
 
         best_id: int | None = None
         best_score = -1
+        specific_match_required = bool(topic or related_key)
         for row in rows:
             loop = self._row_to_loop(row)
             score = 0
@@ -164,6 +165,9 @@ class RelationshipMemory:
             if score > best_score:
                 best_score = score
                 best_id = loop.id
+
+        if specific_match_required and best_score < 5:
+            return None
 
         if best_id is None and rows:
             best_id = rows[0]["id"]

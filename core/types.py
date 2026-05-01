@@ -405,6 +405,24 @@ class ResponseStrategy(str, Enum):
     SET_BOUNDARY = "set_boundary"
 
 
+@dataclass
+class StrategyDecisionTrace:
+    """Structured trace for deterministic response strategy selection."""
+
+    selected: str = ""
+    matched_rule: str = ""
+    evidence: dict[str, Any] = field(default_factory=dict)
+    rejected_rules: list[dict[str, Any]] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "selected": self.selected,
+            "matched_rule": self.matched_rule,
+            "evidence": dict(self.evidence),
+            "rejected_rules": [dict(item) for item in self.rejected_rules],
+        }
+
+
 # ---------------------------------------------------------------------------
 # Derived affect and agency
 # ---------------------------------------------------------------------------
@@ -858,6 +876,7 @@ class ProactiveTrace:
     action_taken: ProactiveAction | None = None
     suppressed_reasons: list[str] = field(default_factory=list)
     limits_applied: dict[str, Any] = field(default_factory=dict)
+    life_influence_score_deltas: dict[str, float] = field(default_factory=dict)
     idle_seconds: float = 0.0
     proactive_count: int = 0
     timestamp: float = field(default_factory=time.time)

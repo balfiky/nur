@@ -18,6 +18,7 @@ Section 8 shaping rules:
 
 from __future__ import annotations
 
+from core.life_influence import LifeInfluence, apply_life_influence_to_action_variables
 from core.types import ActionVariables, ModulatorState
 
 
@@ -29,6 +30,8 @@ def derive_action_variables(
     state: ModulatorState,
     trust: float = 0.5,
     defense_active: bool = False,
+    life_influence: LifeInfluence | None = None,
+    read_only_action: bool = False,
 ) -> ActionVariables:
     """Derive turn-level action variables from current cognitive state.
 
@@ -81,10 +84,17 @@ def derive_action_variables(
     if defense_active:
         autonomy_bias -= 0.15                           # defensive → defer
 
-    return ActionVariables(
+    variables = ActionVariables(
         risk_tolerance=_clamp(risk_tolerance),
         action_urgency=_clamp(action_urgency),
         clarification_threshold=_clamp(clarification_threshold),
         persistence_drive=_clamp(persistence_drive),
         autonomy_bias=_clamp(autonomy_bias),
+    )
+    if life_influence is None or life_influence.is_neutral:
+        return variables
+    return apply_life_influence_to_action_variables(
+        variables,
+        life_influence,
+        read_only_action=read_only_action,
     )

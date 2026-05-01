@@ -1,4 +1,4 @@
-"""Hypotheses for architecture ablations on the Phase 11 scenario set.
+"""Hypotheses for architecture ablations on the Phase 11/12 scenario set.
 
 Each ablation toggles one component off and we make a *prior claim*
 about which scenarios should be affected. Running the ablation then
@@ -37,13 +37,19 @@ ABLATIONS: list[Ablation] = [
         label="no_relationship_memory",
         features=PipelineFeatures(relationship_memory=False),
         hypothesis=(
-            "Phase 11 scenarios that exercise cross-turn open-loop tracking "
+            "Phase 11/12 scenarios that exercise cross-turn open-loop tracking "
             "should fail when the relationship-memory component is disabled. "
             "Other scenarios (single-turn strategy selection) should still pass."
         ),
         expected_failures=(
             "p11_open_loop_challenge",
             "p11_repair_closes_loop",
+            "p12_multiple_open_loops_topic_priority",
+            "p12_mismatched_repair_keeps_deadline_loop_open",
+            "p12_recurrence_after_repair_records_recurring_tension",
+            "p12_commitment_persists_across_session",
+            "p12_user_mentions_old_rupture",
+            "life_influence_affects_policy",
         ),
     ),
     Ablation(
@@ -71,12 +77,31 @@ ABLATIONS: list[Ablation] = [
         label="no_semantic_memory",
         features=PipelineFeatures(semantic_memory=False),
         hypothesis=(
-            "Negative control. Phase 11 scenarios don't exercise semantic retrieval. "
-            "Zero effect is predicted. Any scenario failure here indicates a hidden "
-            "coupling between semantic memory and other components that needs to "
-            "be investigated before ablation results can be trusted."
+            "Semantic-memory scenarios that depend on stored preferences, decisions, "
+            "or ranked semantic retrieval should fail. Pure relationship and Life "
+            "History scenarios should not fail from this ablation."
         ),
-        expected_failures=(),
+        expected_failures=(
+            "semantic_preference_written_and_retrieved",
+            "semantic_decision_written_and_retrieved",
+            "semantic_topic_bias",
+            "semantic_salience_and_recency_ranking",
+            "semantic_no_semantic_memory_expected_failure",
+        ),
+    ),
+    Ablation(
+        label="no_life_history_context",
+        features=PipelineFeatures(life_history_context=False),
+        hypothesis=(
+            "Life History context and deterministic LifeInfluence should disappear "
+            "when Life History context is disabled. Pure Phase 11/12 relationship "
+            "and semantic-memory scenarios should not depend on this toggle."
+        ),
+        expected_failures=(
+            "life_context_enters_generation",
+            "life_influence_derived",
+            "life_influence_affects_policy",
+        ),
     ),
 ]
 
