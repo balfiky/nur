@@ -10,6 +10,39 @@ _No unreleased changes._
 
 ---
 
+## v0.28.0 — 2026-05-01 (LifeInfluence and structural eval evidence)
+
+### Cognitive runtime
+- Added bounded deterministic LifeInfluence as a behavior-shaping layer, with
+  visible pressure values and recorded effects for strategy, proactive scoring,
+  task/action variables, and semantic salience.
+- Added structured strategy decision traces so debug output explains the
+  selected response strategy, matched rule, evidence, and rejected rules.
+- Added deterministic "Why this response?" explanations derived from debug
+  state without extra LLM calls.
+
+### Evaluation
+- Added Phase 12 relationship scenarios for multi-loop prioritization,
+  mismatched repair, recurring tension, commitments, and old rupture recall.
+- Added Phase 13 Life History scenarios proving Life History context entry,
+  LifeInfluence derivation, bounded policy influence, and the
+  `no_life_history_context` ablation contract.
+- Added a semantic-memory scenario suite covering preferences, decisions,
+  per-user isolation, topic bias, salience/recency ranking, and ablation
+  failures.
+- Tracked dedicated ablation summaries for Phase 13 Life History, semantic
+  memory, and Phase 12 relationship coverage.
+
+### Quality and docs
+- Added adversarial deterministic appraisal coverage for sarcasm, negation,
+  mixed affect, apology/attack conflicts, and profanity-boundary cases.
+- Fixed source-archive provenance detection so eval config fingerprints still
+  populate when `.git` is absent.
+- Cleaned non-security docs drift and documented that the new evidence remains
+  structural rather than a human-likeness user study.
+
+---
+
 ## v0.27.2 — 2026-05-01 (Installed validation mode)
 
 ### Validation

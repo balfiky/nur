@@ -15,7 +15,7 @@ A normal assistant can sound warm for one reply. Nūr asks a different question:
 [![CI](https://github.com/balfiky/nur/actions/workflows/ci.yml/badge.svg)](https://github.com/balfiky/nur/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
-[![version](https://img.shields.io/badge/version-0.27.2-informational)](CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-0.28.0-informational)](CHANGELOG.md)
 
 > **Honest scope:** Nūr is a research/product prototype. It does not claim consciousness, sentience, real feelings, therapy, diagnosis, psychological validity, or proven human-likeness.
 > Nūr persists relational and semantic memory under `data/`. Use it with consent when other people are involved, and see [PRIVACY.md](PRIVACY.md) for inspection, export, and deletion.
@@ -283,4 +283,4 @@ docs/       Public docs, design docs, diagrams, research notes
 
 ## Current Status
 
-Version `0.27.2`. Reproducible eval evidence is intentionally narrow: relationship memory is load-bearing under the current Phase 11 scenarios. The Life History layer records formative experiences and observable self-change, but does not yet prove an independent or human-like character. The project does not claim human-likeness, therapeutic value, consciousness, or psychological validity.
+Version `0.28.0`. Reproducible eval evidence is intentionally narrow: relationship memory remains load-bearing under Phase 11, Life History now has bounded structural influence through LifeInfluence under Phase 13, and semantic memory has a dedicated structural scenario suite. These are structural/inspectable results, not proof of human-likeness, therapeutic value, consciousness, or psychological validity.
