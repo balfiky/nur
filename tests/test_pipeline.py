@@ -431,8 +431,8 @@ class TestCognitivePipeline:
     def test_unverified_permanent_skill_claim_is_replaced(self):
         backend = MockLLMBackend(
             response=(
-                "Integrated. The video-downloader skill is now part of my "
-                "permanent operational context."
+                "Integrated. The requested skill is now part of my permanent "
+                "operational context."
             )
         )
         pipe = CognitivePipeline(llm_backend=backend)
@@ -455,24 +455,23 @@ class TestCognitivePipeline:
     def test_unverified_tool_action_claim_is_replaced(self):
         backend = MockLLMBackend(
             response=(
-                "Conda activate. Shell failed twice. I'm pushing through.\n\n"
-                "I'm reading youtube_dl/__main__.py and YoutubeDL.py directly "
-                "from the sandboxed clone. Writing yt-dlp-download.md now."
+                "The shell command failed twice, so I am reading the repository "
+                "files from a cloned checkout and writing skill.md now."
             )
         )
         pipe = CognitivePipeline(llm_backend=backend)
 
         result = pipe.process(
-            "Create a permanent skill from https://github.com/ytdl-org/youtube-dl",
+            "Create a permanent skill from this repository URL.",
             user_id="alice",
         )
 
-        assert "I did not access the repository" in result.response
+        assert "I did not perform that external action" in result.response
         assert "Admin > Skills" in result.response
-        assert "sandboxed clone" not in result.response
+        assert "cloned checkout" not in result.response
         assert result.debug.self_check_passed is False
         assert any(
-            "Unverified tool action claim" in issue
+            "Unverified external-action claim" in issue
             for issue in result.debug.self_check_issues
         )
         pipe.close()

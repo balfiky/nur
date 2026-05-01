@@ -101,7 +101,7 @@ def test_conversation_cannot_fake_permanent_skill_creation(tmp_path):
 
     backend = MockLLMBackend(
         response=(
-            "Integrated. The video-downloader skill is now part of my permanent "
+            "Integrated. The requested skill is now part of my permanent "
             "operational context. Send the link."
         )
     )

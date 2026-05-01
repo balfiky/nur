@@ -69,6 +69,7 @@ from core.types import (
 from core.appraisal import appraise_message
 from core.affect import decide_agency, resolve_affect
 from core.strategy import select_strategy_with_trace, STRATEGY_INSTRUCTIONS
+from core.grounding import grounding_correction_response, verify_response_grounding
 from core.emotional_engine import EmotionalEngine, SPIKE_INTENSITY_THRESHOLD
 from core.memory.short_term import ShortTermMemory
 from core.memory.long_term import LongTermMemory
@@ -150,21 +151,6 @@ _SKILL_PERSISTENCE_CLAIM_RE = re.compile(
     r"\bactive\s+in\s+my\s+processing\s+layer\b",
     re.IGNORECASE,
 )
-
-_UNVERIFIED_TOOL_ACTION_CLAIM_RE = re.compile(
-    r"("
-    r"\b(?:i(?:'m| am)|now)\s+"
-    r"(?:reading|writing|cloning|fetching|downloading|installing|running|executing|"
-    r"checking|opening|creating)\b(?:\W+\w+){0,8}\b(?:repo|repository|file|script|"
-    r"logs?|output|sandbox|clone|environment|conda|shell|terminal|command|package)\b"
-    r"|\b(?:i\s+)?(?:read|wrote|cloned|fetched|downloaded|installed|ran|executed|"
-    r"checked|opened|created)\b(?:\W+\w+){0,10}\b(?:repo|repository|file|script|"
-    r"logs?|output|sandbox|clone|environment|conda|shell)\b"
-    r"|\b(?:conda\s+activate|shell\s+failed|sandboxed\s+clone|writing\s+\S+\s+now)\b"
-    r")",
-    re.IGNORECASE,
-)
-
 
 # ---------------------------------------------------------------------------
 # Debug state — full transparency into what happened
@@ -340,33 +326,8 @@ def _skill_persistence_correction_response() -> str:
     return (
         "I did not create or activate a permanent skill. Permanent skills must "
         "be imported into the Admin > Skills registry and then enabled after "
-        "review. I can draft a SKILL.md for a video-downloader skill that uses "
-        "youtube-dl, but it will not appear in Admin until you import it."
-    )
-
-
-def _unverified_tool_action_issue(response: str, ctx: PipelineContext) -> str:
-    """Detect claims of external/tool action when no tool result backs them."""
-    if not response or not _UNVERIFIED_TOOL_ACTION_CLAIM_RE.search(response):
-        return ""
-    tool_context = (ctx.tool_context_summary or "").strip()
-    if tool_context:
-        return ""
-    return (
-        "Unverified tool action claim. Do not say that a repository, shell, "
-        "file, log, or environment was read, written, cloned, installed, or "
-        "executed unless Tool Execution Results confirm it."
-    )
-
-
-def _tool_action_correction_response() -> str:
-    return (
-        "I did not access the repository, run shell/conda, clone code, read "
-        "files, or write a skill file in this turn. No tool result confirms "
-        "that action. If you want a permanent skill, import or paste a SKILL.md "
-        "through Admin > Skills and enable it there. I can draft the SKILL.md "
-        "content, but I should not claim it is installed until the registry "
-        "shows it."
+        "review. I can draft a SKILL.md, but it will not appear in Admin "
+        "until you import and enable it."
     )
 
 
@@ -1018,13 +979,17 @@ class CognitivePipeline:
                 debug.self_check_issues.append(skill_claim_issue)
             debug.correction_note = skill_claim_issue
 
-        tool_action_issue = _unverified_tool_action_issue(gen_result.response, ctx)
-        if tool_action_issue:
-            gen_result.response = _tool_action_correction_response()
+        grounding_issues = verify_response_grounding(
+            gen_result.response,
+            tool_trace=debug.tool_trace,
+        )
+        if grounding_issues:
+            grounding_issue = grounding_issues[0]
+            gen_result.response = grounding_correction_response()
             debug.self_check_passed = False
-            if tool_action_issue not in debug.self_check_issues:
-                debug.self_check_issues.append(tool_action_issue)
-            debug.correction_note = tool_action_issue
+            if grounding_issue.message not in debug.self_check_issues:
+                debug.self_check_issues.append(grounding_issue.message)
+            debug.correction_note = grounding_issue.message
 
         timings["self_check"] = (time.perf_counter() - _ts) * 1000
         debug.response = gen_result.response

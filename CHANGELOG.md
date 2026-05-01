@@ -10,6 +10,18 @@ _No unreleased changes._
 
 ---
 
+## v0.28.6 — 2026-05-01 (Generic grounded-action verifier)
+
+### Runtime
+- Replaced the transcript-shaped external-action guard with a generic response
+  grounding verifier. The verifier extracts broad external-action claims from
+  generated text and checks them against actual `ToolTrace.executed_results`.
+- Added direct grounding tests for future/capability language, negated
+  correction language, read/write/execute evidence categories, and mismatched
+  evidence.
+
+---
+
 ## v0.28.5 — 2026-05-01 (Unverified tool-action claim guard)
 
 ### Runtime
@@ -18,7 +30,7 @@ _No unreleased changes._
   code, inspected logs/output, or wrote a file without Tool Execution Results,
   the response is replaced with an explicit correction.
 - Added regression coverage for the skill-creation flow where a live model may
-  claim it is reading a sandboxed clone or writing a skill file without actual
+  claim it is reading external material or writing a skill file without actual
   tool execution.
 
 ---
