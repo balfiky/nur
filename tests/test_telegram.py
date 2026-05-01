@@ -18,6 +18,7 @@ import time
 import httpx
 
 from core.dual_process.generator import MockLLMBackend
+from core.types import OpenLoop, RelationshipContext, RelationshipEvent
 from runtime.channels.telegram import (
     DedupeCache,
     TelegramChannel,
@@ -116,6 +117,49 @@ def _make_channel(
     )
     channel = TelegramChannel(mock_client, manager, tg_config)
     return channel, manager, mock_client
+
+
+def _raise_if_processed(*_args, **_kwargs):
+    raise AssertionError("introspection command called pipeline.process")
+
+
+def _relationship_context() -> RelationshipContext:
+    return RelationshipContext(
+        summary="Open loops: deadline. Recent arc: rupture and repair.",
+        active_loops=[
+            OpenLoop(
+                loop_kind="tension",
+                source_person="100",
+                topic="deadline",
+                description="unresolved tension about deadline",
+                intensity=0.7,
+                related_key="deadline",
+            )
+        ],
+        recent_events=[
+            RelationshipEvent(
+                event_kind="repair",
+                source_person="100",
+                topic="deadline",
+                summary="Repair around deadline",
+                valence=0.6,
+                intensity=0.6,
+                confidence=0.8,
+                related_key="deadline",
+            ),
+            RelationshipEvent(
+                event_kind="rupture",
+                source_person="100",
+                topic="deadline",
+                summary="Rupture around deadline",
+                valence=-0.7,
+                intensity=0.7,
+                confidence=0.8,
+                related_key="deadline",
+            ),
+        ],
+        open_loop_count=1,
+    )
 
 
 # =========================================================================
@@ -522,6 +566,108 @@ class TestCommands:
 
         asyncio.run(run())
 
+    def test_state_no_session_does_not_create_session(self):
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                channel, manager, client = _make_channel(tmpdir)
+                try:
+                    await channel.handle_update(_make_update(text="/state"))
+                    assert manager.active_sessions == {}
+                    assert "no active session" in client.sent_messages[-1]["text"].lower()
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_state_with_active_session_reports_compact_state_without_processing(self):
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                channel, manager, client = _make_channel(tmpdir)
+                try:
+                    await channel.handle_update(_make_update(update_id=1, text="hello"))
+                    session = manager.active_sessions["telegram:100:100"]
+                    session.pipeline.process = _raise_if_processed  # type: ignore[method-assign]
+
+                    await channel.handle_update(_make_update(update_id=2, text="/state"))
+
+                    message = client.sent_messages[-1]["text"].lower()
+                    assert "nūr state" in message
+                    assert "arousal" in message
+                    assert "open loops" in message
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_why_returns_last_explanation(self):
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                channel, manager, client = _make_channel(tmpdir)
+                try:
+                    await channel.handle_update(_make_update(update_id=1, text="I am scared about work"))
+                    await channel.handle_update(_make_update(update_id=2, text="/why"))
+
+                    message = client.sent_messages[-1]["text"].lower()
+                    assert "why this response" in message
+                    assert "interpreted" in message or "selected" in message
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_memory_loops_and_repair_use_last_relationship_context(self):
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                channel, manager, client = _make_channel(tmpdir)
+                try:
+                    await channel.handle_update(_make_update(update_id=1, text="hello"))
+                    session = manager.active_sessions["telegram:100:100"]
+                    assert session.last_debug is not None
+                    session.last_debug.relationship_context = _relationship_context()
+
+                    await channel.handle_update(_make_update(update_id=2, text="/memory"))
+                    memory_msg = client.sent_messages[-1]["text"].lower()
+                    assert "what i remember" in memory_msg
+                    assert "deadline" in memory_msg
+
+                    await channel.handle_update(_make_update(update_id=3, text="/loops"))
+                    loops_msg = client.sent_messages[-1]["text"].lower()
+                    assert "active loops" in loops_msg
+                    assert "deadline" in loops_msg
+
+                    await channel.handle_update(_make_update(update_id=4, text="/repair"))
+                    repair_msg = client.sent_messages[-1]["text"].lower()
+                    assert "repair context" in repair_msg
+                    assert "rupture" in repair_msg
+                    assert "repair" in repair_msg
+                    assert "open loops remain: 1" in repair_msg
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_introspection_commands_do_not_call_pipeline_process(self):
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                channel, manager, client = _make_channel(tmpdir)
+                try:
+                    await channel.handle_update(_make_update(update_id=1, text="hello"))
+                    session = manager.active_sessions["telegram:100:100"]
+                    session.pipeline.process = _raise_if_processed  # type: ignore[method-assign]
+                    session.last_debug.relationship_context = _relationship_context()  # type: ignore[union-attr]
+
+                    for update_id, command in enumerate(
+                        ["/state", "/why", "/memory", "/loops", "/repair"],
+                        start=2,
+                    ):
+                        await channel.handle_update(_make_update(update_id=update_id, text=command))
+
+                    assert len(client.sent_messages) == 6
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
     def test_help_command_lists_telegram_commands(self):
         async def run():
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -532,6 +678,11 @@ class TestCommands:
                     assert "/status" in message
                     assert "/mental" in message
                     assert "/new" in message
+                    assert "/state" in message
+                    assert "/why" in message
+                    assert "/memory" in message
+                    assert "/loops" in message
+                    assert "/repair" in message
                 finally:
                     await manager.shutdown()
 

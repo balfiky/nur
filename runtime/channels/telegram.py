@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 
 import httpx
 
+from runtime.debug.explain import explain_turn
+from runtime.debug.relationship_view import build_relationship_view
 from runtime.sessions.manager import SessionManager
 
 log = logging.getLogger(__name__)
@@ -289,6 +291,16 @@ class TelegramChannel:
             await self._cmd_reset(user_id, chat_id)
         elif cmd == "/debug":
             await self._cmd_debug(user_id, chat_id)
+        elif cmd == "/state":
+            await self._cmd_state(user_id, chat_id)
+        elif cmd == "/why":
+            await self._cmd_why(user_id, chat_id)
+        elif cmd == "/memory":
+            await self._cmd_memory(user_id, chat_id)
+        elif cmd == "/loops":
+            await self._cmd_loops(user_id, chat_id)
+        elif cmd == "/repair":
+            await self._cmd_repair(user_id, chat_id)
         elif cmd == "/start":
             await self._client.send_message(
                 chat_id,
@@ -426,6 +438,132 @@ class TelegramChannel:
                 lines.append(f"Tool loops: {last_debug.tool_trace.loop_count}")
         await self._client.send_message(chat_id, "\n".join(lines))
 
+    async def _cmd_state(self, user_id: str, chat_id: int) -> None:
+        session = self._active_session(user_id, chat_id)
+        if session is None:
+            await self._client.send_message(chat_id, "No active session. Send a message first.")
+            return
+
+        last_debug = session.last_debug
+        snap = session.pipeline.engine.snapshot()
+        label = session.pipeline.engine.to_emotion_label()
+        strategy = getattr(last_debug, "response_strategy", "") if last_debug else ""
+        open_loop_count = 0
+        if last_debug is not None:
+            view = build_relationship_view(last_debug)
+            open_loop_count = len(view.get("open_loops", []))
+
+        lines = [
+            "Nūr state:",
+            f"emotion: {label}",
+        ]
+        if strategy:
+            lines.append(f"strategy: {strategy}")
+        lines.append(
+            " · ".join(
+                f"{mod} {snap.get(mod, 0.0):.2f}"
+                for mod in ("arousal", "valence", "bonding", "energy", "resolution")
+            )
+        )
+        lines.append(f"open loops: {open_loop_count}")
+        await self._client.send_message(chat_id, "\n".join(lines))
+
+    async def _cmd_why(self, user_id: str, chat_id: int) -> None:
+        session = self._active_session(user_id, chat_id)
+        if session is None:
+            await self._client.send_message(chat_id, "No active session. Send a message first.")
+            return
+        if session.last_debug is None:
+            await self._client.send_message(chat_id, "No turn explanation is available yet.")
+            return
+
+        explanation = explain_turn(session.last_debug)
+        lines = [
+            "Why this response:",
+            explanation.get("interpretation", ""),
+            explanation.get("strategy", ""),
+            explanation.get("memory", ""),
+            explanation.get("life_history", ""),
+            explanation.get("tools", ""),
+        ]
+        await self._client.send_message(chat_id, "\n".join(line for line in lines if line))
+
+    async def _cmd_memory(self, user_id: str, chat_id: int) -> None:
+        session = self._active_session(user_id, chat_id)
+        if session is None:
+            await self._client.send_message(chat_id, "No active session. Send a message first.")
+            return
+        if session.last_debug is None:
+            await self._client.send_message(chat_id, "No turn memory summary is available yet.")
+            return
+
+        debug = session.last_debug
+        view = build_relationship_view(debug)
+        relationship = getattr(debug, "relationship_context", None)
+        summary = getattr(relationship, "summary", "") if relationship else ""
+        lines = ["What I remember right now:"]
+        if summary:
+            lines.append(f"relationship: {summary}")
+        lines.append(f"open loops: {len(view.get('open_loops', []))}")
+        lines.append(f"recent relationship events: {len(view.get('recent_relationship_events', []))}")
+        memory_used = view.get("memory_used", {})
+        lines.append(f"long-term memories used: {memory_used.get('long_term_count', 0)}")
+        lines.append(f"semantic memories used: {memory_used.get('semantic_count', 0)}")
+        await self._client.send_message(chat_id, "\n".join(lines))
+
+    async def _cmd_loops(self, user_id: str, chat_id: int) -> None:
+        session = self._active_session(user_id, chat_id)
+        if session is None:
+            await self._client.send_message(chat_id, "No active session. Send a message first.")
+            return
+        if session.last_debug is None:
+            await self._client.send_message(chat_id, "No open-loop summary is available yet.")
+            return
+
+        loops = build_relationship_view(session.last_debug).get("open_loops", [])
+        if not loops:
+            await self._client.send_message(chat_id, "No active relationship loops.")
+            return
+        lines = ["Active loops:"]
+        for loop in loops[:5]:
+            topic = loop.get("topic") or loop.get("loop_kind") or "relationship"
+            description = loop.get("description") or ""
+            intensity = float(loop.get("intensity") or 0.0)
+            status = loop.get("status") or "open"
+            lines.append(f"- {topic}: {description} ({status}, intensity {intensity:.2f})")
+        await self._client.send_message(chat_id, "\n".join(lines))
+
+    async def _cmd_repair(self, user_id: str, chat_id: int) -> None:
+        session = self._active_session(user_id, chat_id)
+        if session is None:
+            await self._client.send_message(chat_id, "No active session. Send a message first.")
+            return
+        if session.last_debug is None:
+            await self._client.send_message(chat_id, "No repair context is available yet.")
+            return
+
+        view = build_relationship_view(session.last_debug)
+        events = view.get("recent_relationship_events", [])
+        loops = view.get("open_loops", [])
+        latest: dict[str, dict] = {}
+        for event in events:
+            kind = event.get("event_kind", "")
+            if kind in {"rupture", "repair", "commitment", "recurring_tension"} and kind not in latest:
+                latest[kind] = event
+
+        lines = ["Repair context:"]
+        for kind in ("rupture", "repair", "recurring_tension", "commitment"):
+            event = latest.get(kind)
+            if event:
+                topic = event.get("topic") or "relationship"
+                lines.append(f"{kind.replace('_', ' ')}: {topic}")
+        lines.append(f"open loops remain: {len(loops)}")
+        await self._client.send_message(chat_id, "\n".join(lines))
+
+    def _active_session(self, user_id: str, chat_id: int):
+        session_key = f"telegram:{user_id}:{chat_id}"
+        return self._manager.active_sessions.get(session_key)
+
 
 def _telegram_help_text() -> str:
     return "\n".join([
@@ -436,6 +574,11 @@ def _telegram_help_text() -> str:
         "/new - start a fresh hot conversation",
         "/reset - digest, save, and close the active session",
         "/debug - show last-turn debug summary",
+        "/state - show compact cognitive state",
+        "/why - explain the last response",
+        "/memory - summarize current-turn memory context",
+        "/loops - list active relationship loops",
+        "/repair - show recent rupture/repair context",
     ])
 
 

@@ -152,6 +152,11 @@ deltas when a previous turn is available, and a compact "What Nūr remembers"
 view. These surfaces are observability/UI only; the pipeline remains the owner
 of appraisal, memory retrieval, strategy selection, and LifeInfluence.
 
+Telegram exposes the same boundary through non-mutating introspection commands:
+`/state`, `/why`, `/memory`, `/loops`, and `/repair`. They inspect the active
+session's last debug state only; they do not create sessions, call the pipeline,
+write memory, or change emotional state.
+
 ## LLM Boundary
 
 Provider-neutral interface with five backend modes: `mock`, `provider`,
@@ -230,6 +235,9 @@ Current structural evidence artifacts include:
 
 These artifacts validate deterministic internal behavior. They do not
 constitute a blinded human-likeness or user-experience study.
+Focused longitudinal regression tests additionally cover warm-start rupture
+and repair, recurring tension, explicit commitment resolution, LifeInfluence
+relationship tie-breaks, and preference plus relationship-loop retrieval.
 
 ## Component Claim Map
 

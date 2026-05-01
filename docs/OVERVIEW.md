@@ -79,6 +79,9 @@ The web debug panel consumes serialized debug state to show the
 relationship view, deterministic "Why this response?" explanation, known
 state deltas, and compact current-turn memory summaries. These are
 presentation surfaces over the pipeline's state, not separate cognition.
+Telegram mirrors that principle with non-mutating introspection commands
+(`/state`, `/why`, `/memory`, `/loops`, `/repair`) that read active-session
+debug state without creating sessions or changing cognition.
 
 ![Runtime architecture](diagrams/runtime-architecture.png)
 
@@ -174,6 +177,9 @@ The honest reading:
 - **Semantic memory has its own structural suite.** Preference, decision,
   per-user isolation, topic ranking, and salience/recency behavior are now
   tested directly; it remains a negative control for pure relationship suites.
+- **Longitudinal arcs have focused regression coverage.** Warm rupture/repair,
+  recurring tension, commitment resolution, LifeInfluence relationship
+  tie-breaks, and preference-plus-loop retrieval are tested over multiple turns.
 - **Inner dialogue and defense are present but not falsifiable by this
   suite.** Phase 11 scenarios grade structural assertions (strategy
   selection, modulator direction, memory writes); these components

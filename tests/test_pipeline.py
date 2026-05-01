@@ -308,6 +308,100 @@ class TestCognitivePipeline:
         assert result.debug.strategy_trace is not None
         assert result.debug.strategy_trace.selected == result.debug.response_strategy
         assert payload["strategy_trace"]["selected"] == payload["response_strategy"]
+
+    def test_longitudinal_warm_rupture_repair_calm_follow_up(self):
+        pipe = self._make_pipeline()
+        pipe.process("Thank you, that helped.", user_id="alice")
+        pipe.process("I'm angry with you about the deadline.", user_id="alice")
+        pipe.end_session(user_id="alice")
+        rupture_ctx = pipe.relationship_memory.build_context("alice", topic="deadline")
+        assert rupture_ctx.open_loop_count == 1
+
+        repair = pipe.process("I'm sorry about the deadline.", user_id="alice")
+        assert repair.debug.relationship_context is not None
+        assert repair.debug.relationship_context.open_loop_count == 1
+        assert repair.debug.response_strategy == "repair"
+        pipe.end_session(user_id="alice")
+
+        follow_up = pipe.process("Thanks for staying with this.", user_id="alice")
+        repaired_ctx = pipe.relationship_memory.build_context("alice", topic="deadline")
+        assert repaired_ctx.open_loop_count == 0
+        assert any(event.event_kind == "repair" for event in repaired_ctx.recent_events)
+        assert follow_up.debug.strategy_trace is not None
+        pipe.close()
+
+    def test_longitudinal_repeated_negativity_records_recurring_tension(self):
+        pipe = self._make_pipeline()
+        pipe.process("I'm angry with you about the deadline.", user_id="alice")
+        pipe.end_session(user_id="alice")
+        pipe.process("I'm sorry about the deadline.", user_id="alice")
+        pipe.end_session(user_id="alice")
+        pipe.process("I'm angry with you about the deadline again.", user_id="alice")
+        pipe.end_session(user_id="alice")
+
+        ctx = pipe.relationship_memory.build_context("alice", topic="deadline")
+
+        assert any(event.event_kind == "recurring_tension" for event in ctx.recent_events)
+        assert ctx.open_loop_count == 1
+        pipe.close()
+
+    def test_longitudinal_commitment_follow_up_resolution(self):
+        backend = MockLLMBackend(response="I'll follow up about the deadline tomorrow.")
+        pipe = CognitivePipeline(llm_backend=backend)
+        pipe.process("Please remember the deadline.", user_id="alice")
+        pipe.end_session(user_id="alice")
+        pending = pipe.relationship_memory.build_context("alice", topic="deadline")
+        assert pending.open_loop_count == 1
+        assert pending.active_loops[0].loop_kind == "commitment"
+
+        backend._response = "I understand."
+        later = pipe.process("We followed up about the deadline; that is resolved.", user_id="alice")
+        assert later.debug.relationship_context is not None
+        assert later.debug.relationship_context.open_loop_count == 1
+        pipe.end_session(user_id="alice")
+        resolved = pipe.relationship_memory.build_context("alice", topic="deadline")
+
+        assert resolved.open_loop_count == 0
+        pipe.close()
+
+    def test_longitudinal_life_history_drive_shift_affects_relationship_strategy(self):
+        pipe = CognitivePipeline(
+            llm_backend=MockLLMBackend(response="I understand."),
+            life_history_provider=lambda: {
+                "beliefs": [],
+                "drives": [{"name": "repair", "delta": 0.05}],
+                "recent_evolution": [],
+            },
+        )
+        for _ in range(5):
+            pipe.process("Thank you, you are helpful.", user_id="alice")
+        pipe.process("I'm angry with you about the deadline.", user_id="alice")
+        pipe.end_session(user_id="alice")
+
+        result = pipe.process("The deadline still matters.", user_id="alice")
+
+        assert result.debug.relationship_context is not None
+        assert result.debug.life_influence.repair_pressure == pytest.approx(0.05)
+        assert result.debug.life_influence_effects["strategy_tiebreak_used"] is True
+        assert result.debug.strategy_trace.matched_rule == "life_repair_pressure_open_loop"
+        pipe.close()
+
+    def test_longitudinal_preference_and_relationship_loop_both_surface(self):
+        pipe = self._make_pipeline()
+        pipe.process("I prefer concise replies.", user_id="alice")
+        pipe.process("I'm angry with you about the deadline.", user_id="alice")
+        pipe.end_session(user_id="alice")
+
+        result = pipe.process(
+            "Can you keep responses concise while we talk about the deadline?",
+            user_id="alice",
+        )
+
+        assert result.debug.relationship_context is not None
+        assert result.debug.relationship_context.open_loop_count == 1
+        assert any(memory.kind == "preference" for memory in result.debug.semantic_memories)
+        assert result.debug.strategy_trace is not None
+        pipe.close()
         pipe.close()
 
     def test_enabled_skill_context_surfaces_in_prompt(self):

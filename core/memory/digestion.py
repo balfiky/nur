@@ -355,16 +355,21 @@ def _write_relationship_updates(
 
     for event, text in zip(user_events, user_messages):
         targets_assistant = bool(event.metadata.get("targets_assistant"))
+        topic = _extract_topic_hint(text)
+        related_key = _derive_related_key(text, topic)
         apology_repair = (
             event.event_type == EventType.RESOLUTION
             and event.metadata.get("social_move") == "apology"
             and relationship_memory.count_open_loops(source_person) > 0
         )
+        commitment_resolution = (
+            event.event_type in {EventType.RESOLUTION, EventType.USER_MESSAGE}
+            and _is_commitment_resolution(text)
+            and relationship_memory.count_open_loops(source_person) > 0
+        )
 
-        if not targets_assistant and not apology_repair:
+        if not targets_assistant and not apology_repair and not commitment_resolution:
             continue
-        topic = _extract_topic_hint(text)
-        related_key = _derive_related_key(text, topic)
 
         if event.event_type in {
             EventType.CONFLICT,
@@ -416,7 +421,23 @@ def _write_relationship_updates(
             )
             continue
 
-        if event.event_type == EventType.RESOLUTION:
+        if event.event_type == EventType.RESOLUTION or commitment_resolution:
+            if commitment_resolution:
+                resolved_commitment = relationship_memory.resolve_matching_loop(
+                    source_person,
+                    loop_kind="commitment",
+                    topic=topic,
+                    related_key=related_key,
+                    description_hint=topic or "commitment",
+                )
+                if resolved_commitment is None:
+                    relationship_memory.resolve_matching_loop(
+                        source_person,
+                        loop_kind="commitment",
+                    )
+                if not targets_assistant and not apology_repair:
+                    continue
+
             summary = _relationship_summary("repair", topic)
             relationship_memory.record_event(
                 RelationshipEvent(
@@ -486,6 +507,27 @@ def _extract_commitment(text: str, source_person: str) -> RelationshipEvent | No
         intensity=0.55,
         confidence=max(CONFIDENCE_THRESHOLD, 0.7),
         related_key=related_key,
+    )
+
+
+def _is_commitment_resolution(text: str) -> bool:
+    """Return true for explicit user language closing a follow-up commitment."""
+    lower = text.lower()
+    return any(
+        phrase in lower
+        for phrase in (
+            "followed up",
+            "follow-up is resolved",
+            "follow up is resolved",
+            "that is resolved",
+            "that's resolved",
+            "it is resolved",
+            "it's resolved",
+            "we resolved",
+            "we handled",
+            "done now",
+            "closed now",
+        )
     )
 
 
