@@ -75,6 +75,10 @@ theoretical reproduction.
 Two runtime hosts (`nur` for console/Telegram/debug, `nur-web` for the
 FastAPI service) share one session manager and one cognitive pipeline.
 Persistence, LLM, and tool execution sit at the edges.
+The web debug panel consumes serialized debug state to show the
+relationship view, deterministic "Why this response?" explanation, known
+state deltas, and compact current-turn memory summaries. These are
+presentation surfaces over the pipeline's state, not separate cognition.
 
 ![Runtime architecture](diagrams/runtime-architecture.png)
 

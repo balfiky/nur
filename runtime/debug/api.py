@@ -18,6 +18,7 @@ from collections.abc import Callable
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 
 from runtime.debug.explain import explain_turn
+from runtime.debug.relationship_view import build_relationship_view
 from runtime.sessions.manager import SessionManager
 
 
@@ -188,6 +189,7 @@ def _debug_to_dict(debug) -> dict:
     d["life_influence"] = life_influence.to_dict() if life_influence else {}
     d["life_influence_effects"] = getattr(debug, "life_influence_effects", {}) or {}
     d["explanation"] = explain_turn(debug)
+    d["relationship_view"] = build_relationship_view(debug)
     d["skill_context"] = getattr(debug, "skill_context", {}) or {}
     d["relationship_context"] = (
         debug.relationship_context.to_dict()

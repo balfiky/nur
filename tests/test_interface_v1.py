@@ -127,6 +127,9 @@ class TestChatEndpoint:
         data = resp.json()
         assert "debug" in data
         assert isinstance(data["debug"], dict)
+        assert "relationship_view" in data["debug"]
+        assert "explanation" in data["debug"]
+        assert data["debug"]["relationship_view"]["modulators"]["arousal"]["delta"] is None
 
     def test_v1_chat_runtime_backpressure_returns_503(self, client, tmp_path):
         manager = SessionManager(

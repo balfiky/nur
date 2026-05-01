@@ -164,6 +164,9 @@ a.icon-btn { text-decoration: none; }
 .gauge-header { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
 .gauge-name { color: var(--text-dim); font-weight: 500; }
 .gauge-val { color: var(--text-faint); font-family: var(--mono); font-size: 11px; }
+.gauge-delta { color: var(--text-faint); font-family: var(--mono); font-size: 10px; margin-left: 6px; }
+.gauge-delta.pos { color: #2f9e44; }
+.gauge-delta.neg { color: #e03131; }
 .gauge-track { height: 5px; background: var(--bg); border-radius: 3px; overflow: hidden; }
 .gauge-fill { height: 100%; border-radius: 3px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
 .gauge-fill.arousal { background: linear-gradient(90deg, #ff6b6b55, #ff6b6b); }
@@ -178,6 +181,13 @@ a.icon-btn { text-decoration: none; }
 .debug-flag { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px; background: rgba(255,107,107,0.12); color: #ff6b6b; margin: 2px; }
 .debug-mem { font-size: 11px; color: var(--text-dim); padding: 5px 0; border-bottom: 1px solid var(--border); }
 .debug-none { font-size: 12px; color: var(--text-faint); }
+.debug-list { display: grid; gap: 6px; }
+.debug-card { font-size: 11px; color: var(--text-dim); background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; }
+.debug-card.open { border-left: 2px solid #ff922b; }
+.debug-card.resolved { opacity: 0.72; }
+.debug-card strong { color: var(--text); font-size: 11px; }
+.debug-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 7px; }
+.debug-chip { font-size: 10px; color: var(--text-dim); background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 3px 8px; }
 .explain-box { font-size: 12px; color: var(--text-dim); line-height: 1.55; display: grid; gap: 7px; }
 .explain-box strong { color: var(--text); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
 
@@ -597,12 +607,12 @@ a.icon-btn { text-decoration: none; }
     <div class="debug-section">
       <h3>Modulators</h3>
       <div id="gauges">
-        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Arousal</span><span class="gauge-val" id="val-arousal">0.50</span></div><div class="gauge-track"><div class="gauge-fill arousal" id="bar-arousal" style="width:50%"></div></div></div>
-        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Valence</span><span class="gauge-val" id="val-valence">0.50</span></div><div class="gauge-track"><div class="gauge-fill valence" id="bar-valence" style="width:50%"></div></div></div>
-        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Certainty</span><span class="gauge-val" id="val-certainty">0.50</span></div><div class="gauge-track"><div class="gauge-fill certainty" id="bar-certainty" style="width:50%"></div></div></div>
-        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Bonding</span><span class="gauge-val" id="val-bonding">0.50</span></div><div class="gauge-track"><div class="gauge-fill bonding" id="bar-bonding" style="width:50%"></div></div></div>
-        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Energy</span><span class="gauge-val" id="val-energy">1.00</span></div><div class="gauge-track"><div class="gauge-fill energy" id="bar-energy" style="width:100%"></div></div></div>
-        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Resolution</span><span class="gauge-val" id="val-resolution">0.00</span></div><div class="gauge-track"><div class="gauge-fill resolution" id="bar-resolution" style="width:0%"></div></div></div>
+        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Arousal</span><span><span class="gauge-val" id="val-arousal">0.50</span><span class="gauge-delta" id="delta-arousal">&mdash;</span></span></div><div class="gauge-track"><div class="gauge-fill arousal" id="bar-arousal" style="width:50%"></div></div></div>
+        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Valence</span><span><span class="gauge-val" id="val-valence">0.50</span><span class="gauge-delta" id="delta-valence">&mdash;</span></span></div><div class="gauge-track"><div class="gauge-fill valence" id="bar-valence" style="width:50%"></div></div></div>
+        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Certainty</span><span><span class="gauge-val" id="val-certainty">0.50</span><span class="gauge-delta" id="delta-certainty">&mdash;</span></span></div><div class="gauge-track"><div class="gauge-fill certainty" id="bar-certainty" style="width:50%"></div></div></div>
+        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Bonding</span><span><span class="gauge-val" id="val-bonding">0.50</span><span class="gauge-delta" id="delta-bonding">&mdash;</span></span></div><div class="gauge-track"><div class="gauge-fill bonding" id="bar-bonding" style="width:50%"></div></div></div>
+        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Energy</span><span><span class="gauge-val" id="val-energy">1.00</span><span class="gauge-delta" id="delta-energy">&mdash;</span></span></div><div class="gauge-track"><div class="gauge-fill energy" id="bar-energy" style="width:100%"></div></div></div>
+        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Resolution</span><span><span class="gauge-val" id="val-resolution">0.00</span><span class="gauge-delta" id="delta-resolution">&mdash;</span></span></div><div class="gauge-track"><div class="gauge-fill resolution" id="bar-resolution" style="width:0%"></div></div></div>
       </div>
     </div>
     <div class="debug-section"><h3>Event</h3>
@@ -610,7 +620,8 @@ a.icon-btn { text-decoration: none; }
       <div class="debug-item"><span class="dl">Intensity</span> <span id="eventIntensity">&mdash;</span></div>
       <div class="debug-item"><span class="dl">Spike</span> <span id="eventSpike">&mdash;</span></div>
     </div>
-    <div class="debug-section"><h3>Explanation</h3><div id="turnExplanation"><span class="debug-none">&mdash;</span></div></div>
+    <div class="debug-section"><h3>Why This Response?</h3><div id="turnExplanation"><span class="debug-none">&mdash;</span></div></div>
+    <div class="debug-section"><h3>Relationship State</h3><div id="relationshipState"><span class="debug-none">&mdash;</span></div></div>
     <div class="debug-section"><h3>Person</h3>
       <div class="debug-item"><span class="dl">Trust</span> <span id="personTrust">&mdash;</span></div>
       <div class="debug-item"><span class="dl">Interactions</span> <span id="personInteractions">&mdash;</span></div>
@@ -621,7 +632,8 @@ a.icon-btn { text-decoration: none; }
       <div class="debug-item"><span class="dl">Dissonance</span> <span id="selfDissonance">&mdash;</span></div>
     </div>
     <div class="debug-section"><h3>Contradictions</h3><div id="contradictions"><span class="debug-none">None</span></div></div>
-    <div class="debug-section"><h3>Memories</h3><div id="memories"><span class="debug-none">None</span></div></div>
+    <div class="debug-section"><h3>What Nūr Remembers</h3><div id="memoryInspector"><span class="debug-none">None</span></div></div>
+    <div class="debug-section"><h3>Retrieved Memories</h3><div id="memories"><span class="debug-none">None</span></div></div>
     <div class="debug-section"><h3>Self-Check</h3>
       <div class="debug-item"><span class="dl">Passed</span> <span id="selfCheckPassed">&mdash;</span></div>
       <div class="debug-item"><span class="dl">Issues</span> <span id="selfCheckIssues">&mdash;</span></div>
@@ -652,6 +664,7 @@ let sending = false;
 let lastEmotion = 'neutral';
 let agentName = 'Nūr';
 let lastExplanation = null;
+let lastDebugPayload = null;
 
 function updateSendButtonState() {
   sendBtn.disabled = sending || !inputEl.value.trim();
@@ -830,10 +843,15 @@ function updateDebug(d) {
   updateExplanation(lastExplanation);
 
   const mods = ['arousal', 'valence', 'certainty', 'bonding', 'energy', 'resolution'];
+  const relationshipView = d.relationship_view || {};
+  const modView = relationshipView.modulators || {};
+  const clientDeltas = computeClientModulatorDeltas(d, lastDebugPayload);
   for (const m of mods) {
     const v = (d.modulator_snapshot && d.modulator_snapshot[m]) || 0;
     document.getElementById('val-' + m).textContent = v.toFixed(2);
     document.getElementById('bar-' + m).style.width = (v * 100) + '%';
+    const viewDelta = modView[m] ? modView[m].delta : null;
+    updateDelta('delta-' + m, viewDelta ?? clientDeltas[m]);
   }
 
   document.getElementById('eventType').textContent = d.event_classified || '\u2014';
@@ -866,8 +884,11 @@ function updateDebug(d) {
   updateAnticipation(d.anticipation);
   updateDialogueTrace(d.dialogue_trace);
   updateDefense(d.defense_activation);
+  updateRelationshipState(d, relationshipView);
+  updateMemoryInspector(d, relationshipView);
   document.getElementById('unresolvedCount').textContent = d.unresolved_count || 0;
   updateUnresolvedItems(d.unresolved_items);
+  lastDebugPayload = d;
 }
 
 function updateExplanation(explanation) {
@@ -890,6 +911,169 @@ function updateExplanation(explanation) {
 
 function explanationLine(label, value) {
   return '<div><strong>' + esc(label) + '</strong><br>' + esc(value || '') + '</div>';
+}
+
+function computeClientModulatorDeltas(current, previous) {
+  const deltas = {};
+  if (!previous || previous.timestamp === current.timestamp) return deltas;
+  const cur = current.modulator_snapshot || {};
+  const prev = previous.modulator_snapshot || {};
+  for (const key of ['arousal', 'valence', 'certainty', 'bonding', 'energy', 'resolution']) {
+    if (typeof cur[key] === 'number' && typeof prev[key] === 'number') {
+      deltas[key] = Number((cur[key] - prev[key]).toFixed(6));
+    }
+  }
+  return deltas;
+}
+
+function updateDelta(id, value) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('pos', 'neg');
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    el.textContent = '\u2014';
+    return;
+  }
+  if (Math.abs(value) < 0.0005) {
+    el.textContent = '0.00';
+    return;
+  }
+  el.textContent = (value > 0 ? '+' : '') + value.toFixed(2);
+  el.classList.add(value > 0 ? 'pos' : 'neg');
+}
+
+function updateRelationshipState(debug, view) {
+  const el = document.getElementById('relationshipState');
+  if (!el) return;
+  view = view || {};
+  const mods = view.modulators || {};
+  const loops = view.open_loops || [];
+  const events = view.recent_relationship_events || [];
+  const influence = nonNeutralInfluence(view.life_influence || {});
+  const effects = view.life_influence_effects || {};
+  const effectEntries = Object.entries(effects);
+
+  let html = '<div class="debug-item"><span class="dl">Strategy</span> ' + esc(view.strategy || debug.response_strategy || '\u2014') + '</div>';
+  html += '<div class="debug-item"><span class="dl">Reason</span> ' + esc(view.strategy_reason || debug.strategy_trace?.matched_rule || '\u2014') + '</div>';
+  html += '<div class="debug-grid">' +
+    relationshipMetric('Trust', view.trust?.value, view.trust?.delta) +
+    relationshipMetric('Bonding', mods.bonding?.value, mods.bonding?.delta) +
+    relationshipMetric('Resolution', mods.resolution?.value, mods.resolution?.delta) +
+    '<div class="debug-chip">Open loops ' + esc(String(loops.length || debug.relationship_context?.open_loop_count || 0)) + '</div>' +
+    '</div>';
+
+  html += '<div class="debug-item" style="margin-top:8px"><span class="dl">Active loops</span></div>';
+  html += loops.length ? '<div class="debug-list">' + loops.map(renderLoopCard).join('') + '</div>' : '<span class="debug-none">None</span>';
+  html += '<div class="debug-item" style="margin-top:8px"><span class="dl">Recent events</span></div>';
+  html += events.length ? '<div class="debug-list">' + events.map(renderRelationshipEvent).join('') + '</div>' : '<span class="debug-none">None</span>';
+
+  if (influence.length) {
+    html += '<div class="debug-item" style="margin-top:8px"><span class="dl">LifeInfluence</span></div>';
+    html += '<div class="debug-list">' + influence.map(([k, v]) => '<span class="debug-chip">' + esc(k.replace(/_pressure$/, '')) + ' ' + signed(v) + '</span>').join('') + '</div>';
+  }
+  if (effectEntries.length) {
+    html += '<div class="debug-item" style="margin-top:8px"><span class="dl">Influence effects</span></div>';
+    html += '<div class="debug-list">' + effectEntries.map(([k, v]) => '<span class="debug-chip">' + esc(k) + ' ' + esc(String(v)) + '</span>').join('') + '</div>';
+  }
+  el.innerHTML = html;
+}
+
+function relationshipMetric(label, value, delta) {
+  const valueText = typeof value === 'number' ? value.toFixed(2) : '\u2014';
+  const deltaText = typeof delta === 'number' ? ' ' + signed(delta) : '';
+  return '<div class="debug-chip">' + esc(label) + ' ' + valueText + esc(deltaText) + '</div>';
+}
+
+function renderLoopCard(loop) {
+  const status = loop.status || 'open';
+  const cls = status === 'resolved' ? 'resolved' : 'open';
+  return '<div class="debug-card ' + cls + '">' +
+    '<strong>' + esc(loop.topic || loop.loop_kind || 'loop') + '</strong><br>' +
+    esc(loop.description || '') +
+    '<div class="dl">intensity ' + formatNumber(loop.intensity) + ' · ' + esc(status) + '</div>' +
+    '</div>';
+}
+
+function renderRelationshipEvent(event) {
+  return '<div class="debug-card">' +
+    '<strong>' + esc((event.event_kind || 'event').replace(/_/g, ' ')) + '</strong> ' +
+    esc(event.topic || '') +
+    '<div>' + esc(event.summary || '') + '</div>' +
+    '<div class="dl">intensity ' + formatNumber(event.intensity) + formatTime(event.created_at) + '</div>' +
+    '</div>';
+}
+
+function updateMemoryInspector(debug, view) {
+  const el = document.getElementById('memoryInspector');
+  if (!el) return;
+  view = view || {};
+  const rel = debug.relationship_context || {};
+  const loops = view.open_loops || rel.active_loops || [];
+  const events = view.recent_relationship_events || rel.recent_events || [];
+  const longTerm = (debug.retrieved_memories || []).slice(0, 3);
+  const semantic = (debug.semantic_memories || []).slice(0, 3);
+  const life = debug.life_history_context || {};
+  const beliefs = (life.beliefs || []).slice(0, 3);
+  const drives = (life.drives || []).slice(0, 3);
+
+  let html = '';
+  html += memoryBlock('Relationship', compactRelationshipMemory(loops, events));
+  html += memoryBlock('Long-term', longTerm.map(m => esc(m.summary || '')).filter(Boolean));
+  html += memoryBlock('Semantic', semantic.map(m => esc(m.summary || m.topic || '')).filter(Boolean));
+  html += memoryBlock('Life History', compactLifeMemory(beliefs, drives));
+  el.innerHTML = html || '<span class="debug-none">None</span>';
+}
+
+function memoryBlock(label, items) {
+  if (!items || !items.length) return '<div class="debug-item"><span class="dl">' + esc(label) + '</span> <span class="debug-none">None</span></div>';
+  return '<div class="debug-item"><span class="dl">' + esc(label) + '</span></div><div class="debug-list">' +
+    items.slice(0, 3).map(item => '<div class="debug-card">' + item + '</div>').join('') +
+    '</div>';
+}
+
+function compactRelationshipMemory(loops, events) {
+  const parts = [];
+  for (const loop of loops.slice(0, 2)) {
+    parts.push(esc('Open: ' + (loop.topic || loop.description || 'relationship loop')));
+  }
+  for (const event of events.slice(0, 2)) {
+    parts.push(esc((event.event_kind || 'event').replace(/_/g, ' ') + ': ' + (event.topic || event.summary || 'relationship event')));
+  }
+  return parts;
+}
+
+function compactLifeMemory(beliefs, drives) {
+  const parts = [];
+  for (const belief of beliefs) {
+    parts.push(esc('Belief: ' + (belief.subject || belief.summary || belief.content || 'life belief')));
+  }
+  for (const drive of drives) {
+    const name = drive.name || 'drive';
+    const delta = typeof drive.delta === 'number' ? ' ' + signed(drive.delta) : '';
+    parts.push(esc('Drive: ' + name + delta));
+  }
+  return parts;
+}
+
+function nonNeutralInfluence(influence) {
+  return Object.entries(influence).filter(([, v]) => typeof v === 'number' && Math.abs(v) >= 0.0005);
+}
+
+function signed(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '';
+  if (Math.abs(value) < 0.0005) return '0.00';
+  return (value > 0 ? '+' : '') + value.toFixed(2);
+}
+
+function formatNumber(value) {
+  return typeof value === 'number' ? value.toFixed(2) : '\u2014';
+}
+
+function formatTime(timestamp) {
+  if (!timestamp) return '';
+  const date = new Date(timestamp * 1000);
+  if (Number.isNaN(date.getTime())) return '';
+  return ' · ' + date.toLocaleString();
 }
 
 function showWhyResponse() {

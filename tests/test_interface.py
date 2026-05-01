@@ -89,6 +89,16 @@ class TestChatEndpoint:
         assert "arousal" in debug["modulator_snapshot"]
         assert "energy_after" in debug
 
+    async def test_chat_debug_has_relationship_view_and_explanation(self):
+        resp = await _chat("Hello")
+        debug = resp.debug
+        assert "relationship_view" in debug
+        assert "explanation" in debug
+        view = debug["relationship_view"]
+        assert view["modulators"]["arousal"]["delta"] is None
+        assert view["trust"]["delta"] is None
+        assert view["memory_used"]["relationship_context_used"] in {True, False}
+
     async def test_chat_debug_has_event(self):
         resp = await _chat("I'm so angry!")
         debug = resp.debug
@@ -256,6 +266,12 @@ class TestIndexPage:
         assert "Defense" in html
         assert "Unresolved" in html
         assert "Resolution" in html
+        assert "Relationship State" in html
+        assert "Why This Response?" in html
+        assert "What Nūr Remembers" in html
+        assert 'id="delta-arousal"' in html
+        assert "updateRelationshipState" in html
+        assert "updateMemoryInspector" in html
         assert "Settings" in html
         assert "Save" in html
 

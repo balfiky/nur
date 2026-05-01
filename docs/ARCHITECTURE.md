@@ -138,6 +138,20 @@ action variables, or semantic-memory salience. When
 the influence is neutral, no Life History text enters generation, and no
 LifeInfluence effects are recorded.
 
+## Debug Presentation Surfaces
+
+`runtime.debug.relationship_view` builds a stable, presentation-only JSON
+summary from `DebugState`: current strategy, strategy trace reason, six
+modulator values and known deltas, trust, relationship loops/events,
+LifeInfluence pressures/effects, and memory-use counts. It does not query
+stores, call an LLM, mutate state, or make cognitive decisions.
+
+The bundled web debug panel consumes the serialized debug payload to show
+relationship state, deterministic "Why this response?" explanations, state
+deltas when a previous turn is available, and a compact "What Nūr remembers"
+view. These surfaces are observability/UI only; the pipeline remains the owner
+of appraisal, memory retrieval, strategy selection, and LifeInfluence.
+
 ## LLM Boundary
 
 Provider-neutral interface with five backend modes: `mock`, `provider`,
