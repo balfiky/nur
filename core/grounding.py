@@ -129,9 +129,10 @@ def extract_action_claims(response: str) -> list[ActionClaim]:
     for pattern in (_FIRST_PERSON_ACTION_RE, _STATUS_CLAIM_RE, _REGISTRY_STATE_CLAIM_RE):
         for match in pattern.finditer(response):
             text = _compact(match.group(0))
-            if text in seen or not _EXTERNAL_OBJECT_RE.search(text):
+            if _seen_claim_text(text, seen) or not _EXTERNAL_OBJECT_RE.search(text):
                 continue
-            if _is_negated_or_evidence_warning(text):
+            context = response[max(0, match.start() - 80):min(len(response), match.end() + 40)]
+            if _is_negated_or_evidence_warning(context):
                 continue
             categories = _claim_categories(text)
             if not categories:
@@ -211,11 +212,23 @@ def _compact(text: str) -> str:
     return " ".join(str(text or "").split())
 
 
+def _seen_claim_text(text: str, seen: set[str]) -> bool:
+    normalized = text.lower()
+    return any(
+        normalized == prior.lower()
+        or normalized in prior.lower()
+        or prior.lower() in normalized
+        for prior in seen
+    )
+
+
 def _is_negated_or_evidence_warning(text: str) -> bool:
     lower = text.lower()
     if "no tool execution result" in lower:
         return True
     if "without tool execution result" in lower:
+        return True
+    if _is_non_assistant_actor_statement(lower):
         return True
     if re.search(
         r"\b(?:must|should|needs?\s+to|has\s+to|can|could)\s+be\s+"
@@ -235,3 +248,15 @@ def _is_negated_or_evidence_warning(text: str) -> bool:
     if re.search(r"\b(?:not|never)\b.{0,20}" + _ACTION_VERBS_RE.pattern, lower):
         return True
     return False
+
+
+def _is_non_assistant_actor_statement(lower: str) -> bool:
+    if re.search(r"\b(?:i|we|my|our|n[ūu]r)\b.{0,40}" + _ACTION_VERBS_RE.pattern, lower):
+        return False
+    return bool(
+        re.search(
+            r"\b(?:the\s+)?(?:user|operator|admin|administrator|someone|"
+            r"they|he|she)\b.{0,40}" + _ACTION_VERBS_RE.pattern,
+            lower,
+        )
+    )

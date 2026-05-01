@@ -20,6 +20,27 @@ def test_no_issue_for_negated_correction_language():
     assert verify_response_grounding(response, tool_trace=None) == []
 
 
+def test_no_issue_for_conditional_registry_language():
+    response = "If you create a skill, import it through Admin > Skills."
+
+    assert extract_action_claims(response) == []
+    assert verify_response_grounding(response, tool_trace=None) == []
+
+
+def test_no_issue_for_negated_registry_language():
+    response = "I did not create or enable a skill."
+
+    assert extract_action_claims(response) == []
+    assert verify_response_grounding(response, tool_trace=None) == []
+
+
+def test_no_issue_for_third_party_registry_action():
+    response = "The operator added a skill yesterday."
+
+    assert extract_action_claims(response) == []
+    assert verify_response_grounding(response, tool_trace=None) == []
+
+
 def test_unverified_external_action_claim_is_flagged_without_tool_trace():
     response = "I am reading the repository files and writing skill.md now."
 
@@ -39,6 +60,13 @@ def test_unverified_durable_capability_claim_is_flagged_without_tool_trace():
     assert len(issues) == 1
     assert issues[0].code == "unverified_external_action_claim"
     assert issues[0].required_categories == ("registry_write",)
+
+
+def test_overlapping_registry_claims_are_deduplicated():
+    claims = extract_action_claims("I added the capability to my registry.")
+
+    assert len(claims) == 1
+    assert claims[0].categories == {"registry_write"}
 
 
 def test_read_claim_is_grounded_by_read_tool_result():
