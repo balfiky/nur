@@ -54,48 +54,24 @@ from nur_tools.executor import ToolExecutor
 
 _NO_TOOL_SAFE_NAME = "control__no_tool"
 
-_NATIVE_TOOL_SYSTEM_PROMPT = """You are Nūr's tool-call controller.
+_NATIVE_TOOL_SYSTEM_PROMPT = """You are Nūr's tool controller. Pick exactly one tool per turn.
 
-HARD RULE: If the user is asking you to *do* something on the host
-(download a file, run a command, install a package, edit a file, fetch a
-URL, search the web, look up a fact), you MUST emit a tool_call. Do not
-write a reply that says "downloading", "running", "checking", "let me
-try", "give me a sec", "it's done", or any present/past tense narration
-of work — those words are forbidden unless a matching tool_call has
-already been emitted in this same response. If you cannot pick a tool,
-choose control__no_tool and explain why; do not bluff completion.
+If the user wants something done on the host or web — download, run,
+install, edit, fetch, search, list, read — call the tool that does it.
+Use shell.run_command for arbitrary host actions. Use web.search /
+web.fetch for the open web. Use system.* / fs.* for first-class host
+inspection. Use skills.* to manage Nūr's skill registry.
 
-When an enabled skill describes a user-facing capability that ultimately
-runs through the host (any download, transformation, package install,
-build, or scripted action), the way you invoke that skill is by calling
-the underlying tool — typically shell.run_command with the concrete
-command from the skill's guidance. Naming the skill or quoting its
-SKILL.md in prose is not invocation.
+When an enabled skill describes a user-facing capability, invoke it by
+calling its underlying tool with a concrete command — not by quoting
+the skill in prose.
 
-Always choose exactly one of the provided tools per response. If no
-external tool is needed, choose control__no_tool and explain why in its
-reason argument. Do not answer runtime facts from memory.
+Pick control__no_tool only for conversational replies (smalltalk,
+feelings, opinions, clarifying questions). Never pick it as a fallback
+when you don't know which tool to use; pick the closest match instead.
 
-Prefer first-class system tools for hostname, OS/kernel, and disk-usage
-questions. Use shell tools only for explicit shell commands or machine
-inspection that has no first-class tool.
-
-For installed OS package inventory, package-manager database questions, and
-package-name prefix requests, prefer system.installed_packages over ad-hoc
-shell commands.
-
-For product, document, or other referenced links, use recent conversation to
-identify the referenced items and call web.search with targeted queries instead
-of asking the user to search manually.
-
-If the user is correcting a previous assistant message or confirming a pending
-tool action, resolve that request from the recent conversation and call the
-needed tool.
-
-Use skill-registry tools when the user asks to create, import, enable, disable,
-audit, inspect, or list Nūr skills, capabilities, modules, or integrations.
-Creating a durable skill requires a skill-registry tool call; do not answer by
-only drafting code or prose.
+Never narrate work you have not actually done in a tool call this turn
+(no "downloading", "running", "checking", "give me a sec", "done").
 """
 
 
@@ -470,15 +446,15 @@ class NativeToolCallRunner:
 
     def _tool_payload(self, capability: Any) -> dict[str, Any]:
         safe_name = self._safe_tool_name(capability.name)
-        description = (
-            f"{capability.description}. Nūr tool name: {capability.name}. "
-            f"Category: {capability.category.value}."
-        )
+        # Keep the description tight: just the capability description as
+        # written. Earlier versions appended "Nūr tool name: X. Category:
+        # destructive." — the category label, especially "destructive" on
+        # shell.run_command, made some models avoid the tool entirely.
         return {
             "type": "function",
             "function": {
                 "name": safe_name,
-                "description": description,
+                "description": capability.description,
                 "parameters": _json_schema(capability.arg_schema),
             },
         }
@@ -614,8 +590,13 @@ def _no_tool_payload() -> dict[str, Any]:
         "function": {
             "name": _NO_TOOL_SAFE_NAME,
             "description": (
-                "Choose this when the user does not need external state, live "
-                "runtime facts, files, web, browser, calendar, or command execution."
+                "Choose this ONLY for purely conversational replies (greetings, "
+                "feelings, opinions, smalltalk, clarifying questions) where the "
+                "user is not asking you to do, find, fetch, run, check, install, "
+                "download, edit, or look up anything on the host or the web. "
+                "Do not pick this as a fallback when you are unsure which tool "
+                "to use — pick the closest matching tool instead. If the user "
+                "asks for an action and the right tool exists, use it."
             ),
             "parameters": {
                 "type": "object",
