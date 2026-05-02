@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 160" width="520" height="160" role="img" aria-label="Nūr">
+  <defs>
+    <radialGradient id="orb" cx="34%" cy="32%" r="70%">
+      <stop offset="0%"  stop-color="#FFE3BD"/>
+      <stop offset="35%" stop-color="#F5A65B"/>
+      <stop offset="78%" stop-color="#7A4A8C"/>
+      <stop offset="100%" stop-color="#2A1E3F"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#F5A65B" stop-opacity="0.45"/>
+      <stop offset="60%"  stop-color="#F5A65B" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#F5A65B" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="80" cy="80" r="68" fill="url(#glow)"/>
+  <circle cx="80" cy="80" r="44" fill="url(#orb)"/>
+  <text x="158" y="108" font-family="'EB Garamond','Cormorant Garamond','Iowan Old Style','Palatino Linotype',Georgia,serif"
+        font-size="96" font-weight="500" fill="#1F1830" letter-spacing="-3">Nūr</text>
+</svg>

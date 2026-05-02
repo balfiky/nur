@@ -1513,11 +1513,33 @@ def admin_asset(asset_name: str):
         "admin.js": "application/javascript",
         "persona.css": "text/css",
         "persona.js": "application/javascript",
+        "tokens.css": "text/css",
     }
     media_type = media_types.get(asset_name)
     if media_type is None:
         raise HTTPException(status_code=404, detail="Admin asset not found")
     return _static_asset_response(asset_name, media_type)
+
+
+@app.get("/assets/{asset_name}", include_in_schema=False)
+def brand_asset(asset_name: str):
+    media_types = {
+        "tokens.css": "text/css",
+        "wordmark-light.svg": "image/svg+xml",
+        "wordmark-dark.svg": "image/svg+xml",
+    }
+    media_type = media_types.get(asset_name)
+    if media_type is None:
+        raise HTTPException(status_code=404, detail="Brand asset not found")
+    if asset_name.endswith(".svg"):
+        static_dir = os.path.join(os.path.dirname(__file__), "..", "docs", "diagrams")
+        path = os.path.normpath(os.path.join(static_dir, asset_name))
+    else:
+        return _static_asset_response(asset_name, media_type)
+    from fastapi.responses import Response
+
+    with open(path, "rb") as f:
+        return Response(content=f.read(), media_type=media_type, headers=_HTML_SECURITY_HEADERS)
 
 
 def _index_response() -> HTMLResponse:

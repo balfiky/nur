@@ -1,22 +1,4 @@
-:root {
-  --bg: #ffffff;
-  --surface: #ffffff;
-  --surface-muted: #f7f8fa;
-  --surface-strong: #eef2f7;
-  --border: #d9dee7;
-  --border-strong: #bdc6d3;
-  --text: #172033;
-  --muted: #667085;
-  --muted-strong: #4b5565;
-  --accent: #2563eb;
-  --accent-dark: #1d4ed8;
-  --danger: #b42318;
-  --warning: #b54708;
-  --success: #027a48;
-  --shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
-  --radius: 8px;
-  --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
+@import url("/admin/assets/tokens.css");
 
 * { box-sizing: border-box; }
 
@@ -71,19 +53,17 @@ a { color: inherit; }
 }
 
 .brand-mark {
-  align-items: center;
-  background: var(--accent);
-  border-radius: 8px;
-  color: #fff;
-  display: inline-flex;
-  font-weight: 750;
+  border-radius: 50%;
   height: 36px;
-  justify-content: center;
   width: 36px;
+  background: radial-gradient(circle at 34% 32%, #FFE3BD, #F5A65B 40%, #7A4A8C 80%, #2A1E3F);
+  box-shadow: 0 0 18px rgba(245, 166, 91, 0.45);
+  display: inline-block;
+  flex-shrink: 0;
 }
 
-.brand strong { display: block; font-size: 16px; }
-.brand small { color: var(--muted); display: block; font-size: 12px; margin-top: 2px; }
+.brand strong { display: block; font-family: var(--font-display); font-size: 22px; font-weight: 500; letter-spacing: -0.6px; line-height: 1; }
+.brand small { color: var(--muted); display: block; font-size: 11px; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.12em; }
 
 .nav-list {
   display: grid;
@@ -105,8 +85,8 @@ a { color: inherit; }
 }
 
 .nav-item.active {
-  background: #e8f0ff;
-  color: var(--accent-dark);
+  background: rgba(245, 166, 91, 0.12);
+  color: var(--ember-500);
   font-weight: 650;
 }
 
@@ -411,8 +391,8 @@ h4 {
 }
 
 .persona-emotion-block {
-  background: #f8fbff;
-  border-color: #bfdbfe;
+  background: rgba(245, 166, 91, 0.06);
+  border-color: rgba(245, 166, 91, 0.28);
 }
 
 .persona-emotion {
@@ -730,7 +710,7 @@ input:focus,
 textarea:focus,
 select:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 0 0 3px rgba(245, 166, 91, 0.18);
   outline: none;
 }
 

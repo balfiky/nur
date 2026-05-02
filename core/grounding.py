@@ -165,10 +165,12 @@ def grounding_correction_response(
     ):
         return (
             "I did not create, import, or enable a permanent skill in this turn. "
-            "No skill-registry Tool Execution Result ran. I need an active "
-            "session with the skill-registry tools loaded; restart/reload the "
-            "runtime or reset the current channel session if you just updated "
-            "the app."
+            "No skill-registry Tool Execution Result ran. The skill-registry "
+            "tools are not loaded in the active runtime. Most common cause: an "
+            "older installed package that predates these tools. From a source "
+            "checkout run `pip install -e .` and restart `nur-web`; if you "
+            "just updated the app, reload the runtime or reset this channel "
+            "session and try again."
         )
     return (
         "I did not perform that external action in this turn. There is no Tool "

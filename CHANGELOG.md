@@ -10,6 +10,33 @@ _No unreleased changes._
 
 ---
 
+## v0.28.7 — 2026-05-02 (Brand identity & skill-registry diagnostics)
+
+### Brand & UI
+- Introduced unified design tokens in `interface/static/tokens.css` with an
+  ember (warm) + plum (dusk) palette. All three surfaces (chat, admin, persona)
+  now share a single source of truth for color, type, and motion.
+- Removed the generic SaaS blue (`#2563eb`/`#1d4ed8`) across `index.html`,
+  `admin.css`, and `persona.css`. Default surface is dark/plum; a parchment
+  light theme is available via `[data-theme="light"]`.
+- Added SVG wordmark variants (`docs/diagrams/wordmark-{light,dark}.svg`) and
+  served them at `/assets/wordmark-*.svg`. Header logo is now an ember-glow
+  orb + serif "Nūr" instead of a plain text span.
+- Empty state, mood orb halo, and chat input focus ring switched to ember;
+  body has an ambient mood-driven radial wash that updates with relationship
+  state across the whole window, not just the header indicator.
+- Rewrote the README hero in product voice: wordmark with light/dark
+  `<picture>`, single-line tagline, badge row in brand colors, scope
+  disclaimer moved below the fold.
+
+### Diagnostics
+- Sharpened the registry-write grounding correction to point at the most
+  common cause when skill-registry tools are missing from the runtime: a
+  stale installed package. Now suggests `pip install -e .` from a source
+  checkout and a `nur-web` restart.
+
+---
+
 ## v0.28.6 — 2026-05-01 (Generic grounded-action verifier)
 
 ### Runtime

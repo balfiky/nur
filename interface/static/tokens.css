@@ -1,0 +1,113 @@
+/*
+ * Nūr design tokens — single source of truth for color, type, radius, motion.
+ * Imported first by index.html, admin.css, persona.css. Override per-surface as needed.
+ *
+ * Brand thesis: warmth across time. Deep plum/indigo carries night & memory;
+ * ember/amber carries presence & repair. Generic SaaS blue is removed on purpose.
+ */
+
+:root {
+  /* Brand — ember (warmth, presence, repair) */
+  --ember-50:  #FFF4E3;
+  --ember-100: #FFE3BD;
+  --ember-300: #F5C089;
+  --ember-500: #F5A65B;   /* signature accent */
+  --ember-600: #E08A3A;
+  --ember-700: #C25D2E;
+
+  /* Brand — plum (memory, dusk, continuity) */
+  --plum-950: #0F0B1A;    /* obsidian-violet */
+  --plum-900: #1A1428;
+  --plum-800: #251D38;
+  --plum-700: #3A2F52;
+  --plum-500: #7A4A8C;
+  --plum-300: #B89AC7;
+  --plum-100: #EDE3F2;
+
+  /* Parchment (warm light surfaces) */
+  --parchment-50:  #FAF6EF;
+  --parchment-100: #F2EBE0;
+  --parchment-200: #E0D6C5;
+  --candle:        #F5EFE6;
+
+  /* Mood orb — driven at runtime via JS (--mood-hue/sat/light) */
+  --mood-hue: 28;          /* default ember */
+  --mood-sat: 70%;
+  --mood-light: 60%;
+  --mood-pulse: 4s;
+
+  /* Typography */
+  --font-display: 'EB Garamond','Cormorant Garamond','Iowan Old Style','Palatino Linotype',Georgia,serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Helvetica, sans-serif;
+  --font-mono: 'JetBrains Mono','SF Mono','Fira Code',Consolas,monospace;
+
+  /* Geometry */
+  --radius:    14px;
+  --radius-sm: 8px;
+  --radius-lg: 22px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --t-fast: 120ms;
+  --t-med:  220ms;
+  --t-slow: 1200ms;
+}
+
+/* Default surface = dark / plum (the product's natural night) */
+:root {
+  --bg:        var(--plum-950);
+  --surface:   var(--plum-900);
+  --surface-2: var(--plum-800);
+  --surface-3: var(--plum-700);
+  --border:    rgba(245, 239, 230, 0.08);
+  --border-strong: rgba(245, 239, 230, 0.16);
+
+  --text:       var(--candle);
+  --text-dim:   var(--plum-300);
+  --text-faint: #7A6F8C;
+
+  --primary:     var(--ember-500);
+  --primary-dim: var(--ember-600);
+  --accent:      var(--ember-500);
+
+  --shadow-soft: 0 12px 40px rgba(0, 0, 0, 0.45);
+  --glow-ember:  0 0 32px rgba(245, 166, 91, 0.28);
+}
+
+/* Light theme = parchment & dusk */
+[data-theme="light"] {
+  --bg:        var(--parchment-50);
+  --surface:   #FFFFFF;
+  --surface-2: var(--parchment-100);
+  --surface-3: var(--parchment-200);
+  --border:    rgba(31, 24, 48, 0.10);
+  --border-strong: rgba(31, 24, 48, 0.20);
+
+  --text:       #1F1830;
+  --text-dim:   #4A3F5C;
+  --text-faint: #7A6F8C;
+
+  --primary:     var(--ember-700);
+  --primary-dim: #A4471F;
+  --accent:      var(--ember-700);
+
+  --shadow-soft: 0 12px 40px rgba(31, 24, 48, 0.10);
+  --glow-ember:  0 0 28px rgba(194, 93, 46, 0.22);
+}
+
+/* Legacy aliases — keep existing CSS working without per-file edits.
+ * admin.css and persona.css use --surface-muted / --surface-strong / --accent-dark / --muted etc.
+ * Map them onto the new tokens so the brand carries through unchanged. */
+:root {
+  --surface-muted:  var(--surface-2);
+  --surface-strong: var(--surface-3);
+  --accent-dark:    var(--primary-dim);
+  --muted:          var(--text-dim);
+  --muted-strong:   var(--text-dim);
+  --danger:  #E5484D;
+  --warning: var(--ember-600);
+  --success: #2EAD6E;
+  --shadow:  var(--shadow-soft);
+  --font:    var(--font-sans);
+  --mono:    var(--font-mono);
+}

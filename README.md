@@ -1,24 +1,30 @@
-# Project Nūr
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/wordmark-dark.svg">
+    <img src="docs/diagrams/wordmark-light.svg" alt="Nūr" width="420">
+  </picture>
+</p>
 
-![Nūr architecture: conversation, emotional state, memory, and response context](docs/diagrams/github-cover.png)
+<p align="center">
+  <strong>An assistant that remembers what we meant to each other.</strong>
+</p>
 
-> Most AI assistants remember what you said.
->
-> **Nūr experiments with remembering what it meant between you.**
+<p align="center">
+  <a href="https://github.com/balfiky/nur/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/balfiky/nur/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-F5A65B?style=for-the-badge" alt="MIT License"></a>
+  <a href="pyproject.toml"><img src="https://img.shields.io/badge/python-3.10%2B-7A4A8C?style=for-the-badge" alt="Python 3.10+"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.28.7-1A1428?style=for-the-badge" alt="Version"></a>
+</p>
 
-**Nūr is an experimental AI assistant runtime with persistent emotional memory.**
+Most assistants reset to zero every turn. **Nūr keeps the room lit.**
 
-It does not give an AI real feelings. It gives an LLM a structured state layer for mood, trust, tension, repair, commitments, and relationship continuity, so the assistant does not have to start emotionally from zero every turn.
+Mood, trust, tension, repair, commitments, and the long arc of a relationship live as runtime state — inspectable, persistent, decaying, testable. The LLM still writes the words. Nūr changes the state those words come from.
 
-A normal assistant can sound warm for one reply. Nūr asks a different question: what if warmth, rupture, apology, hesitation, repair, and unfinished business were part of runtime state — inspectable, persistent, decaying, and testable?
+[Quickstart](#quickstart) · [Overview](docs/OVERVIEW.md) · [Architecture](docs/ARCHITECTURE.md) · [Admin & Deploy](docs/DEPLOYMENT_AND_ADMIN.md) · [Privacy](PRIVACY.md) · [Changelog](CHANGELOG.md)
 
-[![CI](https://github.com/balfiky/nur/actions/workflows/ci.yml/badge.svg)](https://github.com/balfiky/nur/actions/workflows/ci.yml)
-[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![python](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
-[![version](https://img.shields.io/badge/version-0.28.6-informational)](CHANGELOG.md)
+---
 
-> **Honest scope:** Nūr is a research/product prototype. It does not claim consciousness, sentience, real feelings, therapy, diagnosis, psychological validity, or proven human-likeness.
-> Nūr persists relational and semantic memory under `data/`. Use it with consent when other people are involved, and see [PRIVACY.md](PRIVACY.md) for inspection, export, and deletion.
+> **Honest scope.** Nūr is an experimental runtime, not a therapist. It claims no consciousness, no feelings, no clinical validity. Relational and semantic memory live under `data/` — use it with consent when other people are involved. See [PRIVACY.md](PRIVACY.md) for inspection, export, and deletion.
 
 ## What That Feels Like
 

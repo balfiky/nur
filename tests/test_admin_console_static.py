@@ -57,7 +57,7 @@ class TestAdminConsoleStatic:
         persona_js = interface_api.admin_asset("persona.js")
 
         assert css.status_code == 200
-        assert b"--bg: #ffffff" in css.body
+        assert b'@import url("/admin/assets/tokens.css")' in css.body
         assert b".tool-row" in css.body
         assert b".evolution-grid" in css.body
         assert b".metric-foot" in css.body
