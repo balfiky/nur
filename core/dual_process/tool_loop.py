@@ -58,6 +58,23 @@ from nur_tools.executor import ToolExecutor
 DEFAULT_MAX_EXECUTIONS = 4
 HARD_CAP_EXECUTIONS = 6
 
+# Per-autonomy budgets. high_risk gets generous headroom for chains like
+# clone -> install -> build -> run -> verify; lower autonomy stays tight.
+AUTONOMY_EXECUTION_BUDGETS = {
+    "off":        (0, 0),
+    "assisted":   (3, 5),
+    "autonomous": (6, 10),
+    "high_risk":  (16, 32),
+}
+
+
+def autonomy_execution_budget(autonomy_level: str) -> tuple[int, int]:
+    """Return (default, hard_cap) tool-execution budget for an autonomy level."""
+    return AUTONOMY_EXECUTION_BUDGETS.get(
+        _normalize_autonomy_level(autonomy_level),
+        (DEFAULT_MAX_EXECUTIONS, HARD_CAP_EXECUTIONS),
+    )
+
 # Arbiter decision thresholds (Section 11 of design spec)
 REFUSE_RISK_TOLERANCE = 0.4       # destructive + risk below this → refuse
 CLARIFY_AUTONOMY_BIAS = 0.35     # autonomy below this → clarify
@@ -612,8 +629,8 @@ def run_tool_loop(
     defense_active: bool,
     executor: ToolExecutor,
     engine: Any,  # EmotionalEngine — avoid circular import
-    max_executions: int = DEFAULT_MAX_EXECUTIONS,
-    hard_cap: int = HARD_CAP_EXECUTIONS,
+    max_executions: int | None = None,
+    hard_cap: int | None = None,
     active_plan: TaskPlan | None = None,
     agency_decision: AgencyDecision | None = None,
     autonomy_level: str = "autonomous",
@@ -624,9 +641,18 @@ def run_tool_loop(
     Called from the pipeline after inner dialogue, before defense mechanisms.
     Returns trace, action variables, and a generator-ready summary.
 
+    When ``max_executions`` / ``hard_cap`` are not given, the budget is
+    derived from ``autonomy_level`` via :func:`autonomy_execution_budget`.
+
     If active_plan is provided and the user says "continue"/"next step",
     resumes that plan instead of detecting new intent.
     """
+    if max_executions is None or hard_cap is None:
+        budget_default, budget_cap = autonomy_execution_budget(autonomy_level)
+        if max_executions is None:
+            max_executions = budget_default
+        if hard_cap is None:
+            hard_cap = budget_cap
     trust = person.trust if person else 0.5
 
     # 1. Derive action variables

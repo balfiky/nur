@@ -123,13 +123,20 @@ class NativeToolCallRunner:
         person: PersonProfile | None,
         defense_active: bool,
         engine: Any,
-        max_executions: int = DEFAULT_MAX_EXECUTIONS,
-        hard_cap: int = HARD_CAP_EXECUTIONS,
+        max_executions: int | None = None,
+        hard_cap: int | None = None,
         active_plan: TaskPlan | None = None,
         agency_decision: AgencyDecision | None = None,
         autonomy_level: str = "autonomous",
         life_influence: LifeInfluence | None = None,
     ) -> ToolLoopResult:
+        from core.dual_process.tool_loop import autonomy_execution_budget
+        if max_executions is None or hard_cap is None:
+            budget_default, budget_cap = autonomy_execution_budget(autonomy_level)
+            if max_executions is None:
+                max_executions = budget_default
+            if hard_cap is None:
+                hard_cap = budget_cap
         trust = person.trust if person else 0.5
         action_vars = derive_action_variables(
             state, trust=trust, defense_active=defense_active,
