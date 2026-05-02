@@ -290,6 +290,223 @@ h2 { font-size: 16px; margin-bottom: 0; }
   padding: 15px;
 }
 
+.observability-section {
+  margin-top: 14px;
+}
+
+.observability-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
+  margin-top: 12px;
+}
+
+.viz-card {
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.viz-head {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.viz-head strong {
+  font-size: 14px;
+}
+
+.viz-head .muted {
+  font-size: 12px;
+  text-align: right;
+}
+
+.state-map-card {
+  grid-row: span 2;
+}
+
+.flow-card {
+  grid-column: 1 / -1;
+}
+
+.radar-wrap {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 390px;
+}
+
+.radar-svg {
+  display: block;
+  max-width: 360px;
+  width: 100%;
+}
+
+.radar-ring {
+  fill: none;
+  stroke: #d9e2ef;
+  stroke-width: 1;
+}
+
+.radar-axis {
+  stroke: #c5cfdd;
+  stroke-width: 1;
+}
+
+.radar-shape {
+  fill: rgba(37, 99, 235, 0.16);
+  stroke: var(--accent);
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.radar-point {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.radar-label,
+.chart-tick,
+.chart-empty {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.chart-wrap {
+  background: #fff;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  min-height: 170px;
+  overflow: hidden;
+}
+
+.line-chart {
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.chart-grid-line {
+  stroke: #e6ecf5;
+  stroke-width: 1;
+}
+
+.chart-axis {
+  stroke: #c6cfdd;
+  stroke-width: 1.25;
+}
+
+.chart-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.25;
+}
+
+.chart-dot {
+  stroke: #fff;
+  stroke-width: 1.5;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 10px;
+}
+
+.legend-item {
+  align-items: center;
+  color: var(--muted);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 650;
+  gap: 6px;
+}
+
+.legend-item i {
+  border-radius: 999px;
+  display: inline-block;
+  height: 8px;
+  width: 18px;
+}
+
+.flow-strip {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.flow-node {
+  background: #fff;
+  border: 1px solid #e3e9f2;
+  border-radius: 8px;
+  min-height: 118px;
+  padding: 12px;
+  position: relative;
+}
+
+.flow-node:nth-child(1)::after,
+.flow-node:nth-child(2)::after,
+.flow-node:nth-child(4)::after,
+.flow-node:nth-child(5)::after {
+  background: #c5cfdd;
+  content: "";
+  height: 2px;
+  position: absolute;
+  right: -11px;
+  top: 24px;
+  width: 10px;
+}
+
+.flow-node > span {
+  align-items: center;
+  background: #eef4ff;
+  border: 1px solid #c7d7fe;
+  border-radius: 999px;
+  color: var(--accent-dark);
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 800;
+  height: 22px;
+  justify-content: center;
+  margin-bottom: 8px;
+  width: 22px;
+}
+
+.flow-node strong,
+.flow-node em,
+.flow-node small {
+  display: block;
+}
+
+.flow-node strong {
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.flow-node em {
+  color: var(--text);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 700;
+  margin-bottom: 6px;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.flow-node small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .mod-grid {
   display: grid;
   gap: 10px;
@@ -409,10 +626,24 @@ dialog {
   .persona-shell { padding: 14px; }
   .persona-topbar,
   .hero-card { align-items: stretch; flex-direction: column; }
+  .section-heading,
+  .viz-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .viz-head .muted {
+    text-align: left;
+  }
   .dashboard-grid,
   .two-col,
   .mod-grid,
+  .observability-grid,
+  .flow-strip,
   .summary-grid { grid-template-columns: 1fr; }
   .session-panel { position: static; }
   .driver-chips { justify-content: flex-start; }
+  .state-map-card,
+  .flow-card { grid-column: auto; grid-row: auto; }
+  .flow-node:not(:last-child)::after { display: none; }
 }

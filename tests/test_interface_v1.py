@@ -787,6 +787,82 @@ class TestAdminEndpoints:
             assert "secret-key" not in exported
             assert "private memory" == archive.read("data/memory.txt").decode()
 
+    def test_admin_backups_can_be_listed_and_deleted(
+        self, client, temp_config, tmp_path,
+    ):
+        data_dir = tmp_path / "data"
+        RuntimeConfig(data_dir=str(data_dir), llm_backend="mock").write_yaml(
+            str(temp_config)
+        )
+        created = client.post("/admin/backup", json={"include_data": False}).json()
+        filename = created["filename"]
+
+        listing = client.get("/admin/backups")
+        assert listing.status_code == 200
+        assert listing.json()["count"] == 1
+        assert listing.json()["backups"][0]["filename"] == filename
+
+        bad = client.post(
+            "/admin/backups/delete",
+            json={"filename": filename, "confirmation": "delete"},
+        )
+        assert bad.status_code == 400
+        assert os.path.exists(created["path"])
+
+        deleted = client.post(
+            "/admin/backups/delete",
+            json={"filename": filename, "confirmation": f"DELETE {filename}"},
+        )
+        assert deleted.status_code == 200
+        assert deleted.json()["action"] == "backup_delete"
+        assert not os.path.exists(created["path"])
+
+    def test_admin_backup_delete_rejects_path_input(
+        self, client, temp_config, tmp_path,
+    ):
+        RuntimeConfig(data_dir=str(tmp_path / "data"), llm_backend="mock").write_yaml(
+            str(temp_config)
+        )
+
+        resp = client.post(
+            "/admin/backups/delete",
+            json={
+                "filename": "../nur-backup-20260101T000000Z.zip",
+                "confirmation": "DELETE ../nur-backup-20260101T000000Z.zip",
+            },
+        )
+
+        assert resp.status_code == 400
+
+    def test_admin_delete_skill_removes_imported_skill(
+        self, client, temp_config, tmp_path,
+    ):
+        RuntimeConfig(data_dir=str(tmp_path / "data"), llm_backend="mock").write_yaml(
+            str(temp_config)
+        )
+        imported = client.post(
+            "/admin/skills/import",
+            json={
+                "skill_markdown": (
+                    "---\n"
+                    "name: cleanup-helper\n"
+                    "description: Helps verify cleanup behavior.\n"
+                    "---\n\n"
+                    "Use existing runtime tools to inspect cleanup state.\n"
+                ),
+            },
+        )
+        assert imported.status_code == 200
+        skill = imported.json()["skill"]
+        assert os.path.isdir(skill["root"])
+
+        deleted = client.delete(f"/admin/skills/{skill['id']}")
+
+        assert deleted.status_code == 200
+        assert deleted.json()["deleted"] is True
+        assert not os.path.exists(skill["root"])
+        assert client.get("/admin/skills").json()["count"] == 0
+
     def test_admin_reset_session_requires_typed_confirmation(self, client):
         client.post(
             "/v1/chat",

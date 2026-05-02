@@ -189,6 +189,7 @@ def _successful_registry_write(tool_trace: Any | None) -> dict[str, str] | None:
             "skills.import",
             "skills.enable",
             "skills.disable",
+            "skills.delete",
         )):
             continue
         if not bool(getattr(result, "success", False)):
@@ -215,14 +216,15 @@ def _claim_categories(text: str) -> set[str]:
     categories: set[str] = set()
     if re.search(r"\b(read|reading|checked?|checking|opened?|opening|searched?|searching|listed?|listing|inspected?|inspecting|fetched?|fetching|loaded?|loading)\b", lower):
         categories.add("read")
-    if re.search(r"\b(wrote|write|writing|created?|creating|saved?|saving|installed?|installing|downloaded?|downloading|cloned?|cloning)\b", lower):
+    if re.search(r"\b(wrote|write|writing|created?|creating|saved?|saving|installed?|installing|downloaded?|downloading|cloned?|cloning|deleted?|deleting|removed?|removing)\b", lower):
         categories.add("write")
     if re.search(r"\b(ran|running|executed?|executing|shell|terminal|command|process|package|dependency)\b", lower):
         categories.add("execute")
     if re.search(r"\b(skill|capability|capabilities|module|integration|registry|toolset|skillset)\b", lower) and re.search(
         r"\b(created?|creating|imported?|importing|enabled?|enabling|"
         r"activated?|activating|installed?|installing|integrated?|integrating|"
-        r"registered|registering|added|adding|made\s+permanent|permanent|"
+        r"registered|registering|added|adding|deleted?|deleting|removed?|removing|"
+        r"made\s+permanent|permanent|"
         r"persistent|persisted|part\s+of|available\s+in|done|completed)\b",
         lower,
     ):
@@ -248,6 +250,7 @@ def _tool_evidence_categories(tool_trace: Any | None) -> set[str]:
             "skills.import",
             "skills.enable",
             "skills.disable",
+            "skills.delete",
         )):
             categories.add("registry_write")
         elif tool_name.startswith(("skills.list", "skills.audit")):

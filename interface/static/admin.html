@@ -19,15 +19,9 @@
     </a>
     <nav class="nav-list">
       <button class="nav-item active" data-page="overview">Overview</button>
-      <button class="nav-item" data-page="runtime">Runtime</button>
-      <button class="nav-item" data-page="models">Models</button>
-      <button class="nav-item" data-page="tools">Tools</button>
+      <button class="nav-item" data-page="settings">Settings</button>
       <button class="nav-item" data-page="skills">Skills</button>
       <button class="nav-item" data-page="life">Life</button>
-      <button class="nav-item" data-page="identity">Identity</button>
-      <button class="nav-item" data-page="access">Access</button>
-      <button class="nav-item" data-page="channels">Channels</button>
-      <button class="nav-item" data-page="maintenance">Maintenance</button>
     </nav>
     <div class="sidebar-footer">
       <a href="/persona" class="text-link">Persona dashboard</a>
@@ -60,55 +54,135 @@
       <div class="panel">
         <div class="panel-heading">
           <h3>Warnings</h3>
-          <button class="secondary" data-action="open-page" data-page="access">Review Access</button>
+          <button class="secondary" data-action="open-page" data-page="settings" data-settings-section="access">Review Access</button>
         </div>
         <div id="warningsList" class="warning-list"></div>
       </div>
     </section>
 
-    <section class="page" id="page-runtime" aria-labelledby="runtime-heading">
+    <section class="page" id="page-settings" aria-labelledby="settings-heading">
       <div class="section-heading">
         <div>
-          <h2 id="runtime-heading">Runtime</h2>
-          <p>Storage, sessions, debug API, and proactive behavior.</p>
+          <h2 id="settings-heading">Settings</h2>
+          <p>All runtime, model, tool, identity, access, channel, and maintenance controls in one place.</p>
         </div>
       </div>
-      <form class="form-grid" id="runtimeForm"></form>
-    </section>
 
-    <section class="page" id="page-models" aria-labelledby="models-heading">
-      <div class="section-heading">
-        <div>
-          <h2 id="models-heading">Models</h2>
-          <p>LLM backend settings used by chat, Telegram, identity drafting, and native tool routing.</p>
-        </div>
-        <button class="secondary" id="testLlmBtn">Test LLM</button>
-      </div>
-      <form class="form-grid" id="modelsForm"></form>
-      <pre class="output" id="llmTestOutput" hidden></pre>
-    </section>
+      <div class="settings-accordion">
+        <details class="settings-section" id="settings-runtime" open>
+          <summary>
+            <span>Runtime</span>
+            <small>Storage, sessions, debug API, and proactive behavior.</small>
+          </summary>
+          <form class="form-grid" id="runtimeForm"></form>
+        </details>
 
-    <section class="page" id="page-tools" aria-labelledby="tools-heading">
-      <div class="section-heading">
-        <div>
-          <h2 id="tools-heading">Tools</h2>
-          <p>Runtime gates, registered capabilities, risk category, and argument surface.</p>
-        </div>
-      </div>
-      <form class="form-grid" id="toolsForm"></form>
-      <div class="panel">
-        <div class="panel-heading">
-          <h3>Tool Inventory</h3>
-          <button class="secondary" id="refreshToolsBtn">Refresh Tools</button>
-        </div>
-        <div class="tool-summary" id="toolsSummary"></div>
-        <div class="tool-toolbar">
-          <input id="toolSearch" type="search" placeholder="Filter tools..." aria-label="Filter tools">
-          <select id="toolCategoryFilter" aria-label="Filter by tool category">
-            <option value="">All categories</option>
-          </select>
-        </div>
-        <div class="tool-list" id="toolsList"></div>
+        <details class="settings-section" id="settings-models">
+          <summary>
+            <span>Models</span>
+            <small>LLM backend settings used by chat, Telegram, identity drafting, and native tool routing.</small>
+          </summary>
+          <div class="section-actions">
+            <button class="secondary" id="testLlmBtn" type="button">Test LLM</button>
+          </div>
+          <form class="form-grid" id="modelsForm"></form>
+          <pre class="output" id="llmTestOutput" hidden></pre>
+        </details>
+
+        <details class="settings-section" id="settings-tools">
+          <summary>
+            <span>Tools</span>
+            <small>Runtime gates, registered capabilities, risk category, and argument surface.</small>
+          </summary>
+          <form class="form-grid" id="toolsForm"></form>
+          <div class="panel inset">
+            <div class="panel-heading">
+              <h3>Tool Inventory</h3>
+              <button class="secondary" id="refreshToolsBtn" type="button">Refresh Tools</button>
+            </div>
+            <div class="tool-summary" id="toolsSummary"></div>
+            <div class="tool-toolbar">
+              <input id="toolSearch" type="search" placeholder="Filter tools..." aria-label="Filter tools">
+              <select id="toolCategoryFilter" aria-label="Filter by tool category">
+                <option value="">All categories</option>
+              </select>
+            </div>
+            <div class="tool-list" id="toolsList"></div>
+          </div>
+        </details>
+
+        <details class="settings-section" id="settings-identity">
+          <summary>
+            <span>Identity</span>
+            <small>Edit the seed soul file that drives role labels, generation, self-check, and memory digestion.</small>
+          </summary>
+          <div class="section-actions">
+            <button class="secondary" id="reloadSoulBtn" type="button">Reload Identity</button>
+          </div>
+          <form class="form-grid" id="identityForm"></form>
+          <div class="button-row">
+            <button class="primary" id="saveSoulBtn" type="button">Save Identity</button>
+          </div>
+          <pre class="output" id="soulOutput" hidden></pre>
+        </details>
+
+        <details class="settings-section" id="settings-access">
+          <summary>
+            <span>Access</span>
+            <small>API bearer auth, CORS, and exposure warnings.</small>
+          </summary>
+          <form class="form-grid" id="accessForm"></form>
+          <div class="panel inset">
+            <div class="panel-heading">
+              <h3>Security Notes</h3>
+            </div>
+            <ul class="notes">
+              <li>Tools and shell should not be exposed without an API key.</li>
+              <li>Secret values are never returned by the API. Leave them blank to keep the saved value.</li>
+              <li>CORS should stay empty unless a separate trusted origin needs browser access.</li>
+            </ul>
+          </div>
+        </details>
+
+        <details class="settings-section" id="settings-channels">
+          <summary>
+            <span>Channels</span>
+            <small>Console and Telegram integration settings.</small>
+          </summary>
+          <div class="section-actions">
+            <button class="secondary" id="testTelegramBtn" type="button">Test Telegram</button>
+          </div>
+          <form class="form-grid" id="channelsForm"></form>
+          <pre class="output" id="telegramTestOutput" hidden></pre>
+        </details>
+
+        <details class="settings-section" id="settings-maintenance">
+          <summary>
+            <span>Maintenance</span>
+            <small>Storage checks, diagnostics, config export, backups, and runtime apply controls.</small>
+          </summary>
+          <div class="action-grid">
+            <button class="secondary" id="testStorageBtn" type="button">Test Storage</button>
+            <button class="secondary" id="diagnosticsBtn" type="button">Diagnostics</button>
+            <button class="secondary" id="reloadRuntimeBtn" type="button">Apply Saved Config</button>
+            <button class="secondary" id="restartRuntimeBtn" type="button">Restart Web Server</button>
+            <button class="secondary" id="exportConfigBtn" type="button">Export Config</button>
+            <button class="secondary" id="backupBtn" type="button">Create Backup</button>
+            <button class="secondary" id="listBackupsBtn" type="button">List Backups</button>
+            <button class="danger" id="deleteBackupBtn" type="button">Delete Backup</button>
+          </div>
+          <div class="panel inset">
+            <div class="panel-heading">
+              <h3>Config Apply Behavior</h3>
+            </div>
+            <ul class="notes">
+              <li>Save Config writes runtime_config.yaml and reloads web sessions plus Telegram polling.</li>
+              <li>Use Apply Saved Config after editing runtime_config.yaml outside the browser.</li>
+              <li>Debug host, debug port, and CORS changes require Restart Web Server.</li>
+            </ul>
+          </div>
+          <pre class="output" id="maintenanceOutput" hidden></pre>
+        </details>
       </div>
     </section>
 
@@ -296,80 +370,6 @@
       </div>
     </section>
 
-    <section class="page" id="page-identity" aria-labelledby="identity-heading">
-      <div class="section-heading">
-        <div>
-          <h2 id="identity-heading">Identity</h2>
-          <p>Edit the seed soul file that drives role labels, generation, self-check, and memory digestion.</p>
-        </div>
-        <button class="secondary" id="reloadSoulBtn">Reload Identity</button>
-      </div>
-      <form class="form-grid" id="identityForm"></form>
-      <div class="button-row">
-        <button class="primary" id="saveSoulBtn" type="button">Save Identity</button>
-      </div>
-      <pre class="output" id="soulOutput" hidden></pre>
-    </section>
-
-    <section class="page" id="page-access" aria-labelledby="access-heading">
-      <div class="section-heading">
-        <div>
-          <h2 id="access-heading">Access & Security</h2>
-          <p>API bearer auth, CORS, and exposure warnings.</p>
-        </div>
-      </div>
-      <form class="form-grid" id="accessForm"></form>
-      <div class="panel">
-        <div class="panel-heading">
-          <h3>Security Notes</h3>
-        </div>
-        <ul class="notes">
-          <li>Tools and shell should not be exposed without an API key.</li>
-          <li>Secret values are never returned by the API. Leave them blank to keep the saved value.</li>
-          <li>CORS should stay empty unless a separate trusted origin needs browser access.</li>
-        </ul>
-      </div>
-    </section>
-
-    <section class="page" id="page-channels" aria-labelledby="channels-heading">
-      <div class="section-heading">
-        <div>
-          <h2 id="channels-heading">Channels</h2>
-          <p>Console and Telegram integration settings.</p>
-        </div>
-        <button class="secondary" id="testTelegramBtn">Test Telegram</button>
-      </div>
-      <form class="form-grid" id="channelsForm"></form>
-      <pre class="output" id="telegramTestOutput" hidden></pre>
-    </section>
-
-    <section class="page" id="page-maintenance" aria-labelledby="maintenance-heading">
-      <div class="section-heading">
-        <div>
-          <h2 id="maintenance-heading">Maintenance</h2>
-          <p>Storage checks, diagnostics, config export, and backups.</p>
-        </div>
-      </div>
-      <div class="action-grid">
-        <button class="secondary" id="testStorageBtn">Test Storage</button>
-        <button class="secondary" id="diagnosticsBtn">Diagnostics</button>
-        <button class="secondary" id="reloadRuntimeBtn">Apply Saved Config</button>
-        <button class="secondary" id="restartRuntimeBtn">Restart Web Server</button>
-        <button class="secondary" id="exportConfigBtn">Export Config</button>
-        <button class="secondary" id="backupBtn">Create Backup</button>
-      </div>
-      <div class="panel">
-        <div class="panel-heading">
-          <h3>Config Apply Behavior</h3>
-        </div>
-        <ul class="notes">
-          <li>Save Config writes runtime_config.yaml and reloads web sessions plus Telegram polling.</li>
-          <li>Use Apply Saved Config after editing runtime_config.yaml outside the browser.</li>
-          <li>Debug host, debug port, and CORS changes require Restart Web Server.</li>
-        </ul>
-      </div>
-      <pre class="output" id="maintenanceOutput" hidden></pre>
-    </section>
   </main>
 </div>
 

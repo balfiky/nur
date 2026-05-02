@@ -19,6 +19,7 @@ from runtime.config import RuntimeConfig
 from runtime.skills import (
     SkillError,
     audit_installed_skill,
+    delete_skill,
     import_skill,
     list_skills,
     set_skill_enabled,
@@ -71,6 +72,12 @@ CAPABILITIES: list[ToolCapability] = [
         category=ToolCategory.COGNITIVE,
         arg_schema={"skill_id": {"type": "string", "required": True}},
     ),
+    ToolCapability(
+        name="skills.delete",
+        description="Delete an imported skill from the runtime skill registry",
+        category=ToolCategory.DESTRUCTIVE,
+        arg_schema={"skill_id": {"type": "string", "required": True}},
+    ),
 ]
 
 
@@ -87,6 +94,7 @@ def create_handlers(config: RuntimeConfig | None = None) -> dict[str, ToolHandle
         "skills.audit": lambda args: _audit(runtime_config, args),
         "skills.enable": lambda args: _set_enabled(runtime_config, args, True),
         "skills.disable": lambda args: _set_enabled(runtime_config, args, False),
+        "skills.delete": lambda args: _delete(runtime_config, args),
     }
 
 
@@ -123,6 +131,12 @@ def _create_from_request(config: RuntimeConfig, args: dict[str, Any]) -> ToolRes
     skill_name = _infer_skill_name(request, name_hint)
     existing = _find_existing_skill(config, skill_name)
     if existing and enable:
+        existing_id = str(existing.get("id") or "")
+        if existing_id:
+            try:
+                existing = audit_installed_skill(config, existing_id)
+            except SkillError:
+                pass
         try:
             record = (
                 existing if existing.get("enabled")
@@ -298,6 +312,28 @@ def _set_enabled(
             "skill registry updated: "
             f"{'enabled' if enabled else 'disabled'} {payload['id']}"
         ),
+    )
+
+
+def _delete(config: RuntimeConfig, args: dict[str, Any]) -> ToolResult:
+    skill_id = _clean_text(args.get("skill_id"), limit=120)
+    if not skill_id:
+        return _error("skills.delete", "skill_id is required")
+    try:
+        result = delete_skill(config, skill_id)
+    except SkillError as exc:
+        return _error("skills.delete", str(exc))
+    return ToolResult(
+        tool_name="skills.delete",
+        success=True,
+        output=_json_output(result),
+        metadata={
+            "skill_id": result["id"],
+            "name": result["name"],
+            "deleted": True,
+            "root_removed": bool(result.get("root_removed")),
+        },
+        side_effect_summary=f"skill registry updated: deleted {result['id']}",
     )
 
 

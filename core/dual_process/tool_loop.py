@@ -116,6 +116,16 @@ _TOOL_PATTERNS: list[tuple[re.Pattern, str, str]] = [
     ),
     (
         re.compile(
+            r"\b(?:delete|remove)\s+(?:the\s+)?"
+            r"(?:skill|capability|module|integration)\s+"
+            r"([A-Za-z0-9][A-Za-z0-9._-]{0,79})\b",
+            re.I,
+        ),
+        "skills.delete",
+        "skill_id",
+    ),
+    (
+        re.compile(
             r"\b(?:audit|inspect|check|show)\b.{0,80}"
             r"\b(?:audit\s+log|audit|problem|errors?|warnings?|status|"
             r"skill|capability|module|integration)\b",

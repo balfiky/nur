@@ -6,6 +6,7 @@ from runtime.config import RuntimeConfig
 from runtime.skills import (
     SkillError,
     audit_skill_text,
+    delete_skill,
     enabled_skill_context,
     import_skill,
     list_skills,
@@ -57,6 +58,21 @@ def test_import_skill_installs_disabled_until_review(tmp_path):
     assert disabled["status"] == "disabled"
 
 
+def test_delete_skill_removes_registry_record_and_files(tmp_path):
+    config = RuntimeConfig(data_dir=str(tmp_path / "data"))
+    record = import_skill(config, skill_markdown=VALID_SKILL)
+    skill_root = tmp_path / "data" / "skills" / record["id"]
+    assert skill_root.exists()
+
+    deleted = delete_skill(config, record["id"])
+
+    assert deleted["deleted"] is True
+    assert deleted["id"] == record["id"]
+    assert deleted["root_removed"] is True
+    assert not skill_root.exists()
+    assert list_skills(config)["skills"] == []
+
+
 def test_invalid_skill_cannot_be_enabled(tmp_path):
     config = RuntimeConfig(data_dir=str(tmp_path / "data"))
     record = import_skill(
@@ -68,6 +84,22 @@ def test_invalid_skill_cannot_be_enabled(tmp_path):
     assert record["compatibility"]["errors"]
     with pytest.raises(SkillError):
         set_skill_enabled(config, "broken", True)
+
+
+def test_enable_reaudits_skill_before_setting_enabled(tmp_path):
+    config = RuntimeConfig(data_dir=str(tmp_path / "data"))
+    record = import_skill(config, skill_markdown=VALID_SKILL)
+    set_skill_enabled(config, record["id"], True)
+    skill_file = tmp_path / "data" / "skills" / record["id"] / "SKILL.md"
+    skill_file.write_text("---\nname: disk-helper\n---\nMissing description.\n", encoding="utf-8")
+
+    with pytest.raises(SkillError):
+        set_skill_enabled(config, record["id"], True)
+
+    current = list_skills(config)["skills"][0]
+    assert current["enabled"] is False
+    assert current["status"] == "invalid"
+    assert current["compatibility"]["errors"]
 
 
 def test_import_skill_from_folder_audits_scripts(tmp_path):
@@ -186,6 +218,20 @@ def test_skill_registry_tool_imports_markdown_then_enables(tmp_path):
     assert list_skills(config)["skills"][0]["enabled"] is True
 
 
+def test_skill_registry_tool_deletes_skill(tmp_path):
+    config = RuntimeConfig(data_dir=str(tmp_path / "data"), tools_enabled=True)
+    executor = create_tool_executor(config)
+    assert executor is not None
+    import_skill(config, skill_markdown=VALID_SKILL)
+
+    deleted = executor.execute("skills.delete", {"skill_id": "disk-helper"})
+
+    assert deleted.success is True
+    assert deleted.metadata["skill_id"] == "disk-helper"
+    assert deleted.metadata["deleted"] is True
+    assert list_skills(config)["count"] == 0
+
+
 def test_skill_registry_tool_reports_invalid_enable_audit(tmp_path):
     config = RuntimeConfig(data_dir=str(tmp_path / "data"), tools_enabled=True)
     executor = create_tool_executor(config)
@@ -228,3 +274,30 @@ def test_skill_registry_tool_reuses_enabled_existing_skill(tmp_path):
     assert second.success is True
     assert list_skills(config)["count"] == 1
     assert "already available" in second.side_effect_summary
+
+
+def test_skill_registry_tool_reaudits_existing_before_reuse(tmp_path):
+    config = RuntimeConfig(data_dir=str(tmp_path / "data"), tools_enabled=True)
+    executor = create_tool_executor(config)
+    assert executor is not None
+    args = {
+        "request": "Create a skill called report-writer to summarize reports.",
+        "enable": True,
+    }
+
+    first = executor.execute("skills.create_from_request", args)
+    assert first.success is True
+    original = list_skills(config)["skills"][0]
+    skill_file = tmp_path / "data" / "skills" / original["id"] / "SKILL.md"
+    skill_file.write_text("---\nname: report-writer\n---\nMissing description.\n", encoding="utf-8")
+
+    second = executor.execute("skills.create_from_request", args)
+
+    listing = list_skills(config)
+    records = {item["id"]: item for item in listing["skills"]}
+    assert records[original["id"]]["enabled"] is False
+    assert records[original["id"]]["status"] == "invalid"
+    assert second.success is True
+    assert second.metadata["skill_id"] != original["id"]
+    assert second.metadata["enabled"] is True
+    assert second.metadata["status"] == "enabled"

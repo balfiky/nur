@@ -362,6 +362,11 @@ class AdminBackupRequest(BaseModel):
     include_data: bool = True
 
 
+class AdminBackupDeleteRequest(BaseModel):
+    filename: str
+    confirmation: str
+
+
 class AdminRuntimeRestartRequest(BaseModel):
     confirmation: str
 
@@ -897,6 +902,24 @@ async def admin_create_backup(req: AdminBackupRequest) -> dict:
     return _create_admin_backup(config, include_data=req.include_data)
 
 
+@app.get("/admin/backups", dependencies=[Depends(_require_bearer)])
+async def admin_list_backups() -> dict:
+    """List local admin backup archives."""
+    config = _load_runtime_config()
+    return _list_admin_backups(config)
+
+
+@app.post("/admin/backups/delete", dependencies=[Depends(_require_bearer)])
+async def admin_delete_backup(req: AdminBackupDeleteRequest) -> dict:
+    """Delete one local admin backup archive after explicit confirmation."""
+    config = _load_runtime_config()
+    return _delete_admin_backup(
+        config,
+        filename=req.filename,
+        confirmation=req.confirmation,
+    )
+
+
 @app.post("/admin/sessions/reset", dependencies=[Depends(_require_bearer)])
 async def admin_reset_session(req: AdminSessionResetRequest) -> dict:
     """Evict one active session after explicit typed confirmation."""
@@ -1179,6 +1202,17 @@ async def admin_disable_skill(skill_id: str) -> dict:
     except SkillError as exc:
         _raise_skill_http_error(exc)
     return {"ok": True, "skill": skill}
+
+
+@app.delete("/admin/skills/{skill_id}", dependencies=[Depends(_require_bearer)])
+async def admin_delete_skill(skill_id: str) -> dict:
+    from runtime.skills import SkillError, delete_skill
+
+    try:
+        result = delete_skill(_load_runtime_config(), skill_id)
+    except SkillError as exc:
+        _raise_skill_http_error(exc)
+    return {"ok": True, **result}
 
 
 @app.get("/admin/life", dependencies=[Depends(_require_bearer)])
@@ -2726,11 +2760,87 @@ def _create_admin_backup(config: RuntimeConfig, *, include_data: bool) -> dict:
         "ok": True,
         "created_at": _utc_now_iso(),
         "path": os.path.realpath(archive_path),
+        "filename": os.path.basename(archive_path),
         "size_bytes": os.path.getsize(archive_path),
         "file_count": file_count,
         "included_data": include_data,
         "redacted_config": True,
     }
+
+
+def _list_admin_backups(config: RuntimeConfig) -> dict:
+    backup_dir = _admin_backup_dir(config)
+    backups: list[dict] = []
+    if os.path.isdir(backup_dir):
+        for name in sorted(os.listdir(backup_dir), reverse=True):
+            if not name.startswith("nur-backup-") or not name.endswith(".zip"):
+                continue
+            path = _resolve_admin_backup_path(config, name, must_exist=False)
+            if not os.path.isfile(path):
+                continue
+            stat = os.stat(path)
+            backups.append({
+                "filename": name,
+                "path": os.path.realpath(path),
+                "size_bytes": stat.st_size,
+                "modified_at": datetime.fromtimestamp(
+                    stat.st_mtime, timezone.utc
+                ).isoformat().replace("+00:00", "Z"),
+            })
+    return {
+        "ok": True,
+        "backup_dir": os.path.realpath(backup_dir),
+        "count": len(backups),
+        "backups": backups,
+    }
+
+
+def _delete_admin_backup(
+    config: RuntimeConfig,
+    *,
+    filename: str,
+    confirmation: str,
+) -> dict:
+    filename = str(filename or "").strip()
+    expected = f"DELETE {filename}"
+    if confirmation != expected:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Confirmation must exactly match: {expected}",
+        )
+    path = _resolve_admin_backup_path(config, filename, must_exist=True)
+    size = os.path.getsize(path)
+    os.remove(path)
+    return {
+        "ok": True,
+        "action": "backup_delete",
+        "filename": filename,
+        "path_removed": path,
+        "size_bytes": size,
+    }
+
+
+def _resolve_admin_backup_path(
+    config: RuntimeConfig,
+    filename: str,
+    *,
+    must_exist: bool,
+) -> str:
+    if (
+        not filename
+        or os.sep in filename
+        or (os.altsep and os.altsep in filename)
+        or not filename.startswith("nur-backup-")
+        or not filename.endswith(".zip")
+    ):
+        raise HTTPException(status_code=400, detail="Invalid backup filename.")
+    backup_dir = os.path.realpath(_admin_backup_dir(config))
+    path = os.path.realpath(os.path.join(backup_dir, filename))
+    if not _is_relative_to(path, backup_dir):
+        raise HTTPException(status_code=400, detail="Invalid backup path.")
+    if must_exist and not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="Backup not found.")
+    return path
 
 
 async def _admin_delete_user_data(

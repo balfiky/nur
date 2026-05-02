@@ -72,6 +72,45 @@
           <div class="mod-grid" id="modulatorGrid"></div>
         </section>
 
+        <section class="panel-section observability-section">
+          <div class="section-heading">
+            <h2>Observability</h2>
+            <span class="muted">state diagrams and sampled progress while this dashboard is open</span>
+          </div>
+          <div class="observability-grid">
+            <article class="viz-card state-map-card">
+              <div class="viz-head">
+                <strong>State Map</strong>
+                <span class="muted">current six-axis shape</span>
+              </div>
+              <div class="radar-wrap" id="stateRadar"></div>
+            </article>
+            <article class="viz-card trend-card">
+              <div class="viz-head">
+                <strong>Emotion Progress</strong>
+                <span class="muted" id="historyCount">0 samples</span>
+              </div>
+              <div class="chart-wrap" id="emotionTrend"></div>
+              <div class="chart-legend" id="emotionLegend"></div>
+            </article>
+            <article class="viz-card trend-card">
+              <div class="viz-head">
+                <strong>Relationship Arc</strong>
+                <span class="muted">trust, bonding, resolution</span>
+              </div>
+              <div class="chart-wrap" id="relationshipArc"></div>
+              <div class="chart-legend" id="relationshipLegend"></div>
+            </article>
+            <article class="viz-card flow-card">
+              <div class="viz-head">
+                <strong>Turn Causal Flow</strong>
+                <span class="muted">read-only last-turn trace</span>
+              </div>
+              <div class="flow-strip" id="turnFlow"></div>
+            </article>
+          </div>
+        </section>
+
         <section class="two-col">
           <article class="panel-section">
             <div class="section-heading">

@@ -16,6 +16,9 @@ class TestAdminConsoleStatic:
         assert 'href="/admin/assets/admin.css"' in html
         assert 'src="/admin/assets/admin.js"' in html
         assert "Operator Workspace" in html
+        assert "Settings" in html
+        assert 'id="page-settings"' in html
+        assert 'class="settings-accordion"' in html
         assert "Skills" in html
         assert "Life History" in html
         assert "Evolution Snapshot" in html
@@ -44,6 +47,10 @@ class TestAdminConsoleStatic:
         assert "Unified Persona Dashboard" in html
         assert 'id="sessionList"' in html
         assert 'id="modulatorGrid"' in html
+        assert 'id="stateRadar"' in html
+        assert 'id="emotionTrend"' in html
+        assert 'id="relationshipArc"' in html
+        assert 'id="turnFlow"' in html
         assert 'id="perceptionList"' in html
         assert 'id="lifePressures"' in html
         assert 'id="skillsList"' in html
@@ -67,6 +74,8 @@ class TestAdminConsoleStatic:
         assert b"/v1/tools" in js.body
         assert b"/admin/skills" in js.body
         assert b"/admin/skills/import/upload" in js.body
+        assert b"data-skill-action=\"delete\"" in js.body
+        assert b"/admin/backups" in js.body
         assert b"/admin/life" in js.body
         assert b"/admin/life/experiences/upload" in js.body
         assert b"/admin/life/rollback" in js.body
@@ -76,6 +85,8 @@ class TestAdminConsoleStatic:
         assert persona_js.status_code == 200
         assert b"/admin/persona/state" in persona_js.body
         assert b"renderPersona" in persona_js.body
+        assert b"renderObservability" in persona_js.body
+        assert b"renderStateRadar" in persona_js.body
 
     def test_unknown_admin_asset_404s(self):
         with pytest.raises(HTTPException) as exc:

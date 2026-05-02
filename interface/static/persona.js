@@ -3,7 +3,21 @@
     payload: null,
     selectedSessionKey: "",
     refreshTimer: null,
+    historyBySession: {},
   };
+
+  const modulatorNames = ["arousal", "valence", "certainty", "bonding", "energy", "resolution"];
+  const emotionSeries = [
+    ["arousal", "Arousal", "#2563eb"],
+    ["valence", "Valence", "#027a48"],
+    ["certainty", "Certainty", "#7c3aed"],
+    ["energy", "Energy", "#b54708"],
+  ];
+  const relationshipSeries = [
+    ["trust", "Trust", "#0f766e"],
+    ["bonding", "Bonding", "#2563eb"],
+    ["resolution", "Resolution", "#b42318"],
+  ];
 
   const els = {
     status: document.getElementById("dashboardStatus"),
@@ -79,10 +93,44 @@
   function renderDashboard() {
     const payload = state.payload || {};
     const sessions = payload.sessions || [];
+    captureHistory(payload.generated_at, sessions);
     renderSummary(payload);
     renderSessions(sessions);
     const selected = sessions.find((item) => item.session_key === state.selectedSessionKey) || null;
     renderPersona(selected);
+  }
+
+  function captureHistory(timestamp, sessions) {
+    const now = Number(timestamp || Date.now() / 1000);
+    for (const session of sessions || []) {
+      const sample = sampleFromSession(session, now);
+      if (!sample) continue;
+      const key = session.session_key;
+      const history = state.historyBySession[key] || [];
+      const previous = history[history.length - 1];
+      if (!previous || previous.last_activity !== sample.last_activity || now - previous.timestamp >= 3.5) {
+        history.push(sample);
+        state.historyBySession[key] = history.slice(-48);
+      }
+    }
+  }
+
+  function sampleFromSession(session, timestamp) {
+    const view = session.persona_view || {};
+    const emotions = view.emotions || {};
+    const relationship = view.relationship || {};
+    const mods = emotions.modulators || {};
+    const sample = {
+      timestamp,
+      last_activity: Number(session.last_activity || 0),
+      emotion: emotions.simple_label || emotions.primary || "neutral",
+      trust: safeNumber(relationship.trust && relationship.trust.value, 0),
+      strategy: relationship.strategy || "none",
+    };
+    for (const name of modulatorNames) {
+      sample[name] = safeNumber(mods[name] && mods[name].value, 0);
+    }
+    return sample;
   }
 
   function renderSummary(payload) {
@@ -154,12 +202,131 @@
     ].join(" · ");
     renderChips("emotionDrivers", emotions.drivers || ["balanced state"]);
     renderModulators(emotions.modulators || {});
+    renderObservability(session, view);
     renderPerception(view.perception || {});
     renderRelationship(view.relationship || {});
     renderLife(view.life || {});
     renderMemory(view.memory || {});
     renderSkillsTools(view.skills_tools || {});
     renderExplanation(view.explanation || {});
+  }
+
+  function renderObservability(session, view) {
+    const history = state.historyBySession[session.session_key] || [];
+    const emotions = view.emotions || {};
+    const relationship = view.relationship || {};
+    renderStateRadar(emotions.modulators || {});
+    renderLineChart("emotionTrend", history, emotionSeries);
+    renderLineChart("relationshipArc", history, relationshipSeries);
+    renderLegend("emotionLegend", emotionSeries);
+    renderLegend("relationshipLegend", relationshipSeries);
+    document.getElementById("historyCount").textContent = `${history.length} sample${history.length === 1 ? "" : "s"}`;
+    renderTurnFlow(view, relationship);
+  }
+
+  function renderStateRadar(modulators) {
+    const size = 280;
+    const center = size / 2;
+    const radius = 94;
+    const axes = modulatorNames.map((name, index) => {
+      const angle = -Math.PI / 2 + (index * Math.PI * 2) / modulatorNames.length;
+      const value = clamp(safeNumber(modulators[name] && modulators[name].value, 0), 0, 1);
+      return {
+        name,
+        value,
+        x: center + Math.cos(angle) * radius * value,
+        y: center + Math.sin(angle) * radius * value,
+        ax: center + Math.cos(angle) * radius,
+        ay: center + Math.sin(angle) * radius,
+        lx: center + Math.cos(angle) * (radius + 28),
+        ly: center + Math.sin(angle) * (radius + 28),
+      };
+    });
+    const rings = [0.33, 0.66, 1].map((scale) => polygonPoints(
+      axes.map((axis) => ({
+        x: center + (axis.ax - center) * scale,
+        y: center + (axis.ay - center) * scale,
+      }))
+    ));
+    const shape = polygonPoints(axes);
+    document.getElementById("stateRadar").innerHTML = `
+      <svg class="radar-svg" viewBox="0 0 ${size} ${size}" role="img" aria-label="Current six-modulator state map">
+        ${rings.map((points) => `<polygon class="radar-ring" points="${points}"></polygon>`).join("")}
+        ${axes.map((axis) => `<line class="radar-axis" x1="${center}" y1="${center}" x2="${axis.ax.toFixed(1)}" y2="${axis.ay.toFixed(1)}"></line>`).join("")}
+        <polygon class="radar-shape" points="${shape}"></polygon>
+        ${axes.map((axis) => `<circle class="radar-point" cx="${axis.x.toFixed(1)}" cy="${axis.y.toFixed(1)}" r="4"></circle>`).join("")}
+        ${axes.map((axis) => `<text class="radar-label" x="${axis.lx.toFixed(1)}" y="${axis.ly.toFixed(1)}" text-anchor="middle">${escapeHtml(shortLabel(axis.name))}</text>`).join("")}
+      </svg>
+    `;
+  }
+
+  function renderLineChart(id, history, series) {
+    const width = 520;
+    const height = 170;
+    const pad = { left: 34, right: 14, top: 14, bottom: 26 };
+    const chartWidth = width - pad.left - pad.right;
+    const chartHeight = height - pad.top - pad.bottom;
+    const samples = history.length ? history : [{}];
+    const xFor = (index) => pad.left + (samples.length <= 1 ? chartWidth : (index / (samples.length - 1)) * chartWidth);
+    const yFor = (value) => pad.top + (1 - clamp(safeNumber(value, 0), 0, 1)) * chartHeight;
+    const grid = [0, 0.25, 0.5, 0.75, 1].map((value) => {
+      const y = yFor(value);
+      return `<line class="chart-grid-line" x1="${pad.left}" y1="${y.toFixed(1)}" x2="${(width - pad.right).toFixed(1)}" y2="${y.toFixed(1)}"></line>`;
+    }).join("");
+    const paths = series.map(([key, , color]) => {
+      const points = samples.map((sample, index) => `${xFor(index).toFixed(1)},${yFor(sample[key]).toFixed(1)}`);
+      return `<polyline class="chart-line" style="stroke:${color}" points="${points.join(" ")}"></polyline>`;
+    }).join("");
+    const latest = series.map(([key, label, color]) => {
+      const last = history[history.length - 1] || {};
+      const x = xFor(Math.max(samples.length - 1, 0));
+      const y = yFor(last[key]);
+      return `<circle class="chart-dot" style="fill:${color}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5"><title>${escapeHtml(label)} ${formatNumber(last[key])}</title></circle>`;
+    }).join("");
+    const empty = history.length < 2
+      ? `<text class="chart-empty" x="${width / 2}" y="${height / 2}" text-anchor="middle">Collecting samples</text>`
+      : "";
+    document.getElementById(id).innerHTML = `
+      <svg class="line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeAttr(id)} progress chart">
+        ${grid}
+        <line class="chart-axis" x1="${pad.left}" y1="${(height - pad.bottom).toFixed(1)}" x2="${(width - pad.right).toFixed(1)}" y2="${(height - pad.bottom).toFixed(1)}"></line>
+        <text class="chart-tick" x="8" y="${yFor(1).toFixed(1)}">1.0</text>
+        <text class="chart-tick" x="8" y="${yFor(0.5).toFixed(1)}">0.5</text>
+        <text class="chart-tick" x="8" y="${yFor(0).toFixed(1)}">0.0</text>
+        ${paths}
+        ${latest}
+        ${empty}
+      </svg>
+    `;
+  }
+
+  function renderLegend(id, series) {
+    document.getElementById(id).innerHTML = series.map(([, label, color]) => `
+      <span class="legend-item"><i style="background:${color}"></i>${escapeHtml(label)}</span>
+    `).join("");
+  }
+
+  function renderTurnFlow(view, relationship) {
+    const perception = view.perception || {};
+    const life = view.life || {};
+    const memory = view.memory || {};
+    const tools = view.skills_tools || {};
+    const steps = [
+      ["Perception", perception.target || "none", perception.summary || "No social read."],
+      ["Strategy", relationship.strategy || "none", relationship.strategy_reason || "No strategy trace."],
+      ["Memory", memory.relationship_context_used ? `${memory.open_loop_count || 0} loop(s)` : "not used", `${memory.long_term_count || 0} long-term · ${memory.semantic_count || 0} semantic`],
+      ["Life", life.context_available ? `${Object.keys(life.active_pressures || {}).length} pressure(s)` : "neutral", `${Object.keys(life.effects || {}).length} bounded effect(s)`],
+      ["Tools", tools.tools_used ? `${tools.tools_used} used` : "none used", tools.summary || "No tools used."],
+      ["Response", (view.explanation || {}).strategy ? "explained" : "recorded", (view.explanation || {}).limits || "No limits note."],
+    ];
+    document.getElementById("turnFlow").innerHTML = steps.map(([title, value, detail], index) => `
+      <article class="flow-node">
+        <span>${index + 1}</span>
+        <strong>${escapeHtml(title)}</strong>
+        <em>${escapeHtml(value)}</em>
+        <small>${escapeHtml(detail)}</small>
+      </article>
+    `).join("");
   }
 
   function renderModulators(modulators) {
@@ -312,6 +479,21 @@
     `;
   }
 
+  function polygonPoints(points) {
+    return points.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ");
+  }
+
+  function shortLabel(name) {
+    return {
+      arousal: "Arousal",
+      valence: "Valence",
+      certainty: "Certainty",
+      bonding: "Bonding",
+      energy: "Energy",
+      resolution: "Resolve",
+    }[name] || name;
+  }
+
   function bindEvents() {
     els.refreshBtn.addEventListener("click", () => loadDashboard().catch(handleError));
     els.tokenBtn.addEventListener("click", openTokenDialog);
@@ -365,6 +547,11 @@
   function formatNumber(value) {
     const number = Number(value || 0);
     return number.toFixed(2);
+  }
+
+  function safeNumber(value, fallback) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
   }
 
   function formatDelta(value) {

@@ -215,14 +215,66 @@ def set_skill_enabled(config: RuntimeConfig, skill_id: str, enabled: bool) -> di
     record = _find_skill_in_registry(registry, skill_id)
     if record is None:
         raise SkillError(f"Skill not found: {skill_id}")
-    audit = record.get("compatibility") or {}
+    root = Path(str(record.get("root") or ""))
+    audit = audit_skill_path(root)
+    record["name"] = audit["metadata"].get("name") or record.get("name") or skill_id
+    record["description"] = audit["metadata"].get("description", "")
+    record["metadata"] = audit["metadata"]
+    record["compatibility"] = audit
+    record["checksum"] = _tree_checksum(root) if root.exists() else ""
+    record["updated_at"] = time.time()
     if enabled and audit.get("errors"):
+        record["enabled"] = False
+        record["status"] = "invalid"
+        _write_registry(skills_root(config), registry)
         raise SkillError("Cannot enable a skill with audit errors.")
+    if audit.get("errors"):
+        record["enabled"] = False
+        record["status"] = "invalid"
+        _write_registry(skills_root(config), registry)
+        return record
     record["enabled"] = bool(enabled)
     record["status"] = "enabled" if enabled else "disabled"
-    record["updated_at"] = time.time()
     _write_registry(skills_root(config), registry)
     return record
+
+
+def delete_skill(config: RuntimeConfig, skill_id: str) -> dict[str, Any]:
+    """Remove an imported skill from disk and from the registry."""
+    skill_id = _validate_skill_id(skill_id)
+    root = skills_root(config)
+    registry = _read_registry(root)
+    record = _find_skill_in_registry(registry, skill_id)
+    if record is None:
+        raise SkillError(f"Skill not found: {skill_id}")
+
+    skill_root = Path(str(record.get("root") or root / skill_id)).expanduser().resolve()
+    root_resolved = root.resolve()
+    root_removed = False
+    if skill_root.exists():
+        try:
+            skill_root.relative_to(root_resolved)
+        except ValueError as exc:
+            raise SkillError("Refusing to delete a skill outside the skills root.") from exc
+        if skill_root.is_dir():
+            shutil.rmtree(skill_root)
+            root_removed = True
+        else:
+            skill_root.unlink()
+            root_removed = True
+
+    registry["skills"] = [
+        item for item in registry.get("skills", [])
+        if item.get("id") != skill_id
+    ]
+    _write_registry(root, registry)
+    return {
+        "id": skill_id,
+        "name": record.get("name") or skill_id,
+        "root": str(skill_root),
+        "deleted": True,
+        "root_removed": root_removed,
+    }
 
 
 def audit_skill_path(path: Path) -> dict[str, Any]:

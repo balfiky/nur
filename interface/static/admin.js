@@ -543,6 +543,7 @@
             ${enabled
               ? `<button class="secondary" data-skill-action="disable" data-skill-id="${escapeAttr(skill.id)}">Disable</button>`
               : `<button class="primary" data-skill-action="enable" data-skill-id="${escapeAttr(skill.id)}" ${canEnable ? "" : "disabled"}>Enable</button>`}
+            <button class="danger" data-skill-action="delete" data-skill-id="${escapeAttr(skill.id)}">Delete</button>
           </div>
         </div>
         <div class="skill-meta">${escapeHtml(skill.root || "")}</div>
@@ -576,9 +577,14 @@
   }
 
   async function mutateSkill(skillId, action) {
-    const res = await authedFetch(`/admin/skills/${encodeURIComponent(skillId)}/${action}`, {
-      method: "POST",
-    });
+    let url = `/admin/skills/${encodeURIComponent(skillId)}/${action}`;
+    let method = "POST";
+    if (action === "delete") {
+      if (!window.confirm(`Delete skill ${skillId}? This removes it from the registry and disk.`)) return;
+      url = `/admin/skills/${encodeURIComponent(skillId)}`;
+      method = "DELETE";
+    }
+    const res = await authedFetch(url, { method });
     const data = await res.json();
     if (!res.ok) throw new Error(responseErrorMessage(data, `${action} failed`));
     showToast(`Skill ${labelize(action)} complete.`);
@@ -844,7 +850,7 @@
     state.metadata = configPayload.field_metadata || [];
     renderOverview();
     renderAllForms();
-    if (state.activePage === "tools") {
+    if (state.activePage === "settings") {
       state.toolsLoaded = false;
       await loadTools();
     }
@@ -909,7 +915,7 @@
       state.metadata = data.field_metadata || [];
       await refreshStatusOnly();
       renderAllForms();
-      if (state.activePage === "tools") {
+      if (state.activePage === "settings") {
         state.toolsLoaded = false;
         await loadTools();
       }
@@ -1008,6 +1014,24 @@
     });
   }
 
+  async function deleteBackup() {
+    const filename = window.prompt("Backup filename to delete, for example nur-backup-YYYYMMDDTHHMMSSZ.zip");
+    if (!filename) return;
+    const confirmation = window.prompt(`Type DELETE ${filename} to delete this backup.`);
+    if (confirmation === null) return;
+    await runJsonAction("maintenanceOutput", async () => {
+      const res = await authedFetch("/admin/backups/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename, confirmation }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(responseErrorMessage(data, "Backup delete failed"));
+      showToast("Backup deleted.");
+      return data;
+    });
+  }
+
   async function saveSoul() {
     const payload = {};
     for (const [name, , type] of soulFields) {
@@ -1060,6 +1084,17 @@
   }
 
   function openPage(page) {
+    const settingsAliases = {
+      runtime: "runtime",
+      models: "models",
+      tools: "tools",
+      identity: "identity",
+      access: "access",
+      channels: "channels",
+      maintenance: "maintenance",
+    };
+    const settingsSection = settingsAliases[page] || "";
+    if (settingsSection) page = "settings";
     state.activePage = page;
     for (const el of document.querySelectorAll(".page")) {
       el.classList.toggle("active", el.id === "page-" + page);
@@ -1069,7 +1104,7 @@
     }
     els.pageTitle.textContent = document.querySelector(`.nav-item[data-page="${CSS.escape(page)}"]`)?.textContent || "Admin";
     history.replaceState(null, "", "#" + page);
-    if (page === "tools" && !state.toolsLoaded && Object.keys(state.config).length) {
+    if (page === "settings" && !state.toolsLoaded && Object.keys(state.config).length) {
       loadTools().catch((err) => {
         document.getElementById("toolsList").innerHTML = `<div class="tool-row"><p class="empty-copy">${escapeHtml(err.message || String(err))}</p></div>`;
         showToast(err.message || String(err), "error");
@@ -1087,6 +1122,14 @@
         showToast(err.message || String(err), "error");
       });
     }
+    if (settingsSection) window.requestAnimationFrame(() => openSettingsSection(settingsSection));
+  }
+
+  function openSettingsSection(section) {
+    const details = document.getElementById("settings-" + section);
+    if (!details) return;
+    details.open = true;
+    details.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function openTokenDialog() {
@@ -1117,7 +1160,10 @@
       item.addEventListener("click", () => openPage(item.dataset.page));
     }
     for (const item of document.querySelectorAll("[data-action='open-page']")) {
-      item.addEventListener("click", () => openPage(item.dataset.page));
+      item.addEventListener("click", () => {
+        openPage(item.dataset.page);
+        if (item.dataset.settingsSection) openSettingsSection(item.dataset.settingsSection);
+      });
     }
     els.saveBtn.addEventListener("click", () => saveConfig().catch((err) => showToast(err.message, "error")));
     els.refreshAllBtn.addEventListener("click", () => loadAll().then(() => showToast("Refreshed.")).catch((err) => showToast(err.message, "error")));
@@ -1190,6 +1236,13 @@
       });
       return await res.json();
     }));
+    document.getElementById("listBackupsBtn").addEventListener("click", () => runJsonAction("maintenanceOutput", async () => {
+      const res = await authedFetch("/admin/backups");
+      return await res.json();
+    }));
+    document.getElementById("deleteBackupBtn").addEventListener("click", () => {
+      deleteBackup().catch((err) => showToast(err.message || String(err), "error"));
+    });
   }
 
   wireEvents();
