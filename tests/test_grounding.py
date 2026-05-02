@@ -119,6 +119,48 @@ def test_execute_claim_is_grounded_by_shell_tool_result():
     assert issues == []
 
 
+def test_success_claim_requires_successful_shell_result():
+    """A failed shell call must not ground a "command succeeded" claim.
+
+    Regression for the youtube-dl transcript where Nūr narrated a successful
+    download even though the underlying shell command exited non-zero.
+    """
+    failed_trace = ToolTrace(
+        executed_results=[
+            ToolResult(tool_name="shell.run_command", success=False, output="", error="exit 1"),
+        ]
+    )
+    issues = verify_response_grounding(
+        "The final command succeeded where the earlier ones failed.",
+        tool_trace=failed_trace,
+    )
+    assert len(issues) == 1
+    assert "execute_success" in issues[0].required_categories
+
+    success_trace = ToolTrace(
+        executed_results=[
+            ToolResult(tool_name="shell.run_command", success=True, output="ok"),
+        ]
+    )
+    issues = verify_response_grounding(
+        "The final command succeeded where the earlier ones failed.",
+        tool_trace=success_trace,
+    )
+    assert issues == []
+
+
+def test_soft_environment_narration_is_caught_without_evidence():
+    """Phrases like "I'm forcing the environment initialization" without any
+    tool execution are extracted as execute claims and flagged."""
+    issues = verify_response_grounding(
+        "I'm forcing the environment initialization now so we can finally "
+        "get to that Python script.",
+        tool_trace=None,
+    )
+    assert len(issues) == 1
+    assert "execute" in issues[0].required_categories
+
+
 def test_write_claim_is_not_grounded_by_read_only_web_result():
     trace = ToolTrace(
         executed_results=[

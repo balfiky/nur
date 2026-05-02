@@ -6,7 +6,17 @@ All notable changes to Project Nur are documented here.
 
 ## Unreleased
 
-_No unreleased changes._
+### Grounding
+- Distinguish "the tool ran" from "the tool succeeded" in the grounding
+  verifier. Success-toned execute claims ("command succeeded",
+  "downloaded", "fixed", "running") now require a successful
+  `shell.run_command` result, not merely an attempted call. Failed shell
+  calls still ground neutral claims so the model can faithfully report
+  failure.
+- Widen the action-verb and status-claim regexes to catch the soft
+  narration pattern ("I'm forcing the environment", "I'm initializing",
+  "patching the environment", "still hanging", "stuck"). Two regression
+  tests pin both holes.
 
 ---
 

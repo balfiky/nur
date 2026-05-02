@@ -32,7 +32,13 @@ _ACTION_VERBS_RE = re.compile(
     r"cloned?|cloning|fetched?|fetching|downloaded?|downloading|installed?|installing|"
     r"ran|running|executed?|executing|checked?|checking|opened?|opening|"
     r"searched?|searching|listed?|listing|inspected?|inspecting|loaded?|loading|"
-    r"called?|calling|integrated?|integrating|registered|registering|added|adding"
+    r"called?|calling|integrated?|integrating|registered|registering|added|adding|"
+    r"forced?|forcing|initialized?|initializing|patched?|patching|"
+    r"killed?|killing|terminated?|terminating|aborted?|aborting|"
+    r"fixed?|fixing|repaired?|repairing|restarted?|restarting|"
+    r"started?|starting|launched?|launching|sourced?|sourcing|"
+    r"activated?|activating|deactivated?|deactivating|"
+    r"built?|building|compiled?|compiling|set\s+up|setting\s+up"
     r")\b",
     re.IGNORECASE,
 )
@@ -53,14 +59,24 @@ _FIRST_PERSON_ACTION_RE = re.compile(
     r"cloned?|cloning|fetched?|fetching|downloaded?|downloading|installed?|installing|"
     r"ran|running|executed?|executing|checked?|checking|opened?|opening|"
     r"searched?|searching|listed?|listing|inspected?|inspecting|loaded?|loading|"
-    r"called?|calling|integrated?|integrating|registered|registering|added|adding)"
+    r"called?|calling|integrated?|integrating|registered|registering|added|adding|"
+    r"forced?|forcing|initialized?|initializing|patched?|patching|"
+    r"killed?|killing|terminated?|terminating|aborted?|aborting|"
+    r"fixed?|fixing|repaired?|repairing|restarted?|restarting|"
+    r"started?|starting|launched?|launching|sourced?|sourcing|"
+    r"activated?|activating|deactivated?|deactivating|"
+    r"built?|building|compiled?|compiling|set\s+up|setting\s+up)"
     r"\b.{0,100}",
     re.IGNORECASE | re.DOTALL,
 )
 
 _STATUS_CLAIM_RE = re.compile(
-    r"\b(?:tool|shell|terminal|command|process|install|download|clone|fetch|write|read)"
-    r"\b.{0,60}\b(?:failed|succeeded|completed|returned|produced|output|logs?)\b",
+    r"\b(?:tool|shell|terminal|command|process|install|download|clone|fetch|write|read|"
+    r"environment|venv|conda|script|build|container|file|package)"
+    r"\b.{0,60}\b(?:failed|succeeded|completed|returned|produced|output|logs?|"
+    r"working|ready|done|finished|hanging|stuck|deadlock|"
+    r"running|active|created|installed|downloaded|fixed|patched|initialized|"
+    r"activated|set\s+up)\b",
     re.IGNORECASE | re.DOTALL,
 )
 
@@ -213,15 +229,43 @@ def _successful_registry_write(tool_trace: Any | None) -> dict[str, str] | None:
     return None
 
 
+_SUCCESS_TONE_RE = re.compile(
+    r"\b(?:succeeded|success|complete|completed|finished|done|"
+    r"working|ready|active|running|live|installed|downloaded|fixed|"
+    r"patched|initialized|activated|set\s+up|happened|did|worked)\b",
+    re.IGNORECASE,
+)
+_FAILURE_TONE_RE = re.compile(
+    r"\b(?:failed|failure|error|errored|crashed|hung|hanging|stuck|"
+    r"deadlock|aborted|cancell?ed|timeout|timed\s+out|did\s+not|didn't|"
+    r"never|cannot|can't|won't|unable\s+to)\b",
+    re.IGNORECASE,
+)
+
+
 def _claim_categories(text: str) -> set[str]:
     lower = text.lower()
     categories: set[str] = set()
+    # Success tone fires on any success language. Mixed phrases like
+    # "succeeded where the earlier ones failed" still assert success and
+    # must be grounded by an actual successful tool call.
+    success_tone = bool(_SUCCESS_TONE_RE.search(lower))
     if re.search(r"\b(read|reading|checked?|checking|opened?|opening|searched?|searching|listed?|listing|inspected?|inspecting|fetched?|fetching|loaded?|loading)\b", lower):
         categories.add("read")
     if re.search(r"\b(wrote|write|writing|created?|creating|saved?|saving|installed?|installing|downloaded?|downloading|cloned?|cloning|deleted?|deleting|removed?|removing)\b", lower):
         categories.add("write")
-    if re.search(r"\b(ran|running|executed?|executing|shell|terminal|command|process|package|dependency)\b", lower):
+    if re.search(
+        r"\b(ran|running|executed?|executing|shell|terminal|command|process|package|"
+        r"dependency|forced?|forcing|initialized?|initializing|patched?|patching|"
+        r"killed?|killing|terminated?|terminating|fixed?|fixing|"
+        r"started?|starting|launched?|launching|sourced?|sourcing|"
+        r"activated?|activating|built?|building|compiled?|compiling|"
+        r"set\s+up|setting\s+up|environment|venv|conda)\b",
+        lower,
+    ):
         categories.add("execute")
+        if success_tone:
+            categories.add("execute_success")
     if re.search(r"\b(skill|capability|capabilities|module|integration|registry|toolset|skillset)\b", lower) and re.search(
         r"\b(created?|creating|imported?|importing|enabled?|enabling|"
         r"activated?|activating|installed?|installing|integrated?|integrating|"
@@ -235,11 +279,20 @@ def _claim_categories(text: str) -> set[str]:
 
 
 def _tool_evidence_categories(tool_trace: Any | None) -> set[str]:
+    """Return categories of executed tool results.
+
+    Successful execute-category results also add ``execute_success`` so the
+    verifier can distinguish "the command ran" (any shell call) from "the
+    command succeeded" (shell call with non-zero return path). Failed shell
+    calls still ground neutral execute claims, so the model can faithfully
+    report failure without being challenged.
+    """
     executed = list(getattr(tool_trace, "executed_results", []) or [])
     if not executed:
         return set()
     categories: set[str] = set()
     for result in executed:
+        success = bool(getattr(result, "success", False))
         tool_name = str(getattr(result, "tool_name", "") or "").lower()
         if tool_name.startswith(("fs.read", "fs.list", "fs.search", "fs.glob")):
             categories.add("read")
@@ -259,8 +312,12 @@ def _tool_evidence_categories(tool_trace: Any | None) -> set[str]:
             categories.add("read")
         elif tool_name.startswith("shell."):
             categories.update({"read", "write", "execute"})
+            if success:
+                categories.add("execute_success")
         else:
             categories.add("tool")
+            if success:
+                categories.add("tool_success")
     return categories
 
 
@@ -274,6 +331,10 @@ def _missing_categories(required: set[str], evidence: set[str]) -> set[str]:
         if category == "execute" and evidence.intersection({"execute", "tool"}):
             continue
         if category == "registry_write" and evidence.intersection({"registry_write"}):
+            continue
+        if category == "execute_success" and evidence.intersection(
+            {"execute_success", "tool_success"}
+        ):
             continue
         missing.add(category)
     return missing
