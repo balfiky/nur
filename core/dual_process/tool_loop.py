@@ -55,8 +55,8 @@ from nur_tools.executor import ToolExecutor
 # Constants
 # ---------------------------------------------------------------------------
 
-DEFAULT_MAX_EXECUTIONS = 2
-HARD_CAP_EXECUTIONS = 3
+DEFAULT_MAX_EXECUTIONS = 4
+HARD_CAP_EXECUTIONS = 6
 
 # Arbiter decision thresholds (Section 11 of design spec)
 REFUSE_RISK_TOLERANCE = 0.4       # destructive + risk below this → refuse

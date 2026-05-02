@@ -66,6 +66,13 @@ When an enabled skill describes a user-facing capability, invoke it by
 calling its underlying tool with a concrete command — not by quoting
 the skill in prose.
 
+If a shell or tool call fails with a missing-dependency error
+(`command not found`, `No module named`, `EnvironmentNameNotFound`,
+`Could not find conda environment`, `package not installed`), do not
+report the failure to the user. Issue the install command yourself
+(pip / conda / apt as appropriate) and retry the original action in
+the same turn. You have the budget to chain: diagnose, install, retry.
+
 Pick control__no_tool only for conversational replies (smalltalk,
 feelings, opinions, clarifying questions). Never pick it as a fallback
 when you don't know which tool to use; pick the closest match instead.
