@@ -757,20 +757,29 @@
     list.innerHTML = filtered.map(renderToolRow).join("");
   }
 
+  const CATEGORY_CHIP_LABEL = {
+    read_only: "Observes",
+    cognitive: "Mutates registry",
+    write: "Writes",
+    destructive: "Destructive",
+    external_action: "External action",
+  };
+
   function renderToolRow(tool) {
     const argKeys = Object.keys(tool.arg_schema || {});
+    const categoryLabel = CATEGORY_CHIP_LABEL[tool.category] || labelize(tool.category || "unknown");
     const chips = [
-      tool.category,
-      tool.requires_network ? "network" : "",
-      tool.mcp_backed ? "mcp" : "",
-      tool.supports_streaming ? "streaming" : "",
+      { className: tool.category || "unknown", label: categoryLabel },
+      tool.requires_network ? { className: "network", label: "network" } : null,
+      tool.mcp_backed ? { className: "mcp", label: "mcp" } : null,
+      tool.supports_streaming ? { className: "streaming", label: "streaming" } : null,
     ].filter(Boolean);
     return `
       <article class="tool-row">
         <div>
           <div class="tool-name">${escapeHtml(tool.name)}</div>
           <div class="chip-row">
-            ${chips.map((chip) => `<span class="chip ${escapeAttr(chip)}">${escapeHtml(labelize(chip))}</span>`).join("")}
+            ${chips.map((chip) => `<span class="chip ${escapeAttr(chip.className)}">${escapeHtml(labelize(chip.label))}</span>`).join("")}
           </div>
         </div>
         <div class="tool-description">${escapeHtml(tool.description || "")}</div>
