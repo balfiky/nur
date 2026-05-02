@@ -249,13 +249,19 @@ def _path_inside(root: str, target: str) -> bool:
     return target_real == root_real or target_real.startswith(root_real + os.sep)
 
 
-def _refuse(tool_name: str, path: str) -> ToolResult:
+def _refuse(tool_name: str, path: str, workspace: str | None = None) -> ToolResult:
+    detail = (
+        f"Path outside sandboxed workspace: {path}. "
+        f"Filesystem tools are scoped to {workspace or '<configured workspace>'}. "
+        "Widen the scope by setting `tools_workspace` (e.g. `/` for full host "
+        "access) in /admin > Settings or runtime_config.yaml."
+    )
     return ToolResult(
         tool_name=tool_name,
         success=False,
         output="",
-        error=f"Path outside sandboxed workspace: {path}",
-        metadata={"path": path},
+        error=detail,
+        metadata={"path": path, "workspace": workspace or ""},
     )
 
 
@@ -287,7 +293,7 @@ def create_handlers(workspace: str | None = None) -> dict[str, ToolHandler]:
             if not os.path.isabs(target):
                 target = os.path.join(root, target)
             if not _path_inside(root, target):
-                return _refuse(name, args.get("path", ""))
+                return _refuse(name, args.get("path", ""), workspace=root)
             guarded_args = dict(args)
             guarded_args["path"] = target
             return inner(guarded_args)
