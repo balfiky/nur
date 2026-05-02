@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 from core.dual_process.generator import MockLLMBackend
 from pipeline import CognitivePipeline
+from playwright.sync_api import expect
 
 from tests.uat.conftest import expect_json
 
@@ -106,6 +107,7 @@ def test_tools_toggle_and_read_only_tool_execution(uat_server, page):
     assert {item["name"] for item in disabled_tools["tools"]} == {
         "skills.audit",
         "skills.create_from_request",
+        "skills.delete",
         "skills.disable",
         "skills.enable",
         "skills.import_markdown",
@@ -145,8 +147,10 @@ def test_tools_toggle_and_read_only_tool_execution(uat_server, page):
 
 def test_restart_required_config_fields_are_reported_in_ui(uat_server, page):
     page.goto(uat_server.base_url + "/admin#runtime")
-    page.locator("#page-runtime details.advanced-settings summary").click()
-    page.locator("#page-runtime #cfg-debug_port").fill("8099")
+    expect(page.locator("#page-settings")).to_be_visible()
+    expect(page.locator("#settings-runtime")).to_have_attribute("open", "")
+    page.locator("#settings-runtime details.advanced-settings summary").click()
+    page.locator("#settings-runtime #cfg-debug_port").fill("8099")
     page.click("#saveBtn")
     page.locator("#toast").wait_for(state="visible", timeout=15_000)
     assert "Restart required" in page.locator("#toast").inner_text()

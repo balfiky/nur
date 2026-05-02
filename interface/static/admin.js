@@ -1493,6 +1493,10 @@
     details.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  function openPageFromHash() {
+    openPage((location.hash || "#overview").slice(1) || "overview");
+  }
+
   function openTokenDialog() {
     els.apiTokenInput.value = getApiToken();
     if (typeof els.tokenDialog.showModal === "function") {
@@ -1613,7 +1617,8 @@
   }
 
   wireEvents();
-  openPage((location.hash || "#overview").slice(1) || "overview");
+  window.addEventListener("hashchange", openPageFromHash);
+  openPageFromHash();
   loadAll().catch((err) => {
     setStatus("Error", "error");
     showToast(err.message || String(err), "error");

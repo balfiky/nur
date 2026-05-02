@@ -861,7 +861,7 @@ class TestPhase7Regression:
     def test_builtin_count_unchanged(self):
         """Builtin registration count includes read-only system tools."""
         reg, exe = _make_executor_with_builtins()
-        assert len(reg) == 28
+        assert len(reg) == 29
 
     def test_terminal_plan_cleared_from_session(self, tmp_path):
         """Completed plan is cleared from _active_task_plan."""

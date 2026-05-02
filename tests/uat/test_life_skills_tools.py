@@ -40,7 +40,9 @@ def test_admin_skills_import_enable_and_tools_inventory(uat_server, page):
     skills_payload = expect_json(uat_server.get("/admin/skills"))
     assert any(item["id"] == "uat-note-keeper" and item["enabled"] for item in skills_payload["skills"])
 
-    page.click(".nav-item[data-page='tools']")
+    page.goto(uat_server.base_url + "/admin#tools")
+    expect(page.locator("#page-settings")).to_be_visible()
+    expect(page.locator("#settings-tools")).to_have_attribute("open", "")
     expect(page.locator("#toolsSummary")).to_contain_text("Total", timeout=15_000)
     expect(page.locator("#toolsList .tool-row").first).to_be_visible()
 

@@ -452,8 +452,8 @@ class TestBuiltinRegistration:
 
     def test_total_builtin_count(self):
         reg, exe = _make_executor_with_builtins()
-        # 4 system + 6 fs + 1 shell + 3 web + 5 browser + 3 calendar + 6 skills
-        assert len(reg) == 28
+        # 4 system + 6 fs + 1 shell + 3 web + 5 browser + 3 calendar + 7 skills
+        assert len(reg) == 29
 
     def test_categories_assigned(self):
         reg, _ = _make_executor_with_builtins()
