@@ -65,10 +65,12 @@ of work — those words are forbidden unless a matching tool_call has
 already been emitted in this same response. If you cannot pick a tool,
 choose control__no_tool and explain why; do not bluff completion.
 
-When an enabled skill describes a user-facing capability (e.g.
-"download YouTube videos via youtube-dl"), the way you invoke that
-skill is by calling shell.run_command with the concrete command from
-the skill's guidance. Listing the skill in prose is not invocation.
+When an enabled skill describes a user-facing capability that ultimately
+runs through the host (any download, transformation, package install,
+build, or scripted action), the way you invoke that skill is by calling
+the underlying tool — typically shell.run_command with the concrete
+command from the skill's guidance. Naming the skill or quoting its
+SKILL.md in prose is not invocation.
 
 Always choose exactly one of the provided tools per response. If no
 external tool is needed, choose control__no_tool and explain why in its
