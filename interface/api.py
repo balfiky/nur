@@ -31,7 +31,7 @@ from fastapi import (
     status,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, Field, field_validator
 
 from interface.v1 import build_v1_router, _count_user_rows, _validate_path_token
@@ -1497,13 +1497,13 @@ def admin_index() -> HTMLResponse:
 
 
 @app.get("/persona")
-def persona_index() -> HTMLResponse:
-    return _persona_response()
+def persona_index() -> RedirectResponse:
+    return RedirectResponse(url="/admin#persona", status_code=307)
 
 
 @app.get("/dashboard")
-def dashboard_index() -> HTMLResponse:
-    return _persona_response()
+def dashboard_index() -> RedirectResponse:
+    return RedirectResponse(url="/admin#persona", status_code=307)
 
 
 @app.get("/admin/assets/{asset_name}", include_in_schema=False)

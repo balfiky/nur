@@ -19,12 +19,12 @@
     </a>
     <nav class="nav-list">
       <button class="nav-item active" data-page="overview">Overview</button>
+      <button class="nav-item" data-page="persona">Persona</button>
       <button class="nav-item" data-page="settings">Settings</button>
       <button class="nav-item" data-page="skills">Skills</button>
       <button class="nav-item" data-page="life">Life</button>
     </nav>
     <div class="sidebar-footer">
-      <a href="/persona" class="text-link">Persona dashboard</a>
       <a href="/" class="text-link">Back to chat</a>
       <button class="secondary full" id="refreshAllBtn">Refresh</button>
     </div>
@@ -51,6 +51,16 @@
         </div>
       </div>
       <div class="card-grid" id="overviewCards"></div>
+      <div class="panel admin-persona-panel">
+        <div class="panel-heading">
+          <div>
+            <h3>Persona Overview</h3>
+            <p class="muted">Current mental state, relationship context, memory, Life influence, and tools across active channels.</p>
+          </div>
+          <button class="secondary" data-action="open-page" data-page="persona">Open Persona</button>
+        </div>
+        <div id="overviewPersona" class="overview-persona"></div>
+      </div>
       <div class="panel">
         <div class="panel-heading">
           <h3>Warnings</h3>
@@ -58,6 +68,17 @@
         </div>
         <div id="warningsList" class="warning-list"></div>
       </div>
+    </section>
+
+    <section class="page" id="page-persona" aria-labelledby="persona-heading">
+      <div class="section-heading">
+        <div>
+          <h2 id="persona-heading">Persona</h2>
+          <p>Unified observability for Nūr's mental state, emotion, relationship memory, Life influence, skills, and tools across every active channel.</p>
+        </div>
+        <button class="secondary" id="refreshPersonaBtn" type="button">Refresh Persona</button>
+      </div>
+      <div id="personaAdminPage" class="persona-admin-page"></div>
     </section>
 
     <section class="page" id="page-settings" aria-labelledby="settings-heading">

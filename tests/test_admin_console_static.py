@@ -16,6 +16,11 @@ class TestAdminConsoleStatic:
         assert 'href="/admin/assets/admin.css"' in html
         assert 'src="/admin/assets/admin.js"' in html
         assert "Operator Workspace" in html
+        assert "Persona Overview" in html
+        assert 'id="overviewPersona"' in html
+        assert 'data-page="persona"' in html
+        assert 'id="page-persona"' in html
+        assert 'id="personaAdminPage"' in html
         assert "Settings" in html
         assert 'id="page-settings"' in html
         assert 'class="settings-accordion"' in html
@@ -34,27 +39,16 @@ class TestAdminConsoleStatic:
         assert 'id="lifeTimeline"' in html
         assert 'id="lifeExperiences"' in html
         assert 'id="rollbackLifeBatchBtn"' in html
-        assert 'href="/persona"' in html
+        assert "Open Persona" in html
 
-    def test_persona_route_serves_unified_dashboard(self):
+    def test_persona_route_redirects_to_admin_persona_section(self):
         resp = interface_api.persona_index()
         alias = interface_api.dashboard_index()
-        html = resp.body.decode()
 
-        assert resp.status_code == 200
-        assert alias.status_code == 200
-        assert alias.body == resp.body
-        assert "Unified Persona Dashboard" in html
-        assert 'id="sessionList"' in html
-        assert 'id="modulatorGrid"' in html
-        assert 'id="stateRadar"' in html
-        assert 'id="emotionTrend"' in html
-        assert 'id="relationshipArc"' in html
-        assert 'id="turnFlow"' in html
-        assert 'id="perceptionList"' in html
-        assert 'id="lifePressures"' in html
-        assert 'id="skillsList"' in html
-        assert 'src="/admin/assets/persona.js"' in html
+        assert resp.status_code == 307
+        assert alias.status_code == 307
+        assert resp.headers["location"] == "/admin#persona"
+        assert alias.headers["location"] == "/admin#persona"
 
     def test_admin_assets_are_whitelisted(self):
         css = interface_api.admin_asset("admin.css")
@@ -71,6 +65,10 @@ class TestAdminConsoleStatic:
         assert b"prefers-reduced-motion" in css.body
         assert js.status_code == 200
         assert b"fieldSections" in js.body
+        assert b"/admin/persona/state" in js.body
+        assert b"renderOverviewPersona" in js.body
+        assert b"renderPersonaAdminPage" in js.body
+        assert b"refreshPersonaBtn" in js.body
         assert b"/v1/tools" in js.body
         assert b"/admin/skills" in js.body
         assert b"/admin/skills/import/upload" in js.body

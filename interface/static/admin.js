@@ -3,6 +3,8 @@
     config: {},
     metadata: [],
     status: null,
+    persona: null,
+    previousPersona: null,
     soul: null,
     tools: [],
     toolsLoaded: false,
@@ -103,6 +105,8 @@
     "tools_workspace",
     "shell_tool_enabled",
   ];
+
+  const modulatorNames = ["arousal", "valence", "certainty", "bonding", "energy", "resolution"];
 
   const soulFields = [
     ["name", "Name", "text"],
@@ -330,6 +334,20 @@
     return `${number >= 0 ? "+" : ""}${number.toFixed(2)}`;
   }
 
+  function formatNumber(value, digits) {
+    const number = safeNumber(value, 0);
+    return number.toFixed(digits == null ? 2 : digits);
+  }
+
+  function safeNumber(value, fallback) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
   function renderOverview() {
     const status = state.status || {};
     const tools = status.tools || {};
@@ -356,10 +374,333 @@
       els.tokenBtn.hidden = !status.auth_enabled;
       els.tokenBtn.style.display = status.auth_enabled ? "" : "none";
     }
+    renderOverviewPersona();
+    renderPersonaAdminPage();
     renderWarnings(status.warnings || []);
     const hasErrors = (status.warnings || []).some((item) => item.severity === "error");
     const hasWarnings = (status.warnings || []).length > 0;
     setStatus(hasErrors ? "Needs attention" : (hasWarnings ? "Warnings" : "OK"), hasErrors ? "error" : (hasWarnings ? "warn" : "ok"));
+  }
+
+  function renderOverviewPersona() {
+    const el = document.getElementById("overviewPersona");
+    if (!el) return;
+    const payload = state.persona || {};
+    if (payload.error) {
+      el.innerHTML = `<p class="empty-copy">Persona state is unavailable: ${escapeHtml(payload.error)}</p>`;
+      return;
+    }
+    const sessions = Array.isArray(payload.sessions) ? payload.sessions.slice() : [];
+    if (!sessions.length) {
+      el.innerHTML = `
+        <div class="persona-empty">
+          <strong>No active persona session.</strong>
+          <p class="empty-copy">Send a Web or Telegram message, then refresh Overview to see Nūr's mental state, relationship context, memory, Life influence, and tool activity here.</p>
+        </div>
+      `;
+      return;
+    }
+    sessions.sort((a, b) => safeNumber(b.last_activity, 0) - safeNumber(a.last_activity, 0));
+    const session = sessions[0];
+    const view = session.persona_view || {};
+    const emotions = view.emotions || {};
+    const relationship = view.relationship || {};
+    const memory = view.memory || {};
+    const life = view.life || {};
+    const skillsTools = view.skills_tools || {};
+    const explanation = view.explanation || {};
+    const channels = Object.entries(payload.channel_counts || {})
+      .map(([name, count]) => `${name} ${count}`)
+      .join(" · ");
+    const activePressures = activeEntries(life.active_pressures || {});
+    const activeEffects = activeEntries(life.effects || {});
+    const openLoops = (relationship.open_loops || []).slice(0, 3);
+    const recentEvents = (relationship.recent_events || []).slice(0, 3);
+    const modulators = emotions.modulators || {};
+
+    el.innerHTML = `
+      <div class="persona-overview-grid">
+        <section class="persona-overview-block persona-emotion-block">
+          <div class="metric-label">Current Emotion</div>
+          <div class="persona-emotion">${escapeHtml(emotions.simple_label || emotions.primary || "neutral")}</div>
+          <div class="metric-foot">${escapeHtml([
+            emotions.primary ? `best-fit ${emotions.primary}` : "",
+            `intensity ${formatNumber(emotions.intensity)}`,
+            `confidence ${formatNumber(emotions.confidence)}`,
+          ].filter(Boolean).join(" · "))}</div>
+          ${renderPersonaChips(emotions.drivers || ["balanced state"])}
+        </section>
+        <section class="persona-overview-block">
+          <div class="metric-label">Mental Status</div>
+          ${renderModulatorBars(modulators, session)}
+        </section>
+        <section class="persona-overview-block">
+          <div class="metric-label">Relationship</div>
+          ${renderPersonaFacts([
+            ["strategy", relationship.strategy || "none"],
+            ["reason", relationship.strategy_reason || "none"],
+            ["trust", relationship.trust ? formatNumber(relationship.trust.value) : "0.00"],
+            ["bonding", relationship.bonding ? formatNumber(relationship.bonding.value) : "0.00"],
+            ["resolution", relationship.resolution ? formatNumber(relationship.resolution.value) : "0.00"],
+            ["open loops", relationship.open_loop_count || 0],
+          ])}
+        </section>
+        <section class="persona-overview-block">
+          <div class="metric-label">Memory, Life, Skills</div>
+          ${renderPersonaFacts([
+            ["relationship memory", memory.relationship_context_used ? "used" : "not used"],
+            ["long-term", memory.long_term_count || 0],
+            ["semantic", memory.semantic_count || 0],
+            ["life context", life.context_available ? "active" : "none"],
+            ["skills", skillsTools.enabled_skill_count || 0],
+            ["tools used", skillsTools.tools_used || 0],
+          ])}
+        </section>
+      </div>
+      <div class="persona-overview-lower">
+        <section>
+          <div class="mini-heading">Why This Response</div>
+          <p>${escapeHtml(explanation.interpretation || "No turn explanation is available.")}</p>
+          <p class="muted">${escapeHtml(explanation.strategy || "")}</p>
+        </section>
+        <section>
+          <div class="mini-heading">Active Loops</div>
+          ${renderPersonaItems(openLoops, "No active relationship loops.")}
+        </section>
+        <section>
+          <div class="mini-heading">Recent Relationship Events</div>
+          ${renderPersonaItems(recentEvents, "No recent relationship events.")}
+        </section>
+        <section>
+          <div class="mini-heading">Life Influence</div>
+          ${activePressures.length || activeEffects.length
+            ? `${renderPersonaChips(activePressures.map(([key, value]) => `${labelize(key)} ${signed(value)}`))}
+               ${renderPersonaChips(activeEffects.map(([key, value]) => `${labelize(key)} ${signed(value)}`))}`
+            : `<p class="empty-copy">No active LifeInfluence pressure or effect in the latest turn.</p>`}
+        </section>
+      </div>
+      <div class="persona-session-foot">
+        <span>${escapeHtml(payload.count || sessions.length)} active session(s)</span>
+        <span>${escapeHtml(channels || "no channel breakdown")}</span>
+        <span>${escapeHtml(session.session_key || "latest session")}</span>
+      </div>
+    `;
+  }
+
+  function renderPersonaAdminPage() {
+    const el = document.getElementById("personaAdminPage");
+    if (!el) return;
+    const payload = state.persona || {};
+    if (payload.error) {
+      el.innerHTML = `<div class="panel"><p class="empty-copy">Persona state is unavailable: ${escapeHtml(payload.error)}</p></div>`;
+      return;
+    }
+    const sessions = Array.isArray(payload.sessions) ? payload.sessions.slice() : [];
+    sessions.sort((a, b) => safeNumber(b.last_activity, 0) - safeNumber(a.last_activity, 0));
+    if (!sessions.length) {
+      el.innerHTML = `
+        <div class="panel persona-empty">
+          <strong>No active persona state yet.</strong>
+          <p class="empty-copy">Use Web, Telegram, or another channel first. Admin reads active core sessions without creating or mutating one.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const session = sessions[0];
+    const view = session.persona_view || {};
+    const emotions = view.emotions || {};
+    const perception = view.perception || {};
+    const relationship = view.relationship || {};
+    const memory = view.memory || {};
+    const life = view.life || {};
+    const skillsTools = view.skills_tools || {};
+    const explanation = view.explanation || {};
+    const activePressures = activeEntries(life.active_pressures || {});
+    const activeEffects = activeEntries(life.effects || {});
+
+    el.innerHTML = `
+      <div class="panel persona-admin-hero">
+        <div>
+          <div class="metric-label">Latest Active Session</div>
+          <h3>${escapeHtml(session.platform || "channel")} · ${escapeHtml(session.user_id || "user")}</h3>
+          <p class="muted">${escapeHtml(session.session_key || "")}</p>
+        </div>
+        <div>
+          <div class="metric-label">Emotion</div>
+          <div class="persona-emotion">${escapeHtml(emotions.simple_label || emotions.primary || "neutral")}</div>
+          <p class="muted">${escapeHtml((emotions.secondary || []).length ? `secondary: ${(emotions.secondary || []).join(", ")}` : "no strong secondary emotion")}</p>
+        </div>
+        <div>
+          <div class="metric-label">Strategy</div>
+          <div class="metric-value">${escapeHtml(relationship.strategy || "none")}</div>
+          <p class="muted">${escapeHtml(relationship.strategy_reason || "no strategy trace")}</p>
+        </div>
+      </div>
+
+      <div class="persona-admin-grid">
+        <section class="panel persona-state-panel">
+          <div class="panel-heading"><h3>Mental And Emotional State</h3></div>
+          ${renderModulatorBars(emotions.modulators || {}, session)}
+          ${renderPersonaChips(emotions.drivers || ["balanced state"])}
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading"><h3>Perception</h3></div>
+          ${renderPersonaFacts([
+            ["target", perception.target || "unknown"],
+            ["social move", perception.social_move || "none"],
+            ["intent", perception.intent || "none"],
+            ["vulnerability", formatNumber(perception.vulnerability)],
+            ["action need", formatNumber(perception.action_need)],
+          ])}
+          <p class="muted persona-summary-copy">${escapeHtml(perception.summary || "")}</p>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading"><h3>Relationship</h3></div>
+          ${renderPersonaFacts([
+            ["trust", relationship.trust ? formatNumber(relationship.trust.value) : "0.00"],
+            ["bonding", relationship.bonding ? formatNumber(relationship.bonding.value) : "0.00"],
+            ["resolution", relationship.resolution ? formatNumber(relationship.resolution.value) : "0.00"],
+            ["open loops", relationship.open_loop_count || 0],
+          ])}
+          <div class="mini-heading">Open Loops</div>
+          ${renderPersonaItems((relationship.open_loops || []).slice(0, 5), "No active relationship loops.")}
+          <div class="mini-heading spaced">Recent Events</div>
+          ${renderPersonaItems((relationship.recent_events || []).slice(0, 5), "No recent relationship events.")}
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading"><h3>Memory</h3></div>
+          ${renderPersonaFacts([
+            ["relationship context", memory.relationship_context_used ? "used" : "not used"],
+            ["open loop count", memory.open_loop_count || 0],
+            ["long-term memories", memory.long_term_count || 0],
+            ["semantic memories", memory.semantic_count || 0],
+          ])}
+          <div class="mini-heading">Current Turn Recall</div>
+          ${renderMemorySnippets([...(memory.long_term_summaries || []), ...(memory.semantic_summaries || [])])}
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading"><h3>Life Influence</h3></div>
+          ${renderPersonaFacts([
+            ["context", life.context_available ? "active" : "none"],
+            ["beliefs", life.belief_count || 0],
+            ["drives", life.drive_count || 0],
+            ["recent evolution", life.recent_evolution_count || 0],
+          ])}
+          <div class="mini-heading">Pressures</div>
+          ${activePressures.length ? renderPersonaChips(activePressures.map(([key, value]) => `${labelize(key)} ${signed(value)}`)) : `<p class="empty-copy">No active pressure.</p>`}
+          <div class="mini-heading spaced">Effects</div>
+          ${activeEffects.length ? renderPersonaChips(activeEffects.map(([key, value]) => `${labelize(key)} ${signed(value)}`)) : `<p class="empty-copy">No policy effect recorded.</p>`}
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading"><h3>Skills And Tools</h3></div>
+          ${renderPersonaFacts([
+            ["enabled skills", skillsTools.enabled_skill_count || 0],
+            ["tools considered", skillsTools.tools_considered || 0],
+            ["tools used", skillsTools.tools_used || 0],
+          ])}
+          <p class="muted persona-summary-copy">${escapeHtml(skillsTools.summary || "No tools were considered.")}</p>
+          ${renderPersonaChips((skillsTools.enabled_skills || []).map((skill) => skill.name || skill.id))}
+        </section>
+      </div>
+
+      <div class="panel">
+        <div class="panel-heading"><h3>Why This Response?</h3></div>
+        <div class="persona-explain-grid">
+          ${renderExplanationItem("Interpretation", explanation.interpretation)}
+          ${renderExplanationItem("Strategy", explanation.strategy)}
+          ${renderExplanationItem("State", explanation.state)}
+          ${renderExplanationItem("Memory", explanation.memory)}
+          ${renderExplanationItem("Life History", explanation.life_history)}
+          ${renderExplanationItem("Tools", explanation.tools)}
+          ${renderExplanationItem("Limits", explanation.limits)}
+        </div>
+      </div>
+    `;
+  }
+
+  function activeEntries(source) {
+    return Object.entries(source || {})
+      .filter(([, value]) => Number.isFinite(Number(value)) && Math.abs(Number(value)) >= 0.0005)
+      .slice(0, 6);
+  }
+
+  function renderPersonaFacts(items) {
+    return `<dl class="persona-facts">${items.map(([label, value]) => `
+      <div>
+        <dt>${escapeHtml(label)}</dt>
+        <dd>${escapeHtml(value)}</dd>
+      </div>
+    `).join("")}</dl>`;
+  }
+
+  function renderPersonaChips(items) {
+    const values = (items || []).filter(Boolean).slice(0, 6);
+    if (!values.length) return "";
+    return `<div class="persona-chip-row">${values.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>`;
+  }
+
+  function renderPersonaItems(items, emptyText) {
+    if (!items.length) return `<p class="empty-copy">${escapeHtml(emptyText)}</p>`;
+    return `<div class="persona-mini-list">${items.map((item) => `
+      <article>
+        <strong>${escapeHtml(item.topic || item.loop_kind || item.event_type || item.kind || "relationship")}</strong>
+        <span>${escapeHtml(item.status || item.event_type || item.description || "active")}</span>
+      </article>
+    `).join("")}</div>`;
+  }
+
+  function renderModulatorBars(modulators, session) {
+    return `<div class="persona-mod-bars">${modulatorNames.map((name) => {
+      const mod = modulators[name] || {};
+      const value = clamp(safeNumber(mod.value, name === "energy" ? 1 : name === "resolution" ? 0 : 0.5), 0, 1);
+      const delta = mod.delta == null ? personaDelta(session, name, value) : mod.delta;
+      return `
+        <div class="persona-mod-row">
+          <div>
+            <strong>${escapeHtml(labelize(name))}</strong>
+            <span>${escapeHtml(mod.meaning || "")}</span>
+          </div>
+          <div class="persona-mod-meter" aria-hidden="true"><span style="width:${Math.round(value * 100)}%"></span></div>
+          <div class="persona-mod-value">${formatNumber(value)}${delta == null ? "" : ` <span class="${delta < 0 ? "negative" : "positive"}">${signed(delta)}</span>`}</div>
+        </div>
+      `;
+    }).join("")}</div>`;
+  }
+
+  function personaDelta(session, name, currentValue) {
+    const previous = previousPersonaSession(session);
+    if (!previous) return null;
+    const previousMods = (((previous.persona_view || {}).emotions || {}).modulators || {});
+    if (!previousMods[name]) return null;
+    return safeNumber(currentValue, 0) - safeNumber(previousMods[name].value, currentValue);
+  }
+
+  function previousPersonaSession(session) {
+    const sessions = ((state.previousPersona || {}).sessions || []);
+    return sessions.find((item) => item.session_key === session.session_key) || null;
+  }
+
+  function renderMemorySnippets(items) {
+    const values = (items || []).filter(Boolean).slice(0, 6);
+    if (!values.length) return `<p class="empty-copy">No long-term or semantic memories were retrieved for this turn.</p>`;
+    return `<div class="persona-mini-list">${values.map((item) => `
+      <article><strong>${escapeHtml(item)}</strong></article>
+    `).join("")}</div>`;
+  }
+
+  function renderExplanationItem(label, value) {
+    return `
+      <article>
+        <strong>${escapeHtml(label)}</strong>
+        <p>${escapeHtml(value || "No data recorded.")}</p>
+      </article>
+    `;
   }
 
   async function loadTools() {
@@ -848,6 +1189,7 @@
     const configPayload = await configRes.json();
     state.config = configPayload.config || {};
     state.metadata = configPayload.field_metadata || [];
+    await loadPersonaState();
     renderOverview();
     renderAllForms();
     if (state.activePage === "settings") {
@@ -859,6 +1201,24 @@
       await loadLife();
     }
     await loadSoul(false);
+  }
+
+  async function loadPersonaState() {
+    try {
+      const res = await authedFetch("/admin/persona/state");
+      const data = await res.json();
+      if (!res.ok) throw new Error(responseErrorMessage(data, "Persona HTTP " + res.status));
+      state.previousPersona = state.persona;
+      state.persona = data;
+    } catch (err) {
+      state.previousPersona = state.persona;
+      state.persona = {
+        error: err.message || String(err),
+        count: 0,
+        channel_counts: {},
+        sessions: [],
+      };
+    }
   }
 
   async function loadSoul(showMessage) {
@@ -937,6 +1297,7 @@
     const res = await authedFetch("/admin/status");
     if (!res.ok) throw new Error("Status HTTP " + res.status);
     state.status = await res.json();
+    await loadPersonaState();
     renderOverview();
   }
 
@@ -1171,6 +1532,12 @@
     els.saveTokenBtn.addEventListener("click", () => setApiToken(els.apiTokenInput.value.trim()));
     document.getElementById("testLlmBtn").addEventListener("click", testLlm);
     document.getElementById("testTelegramBtn").addEventListener("click", testTelegram);
+    document.getElementById("refreshPersonaBtn").addEventListener("click", async () => {
+      await loadPersonaState();
+      renderPersonaAdminPage();
+      renderOverviewPersona();
+      showToast("Persona refreshed.");
+    });
     document.getElementById("refreshToolsBtn").addEventListener("click", () => {
       state.toolsLoaded = false;
       loadTools().catch((err) => showToast(err.message || String(err), "error"));

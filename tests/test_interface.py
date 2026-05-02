@@ -271,7 +271,7 @@ class TestIndexPage:
         assert "What Nūr Remembers" in html
         assert 'id="personaPanel"' in html
         assert "updatePersonaPanel" in html
-        assert 'href="/persona" title="Persona dashboard"' in html
+        assert 'href="/admin#persona" title="Persona dashboard"' in html
         assert 'id="delta-arousal"' in html
         assert "updateRelationshipState" in html
         assert "updateMemoryInspector" in html
@@ -339,13 +339,10 @@ class TestIndexPage:
         assert "Apply Saved Config" in html
         assert "Restart Web Server" in html
 
-    async def test_persona_route_serves_independent_dashboard(self):
+    async def test_persona_route_redirects_to_admin_persona_section(self):
         resp = interface_api.persona_index()
-        html = resp.body.decode()
-        assert resp.status_code == 200
-        assert "Unified Persona Dashboard" in html
-        assert "/admin/persona/state" not in html
-        assert 'src="/admin/assets/persona.js"' in html
+        assert resp.status_code == 307
+        assert resp.headers["location"] == "/admin#persona"
 
 
 class TestPersonaDashboard:

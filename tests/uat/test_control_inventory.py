@@ -19,8 +19,8 @@ def test_chat_and_admin_controls_have_accessible_names(uat_server, page):
             ["#saveBtn", "#refreshAllBtn", "#runtimeForm", "#maintenanceOutput"],
         ),
         (
-            "/persona",
-            ["#refreshBtn", "#autoRefresh", "#sessionList", "#modulatorGrid"],
+            "/admin#persona",
+            ["#refreshPersonaBtn", "#personaAdminPage"],
         ),
     ]:
         page.goto(uat_server.base_url + path)

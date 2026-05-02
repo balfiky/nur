@@ -18,16 +18,16 @@ def test_persona_dashboard_reads_runtime_sessions_across_channels(uat_server, pa
         },
     ))
 
-    page.goto(uat_server.base_url + "/persona")
+    page.goto(uat_server.base_url + "/admin#persona")
 
-    expect(page.locator("#dashboardStatus")).to_contain_text("Live", timeout=15_000)
-    expect(page.locator("#sessionList")).to_contain_text("web:uat_persona:webtab")
-    expect(page.locator("#emotionLabel")).not_to_be_empty()
-    expect(page.locator("#modulatorGrid .mod-card")).to_have_count(6)
-    expect(page.locator("#perceptionList")).to_contain_text("Summary")
-    expect(page.locator("#relationshipList")).to_contain_text("Strategy")
-    expect(page.locator("#lifeList")).to_contain_text("Context available")
-    expect(page.locator("#memoryList")).to_contain_text("Relationship used")
-    expect(page.locator("#skillsList")).to_contain_text("Enabled skills")
+    expect(page.locator("#page-persona")).to_be_visible(timeout=15_000)
+    expect(page.locator("#personaAdminPage")).to_contain_text("web:uat_persona:webtab")
+    expect(page.locator("#personaAdminPage")).to_contain_text("Mental And Emotional State")
+    expect(page.locator("#personaAdminPage .persona-mod-row")).to_have_count(6)
+    expect(page.locator("#personaAdminPage")).to_contain_text("Perception")
+    expect(page.locator("#personaAdminPage")).to_contain_text("Relationship")
+    expect(page.locator("#personaAdminPage")).to_contain_text("Life Influence")
+    expect(page.locator("#personaAdminPage")).to_contain_text("Memory")
+    expect(page.locator("#personaAdminPage")).to_contain_text("Skills And Tools")
 
     assert_no_browser_errors(page)
