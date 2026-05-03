@@ -107,8 +107,9 @@ def generate_artifact_draft(
     """Ask the LLM for one complete file payload as strict JSON."""
     system_prompt = (
         "Generate one complete file for the user's request. "
-        "Return JSON only, with keys: path, content, summary. "
-        "The content value must contain the complete file contents. "
+        "Return JSON only, with keys: path, content_lines, summary. "
+        "content_lines must be an array of strings, one string per file line. "
+        "Do not put the whole code file inside a nested JSON string. "
         "Do not use Markdown fences. Do not omit code. "
         f"Use this target path unless the user explicitly specified another: {request.path!r}. "
         f"Language: {request.language or 'infer from request'}. "
@@ -117,10 +118,14 @@ def generate_artifact_draft(
     raw = backend.generate(system_prompt, request.original_request)
     payload = _parse_artifact_json(raw)
     path = str(payload.get("path") or request.path).strip() or request.path
-    content = str(payload.get("content") or "").strip()
-    if not content:
-        content = _extract_fenced_or_plain_content(raw)
-    if not content:
+    content = _payload_content(payload)
+    if not content.strip():
+        content = _extract_loose_content_field(raw)
+    if not content.strip():
+        content = _extract_fenced_content(raw)
+    if not content.strip() and not _looks_like_jsonish(raw):
+        content = (raw or "").strip()
+    if not content.strip():
         raise ValueError("Generated artifact response did not include file content.")
     return ArtifactDraft(
         path=path,
@@ -211,9 +216,60 @@ def _parse_artifact_json(raw: str) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
-def _extract_fenced_or_plain_content(raw: str) -> str:
+def _payload_content(payload: dict[str, Any]) -> str:
+    lines = payload.get("content_lines")
+    if isinstance(lines, list):
+        normalized = [str(line) for line in lines]
+        if normalized:
+            return "\n".join(normalized)
+    content = payload.get("content")
+    if isinstance(content, str):
+        return content
+    return ""
+
+
+def _extract_loose_content_field(raw: str) -> str:
+    """Extract content from common malformed JSON with literal newlines.
+
+    Some local models return `"content": "line1\nline2"` with literal
+    newlines instead of escaped JSON newlines. That object is invalid JSON, but
+    the intended file payload is still recoverable. We recover the content
+    field rather than writing the enclosing object into the target file.
+    """
+    text = raw or ""
+    match = re.search(r'"content"\s*:\s*"', text)
+    if not match:
+        return ""
+    start = match.end()
+    tail = text[start:]
+    end = re.search(r'"\s*,\s*"(?:summary|path|content_lines)"\s*:', tail, flags=re.DOTALL)
+    if not end:
+        end = re.search(r'"\s*}\s*$', tail, flags=re.DOTALL)
+    if not end:
+        return ""
+    value = tail[:end.start()]
+    json_value = '"' + value.replace("\n", "\\n").replace("\r", "\\r") + '"'
+    try:
+        decoded = json.loads(json_value)
+        return decoded if isinstance(decoded, str) else ""
+    except json.JSONDecodeError:
+        return (
+            value
+            .replace('\\"', '"')
+            .replace("\\n", "\n")
+            .replace("\\t", "\t")
+            .replace("\\\\", "\\")
+        )
+
+
+def _extract_fenced_content(raw: str) -> str:
     text = (raw or "").strip()
     match = re.search(r"```(?:[A-Za-z0-9_+-]+)?\s*(.*?)```", text, flags=re.DOTALL)
     if match:
         return match.group(1).strip()
-    return text
+    return ""
+
+
+def _looks_like_jsonish(raw: str) -> bool:
+    text = (raw or "").lstrip()
+    return text.startswith("{") or text.startswith("[")

@@ -21,9 +21,27 @@ class ArtifactBackend(MockLLMBackend):
         if system_prompt.startswith("Generate one complete file"):
             return json.dumps({
                 "path": "games/tetris.py",
-                "content": "print('tetris ready')\n",
+                "content_lines": ["print('tetris ready')"],
                 "summary": "A small Python game script.",
             })
+        return "Saved it to `games/tetris.py`. Ready when you are."
+
+
+class MalformedArtifactBackend(MockLLMBackend):
+    def generate(self, system_prompt: str, user_message: str) -> str:
+        self.last_system_prompt = system_prompt
+        self.last_user_message = user_message
+        self.call_count += 1
+        if system_prompt.startswith("Generate one complete file"):
+            return (
+                "{\n"
+                '  "path": "games/tetris.py",\n'
+                '  "content": "import pygame\n'
+                'pygame.display.set_caption(\\"Tetris\\")\n'
+                'print(\\"ready\\")",\n'
+                '  "summary": "A small Python game script."\n'
+                "}"
+            )
         return "Saved it to `games/tetris.py`. Ready when you are."
 
 
@@ -511,6 +529,34 @@ class TestCognitivePipeline:
         assert result.debug.tool_trace.executed_results[0].success is True
         assert "I did not perform that external action" not in result.response
         assert "Saved it to `games/tetris.py`" in result.response
+        pipe.close()
+
+    def test_generated_artifact_recovers_malformed_json_content_field(self, tmp_path):
+        workspace = tmp_path / "workspace"
+        config = RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            tools_enabled=True,
+            tools_workspace=str(workspace),
+            autonomy_level="autonomous",
+        )
+        backend = MalformedArtifactBackend()
+        pipe = CognitivePipeline(
+            llm_backend=backend,
+            llm_backend_fast=backend,
+            tool_executor=create_tool_executor(config),
+            autonomy_level="autonomous",
+        )
+
+        result = pipe.process(
+            "Can you write me a python code for tetris game and save it in games directory you create?",
+            user_id="alice",
+        )
+
+        content = (workspace / "games" / "tetris.py").read_text(encoding="utf-8")
+        assert content.startswith("import pygame\n")
+        assert '"content":' not in content
+        assert 'pygame.display.set_caption("Tetris")' in content
+        assert result.debug.tool_trace.executed_results[0].success is True
         pipe.close()
 
     def test_unverified_permanent_skill_claim_is_replaced(self):

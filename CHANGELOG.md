@@ -42,6 +42,10 @@ All notable changes to Project Nur are documented here.
   structured file payload and persist it through `fs.write_file` before any
   success claim is allowed. Generic grounding corrections no longer mention
   Skills unless the issue is actually skill-registry related.
+- Hardened generated-artifact parsing so malformed JSON wrappers are not
+  written into target code files; the writer now prefers `content_lines`,
+  recovers common malformed `"content"` fields, and rejects JSON-like payloads
+  that do not contain extractable file content.
 
 ### Emotional engine
 - Direct attacks against Nūr (insults, profanity, appraisal-detected
