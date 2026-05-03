@@ -23,6 +23,7 @@ from config.loader import (
     ContradictionConfig,
     ContagionDetectionConfig,
     ContagionEngineConfig,
+    EventDeltaCapsConfig,
 )
 
 
@@ -63,6 +64,12 @@ class TestNurConfigDefaults:
         cfg = NurConfig()
         assert cfg.contagion_engine.factor == 0.3
         assert cfg.contagion_engine.cap == 0.15
+
+    def test_default_event_delta_caps(self):
+        cfg = NurConfig()
+        assert isinstance(cfg.event_delta_caps, EventDeltaCapsConfig)
+        assert cfg.event_delta_caps.normal["arousal"] == 0.10
+        assert cfg.event_delta_caps.spike["arousal"] == 0.40
 
     def test_default_profiling(self):
         cfg = NurConfig()
@@ -125,6 +132,8 @@ class TestLoadConfig:
         cfg = load_config()
         assert "betrayal" in cfg.event_impacts
         assert cfg.event_impacts["betrayal"]["valence"] == -0.50
+        assert cfg.event_delta_caps.normal["valence"] == 0.16
+        assert cfg.event_delta_caps.spike["valence"] == 0.45
 
     def test_loads_memory_config(self):
         cfg = load_config()

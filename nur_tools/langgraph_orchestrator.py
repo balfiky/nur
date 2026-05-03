@@ -67,9 +67,10 @@ needed, return a short final answer without a tool call.
 
 For machine inspection requests, prefer first-class system tools when present:
 system__hostname for host identity, system__disk_usage for storage usage,
-system__uname for OS/kernel, and system__installed_packages for installed
-package inventory. Use shell__run_command only for explicit shell commands or
-machine inspection that has no first-class tool.
+system__memory_usage for RAM usage, system__uname for OS/kernel, and
+system__installed_packages for installed package inventory. Use
+shell__run_command only for explicit shell commands or machine inspection that
+has no first-class tool.
 For product, document, or other referenced links, use recent conversation to
 identify the referenced items and call web__search with a targeted query.
 Do not claim cleanup, deletion, or state changes unless a tool call actually
@@ -99,6 +100,7 @@ for a state-changing command.
 
 Examples:
 - disk usage, storage fullness, drive capacity -> system.disk_usage {"path": "/"}
+- memory usage, RAM utilization -> system.memory_usage {}
 - hostname, machine name, node name -> system.hostname {}
 - installed package prefix request -> system.installed_packages {"prefix": "<prefix>"}
 - referenced product/document links -> web.search {"query": "<targeted referenced item query>"}

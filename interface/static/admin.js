@@ -428,6 +428,7 @@
     const openLoops = (relationship.open_loops || []).slice(0, 3);
     const recentEvents = (relationship.recent_events || []).slice(0, 3);
     const modulators = emotions.modulators || {};
+    const mentalHealth = emotions.mental_health || {};
 
     el.innerHTML = `
       <div class="persona-overview-grid">
@@ -443,6 +444,7 @@
         </section>
         <section class="persona-overview-block">
           <div class="metric-label">Mental Status</div>
+          <div class="metric-foot">${escapeHtml(mentalHealth.label ? `health ${mentalHealth.label} (${mentalHealth.score}/100)` : "")}</div>
           ${renderModulatorBars(modulators, session)}
         </section>
         <section class="persona-overview-block">
@@ -529,6 +531,7 @@
     const explanation = view.explanation || {};
     const activePressures = activeEntries(life.active_pressures || {});
     const activeEffects = activeEntries(life.effects || {});
+    const mentalHealth = emotions.mental_health || {};
 
     el.innerHTML = `
       <div class="panel persona-admin-hero">
@@ -551,7 +554,7 @@
 
       <div class="persona-admin-grid">
         <section class="panel persona-state-panel">
-          <div class="panel-heading"><h3>Mental And Emotional State</h3></div>
+          <div class="panel-heading"><h3>Mental And Emotional State</h3>${mentalHealth.label ? `<span>${escapeHtml(mentalHealth.label)} ${escapeHtml(mentalHealth.score)}/100</span>` : ""}</div>
           ${renderModulatorBars(emotions.modulators || {}, session)}
           ${renderPersonaChips(emotions.drivers || ["balanced state"])}
         </section>

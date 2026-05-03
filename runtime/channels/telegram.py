@@ -11,6 +11,11 @@ from dataclasses import dataclass, field
 import httpx
 
 from runtime.debug.explain import explain_turn
+from runtime.debug.mental_state import (
+    bar as _bar,
+    health_label as _mental_health_label,
+    stability_score as _mental_stability_score,
+)
 from runtime.debug.persona_view import build_persona_view
 from runtime.debug.relationship_view import build_relationship_view
 from runtime.sessions.manager import SessionManager
@@ -750,34 +755,3 @@ def _remove_file_if_exists(path: str) -> bool:
     except OSError:
         log.warning("Could not remove Telegram session state file: %s", path)
         return False
-
-
-def _bar(value: float) -> str:
-    filled = max(0, min(10, int(value * 10)))
-    return "█" * filled + "░" * (10 - filled)
-
-
-def _mental_stability_score(snapshot: dict[str, float]) -> int:
-    arousal = snapshot.get("arousal", 0.5)
-    valence = snapshot.get("valence", 0.5)
-    certainty = snapshot.get("certainty", 0.5)
-    energy = snapshot.get("energy", 1.0)
-    resolution = snapshot.get("resolution", 0.0)
-    strain = (
-        abs(arousal - 0.5) * 0.7
-        + abs(valence - 0.5) * 0.9
-        + (1.0 - certainty) * 0.5
-        + (1.0 - energy) * 0.8
-        + resolution * 0.9
-    )
-    return max(0, min(100, round(100 * (1.0 - min(1.0, strain / 2.2)))))
-
-
-def _mental_health_label(score: int) -> str:
-    if score >= 80:
-        return "stable"
-    if score >= 60:
-        return "strained"
-    if score >= 40:
-        return "distressed"
-    return "critical"

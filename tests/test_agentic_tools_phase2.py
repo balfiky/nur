@@ -87,6 +87,7 @@ class TestDetectToolIntent:
         return {
             "fs.read_file", "fs.list_dir", "fs.search_text", "fs.glob_paths",
             "fs.write_file", "fs.delete_path", "shell.run_command",
+            "system.memory_usage",
             "web.search", "web.fetch", "web.extract_text",
             "skills.list", "skills.create_from_request", "skills.enable",
             "skills.disable", "skills.audit",
@@ -221,6 +222,12 @@ class TestDetectToolIntent:
         assert intent.tool_name == "shell.run_command"
         assert intent.arguments["cmd"] == "df -h /"
 
+    def test_memory_usage_question_uses_read_only_system_tool(self):
+        intent = detect_tool_intent("what is the current memory utilization?", self._available())
+        assert intent is not None
+        assert intent.tool_name == "system.memory_usage"
+        assert intent.arguments == {}
+
     def test_direct_df_command_uses_shell(self):
         intent = detect_tool_intent("df -h /", self._available())
         assert intent is not None
@@ -334,10 +341,16 @@ class TestMakeToolDecision:
         d = make_tool_decision(self._intent("fs.write_file"), av, ToolCategory.WRITE, trust=0.5)
         assert d.decision == "clarify"
 
-    def test_defer_low_urgency(self):
+    def test_low_urgency_still_executes_read_only(self):
         av = ActionVariables(risk_tolerance=0.5, autonomy_bias=0.5,
                             clarification_threshold=0.5, action_urgency=0.1)
         d = make_tool_decision(self._intent(), av, ToolCategory.READ_ONLY, trust=0.5)
+        assert d.decision == "execute"
+
+    def test_defer_low_urgency_side_effecting_action(self):
+        av = ActionVariables(risk_tolerance=0.5, autonomy_bias=0.5,
+                            clarification_threshold=0.5, action_urgency=0.1)
+        d = make_tool_decision(self._intent("fs.write_file"), av, ToolCategory.WRITE, trust=0.5)
         assert d.decision == "defer"
 
     def test_execute_write_normal(self):
@@ -383,6 +396,30 @@ class TestMakeToolDecision:
         )
         assert d.decision == "refuse"
         assert "Agency stance" in d.rationale
+
+    def test_disengage_allows_read_only_inspection(self):
+        av = ActionVariables(risk_tolerance=0.9, autonomy_bias=0.9,
+                            clarification_threshold=0.1, action_urgency=0.1)
+        d = make_tool_decision(
+            self._intent("system.memory_usage"),
+            av,
+            ToolCategory.READ_ONLY,
+            trust=0.5,
+            agency_decision=AgencyDecision(action="disengage", tool_instruction="Avoid broad work."),
+        )
+        assert d.decision == "execute"
+
+    def test_disengage_blocks_side_effecting_work(self):
+        av = ActionVariables(risk_tolerance=0.9, autonomy_bias=0.9,
+                            clarification_threshold=0.1, action_urgency=0.9)
+        d = make_tool_decision(
+            self._intent("fs.write_file"),
+            av,
+            ToolCategory.WRITE,
+            trust=0.5,
+            agency_decision=AgencyDecision(action="disengage", tool_instruction="Avoid broad work."),
+        )
+        assert d.decision == "refuse"
 
     def test_decision_includes_rationale(self):
         av = ActionVariables(risk_tolerance=0.2, autonomy_bias=0.5,

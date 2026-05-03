@@ -12,6 +12,7 @@ from core.types import (
 )
 from core.emotional_engine import (
     DEFAULT_HALF_LIVES,
+    EVENT_DELTA_CAPS,
     SPIKE_INTENSITY_THRESHOLD,
     EmotionalEngine,
 )
@@ -59,6 +60,31 @@ class TestEmotionalEngine:
         assert engine.state.valence < 0.5
         assert engine.state.arousal > 0.5
         assert engine.state.certainty < 0.5
+
+    def test_non_spike_event_changes_are_capped(self):
+        engine = EmotionalEngine()
+        before = engine.snapshot()
+        engine.update(EmotionalEvent(event_type=EventType.CONFLICT, intensity=0.7))
+        caps = EVENT_DELTA_CAPS["normal"]
+
+        assert engine.state.arousal - before["arousal"] <= caps["arousal"] + 1e-9
+        assert before["valence"] - engine.state.valence <= caps["valence"] + 1e-9
+        assert before["certainty"] - engine.state.certainty <= caps["certainty"] + 1e-9
+        assert before["energy"] - engine.state.energy <= caps["energy"] + 1e-9
+
+    def test_spike_event_can_move_beyond_normal_cap_but_stays_bounded(self):
+        engine = EmotionalEngine()
+        before = engine.snapshot()
+        assert engine.update(EmotionalEvent(event_type=EventType.BETRAYAL, intensity=0.95))
+        normal_caps = EVENT_DELTA_CAPS["normal"]
+        spike_caps = EVENT_DELTA_CAPS["spike"]
+
+        arousal_delta = engine.state.arousal - before["arousal"]
+        valence_delta = before["valence"] - engine.state.valence
+        assert arousal_delta > normal_caps["arousal"]
+        assert arousal_delta <= spike_caps["arousal"] + 1e-9
+        assert valence_delta > normal_caps["valence"]
+        assert valence_delta <= spike_caps["valence"] + 1e-9
 
     def test_spike_detection(self):
         engine = EmotionalEngine()

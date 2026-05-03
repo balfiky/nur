@@ -40,6 +40,8 @@ def test_persona_view_translates_modulators_to_human_emotion():
     assert "high activation" in view["emotions"]["drivers"]
     assert "negative emotional tone" in view["emotions"]["drivers"]
     assert view["emotions"]["modulators"]["arousal"]["level"] == "high"
+    assert view["emotions"]["mental_health"]["label"] in {"stable", "strained", "distressed", "critical"}
+    assert 0 <= view["emotions"]["mental_health"]["score"] <= 100
 
 
 def test_persona_view_exposes_perception_life_memory_and_skills():

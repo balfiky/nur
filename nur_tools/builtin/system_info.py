@@ -45,6 +45,12 @@ CAPABILITIES: list[ToolCapability] = [
         },
     ),
     ToolCapability(
+        name="system.memory_usage",
+        description="Return total, used, free, and available RAM for the machine running Nūr",
+        category=ToolCategory.READ_ONLY,
+        arg_schema={},
+    ),
+    ToolCapability(
         name="system.installed_packages",
         description=(
             "List installed operating-system packages from the host package "
@@ -147,6 +153,103 @@ def _disk_usage(args: dict[str, Any]) -> ToolResult:
         },
         side_effect_summary="none",
     )
+
+
+def _memory_usage(_: dict[str, Any]) -> ToolResult:
+    usage = _read_memory_usage()
+    if usage is None:
+        return ToolResult(
+            tool_name="system.memory_usage",
+            success=False,
+            output="",
+            error="Memory usage is unavailable on this platform",
+            metadata={},
+        )
+
+    total = usage["total_bytes"]
+    available = usage["available_bytes"]
+    free = usage["free_bytes"]
+    used = max(0, total - available)
+    used_percent = (used / total * 100.0) if total else 0.0
+    output = "\n".join(
+        [
+            "Memory Total Used Free Available Use%",
+            (
+                f"RAM {_human_bytes(total)} {_human_bytes(used)} "
+                f"{_human_bytes(free)} {_human_bytes(available)} "
+                f"{used_percent:.0f}%"
+            ),
+        ]
+    )
+    return ToolResult(
+        tool_name="system.memory_usage",
+        success=True,
+        output=output,
+        metadata={
+            "total_bytes": total,
+            "used_bytes": used,
+            "free_bytes": free,
+            "available_bytes": available,
+            "used_percent": round(used_percent, 2),
+        },
+        side_effect_summary="none",
+    )
+
+
+def _read_memory_usage() -> dict[str, int] | None:
+    proc = _read_proc_meminfo()
+    if proc is not None:
+        return proc
+
+    try:
+        page_size = os.sysconf("SC_PAGE_SIZE")
+        total_pages = os.sysconf("SC_PHYS_PAGES")
+        available_pages = os.sysconf("SC_AVPHYS_PAGES")
+    except (AttributeError, OSError, ValueError):
+        return None
+
+    total = int(page_size) * int(total_pages)
+    available = int(page_size) * int(available_pages)
+    return {
+        "total_bytes": total,
+        "available_bytes": available,
+        "free_bytes": available,
+    }
+
+
+def _read_proc_meminfo() -> dict[str, int] | None:
+    path = "/proc/meminfo"
+    if not os.path.exists(path):
+        return None
+
+    values: dict[str, int] = {}
+    try:
+        with open(path, encoding="utf-8") as handle:
+            for line in handle:
+                key, _, rest = line.partition(":")
+                if not rest:
+                    continue
+                parts = rest.strip().split()
+                if not parts:
+                    continue
+                try:
+                    kib = int(parts[0])
+                except ValueError:
+                    continue
+                values[key] = kib * 1024
+    except OSError:
+        return None
+
+    total = values.get("MemTotal")
+    if not total:
+        return None
+    available = values.get("MemAvailable", values.get("MemFree", 0))
+    free = values.get("MemFree", available)
+    return {
+        "total_bytes": total,
+        "available_bytes": available,
+        "free_bytes": free,
+    }
 
 
 def _installed_packages(args: dict[str, Any]) -> ToolResult:
@@ -308,5 +411,6 @@ HANDLERS: dict[str, ToolHandler] = {
     "system.hostname": _hostname,
     "system.uname": _uname,
     "system.disk_usage": _disk_usage,
+    "system.memory_usage": _memory_usage,
     "system.installed_packages": _installed_packages,
 }

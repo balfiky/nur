@@ -143,6 +143,12 @@ class TestCognitivePipeline:
             pipe.process(f"Message {i}", user_id="alice")
         assert pipe.engine.state.energy < initial_energy
 
+    def test_debug_snapshot_matches_final_engine_state(self):
+        pipe = self._make_pipeline()
+        result = pipe.process("Hello", user_id="alice")
+        assert result.debug.modulator_snapshot == pipe.engine.snapshot()
+        assert result.debug.energy_after == pytest.approx(pipe.engine.state.energy)
+
     def test_short_term_memory_grows(self):
         pipe = self._make_pipeline()
         pipe.process("Hello", user_id="alice")

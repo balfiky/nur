@@ -89,6 +89,31 @@ class ContagionEngineConfig:
 
 
 @dataclass
+class EventDeltaCapsConfig:
+    """Maximum single-event modulator movement.
+
+    Raw event impacts can be expressive, but ordinary turns should not push the
+    whole emotional state across multiple labels at once. Spike caps remain
+    larger so direct attacks and betrayals still land immediately.
+    """
+
+    normal: dict[str, float] = field(default_factory=lambda: {
+        "arousal": 0.10,
+        "valence": 0.16,
+        "certainty": 0.10,
+        "bonding": 0.05,
+        "energy": 0.08,
+    })
+    spike: dict[str, float] = field(default_factory=lambda: {
+        "arousal": 0.40,
+        "valence": 0.45,
+        "certainty": 0.32,
+        "bonding": 0.24,
+        "energy": 0.16,
+    })
+
+
+@dataclass
 class MemoryConfig:
     trust_positive_delta: float = 0.02
     trust_negative_delta: float = -0.15
@@ -246,6 +271,7 @@ class NurConfig:
     # Sub-configs
     energy: EnergyConfig = field(default_factory=EnergyConfig)
     contagion_engine: ContagionEngineConfig = field(default_factory=ContagionEngineConfig)
+    event_delta_caps: EventDeltaCapsConfig = field(default_factory=EventDeltaCapsConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     profiling: ProfilingConfig = field(default_factory=ProfilingConfig)
     person: PersonConfig = field(default_factory=PersonConfig)
@@ -323,6 +349,15 @@ def load_config(config_dir: str | Path | None = None) -> NurConfig:
         cfg.contagion_engine = ContagionEngineConfig(
             factor=c.get("factor", 0.3),
             cap=c.get("cap", 0.15),
+        )
+
+    # Single-event inertia caps
+    if "event_delta_caps" in mod:
+        caps = mod["event_delta_caps"] or {}
+        defaults = EventDeltaCapsConfig()
+        cfg.event_delta_caps = EventDeltaCapsConfig(
+            normal={**defaults.normal, **(caps.get("normal") or {})},
+            spike={**defaults.spike, **(caps.get("spike") or {})},
         )
 
     # Event impacts

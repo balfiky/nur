@@ -201,6 +201,10 @@ _TOOL_PATTERNS: list[tuple[re.Pattern, str, str]] = [
     (re.compile(r"\bcreate\s+(?:a\s+)?file\s+(\S+)\s+(?:with|containing)\s+[\"']([^\"']+)[\"']", re.I), "fs.write_file", "path_content"),
     (re.compile(r"\bdelete\s+(?:the\s+)?(?:file|dir(?:ectory)?)\s+(\S+)", re.I), "fs.delete_path", "path"),
     (re.compile(r"\brm\s+(\S+)", re.I), "fs.delete_path", "path"),
+    # System inspection
+    (re.compile(r"\b(?:what(?:'s|\s+is)|show|check|get|tell(?:\s+me)?)\b.{0,80}\b(?:memory|ram)\b.{0,80}\b(?:usage|utili[sz]ation|used|free|available|total)\b", re.I), "system.memory_usage", "empty"),
+    (re.compile(r"\b(?:how\s+much|what(?:'s|\s+is))\b.{0,80}\b(?:memory|ram)\b.{0,80}\b(?:left|available|used|free|total)\b", re.I), "system.memory_usage", "empty"),
+    (re.compile(r"^\s*free(?:\s+-[a-z]+)?\s*$", re.I), "system.memory_usage", "empty"),
     # Shell
     (re.compile(r"\b(?:what(?:'s|\s+is)|show|check|get|tell(?:\s+me)?)\b.{0,80}\b(?:your|the)?\s*(?:host\s*name|hostname|machine\s+name|node\s+name|server\s+name)\b", re.I), "shell.run_command", "cmd_hostname"),
     (re.compile(r"\bname\s+of\s+the\s+machine\b.{0,80}\b(?:running|run)\b", re.I), "shell.run_command", "cmd_hostname"),
@@ -465,7 +469,7 @@ def make_tool_decision(
             rationale="Autonomy mode is off; tools are not allowed",
         )
 
-    if agency_action in {"refuse", "demand_repair", "disengage"}:
+    if agency_action in {"refuse", "demand_repair"}:
         return ToolDecision(
             decision="refuse",
             intent=intent,
@@ -473,6 +477,16 @@ def make_tool_decision(
                 f"Agency stance is {agency_action}: "
                 f"{agency_decision.tool_instruction if agency_decision else ''}"
             ).strip(),
+        )
+
+    if agency_action == "disengage" and category != ToolCategory.READ_ONLY:
+        return ToolDecision(
+            decision="refuse",
+            intent=intent,
+            rationale=(
+                "Agency stance is disengage; low energy allows simple read-only "
+                "inspection but blocks side-effecting work"
+            ),
         )
 
     if normalized_autonomy == "assisted" and category in (
@@ -540,7 +554,7 @@ def make_tool_decision(
             )
 
     # Defer: extremely low urgency (too tired / no drive)
-    if action_vars.action_urgency < DEFER_URGENCY_THRESHOLD:
+    if action_vars.action_urgency < DEFER_URGENCY_THRESHOLD and category != ToolCategory.READ_ONLY:
         return ToolDecision(
             decision="defer",
             intent=intent,
@@ -606,6 +620,7 @@ def _format_result_output(result: ToolResult, limit: int = 1200) -> str:
         "system.hostname",
         "system.uname",
         "system.disk_usage",
+        "system.memory_usage",
         "system.installed_packages",
         "web.search",
         "web.fetch",

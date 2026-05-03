@@ -44,6 +44,7 @@ def _build_event_impacts(cfg_impacts: dict[str, dict[str, float]]) -> dict[Event
 def _load_constants() -> tuple[
     dict[str, float],  # half_lives
     dict[EventType, dict[str, float]],  # event_impacts
+    dict[str, dict[str, float]],  # event_delta_caps
     float,  # drain_per_message
     float,  # drain_per_spike
     float,  # recovery_rate
@@ -61,6 +62,10 @@ def _load_constants() -> tuple[
     return (
         half_lives,
         event_impacts,
+        {
+            "normal": dict(cfg.event_delta_caps.normal),
+            "spike": dict(cfg.event_delta_caps.spike),
+        },
         cfg.energy.drain_per_message,
         cfg.energy.drain_per_spike,
         cfg.energy.recovery_rate_per_hour,
@@ -74,6 +79,7 @@ def _load_constants() -> tuple[
 (
     DEFAULT_HALF_LIVES,
     EVENT_IMPACTS,
+    EVENT_DELTA_CAPS,
     ENERGY_DRAIN_PER_MESSAGE,
     ENERGY_DRAIN_PER_SPIKE,
     ENERGY_RECOVERY_RATE,
@@ -101,6 +107,10 @@ class EmotionalEngine:
         # v2: resolution modulator
         self.unresolved_items: list[UnresolvedItem] = []
         self._resolution_decay_rates = dict(RESOLUTION_DECAY_RATES)
+        self._event_delta_caps = {
+            scope: dict(values)
+            for scope, values in EVENT_DELTA_CAPS.items()
+        }
         # Context shift: resting target offset for current relationship
         self._context_shift: BaselineShift | None = None
 
@@ -168,11 +178,20 @@ class EmotionalEngine:
             if mod_name == "bonding":
                 delta = self._apply_attachment(delta)
 
+            delta = self._cap_event_delta(mod_name, delta, is_spike)
             current = getattr(self.state, mod_name)
             setattr(self.state, mod_name, max(0.0, min(1.0, current + delta)))
 
         self._last_update_time = time.time()
         return is_spike
+
+    def _cap_event_delta(self, mod_name: str, delta: float, is_spike: bool) -> float:
+        """Apply per-event inertia without changing the event direction."""
+        scope = "spike" if is_spike else "normal"
+        cap = self._event_delta_caps.get(scope, {}).get(mod_name)
+        if cap is None or cap <= 0:
+            return delta
+        return max(-cap, min(cap, delta))
 
     def decay(self, elapsed_seconds: float) -> None:
         """Apply time-based exponential decay toward baseline."""

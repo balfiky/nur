@@ -1,5 +1,6 @@
 # Modulator configuration for Project Nur v1
-# Start exaggerated — dampen later
+# Event impacts are raw directional pressure. event_delta_caps below provide
+# inertia so ordinary turns do not snap the whole state across multiple labels.
 
 half_lives:
   arousal: 120.0       # seconds (~2 min)
@@ -24,6 +25,20 @@ spike_threshold: 0.8
 contagion:
   factor: 0.3
   cap: 0.15
+
+event_delta_caps:
+  normal:
+    arousal: 0.10
+    valence: 0.16
+    certainty: 0.10
+    bonding: 0.05
+    energy: 0.08
+  spike:
+    arousal: 0.40
+    valence: 0.45
+    certainty: 0.32
+    bonding: 0.24
+    energy: 0.16
 
 # Event → modulator impact maps
 event_impacts:

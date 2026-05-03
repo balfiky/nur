@@ -1099,6 +1099,10 @@ class CognitivePipeline:
         self.engine.drain_energy(intensity=event.intensity)
         debug.energy_after = self.engine.state.energy
         debug.emotion_label = self.engine.to_emotion_label()
+        debug.modulator_snapshot = self.engine.snapshot()
+        final_unresolved = self.engine.active_unresolved()
+        debug.unresolved_count = len(final_unresolved)
+        debug.unresolved_items = list(final_unresolved)
 
         # Update conversation history
         self._conversation_history.append({"role": "user", "content": user_message})

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from runtime.debug.explain import explain_turn
+from runtime.debug.mental_state import mental_health
 from runtime.debug.relationship_view import build_relationship_view
 
 
@@ -140,6 +141,7 @@ def _emotion_view(
         "secondary": secondary,
         "intensity": round(intensity, 3),
         "confidence": round(confidence, 3),
+        "mental_health": mental_health(snapshot),
         "drivers": drivers,
         "modulators": {
             name: {

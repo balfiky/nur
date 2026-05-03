@@ -315,6 +315,16 @@ class TestShellRunCommand:
 # System inspection tools
 # ===================================================================
 
+class TestSystemMemoryUsage:
+    def test_memory_usage_reports_totals(self):
+        result = system_info.HANDLERS["system.memory_usage"]({})
+
+        assert result.success is True
+        assert "Memory Total Used Free Available Use%" in result.output
+        assert result.metadata["total_bytes"] > 0
+        assert 0 <= result.metadata["used_percent"] <= 100
+
+
 class TestSystemInstalledPackages:
     def test_installed_packages_filters_dpkg_prefix(self, monkeypatch):
         monkeypatch.setattr(
@@ -442,6 +452,7 @@ class TestBuiltinRegistration:
         assert "system.hostname" in names
         assert "system.uname" in names
         assert "system.disk_usage" in names
+        assert "system.memory_usage" in names
         assert "system.installed_packages" in names
         assert "shell.run_command" in names
         assert "web.search" in names
@@ -452,13 +463,14 @@ class TestBuiltinRegistration:
 
     def test_total_builtin_count(self):
         reg, exe = _make_executor_with_builtins()
-        # 4 system + 6 fs + 1 shell + 3 web + 5 browser + 3 calendar + 7 skills
-        assert len(reg) == 29
+        # 5 system + 6 fs + 1 shell + 3 web + 5 browser + 3 calendar + 7 skills
+        assert len(reg) == 30
 
     def test_categories_assigned(self):
         reg, _ = _make_executor_with_builtins()
         assert reg.get("system.hostname").category == ToolCategory.READ_ONLY
         assert reg.get("system.disk_usage").category == ToolCategory.READ_ONLY
+        assert reg.get("system.memory_usage").category == ToolCategory.READ_ONLY
         assert reg.get("system.installed_packages").category == ToolCategory.READ_ONLY
         assert reg.get("fs.read_file").category == ToolCategory.READ_ONLY
         assert reg.get("fs.write_file").category == ToolCategory.WRITE
