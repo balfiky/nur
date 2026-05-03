@@ -136,6 +136,21 @@ class TestResolutionModulator:
         # Deadlock: 0.5 - 0.10*5 = 0.0
         assert items["d1"].intensity == pytest.approx(0.0, abs=0.01)
 
+    def test_decay_to_zero_auto_resolves_item(self):
+        engine = EmotionalEngine()
+        engine.add_unresolved(_make_item(
+            source="dialogue_deadlock", intensity=0.2, decay_rate=0.1, item_id="d1",
+        ))
+
+        engine.decay(2 * 3600.0)
+
+        item = engine.unresolved_items[0]
+        assert item.intensity == pytest.approx(0.0, abs=0.01)
+        assert item.resolved is True
+        assert item.resolved_at is not None
+        assert engine.active_unresolved() == []
+        assert engine.state.resolution == 0.0
+
     def test_resolution_clamped_to_one(self):
         engine = EmotionalEngine()
         for i in range(10):

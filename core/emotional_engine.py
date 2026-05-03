@@ -334,6 +334,9 @@ class EmotionalEngine:
         for item in self.active_unresolved():
             if item.decay_rate > 0.0:
                 item.intensity = max(0.0, item.intensity - item.decay_rate * hours)
+                if item.intensity <= 0.0:
+                    item.resolved = True
+                    item.resolved_at = datetime.now(timezone.utc)
         self._recalculate_resolution()
 
     # ------------------------------------------------------------------

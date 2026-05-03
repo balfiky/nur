@@ -148,9 +148,32 @@ _IDENTITY_QUESTION_RE = re.compile(
     re.IGNORECASE,
 )
 
+_BROAD_REPAIR_RE = re.compile(
+    r"\b(?:everything|all of (?:it|this)|all the tension|all of the tension|"
+    r"forgive(?: me| this| everything)?|move on|make peace|find peace|"
+    r"repair (?:this|everything|all)|start over|clean slate)\b",
+    re.IGNORECASE,
+)
+
+_REPAIRABLE_UNRESOLVED_SOURCES = {
+    "spike",
+    "contradiction",
+    "topic",
+    "dialogue_deadlock",
+    "relationship",
+}
+
 
 def _is_identity_question(text: str) -> bool:
     return bool(_IDENTITY_QUESTION_RE.search(text or ""))
+
+
+def _is_broad_repair_text(text: str) -> bool:
+    return bool(_BROAD_REPAIR_RE.search(text or ""))
+
+
+def _is_repairable_unresolved_source(source: str) -> bool:
+    return str(source or "") in _REPAIRABLE_UNRESOLVED_SOURCES
 
 # ---------------------------------------------------------------------------
 # Debug state — full transparency into what happened
@@ -1502,6 +1525,12 @@ class CognitivePipeline:
         if event.event_type == EventType.RESOLUTION:
             active = self.engine.active_unresolved()
             if active:
+                if _is_broad_repair_text(text):
+                    for item in active:
+                        if _is_repairable_unresolved_source(item.source):
+                            self.engine.resolve_item(item.id)
+                    return
+
                 # Try to match by text overlap with description
                 lower = text.lower()
                 matched = None

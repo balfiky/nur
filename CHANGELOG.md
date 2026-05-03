@@ -34,6 +34,9 @@ All notable changes to Project Nur are documented here.
 - Prevented learning material from being misclassified as Skills: successful
   conversation learning intake now preempts generation/tool execution, and
   Admin > Skills rejects plain Markdown documents without SKILL.md frontmatter.
+- Fixed resolution-state cleanup: unresolved tensions that decay to zero now
+  resolve automatically, and broad apology/repair turns can clear multiple
+  relational tensions while preserving task/tool/commitment items.
 
 ### Emotional engine
 - Direct attacks against Nūr (insults, profanity, appraisal-detected

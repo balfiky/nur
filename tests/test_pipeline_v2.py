@@ -258,6 +258,52 @@ class TestResolutionIntegration:
         pipe.process("I'm sorry, let's forgive and find peace", user_id="alice")
         assert len(pipe.engine.active_unresolved()) < unresolved_before
 
+    def test_broad_repair_resolves_multiple_relational_items(self):
+        pipe = CognitivePipeline(llm_backend=MockLLMBackend())
+        now = datetime.now(timezone.utc)
+        for item in [
+            UnresolvedItem(
+                id="spike_1",
+                source="spike",
+                description="Emotional spike: betrayal",
+                created_at=now,
+                intensity=0.4,
+                decay_rate=0.03,
+            ),
+            UnresolvedItem(
+                id="contradiction_1",
+                source="contradiction",
+                description="Conflicting relationship signal",
+                created_at=now,
+                intensity=0.3,
+                decay_rate=0.02,
+            ),
+            UnresolvedItem(
+                id="tool_failure_1",
+                source="tool_failure",
+                description="Failed: shell.run_command",
+                created_at=now,
+                intensity=0.3,
+                decay_rate=0.08,
+            ),
+            UnresolvedItem(
+                id="commitment_1",
+                source="commitment",
+                description="Remember to send the report",
+                created_at=now,
+                intensity=0.3,
+                decay_rate=0.0,
+            ),
+        ]:
+            pipe.engine.add_unresolved(item)
+
+        pipe.process("I am sorry for everything. Please forgive me and let's repair this.", user_id="alice")
+
+        active = {item.id for item in pipe.engine.active_unresolved()}
+        assert "spike_1" not in active
+        assert "contradiction_1" not in active
+        assert active == {"tool_failure_1", "commitment_1"}
+
     def test_unresolved_count_in_debug(self):
         pipe = CognitivePipeline(llm_backend=MockLLMBackend())
         result = pipe.process("You betrayed me!", user_id="alice")
