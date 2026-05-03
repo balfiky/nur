@@ -1,11 +1,13 @@
 """Tests for the web interface — Phase 7."""
 
+import asyncio
 import tempfile
 
 import pytest
 import interface.api as interface_api
 
 from interface.api import (
+    AdminSoulUpdateRequest,
     ChatRequest,
     ConfigUpdateRequest,
     EndSessionRequest,
@@ -17,6 +19,7 @@ from interface.api import (
     get_config,
     index,
     rest,
+    admin_update_soul,
     set_pipeline,
     set_session_manager,
     update_config,
@@ -832,6 +835,69 @@ class TestAdminSetupDefaultSoul:
         assert "default_soul" not in data["setup"]["reasons"]
 
 
+class TestAdminSoulSave:
+    async def test_identity_save_detaches_session_manager_without_waiting(
+        self, monkeypatch, tmp_path
+    ):
+        """Saving identity should return even if old session shutdown is slow."""
+
+        class HangingManager:
+            def __init__(self) -> None:
+                self.active_sessions = {"web:u:c": object()}
+                self.shutdown_started = asyncio.Event()
+
+            async def shutdown(self) -> None:
+                self.shutdown_started.set()
+                await asyncio.Event().wait()
+
+        runtime_cfg_path = tmp_path / "runtime_config.yaml"
+        monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(runtime_cfg_path))
+        monkeypatch.setenv("NUR_CONFIG_DIR", str(tmp_path / "identity"))
+        RuntimeConfig(data_dir=str(tmp_path / "data")).write_yaml(str(runtime_cfg_path))
+        manager = HangingManager()
+        set_session_manager(manager)  # type: ignore[arg-type]
+        interface_api._background_shutdown_tasks.clear()
+
+        try:
+            result = await asyncio.wait_for(
+                admin_update_soul(
+                    AdminSoulUpdateRequest(
+                        name="Baheer",
+                        identity="A wise steady companion.",
+                        voice="Calm and direct.",
+                        relational_stance="Collaborator.",
+                        growth_policy="Grow through repeated experience.",
+                        likes=["clarity"],
+                        dislikes=["false certainty"],
+                        boundaries=["Do not invent runtime facts."],
+                        core_values={
+                            "honesty": 0.85,
+                            "loyalty": 0.9,
+                            "kindness": 0.8,
+                            "autonomy": 0.6,
+                        },
+                        initial_traits={"calm": 0.8, "thoughtful": 0.8},
+                    )
+                ),
+                timeout=0.5,
+            )
+            await asyncio.sleep(0)
+
+            assert result["saved"] is True
+            assert result["soul"]["name"] == "Baheer"
+            assert result["reloaded_session_manager"] is True
+            assert interface_api._session_manager is None
+            assert manager.shutdown_started.is_set()
+        finally:
+            tasks = list(interface_api._background_shutdown_tasks)
+            for task in tasks:
+                task.cancel()
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+            interface_api._background_shutdown_tasks.clear()
+            set_session_manager(None)
+
+
 class TestAdminSoulDraft:
     async def test_draft_requires_llm_configured(self, monkeypatch, tmp_path):
         """With backend=auto and no keys, draft endpoint refuses with 400."""
@@ -1030,6 +1096,7 @@ class TestSoulSaveReloadsSessionManager:
             initial_traits={"calm": 0.8},
         )
         result = await admin_update_soul(req)
+        await asyncio.sleep(0)
 
         assert shutdown_called["count"] == 1
         assert interface_api._session_manager is None

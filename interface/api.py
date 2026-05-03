@@ -49,6 +49,7 @@ _log = logging.getLogger(__name__)
 _telegram_task: asyncio.Task | None = None
 _telegram_channel = None  # TelegramChannel | None
 _serve_started_at: float = time.time()
+_background_shutdown_tasks: set[asyncio.Task] = set()
 
 
 @asynccontextmanager
@@ -63,6 +64,17 @@ async def _lifespan(app: FastAPI):
     if _session_manager is not None:
         await _session_manager.shutdown()
         _session_manager = None
+    if _background_shutdown_tasks:
+        tasks = list(_background_shutdown_tasks)
+        try:
+            await asyncio.wait_for(
+                asyncio.gather(*tasks, return_exceptions=True),
+                timeout=5.0,
+            )
+        except asyncio.TimeoutError:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
     if _pipeline_override is not None:
         _pipeline_override.close()
         _pipeline_override = None
@@ -1055,11 +1067,9 @@ async def admin_update_soul(req: AdminSoulUpdateRequest) -> dict:
     path = _soul_yaml_path()
     _write_soul_yaml(payload, path)
     reset_config()
-    reloaded_manager = False
-    if _session_manager is not None:
-        await _session_manager.shutdown()
-        _session_manager = None
-        reloaded_manager = True
+    reloaded_manager, _ = _detach_session_manager_for_reload(
+        reason="identity save",
+    )
     return _admin_soul_payload(
         get_config().soul,
         saved=True,
@@ -1766,6 +1776,35 @@ async def _reload_runtime_from_config(config: RuntimeConfig) -> dict:
         "active_sessions_evicted": active_sessions_evicted,
         "telegram_restarted": True,
     }
+
+
+def _detach_session_manager_for_reload(*, reason: str) -> tuple[bool, int]:
+    """Detach the shared web manager immediately and close it in the background."""
+    global _session_manager
+
+    manager = _session_manager
+    if manager is None:
+        return False, 0
+    active_sessions = len(manager.active_sessions)
+    _session_manager = None
+    task = asyncio.create_task(
+        _shutdown_detached_session_manager(manager, reason=reason),
+        name=f"session-manager-shutdown:{reason}",
+    )
+    _background_shutdown_tasks.add(task)
+    task.add_done_callback(_background_shutdown_tasks.discard)
+    return True, active_sessions
+
+
+async def _shutdown_detached_session_manager(
+    manager: SessionManager,
+    *,
+    reason: str,
+) -> None:
+    try:
+        await manager.shutdown()
+    except Exception:
+        _log.exception("Detached SessionManager shutdown failed after %s", reason)
 
 
 async def _drain_runtime_before_process_restart() -> dict:

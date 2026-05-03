@@ -25,6 +25,9 @@ All notable changes to Project Nur are documented here.
   `proactive_recovery_seconds`, tightened durable-change coherence to recent
   ledger evidence, and added direct tests for Life History decay,
   consolidation, belief revision, introspection, and genesis reset.
+- Made web identity saves return immediately after detaching the old session
+  manager, so the first-run wizard does not hang on "Saving identity..." while
+  old sessions drain.
 
 ### Emotional engine
 - Direct attacks against Nūr (insults, profanity, appraisal-detected
