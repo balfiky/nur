@@ -18,6 +18,7 @@ from runtime.config import RuntimeConfig
 from runtime.learning_intake import (
     LearningIntakeError,
     PendingLearningIntake,
+    detect_learning_request,
     ingest_learning_from_message,
 )
 from runtime.sessions.persistence import load_conversation_history, load_engine_state
@@ -45,6 +46,15 @@ def _looks_like_pending_learning_text(text: str) -> bool:
         return False
     words = stripped.split()
     return len(words) >= 30
+
+
+def _should_attempt_learning_intake(session: UserSession, text: str) -> bool:
+    if session.pending_learning_intake is not None:
+        return True
+    try:
+        return detect_learning_request(text) is not None
+    except LearningIntakeError:
+        return True
 
 
 class SessionManager:
@@ -117,6 +127,16 @@ class SessionManager:
         # Reset idle timer on acceptance (before processing starts)
         self._reset_idle_timer(session_key)
         try:
+            learning_note = (
+                await self._maybe_run_learning_intake(session, user_id, text)
+                if _should_attempt_learning_intake(session, text)
+                else ""
+            )
+            if learning_note and not learning_note.startswith("Learning intake failed:"):
+                session.pipeline.last_intake_receipt = learning_note
+                await session.record_runtime_turn()
+                return learning_note
+
             # Running the turn in its own task avoids a rare top-level await
             # stall around worker-thread execution in some runtime contexts.
             send_task = asyncio.create_task(
@@ -132,7 +152,6 @@ class SessionManager:
                     await send_task
                 raise
             response = send_task.result()
-            learning_note = await self._maybe_run_learning_intake(session, user_id, text)
             if learning_note:
                 session.pipeline.last_intake_receipt = learning_note
                 return _append_learning_note(response, learning_note)

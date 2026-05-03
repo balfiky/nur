@@ -1120,6 +1120,8 @@ async def admin_import_skill(req: AdminSkillImportRequest) -> dict:
     from runtime.skills import SkillError, import_skill
 
     try:
+        if req.skill_markdown:
+            _reject_plain_markdown_skill_import(req.skill_markdown)
         skill = import_skill(
             _load_runtime_config(),
             source_path=req.source_path,
@@ -1165,9 +1167,11 @@ async def admin_import_skill_upload(
                 max_bytes=_MAX_SKILL_MARKDOWN_UPLOAD_BYTES,
                 label="Skill Markdown",
             )
+            markdown = payload.decode("utf-8", errors="replace")
+            _reject_plain_markdown_skill_import(markdown)
             skill = import_skill(
                 config,
-                skill_markdown=payload.decode("utf-8", errors="replace"),
+                skill_markdown=markdown,
                 name_hint=name_hint,
             )
         else:
@@ -1640,6 +1644,21 @@ def _split_form_list(raw: str) -> list[str]:
         if stripped:
             values.append(stripped)
     return values[:20]
+
+
+def _reject_plain_markdown_skill_import(markdown: str) -> None:
+    """Reject ordinary documents before they are installed as invalid skills."""
+    stripped = (markdown or "").lstrip()
+    if stripped.startswith("---"):
+        return
+    raise HTTPException(
+        status_code=400,
+        detail=(
+            "This Markdown file is not a skill. Skill imports must be SKILL.md "
+            "content with YAML frontmatter containing name and description. "
+            "Use Admin > Life to digest articles, notes, or other learning text."
+        ),
+    )
 
 
 def _safe_extract_zip(payload: bytes, destination: Path) -> None:

@@ -268,6 +268,13 @@ class UserSession:
             name="session-end",
         )
 
+    async def record_runtime_turn(self) -> None:
+        """Persist a non-generated runtime turn such as deterministic intake."""
+        await self._run_reliably(
+            self._record_runtime_turn_async(),
+            name="session-runtime-turn",
+        )
+
     async def apply_rest(self, hours: float) -> None:
         """Apply rest to the session pipeline under the same serialization lock."""
         await self._run_reliably(
@@ -314,6 +321,22 @@ class UserSession:
                 await self._run_blocking(self._save_and_close)
         else:
             await self._run_blocking(self._save_and_close)
+
+    async def _record_runtime_turn_async(self) -> None:
+        """Advance turn bookkeeping for work handled outside generation."""
+        async with self._send_lock:
+            self.mark_work_started()
+            try:
+                if self._user_lock is not None:
+                    async with self._user_lock:
+                        self.turn_index += 1
+                        await self._run_blocking(self._save_hot_state)
+                else:
+                    self.turn_index += 1
+                    await self._run_blocking(self._save_hot_state)
+                self.last_activity = time.time()
+            finally:
+                self.mark_work_finished()
 
     async def _end_session_async(self) -> Any:
         """Worker-thread wrapper for session digestion without closing."""

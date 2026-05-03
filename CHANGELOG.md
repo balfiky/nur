@@ -31,6 +31,9 @@ All notable changes to Project Nur are documented here.
 - Rebound live Telegram polling to the fresh session manager after identity
   saves, preventing stale channel handlers from replying with
   "[busy] Runtime is shutting down" after an admin identity reload.
+- Prevented learning material from being misclassified as Skills: successful
+  conversation learning intake now preempts generation/tool execution, and
+  Admin > Skills rejects plain Markdown documents without SKILL.md frontmatter.
 
 ### Emotional engine
 - Direct attacks against Nūr (insults, profanity, appraisal-detected

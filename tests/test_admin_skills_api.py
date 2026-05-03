@@ -85,6 +85,38 @@ def test_admin_skills_upload_markdown(client):
     assert skill["source"] == "pasted"
 
 
+def test_admin_skills_upload_rejects_plain_markdown_document(client):
+    plain_document = (
+        "# THE CODEX OF AUTONOMY\n\n"
+        "This is an article that should be digested into Life History, "
+        "not installed as an Agent Skill."
+    )
+
+    resp = client.post(
+        "/admin/skills/import/upload",
+        data={"name_hint": "the-codex-of-autonomy"},
+        files={"file": ("the-codex-of-autonomy.md", io.BytesIO(plain_document.encode("utf-8")), "text/markdown")},
+    )
+
+    assert resp.status_code == 400
+    assert "not a skill" in resp.json()["detail"]
+    assert client.get("/admin/skills").json()["count"] == 0
+
+
+def test_admin_skills_paste_rejects_plain_markdown_document(client):
+    resp = client.post(
+        "/admin/skills/import",
+        json={
+            "name_hint": "the-codex-of-autonomy",
+            "skill_markdown": "# THE CODEX OF AUTONOMY\n\nA learning article.",
+        },
+    )
+
+    assert resp.status_code == 400
+    assert "Admin > Life" in resp.json()["detail"]
+    assert client.get("/admin/skills").json()["count"] == 0
+
+
 def test_admin_skills_upload_zip_folder(client):
     archive = io.BytesIO()
     with zipfile.ZipFile(archive, "w") as zf:

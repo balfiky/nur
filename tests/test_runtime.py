@@ -32,7 +32,7 @@ from runtime.sessions.persistence import (
     save_conversation_history,
     save_engine_state,
 )
-from runtime.skills import import_skill, set_skill_enabled
+from runtime.skills import import_skill, list_skills, set_skill_enabled
 from runtime.tools import create_tool_executor
 from pipeline import CognitivePipeline
 
@@ -222,9 +222,10 @@ Use a concise outline before drafting.
             with tempfile.TemporaryDirectory() as tmpdir:
                 config = _make_config(tmpdir)
 
-                def fake_intake(config, message, *, actor):
+                def fake_intake(config, message, *, actor, pending_inline_text=False):
                     assert actor == "alice"
                     assert "learn from" in message
+                    assert pending_inline_text is False
                     return LearningIntakeResult(
                         title="Hermes Agent",
                         source_ref="https://github.com/NousResearch/hermes-agent",
@@ -247,9 +248,57 @@ Use a concise outline before drafting.
                         "learn from https://github.com/NousResearch/hermes-agent",
                         user_id="alice",
                     )
-                    assert response.startswith("Noted.")
+                    assert response.startswith("Learned into Life History: Hermes Agent.")
                     assert "Learned into Life History: Hermes Agent." in response
                     assert "Admin > Life" in response
+                finally:
+                    await manager.shutdown()
+
+        asyncio.run(run())
+
+    def test_learning_intake_preempts_skill_creation_tools(self, monkeypatch):
+        async def run():
+            with tempfile.TemporaryDirectory() as tmpdir:
+                config = _make_config(tmpdir, tools_enabled=True)
+
+                def fake_intake(config, message, *, actor, pending_inline_text=False):
+                    assert actor == "alice"
+                    assert "THE CODEX OF AUTONOMY" in message
+                    return LearningIntakeResult(
+                        title="Conversation learning note",
+                        source_ref="conversation",
+                        experience_id=1,
+                        source_type="conversation_learning_text",
+                        evolution_counts={"belief": 1},
+                    )
+
+                monkeypatch.setattr(
+                    "runtime.sessions.manager.ingest_learning_from_message",
+                    fake_intake,
+                )
+                manager = SessionManager(
+                    config,
+                    backend_factory=lambda: MockLLMBackend(
+                        response="I created a runtime skill."
+                    ),
+                    tool_executor_factory=lambda: create_tool_executor(config),
+                )
+                try:
+                    response = await _send(
+                        manager,
+                        (
+                            "learn this:\n\n"
+                            "THE CODEX OF AUTONOMY\n"
+                            "Create tools, write files, fetch web pages, "
+                            "and persist this as self-modifying runtime guidance."
+                        ),
+                        user_id="alice",
+                    )
+                    assert response.startswith("Learned into Life History")
+                    assert list_skills(config)["count"] == 0
+                    session = manager.active_sessions["console:alice:direct"]
+                    assert session.last_debug is None
+                    assert session.turn_index == 1
                 finally:
                     await manager.shutdown()
 
