@@ -192,9 +192,8 @@ def grounding_correction_response(
         "I did not perform that external action in this turn. There is no Tool "
         "Execution Result showing that I read files, cloned or fetched a "
         "repository, ran a command, installed a package, inspected logs/output, "
-        "or wrote anything. I can draft instructions or a SKILL.md, but a "
-        "permanent skill must be imported and enabled through Admin > Skills "
-        "or an executed skill-registry tool."
+        "or wrote anything. I need to run the appropriate tool and report only "
+        "what that tool result confirms."
     )
 
 

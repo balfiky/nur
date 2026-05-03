@@ -61,6 +61,9 @@ from core.types import (
     SelfProfile,
     StrategyDecisionTrace,
     ToolCategory,
+    ToolDecision,
+    ToolIntent,
+    ToolResult,
     TopicProfile,
     ToolTrace,
     UnresolvedItem,
@@ -70,6 +73,11 @@ from core.appraisal import appraise_message, appraise_with_life_history
 from core.affect import decide_agency, resolve_affect
 from core.strategy import select_strategy_with_trace, STRATEGY_INSTRUCTIONS
 from core.grounding import grounding_correction_response, verify_response_grounding
+from core.action_variables import derive_action_variables
+from core.artifact_writer import (
+    detect_artifact_write_request,
+    generate_artifact_draft,
+)
 from core.emotional_engine import EmotionalEngine, SPIKE_INTENSITY_THRESHOLD
 from core.memory.short_term import ShortTermMemory
 from core.memory.long_term import LongTermMemory
@@ -98,7 +106,8 @@ from core.dual_process.self_check import SelfChecker, CoherenceVerdict, coherenc
 from core.dual_process.inner_dialogue import InnerDialogue
 from core.anticipation import AnticipationEngine
 from core.defense_mechanisms import DEFENSE_INSTRUCTIONS, DefenseMechanism
-from core.dual_process.tool_loop import run_tool_loop
+from core.dual_process.tool_loop import ToolLoopResult, make_tool_decision, run_tool_loop
+from core.tool_appraisal import appraise_tool_result
 from core.proactive import collect_skill_want_triggers, evaluate_proactive
 from core.tool_memory import (
     ToolMemoryEffects,
@@ -174,6 +183,22 @@ def _is_broad_repair_text(text: str) -> bool:
 
 def _is_repairable_unresolved_source(source: str) -> bool:
     return str(source or "") in _REPAIRABLE_UNRESOLVED_SOURCES
+
+
+def _format_generated_artifact_summary(result: ToolResult, draft_summary: str = "") -> str:
+    details = []
+    if result.success:
+        details.append("OK")
+        if result.side_effect_summary and result.side_effect_summary != "none":
+            details.append(result.side_effect_summary)
+        bytes_written = (result.metadata or {}).get("bytes_written")
+        if bytes_written is not None:
+            details.append(f"bytes_written={bytes_written}")
+        if draft_summary:
+            details.append(f"summary={draft_summary}")
+    else:
+        details.append(f"Failed: {result.error or 'unknown error'}")
+    return "[fs.write_file] " + " | ".join(details)
 
 # ---------------------------------------------------------------------------
 # Debug state — full transparency into what happened
@@ -752,7 +777,16 @@ class CognitivePipeline:
         tool_context_summary = ""
         if self._tool_executor is not None:
             _ts_tool = time.perf_counter()
-            if self._tool_runner is not None:
+            artifact_result = self._maybe_write_generated_artifact(
+                user_message=user_message,
+                person=person,
+                defense_active=False,
+                agency_decision=agency_decision,
+                autonomy_level=self._autonomy_level,
+            )
+            if artifact_result is not None:
+                tool_loop_result = artifact_result
+            elif self._tool_runner is not None:
                 tool_user_message = _message_for_model_tool_routing(
                     user_message,
                     self._conversation_history,
@@ -1415,6 +1449,114 @@ class CognitivePipeline:
                 )
             existing["last_seen"] = now
             self._capability_gaps[gap_id] = existing
+
+    def _maybe_write_generated_artifact(
+        self,
+        *,
+        user_message: str,
+        person: PersonProfile | None,
+        defense_active: bool,
+        agency_decision: AgencyDecision | None,
+        autonomy_level: str,
+    ) -> ToolLoopResult | None:
+        """Generate a requested artifact and persist it through fs.write_file."""
+        if self._tool_executor is None:
+            return None
+        if "fs.write_file" not in set(self._tool_executor._registry.names()):
+            return None
+        request = detect_artifact_write_request(user_message)
+        if request is None:
+            return None
+
+        trust = person.trust if person else 0.5
+        action_vars = derive_action_variables(
+            self.engine.state,
+            trust=trust,
+            defense_active=defense_active,
+        )
+        placeholder_intent = ToolIntent(
+            tool_name="fs.write_file",
+            arguments={"path": request.path, "content": "<generated artifact>"},
+            reason="User requested generated artifact saved to disk",
+            expected_outcome=f"Write generated artifact to {request.path}",
+            urgency=action_vars.action_urgency,
+            risk_tolerance=action_vars.risk_tolerance,
+            autonomy_bias=action_vars.autonomy_bias,
+            clarification_threshold=action_vars.clarification_threshold,
+            persistence_drive=action_vars.persistence_drive,
+        )
+        decision = make_tool_decision(
+            placeholder_intent,
+            action_vars,
+            ToolCategory.WRITE,
+            trust,
+            agency_decision=agency_decision,
+            autonomy_level=autonomy_level,
+        )
+        if decision.decision != "execute":
+            return ToolLoopResult(
+                trace=ToolTrace(
+                    proposed_intents=[placeholder_intent],
+                    final_decision=decision,
+                    loop_count=0,
+                ),
+                action_variables=action_vars,
+                tool_context_summary="",
+            )
+
+        try:
+            draft = generate_artifact_draft(self._llm_backend_fast, request)
+        except Exception as exc:
+            failure = ToolResult(
+                tool_name="artifact.generate",
+                success=False,
+                output="",
+                error=f"{type(exc).__name__}: {exc}",
+                side_effect_summary="artifact generation failed",
+            )
+            observation = appraise_tool_result(failure, ToolCategory.COGNITIVE)
+            return ToolLoopResult(
+                trace=ToolTrace(
+                    proposed_intents=[placeholder_intent],
+                    final_decision=ToolDecision(
+                        decision="refuse",
+                        intent=placeholder_intent,
+                        rationale="Artifact generation failed before file write",
+                    ),
+                    executed_results=[failure],
+                    observations=[observation],
+                    loop_count=1,
+                ),
+                action_variables=action_vars,
+                tool_context_summary=f"[artifact.generate] Failed: {failure.error}",
+            )
+
+        intent = ToolIntent(
+            tool_name="fs.write_file",
+            arguments={"path": draft.path, "content": draft.content},
+            reason=placeholder_intent.reason,
+            expected_outcome=f"Write generated artifact to {draft.path}",
+            urgency=placeholder_intent.urgency,
+            risk_tolerance=placeholder_intent.risk_tolerance,
+            autonomy_bias=placeholder_intent.autonomy_bias,
+            clarification_threshold=placeholder_intent.clarification_threshold,
+            persistence_drive=placeholder_intent.persistence_drive,
+        )
+        decision.intent = intent
+        result = self._tool_executor.execute(intent.tool_name, intent.arguments)
+        observation = appraise_tool_result(result, ToolCategory.WRITE)
+        summary = _format_generated_artifact_summary(result, draft.summary)
+        return ToolLoopResult(
+            trace=ToolTrace(
+                proposed_intents=[intent],
+                final_decision=decision,
+                executed_results=[result],
+                observations=[observation],
+                loop_count=1,
+            ),
+            action_variables=action_vars,
+            tool_context_summary=summary,
+        )
 
     def _record_semantic_memory(
         self,

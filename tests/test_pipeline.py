@@ -1,4 +1,6 @@
 """Tests for the cognitive pipeline — Phase 6."""
+import json
+
 import pytest
 
 from config.loader import get_config
@@ -9,6 +11,20 @@ from runtime.debug.api import _debug_to_dict
 from runtime.config import RuntimeConfig
 from runtime.skills import enabled_skill_context, list_skills
 from runtime.tools import create_tool_executor
+
+
+class ArtifactBackend(MockLLMBackend):
+    def generate(self, system_prompt: str, user_message: str) -> str:
+        self.last_system_prompt = system_prompt
+        self.last_user_message = user_message
+        self.call_count += 1
+        if system_prompt.startswith("Generate one complete file"):
+            return json.dumps({
+                "path": "games/tetris.py",
+                "content": "print('tetris ready')\n",
+                "summary": "A small Python game script.",
+            })
+        return "Saved it to `games/tetris.py`. Ready when you are."
 
 
 class TestCognitivePipeline:
@@ -463,6 +479,38 @@ class TestCognitivePipeline:
         assert result.debug.skill_context["skills"][0]["id"] == "report-writer"
         assert "Enabled Skills" in backend.last_system_prompt
         assert "Use a concise outline before drafting" in backend.last_system_prompt
+        pipe.close()
+
+    def test_generated_artifact_request_writes_file_before_success_claim(self, tmp_path):
+        workspace = tmp_path / "workspace"
+        config = RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            tools_enabled=True,
+            tools_workspace=str(workspace),
+            autonomy_level="autonomous",
+        )
+        backend = ArtifactBackend()
+        pipe = CognitivePipeline(
+            llm_backend=backend,
+            llm_backend_fast=backend,
+            tool_executor=create_tool_executor(config),
+            autonomy_level="autonomous",
+        )
+
+        result = pipe.process(
+            "Can you write me a python code for tetris game and save it in games directory you create?",
+            user_id="alice",
+        )
+
+        target = workspace / "games" / "tetris.py"
+        assert target.exists()
+        assert target.read_text(encoding="utf-8") == "print('tetris ready')\n"
+        assert result.debug.tool_trace is not None
+        assert result.debug.tool_trace.loop_count == 1
+        assert result.debug.tool_trace.executed_results[0].tool_name == "fs.write_file"
+        assert result.debug.tool_trace.executed_results[0].success is True
+        assert "I did not perform that external action" not in result.response
+        assert "Saved it to `games/tetris.py`" in result.response
         pipe.close()
 
     def test_unverified_permanent_skill_claim_is_replaced(self):

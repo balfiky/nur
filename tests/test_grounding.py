@@ -249,6 +249,19 @@ def test_correction_prefers_registry_write_evidence_over_registry_issue():
     assert "No skill-registry Tool Execution Result ran" not in response
 
 
+def test_generic_grounding_correction_does_not_mention_skills():
+    issues = verify_response_grounding(
+        "I saved it in ./games/tetris.py and it is ready to run.",
+        tool_trace=None,
+    )
+
+    response = grounding_correction_response(issues, tool_trace=None)
+
+    assert "I did not perform that external action" in response
+    assert "SKILL.md" not in response
+    assert "Admin > Skills" not in response
+
+
 def test_registry_claim_is_not_grounded_by_skill_list_tool():
     trace = ToolTrace(
         executed_results=[

@@ -37,6 +37,11 @@ All notable changes to Project Nur are documented here.
 - Fixed resolution-state cleanup: unresolved tensions that decay to zero now
   resolve automatically, and broad apology/repair turns can clear multiple
   relational tensions while preserving task/tool/commitment items.
+- Added a general generated-artifact writer path: requests to create code,
+  scripts, documents, apps, or similar files and save them now generate a
+  structured file payload and persist it through `fs.write_file` before any
+  success claim is allowed. Generic grounding corrections no longer mention
+  Skills unless the issue is actually skill-registry related.
 
 ### Emotional engine
 - Direct attacks against Nūr (insults, profanity, appraisal-detected
