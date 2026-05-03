@@ -6,6 +6,13 @@ All notable changes to Project Nur are documented here.
 
 ## Unreleased
 
+### Emotional engine
+- Direct attacks against Nūr (insults, profanity, appraisal-detected
+  attacks targeting the assistant) now route to `EventType.CONFLICT`
+  instead of `NEGATIVE_FEEDBACK`, so bonding actually erodes under
+  sustained verbal abuse rather than staying frozen while arousal alone
+  bounces. Three pipeline tests updated to match.
+
 ### Grounding
 - Distinguish "the tool ran" from "the tool succeeded" in the grounding
   verifier. Success-toned execute claims ("command succeeded",

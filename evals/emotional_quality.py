@@ -235,7 +235,11 @@ def emotional_quality_scenarios() -> list[ScenarioSpec]:
                         "bonding": "up",
                     },
                     events=("positive_feedback", "warmth"),
-                    strategies=("reassure", "practical_help", "challenge_gently"),
+                    # `ground` is acceptable here: when prior turns included a
+                    # real bonding hit from a direct attack (post-fix
+                    # behavior), a single affection turn lifts bonding but
+                    # doesn't restore the warm-strategy threshold in one step.
+                    strategies=("reassure", "practical_help", "challenge_gently", "ground"),
                 ),
             ),
         ),

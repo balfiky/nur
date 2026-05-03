@@ -1619,11 +1619,14 @@ class CognitivePipeline:
             )
 
         # Appraisal may identify a direct attack even when the contagion lexicon
-        # misses the exact phrasing (for example, "I'm upset with you").
+        # misses the exact phrasing (for example, "I'm upset with you"). Direct
+        # attacks (social_move=="attack" with assistant target and high blame)
+        # are conflict events, not generic negative feedback — they must touch
+        # bonding so sustained verbal abuse actually erodes the relationship.
         if appraisal.targets_assistant and appraisal.social_move == "attack":
             return EmotionalEvent(
-                event_type=EventType.NEGATIVE_FEEDBACK,
-                intensity=max(0.45, detected.arousal, 1.0 - detected.valence),
+                event_type=EventType.CONFLICT,
+                intensity=max(0.55, detected.arousal, 1.0 - detected.valence),
                 source="user",
                 metadata=metadata,
             )
@@ -1655,7 +1658,7 @@ class CognitivePipeline:
             )
         if appraisal.targets_assistant and any(w in lower for w in _profanity):
             return EmotionalEvent(
-                event_type=EventType.NEGATIVE_FEEDBACK,
+                event_type=EventType.CONFLICT,
                 intensity=max(0.5, detected.arousal),
                 source="user",
                 metadata=metadata,

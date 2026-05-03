@@ -98,7 +98,7 @@ class TestCognitivePipeline:
         result = pipe.process("You are useless and this answer is terrible.", user_id="alice")
         assert result.debug.appraisal_frame is not None
         assert result.debug.appraisal_frame.targets_assistant is True
-        assert result.debug.event_classified == "negative_feedback"
+        assert result.debug.event_classified == "conflict"
         profile = pipe.person_profiles.get_or_create("alice")
         assert profile.trust < 0.5
 
@@ -558,10 +558,12 @@ class TestCognitivePipeline:
 
         assert data["skill_context"]["skills"][0]["id"] == "report-writer"
 
-    def test_insult_classified_as_negative_feedback(self):
+    def test_insult_classified_as_conflict(self):
         pipe = self._make_pipeline()
         result = pipe.process("you are stupid and useless", user_id="alice")
-        assert result.debug.event_classified == "negative_feedback"
+        # Direct attacks against the assistant escalate to conflict so bonding
+        # actually erodes under sustained verbal abuse.
+        assert result.debug.event_classified == "conflict"
         assert result.debug.event_intensity > 0.5
 
     def test_insult_moves_modulators(self):
@@ -572,10 +574,10 @@ class TestCognitivePipeline:
         assert snap["valence"] < 0.5, f"Valence should drop: {snap['valence']}"
         assert snap["arousal"] > 0.5, f"Arousal should rise: {snap['arousal']}"
 
-    def test_profanity_classified_as_negative(self):
+    def test_profanity_classified_as_conflict(self):
         pipe = self._make_pipeline()
         result = pipe.process("this is total bullshit", user_id="alice")
-        assert result.debug.event_classified == "negative_feedback"
+        assert result.debug.event_classified == "conflict"
 
     def test_hostile_command_classified_as_conflict(self):
         pipe = self._make_pipeline()
