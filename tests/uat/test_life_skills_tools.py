@@ -154,7 +154,7 @@ def test_admin_life_history_ingest_is_visible_in_ui_and_api(uat_server, page):
         )
     )
     debug = turn["debug"]
-    assert debug["life_history_context"]["drives"]
+    assert debug["life_history_context"]["all_drives"]
     assert debug["life_history_context"]["recent_evolution"]
     assert debug["life_influence"]["competence_pressure"] > 0
     assert debug["relationship_view"]["life_influence"]["curiosity_pressure"] > 0
@@ -200,8 +200,9 @@ def test_life_upload_local_file_and_rollback_paths(uat_server, tmp_path):
     after_ingest = expect_json(uat_server.get("/admin/life"))
     assert after_ingest["counts"]["experiences"] >= 2
 
-    rollback = expect_json(uat_server.post("/admin/life/rollback", {"batch_id": batch_id}))
-    assert rollback["evolution_events_removed"] >= 1
+    rollback = uat_server.post("/admin/life/rollback", {"batch_id": batch_id})
+    assert rollback.status_code == 410
+    assert "rollback was removed" in rollback.json()["detail"]
 
 
 def test_life_digest_changes_later_policy_signals(uat_server):

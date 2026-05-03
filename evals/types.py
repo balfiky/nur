@@ -104,6 +104,7 @@ class EvalScenario:
 
     # Optional static Life History context for structural LifeInfluence evals.
     life_history_context: dict[str, Any] | None = None
+    life_history_snapshot_context: dict[str, Any] | None = None
 
 
 # ---------------------------------------------------------------------------

@@ -43,6 +43,10 @@ class TestConfigFromYaml:
                     "llm_backend: minimax\n"
                     "minimax_api_key: sk-test\n"
                     "autonomy_level: high_risk\n"
+                    "character_independence: true\n"
+                    "coherence_min_score: 0.5\n"
+                    "coherence_max_regenerations: 1\n"
+                    "pending_intake_ttl_turns: 4\n"
                     "debug_host: 0.0.0.0\n"
                     "debug_port: 9999\n"
                 )
@@ -60,6 +64,10 @@ class TestConfigFromYaml:
             assert config.llm_backend == "minimax"
             assert config.minimax_api_key == "sk-test"
             assert config.autonomy_level == "high_risk"
+            assert config.character_independence is True
+            assert config.coherence_min_score == 0.5
+            assert config.coherence_max_regenerations == 1
+            assert config.pending_intake_ttl_turns == 4
             assert config.debug_host == "0.0.0.0"
             assert config.debug_port == 9999
 
@@ -101,6 +109,22 @@ class TestConfigFromYaml:
             assert config.data_dir == "/tmp/custom"
             assert config.max_active_sessions == 10  # default
             assert config.console_enabled is True     # default
+
+    def test_legacy_proactive_keys_are_loaded_as_recovery_density_aliases(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "config.yaml")
+            with open(path, "w") as f:
+                f.write(
+                    "proactive_max_per_session: 7\n"
+                    "proactive_cooldown: 42.0\n"
+                )
+            config = RuntimeConfig.from_yaml(path)
+            public = config.to_public_dict()
+
+            assert config.proactive_density_reference == 7
+            assert config.proactive_recovery_seconds == 42.0
+            assert "proactive_max_per_session" not in public
+            assert "proactive_cooldown" not in public
 
     def test_allowlist_converts_to_set_of_strings(self):
         with tempfile.TemporaryDirectory() as tmpdir:

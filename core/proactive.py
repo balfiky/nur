@@ -1,4 +1,4 @@
-"""Proactive behavior evaluation — bounded self-initiated action.
+"""Proactive behavior evaluation — self-initiated action.
 
 Evaluates whether Nūr feels compelled to initiate something based on:
   - Unresolved cognitive tension (items with sufficient intensity)
@@ -8,7 +8,8 @@ Evaluates whether Nūr feels compelled to initiate something based on:
   - Emotionally salient unfinished matters
 
 All logic is deterministic — zero LLM calls.
-All autonomy is bounded — strict limits on proactive actions per session.
+Recent action density and recovery time shape activation pressure; they are
+not hard caps on whether a character may initiate.
 """
 
 from __future__ import annotations
@@ -16,7 +17,9 @@ from __future__ import annotations
 import time
 from typing import Any
 
+from core.character_vector import CharacterVector
 from core.life_influence import LifeInfluence
+from core.life_influence import derive_life_influence_from_vector
 from core.types import (
     ModulatorState,
     PersonProfile,
@@ -33,10 +36,10 @@ from core.types import (
 # Default configuration values
 # ---------------------------------------------------------------------------
 
-DEFAULT_IDLE_THRESHOLD = 300.0   # 5 minutes idle before proactive check
-DEFAULT_MAX_PROACTIVE = 3        # max proactive actions per session
-DEFAULT_COOLDOWN = 300.0         # 5 minutes between proactive actions
-DEFAULT_ACTIVATION_THRESHOLD = 0.4  # trigger intensity must exceed this
+DEFAULT_IDLE_TRIGGER_SECONDS = 300.0
+DEFAULT_RECENT_DENSITY_REFERENCE = 3
+DEFAULT_RECOVERY_SECONDS = 300.0
+DEFAULT_BASE_ACTIVATION = 0.4
 
 # Intensity boosts from modulator state
 _RESOLUTION_BOOST = 0.15        # high resolution → more proactive
@@ -93,7 +96,7 @@ def _collect_triggers(
             ))
 
     # 4. Temporal: long idle with high resolution
-    if idle_seconds > DEFAULT_IDLE_THRESHOLD and state.resolution > 0.3:
+    if idle_seconds > DEFAULT_IDLE_TRIGGER_SECONDS and state.resolution > 0.3:
         temporal_intensity = min(1.0, 0.3 + state.resolution * 0.3)
         triggers.append(ProactiveTrigger(
             source=ProactiveTriggerSource.TEMPORAL,
@@ -112,6 +115,34 @@ def _collect_triggers(
     return triggers
 
 
+def collect_skill_want_triggers(
+    capability_gaps: list[dict[str, Any]],
+    *,
+    character_vector: CharacterVector | None = None,
+) -> list[ProactiveTrigger]:
+    """Collect proactive triggers for repeated capability gaps."""
+    influence = derive_life_influence_from_vector(character_vector)
+    competence_gain = max(0.0, influence.competence_pressure)
+    curiosity_gain = max(0.0, influence.curiosity_pressure)
+    caution_penalty = max(0.0, influence.caution_pressure) * 0.5
+    triggers: list[ProactiveTrigger] = []
+    for gap in capability_gaps:
+        recurrence = _safe_float(gap.get("recent_recurrence"), 0.0)
+        frustration = _safe_float(gap.get("frustration_intensity"), 0.0)
+        gap_type = str(gap.get("gap_type") or "capability").strip() or "capability"
+        intensity = 0.25 + min(0.3, recurrence * 0.06) + frustration * 0.35
+        intensity += competence_gain * 0.4 + curiosity_gain * 0.25 - caution_penalty
+        if intensity < 0.35:
+            continue
+        triggers.append(ProactiveTrigger(
+            source=ProactiveTriggerSource.SKILL_WANT,
+            description=f"Capability gap: {gap_type}",
+            intensity=intensity,
+            item_id=str(gap.get("id") or gap_type),
+        ))
+    return triggers
+
+
 # ---------------------------------------------------------------------------
 # Trigger scoring (modulator-influenced)
 # ---------------------------------------------------------------------------
@@ -121,6 +152,7 @@ def _score_trigger(
     state: ModulatorState,
     person: PersonProfile,
     life_influence: LifeInfluence | None = None,
+    character_vector: CharacterVector | None = None,
 ) -> float:
     """Score a trigger, influenced by current modulator state.
 
@@ -150,11 +182,12 @@ def _score_trigger(
     if state.valence < 0.3:
         score += _LOW_VALENCE_BOOST
 
+    if character_vector is not None:
+        life_influence = derive_life_influence_from_vector(character_vector)
+
     if life_influence is not None:
-        if trigger.source == ProactiveTriggerSource.UNRESOLVED_ITEM:
-            score += max(0.0, life_influence.repair_pressure)
-        if trigger.source == ProactiveTriggerSource.COMMITMENT:
-            score += max(0.0, life_influence.continuity_pressure)
+        category = _trigger_gain_category(trigger)
+        score *= life_influence.proactive_gain_for(category)
 
     return max(0.0, min(1.0, score))
 
@@ -206,6 +239,14 @@ def _select_action(
             rationale=f"Idle timeout with active tension (resolution={state.resolution:.2f})",
         )
 
+    if trigger.source == ProactiveTriggerSource.SKILL_WANT:
+        return ProactiveAction(
+            action_type="suggest",
+            trigger=trigger,
+            message=f"I'd want a skill for this capability gap: {trigger.description[:100]}",
+            rationale=f"Repeated capability gap (intensity={trigger.intensity:.2f})",
+        )
+
     # Fallback
     return ProactiveAction(
         action_type="suggest",
@@ -228,11 +269,13 @@ def evaluate_proactive(
     proactive_count: int,
     last_proactive_at: float | None = None,
     *,
-    max_proactive: int = DEFAULT_MAX_PROACTIVE,
-    idle_threshold: float = DEFAULT_IDLE_THRESHOLD,
-    cooldown: float = DEFAULT_COOLDOWN,
-    activation_threshold: float = DEFAULT_ACTIVATION_THRESHOLD,
+    density_reference: int = DEFAULT_RECENT_DENSITY_REFERENCE,
+    idle_threshold: float = DEFAULT_IDLE_TRIGGER_SECONDS,
+    recovery_seconds: float = DEFAULT_RECOVERY_SECONDS,
+    activation_threshold: float = DEFAULT_BASE_ACTIVATION,
     life_influence: LifeInfluence | None = None,
+    character_vector: CharacterVector | None = None,
+    skill_want_triggers: list[ProactiveTrigger] | None = None,
 ) -> tuple[ProactiveAction | None, ProactiveTrace]:
     """Evaluate whether Nūr should initiate proactive behavior.
 
@@ -248,40 +291,28 @@ def evaluate_proactive(
         timestamp=now,
     )
 
-    # Record limits applied
+    # Record recovery parameters applied. These shape threshold, not hard caps.
     trace.limits_applied = {
-        "max_proactive": max_proactive,
+        "recent_density_reference": density_reference,
         "idle_threshold": idle_threshold,
-        "cooldown": cooldown,
-        "activation_threshold": activation_threshold,
+        "recovery_seconds": recovery_seconds,
+        "base_activation": activation_threshold,
     }
 
-    # ---- Bound checks ----
+    density_reference = max(1.0, float(density_reference))
+    recent_density = max(0.0, proactive_count / density_reference)
+    recovery_penalty = min(0.35, recent_density * 0.12)
+    if last_proactive_at is not None and recovery_seconds > 0:
+        elapsed = now - last_proactive_at
+        recovery_penalty += max(0.0, (recovery_seconds - elapsed) / recovery_seconds) * 0.15
 
-    # 1. Max proactive actions per session
-    if proactive_count >= max_proactive:
-        trace.suppressed_reasons.append(
-            f"Max proactive actions reached ({proactive_count}/{max_proactive})"
-        )
-        return None, trace
-
-    # 2. Not idle long enough
+    # ---- State checks ----
     if idle_seconds < idle_threshold:
         trace.suppressed_reasons.append(
             f"Not idle enough ({idle_seconds:.0f}s < {idle_threshold:.0f}s)"
         )
         return None, trace
 
-    # 3. Cooldown between proactive actions
-    if last_proactive_at is not None:
-        elapsed = now - last_proactive_at
-        if elapsed < cooldown:
-            trace.suppressed_reasons.append(
-                f"Cooldown not elapsed ({elapsed:.0f}s < {cooldown:.0f}s)"
-            )
-            return None, trace
-
-    # 4. Too tired to be proactive
     if state.energy < 0.15:
         trace.suppressed_reasons.append(
             f"Energy too low ({state.energy:.2f})"
@@ -291,6 +322,8 @@ def evaluate_proactive(
     # ---- Collect and score triggers ----
 
     triggers = _collect_triggers(unresolved_items, active_plan, idle_seconds, state)
+    if skill_want_triggers:
+        triggers.extend(skill_want_triggers)
     trace.triggers_found = triggers
 
     if not triggers:
@@ -301,7 +334,13 @@ def evaluate_proactive(
     scored: list[tuple[float, ProactiveTrigger]] = []
     for t in triggers:
         base_score = _score_trigger(t, state, person, None)
-        score = _score_trigger(t, state, person, life_influence)
+        score = _score_trigger(
+            t,
+            state,
+            person,
+            life_influence,
+            character_vector,
+        )
         delta = round(score - base_score, 6)
         if delta != 0.0:
             key = f"{t.source.value if hasattr(t.source, 'value') else str(t.source)}:{t.item_id or t.description[:40]}"
@@ -313,9 +352,11 @@ def evaluate_proactive(
     best_score, best_trigger = scored[0]
 
     # Check activation threshold
-    if best_score < activation_threshold:
+    effective_threshold = min(1.0, max(0.0, activation_threshold + recovery_penalty))
+    trace.limits_applied["effective_activation"] = effective_threshold
+    if best_score < effective_threshold:
         trace.suppressed_reasons.append(
-            f"Best trigger score ({best_score:.2f}) below threshold ({activation_threshold:.2f})"
+            f"Best trigger score ({best_score:.2f}) below threshold ({effective_threshold:.2f})"
         )
         return None, trace
 
@@ -325,3 +366,26 @@ def evaluate_proactive(
     trace.action_taken = action
 
     return action, trace
+
+
+def _trigger_gain_category(trigger: ProactiveTrigger) -> str:
+    if trigger.source == ProactiveTriggerSource.UNRESOLVED_ITEM:
+        return "unresolved_item"
+    if trigger.source == ProactiveTriggerSource.COMMITMENT:
+        return "commitment"
+    if trigger.source == ProactiveTriggerSource.PENDING_TASK:
+        return "pending_task"
+    if trigger.source == ProactiveTriggerSource.SKILL_WANT:
+        return "skill_gap"
+    if trigger.source == ProactiveTriggerSource.TEMPORAL:
+        return "temporal"
+    if trigger.source == ProactiveTriggerSource.EMOTIONAL_SALIENCE:
+        return "emotional_salience"
+    return "internal"
+
+
+def _safe_float(value: Any, fallback: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return fallback

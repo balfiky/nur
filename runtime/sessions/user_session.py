@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any, Awaitable, TypeVar
 
 from pipeline import CognitivePipeline, DebugState
+from runtime.learning_intake import PendingLearningIntake
 from runtime.sessions.persistence import (
     delete_conversation_history,
     save_conversation_history,
@@ -106,6 +107,8 @@ class UserSession:
         self._executor = executor
         self._user_lock = user_lock
         self.last_debug: DebugState | None = None
+        self.turn_index: int = 0
+        self.pending_learning_intake: PendingLearningIntake | None = None
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -141,6 +144,7 @@ class UserSession:
                 self.state_path,
                 state["modulator_snapshot"],
                 unresolved_items=state["unresolved_items"],
+                extra_state=self._session_extra_state(),
             )
         except Exception:
             log.exception("Error saving state for %s", self.session_key)
@@ -166,6 +170,7 @@ class UserSession:
             self.state_path,
             state["modulator_snapshot"],
             unresolved_items=state["unresolved_items"],
+            extra_state=self._session_extra_state(),
         )
         save_conversation_history(
             self.history_path,
@@ -179,6 +184,28 @@ class UserSession:
             self.state_path,
             state["modulator_snapshot"],
             unresolved_items=state["unresolved_items"],
+            extra_state=self._session_extra_state(),
+        )
+
+    def _session_extra_state(self) -> dict[str, object]:
+        return {
+            "turn_index": self.turn_index,
+            "pending_learning_intake": (
+                self.pending_learning_intake.to_dict()
+                if self.pending_learning_intake is not None
+                else None
+            ),
+        }
+
+    def restore_session_extra_state(self, state: dict | None) -> None:
+        if not isinstance(state, dict):
+            return
+        try:
+            self.turn_index = int(state.get("turn_index", self.turn_index))
+        except (TypeError, ValueError):
+            pass
+        self.pending_learning_intake = PendingLearningIntake.from_dict(
+            state.get("pending_learning_intake")
         )
 
     @property
@@ -337,6 +364,7 @@ class UserSession:
                     result = await self._run_blocking(
                         self.pipeline.process, text, self.user_id,
                     )
+                self.turn_index += 1
                 await self._run_blocking(self._save_hot_state)
                 self.last_debug = result.debug
                 self.last_activity = time.time()

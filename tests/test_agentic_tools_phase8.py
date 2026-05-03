@@ -22,15 +22,17 @@ from core.types import (
     UnresolvedItem,
 )
 from core.proactive import (
-    DEFAULT_ACTIVATION_THRESHOLD,
-    DEFAULT_COOLDOWN,
-    DEFAULT_IDLE_THRESHOLD,
-    DEFAULT_MAX_PROACTIVE,
+    DEFAULT_BASE_ACTIVATION,
+    DEFAULT_IDLE_TRIGGER_SECONDS,
+    collect_skill_want_triggers,
     _collect_triggers,
     _score_trigger,
     _select_action,
     evaluate_proactive,
 )
+from core.character_vector import assemble_character_vector
+from core.dual_process.tool_loop import detect_capability_gap
+from core.types import PipelineContext
 
 
 # ===================================================================
@@ -95,6 +97,7 @@ class TestProactiveTypes:
         assert ProactiveTriggerSource.COMMITMENT.value == "commitment"
         assert ProactiveTriggerSource.TEMPORAL.value == "temporal"
         assert ProactiveTriggerSource.EMOTIONAL_SALIENCE.value == "emotional_salience"
+        assert ProactiveTriggerSource.SKILL_WANT.value == "skill_want_trigger"
 
     def test_trigger_intensity_clamped(self):
         t = ProactiveTrigger(
@@ -189,7 +192,7 @@ class TestCollectTriggers:
     def test_temporal_trigger_when_idle_with_resolution(self):
         state = _make_state(resolution=0.5)
         triggers = _collect_triggers(
-            [], None, DEFAULT_IDLE_THRESHOLD + 100, state,
+            [], None, DEFAULT_IDLE_TRIGGER_SECONDS + 100, state,
         )
         temporal = [
             t for t in triggers
@@ -200,7 +203,7 @@ class TestCollectTriggers:
     def test_no_temporal_when_resolution_low(self):
         state = _make_state(resolution=0.1)
         triggers = _collect_triggers(
-            [], None, DEFAULT_IDLE_THRESHOLD + 100, state,
+            [], None, DEFAULT_IDLE_TRIGGER_SECONDS + 100, state,
         )
         temporal = [
             t for t in triggers
@@ -348,7 +351,7 @@ class TestEvaluateProactive:
         assert action is None
         assert any("Not idle" in r for r in trace.suppressed_reasons)
 
-    def test_no_action_when_max_reached(self):
+    def test_recent_density_shapes_threshold_without_hard_cap(self):
         item = _make_unresolved(intensity=0.6)
         action, trace = evaluate_proactive(
             state=_make_state(),
@@ -357,12 +360,13 @@ class TestEvaluateProactive:
             person=_make_person(),
             idle_seconds=600.0,
             proactive_count=3,
-            max_proactive=3,
+            density_reference=3,
         )
-        assert action is None
-        assert any("Max proactive" in r for r in trace.suppressed_reasons)
+        assert action is not None
+        assert trace.limits_applied["recent_density_reference"] == 3
+        assert trace.limits_applied["effective_activation"] > DEFAULT_BASE_ACTIVATION
 
-    def test_no_action_during_cooldown(self):
+    def test_recovery_seconds_shapes_threshold_without_hard_cap(self):
         item = _make_unresolved(intensity=0.6)
         action, trace = evaluate_proactive(
             state=_make_state(),
@@ -372,10 +376,11 @@ class TestEvaluateProactive:
             idle_seconds=600.0,
             proactive_count=1,
             last_proactive_at=time.time() - 60.0,  # only 60s ago
-            cooldown=300.0,
+            recovery_seconds=300.0,
         )
-        assert action is None
-        assert any("Cooldown" in r for r in trace.suppressed_reasons)
+        assert action is not None
+        assert trace.limits_applied["recovery_seconds"] == 300.0
+        assert trace.limits_applied["effective_activation"] > DEFAULT_BASE_ACTIVATION
 
     def test_no_action_when_energy_too_low(self):
         item = _make_unresolved(intensity=0.6)
@@ -426,13 +431,13 @@ class TestEvaluateProactive:
             person=_make_person(),
             idle_seconds=600.0,
             proactive_count=0,
-            max_proactive=5,
+            density_reference=5,
             idle_threshold=200.0,
-            cooldown=100.0,
+            recovery_seconds=100.0,
         )
-        assert trace.limits_applied["max_proactive"] == 5
+        assert trace.limits_applied["recent_density_reference"] == 5
         assert trace.limits_applied["idle_threshold"] == 200.0
-        assert trace.limits_applied["cooldown"] == 100.0
+        assert trace.limits_applied["recovery_seconds"] == 100.0
 
     def test_trigger_below_activation_threshold(self):
         """Low-intensity trigger doesn't activate."""
@@ -463,6 +468,33 @@ class TestEvaluateProactive:
         )
         assert action is not None
         assert "high" in action.trigger.description.lower()
+
+    def test_skill_want_trigger_from_repeated_capability_gap(self):
+        gap = detect_capability_gap("Read this PDF for me", {"fs.read_file"})
+        assert gap is not None
+        gap["recent_recurrence"] = 4
+        vector = assemble_character_vector(PipelineContext(
+            life_history_context={
+                "drives": [
+                    {"name": "competence", "value": 0.75, "baseline": 0.5, "delta": 0.25},
+                    {"name": "curiosity", "value": 0.65, "baseline": 0.5, "delta": 0.15},
+                ]
+            }
+        ))
+        triggers = collect_skill_want_triggers([gap], character_vector=vector)
+        action, trace = evaluate_proactive(
+            state=_make_state(resolution=0.5),
+            unresolved_items=[],
+            active_plan=None,
+            person=_make_person(),
+            idle_seconds=600.0,
+            proactive_count=0,
+            skill_want_triggers=triggers,
+        )
+
+        assert action is not None
+        assert action.trigger.source == ProactiveTriggerSource.SKILL_WANT
+        assert any(trigger.item_id == "gap:pdf_reader" for trigger in trace.triggers_found)
 
 
 # ===================================================================
@@ -512,7 +544,7 @@ class TestPipelineProactive:
         result = p.process_proactive(
             "default",
             idle_threshold=0.0,  # bypass idle check for test
-            cooldown=0.0,        # bypass cooldown
+            recovery_seconds=0.0,        # bypass recovery_seconds
         )
         assert result is not None
         assert result.response  # generator produced something
@@ -533,19 +565,19 @@ class TestPipelineProactive:
         ))
         p.engine.state.resolution = 0.5
 
-        r1 = p.process_proactive("default", idle_threshold=0.0, cooldown=0.0)
+        r1 = p.process_proactive("default", idle_threshold=0.0, recovery_seconds=0.0)
         assert r1 is not None
         assert p._proactive_count == 1
 
-        r2 = p.process_proactive("default", idle_threshold=0.0, cooldown=0.0)
+        r2 = p.process_proactive("default", idle_threshold=0.0, recovery_seconds=0.0)
         if r2 is not None:
             assert p._proactive_count == 2
 
-    def test_process_proactive_respects_max(self):
+    def test_process_proactive_recent_density_is_not_hard_cap(self):
         from pipeline import CognitivePipeline
         p = CognitivePipeline()
         p._last_turn_time = time.time() - 600.0
-        p._proactive_count = 3  # already at max
+        p._proactive_count = 3  # already at the density reference
         p.engine.add_unresolved(UnresolvedItem(
             id="test_1", source="contradiction",
             description="Unresolved item",
@@ -554,9 +586,9 @@ class TestPipelineProactive:
         ))
 
         result = p.process_proactive(
-            "default", max_proactive=3, idle_threshold=0.0, cooldown=0.0,
+            "default", density_reference=3, idle_threshold=0.0, recovery_seconds=0.0,
         )
-        assert result is None
+        assert result is not None
 
     def test_process_proactive_records_self_observation(self):
         from pipeline import CognitivePipeline
@@ -570,7 +602,7 @@ class TestPipelineProactive:
         ))
         p.engine.state.resolution = 0.5
 
-        result = p.process_proactive("default", idle_threshold=0.0, cooldown=0.0)
+        result = p.process_proactive("default", idle_threshold=0.0, recovery_seconds=0.0)
         assert result is not None
         # Check self-observation was recorded (proactive trait)
         profile = p.self_profile.get_profile()
@@ -611,8 +643,8 @@ class TestDebugProactiveSerialization:
             action_taken=action,
             idle_seconds=500.0,
             proactive_count=1,
-            limits_applied={"max_proactive": 3, "idle_threshold": 300.0,
-                            "cooldown": 300.0, "activation_threshold": 0.4},
+            limits_applied={"recent_density_reference": 3, "idle_threshold": 300.0,
+                            "recovery_seconds": 300.0, "base_activation": 0.4},
         )
 
         debug = DebugState()
@@ -625,7 +657,7 @@ class TestDebugProactiveSerialization:
         assert len(d["proactive_trace"]["triggers_found"]) == 1
         assert d["proactive_trace"]["triggers_found"][0]["source"] == "unresolved_item"
         assert d["proactive_trace"]["action_taken"]["action_type"] == "follow_up"
-        assert d["proactive_trace"]["limits_applied"]["max_proactive"] == 3
+        assert d["proactive_trace"]["limits_applied"]["recent_density_reference"] == 3
 
     def test_no_proactive_trace_serialized_as_none(self):
         from runtime.debug.api import _debug_to_dict
@@ -640,10 +672,10 @@ class TestDebugProactiveSerialization:
         from pipeline import DebugState
 
         trace = ProactiveTrace(
-            suppressed_reasons=["Max proactive actions reached (3/3)"],
+            suppressed_reasons=["Best trigger score (0.30) below threshold (0.52)"],
             idle_seconds=600.0,
             proactive_count=3,
-            limits_applied={"max_proactive": 3},
+            limits_applied={"recent_density_reference": 3},
         )
         debug = DebugState()
         debug.proactive_trace = trace
@@ -663,8 +695,8 @@ class TestRuntimeConfig:
         cfg = RuntimeConfig()
         assert cfg.proactive_enabled is False
         assert cfg.proactive_idle_threshold == 300.0
-        assert cfg.proactive_max_per_session == 3
-        assert cfg.proactive_cooldown == 300.0
+        assert cfg.proactive_density_reference == 3
+        assert cfg.proactive_recovery_seconds == 300.0
         assert cfg.proactive_check_interval == 60.0
 
     def test_proactive_config_from_yaml(self, tmp_path):
@@ -673,12 +705,14 @@ class TestRuntimeConfig:
         cfg_file.write_text(
             "proactive_enabled: true\n"
             "proactive_idle_threshold: 120.0\n"
-            "proactive_max_per_session: 5\n"
+            "proactive_density_reference: 5\n"
+            "proactive_recovery_seconds: 90.0\n"
         )
         cfg = RuntimeConfig.from_yaml(str(cfg_file))
         assert cfg.proactive_enabled is True
         assert cfg.proactive_idle_threshold == 120.0
-        assert cfg.proactive_max_per_session == 5
+        assert cfg.proactive_density_reference == 5
+        assert cfg.proactive_recovery_seconds == 90.0
 
 
 # ===================================================================

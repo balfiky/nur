@@ -134,9 +134,9 @@ class TestBuildSystemPrompt:
             },
         )
         prompt = build_system_prompt(ctx)
-        assert "Life History / Evolving Worldview" in prompt
+        assert "Durable Character State" in prompt
         assert "Autonomy grows through retained experience" in prompt
-        assert "curiosity: 0.62" in prompt
+        assert "Drive[curiosity]: 0.62" in prompt
         assert "Ask what an experience should change" in prompt
 
     def test_includes_enabled_skill_context(self):

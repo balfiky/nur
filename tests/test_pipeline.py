@@ -276,12 +276,46 @@ class TestCognitivePipeline:
                 "recent_evolution": [],
             },
         )
-        result = pipe.process("What changed after reading?", user_id="alice")
+        result = pipe.process("Tell me how this context should shape your answer.", user_id="alice")
 
         assert result.debug.life_history_context["beliefs"][0]["key"] == "autonomy"
-        assert "Life History / Evolving Worldview" in backend.last_system_prompt
+        assert "Durable Character State" in backend.last_system_prompt
         assert "Autonomy grows through retained experience" in backend.last_system_prompt
-        assert result.debug.life_influence.curiosity_pressure == pytest.approx(0.05)
+        assert result.debug.life_influence.curiosity_pressure == pytest.approx(0.11)
+        pipe.close()
+
+    def test_life_history_provider_receives_turn_query(self):
+        backend = MockLLMBackend(response="I understand.")
+        queries: list[str] = []
+
+        def provider(query_text: str = "") -> dict:
+            queries.append(query_text)
+            return {
+                "beliefs": [
+                    {
+                        "key": "loneliness",
+                        "statement": "Loneliness changes how repair is interpreted.",
+                        "confidence": 0.8,
+                    }
+                ],
+                "recent_evolution": [
+                    {
+                        "domain": "belief",
+                        "subject": "loneliness",
+                        "after_state": "Loneliness became relevant.",
+                        "confidence": 0.8,
+                    }
+                ],
+                "all_drives": [],
+                "relevance_query": query_text,
+            }
+
+        pipe = CognitivePipeline(llm_backend=backend, life_history_provider=provider)
+        result = pipe.process("Tell me about loneliness and repair.", user_id="alice")
+
+        assert queries[-1] == "Tell me about loneliness and repair."
+        assert result.debug.character_vector is not None
+        assert result.debug.character_vector.formative_experiences[0]["subject"] == "loneliness"
         pipe.close()
 
     def test_life_history_context_feature_toggle_removes_context_and_influence(self):

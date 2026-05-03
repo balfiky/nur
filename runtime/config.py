@@ -12,6 +12,10 @@ _SECRET_FIELDS = {
     "minimax_api_key",
     "api_key",
 }
+_LEGACY_FIELD_ALIASES = {
+    "proactive_max_per_session": "proactive_density_reference",
+    "proactive_cooldown": "proactive_recovery_seconds",
+}
 
 
 @dataclass
@@ -51,9 +55,15 @@ class RuntimeConfig:
     # Proactive behavior (Phase 8)
     proactive_enabled: bool = False
     proactive_idle_threshold: float = 300.0    # seconds idle before proactive check
-    proactive_max_per_session: int = 3         # max proactive actions per session
-    proactive_cooldown: float = 300.0          # seconds between proactive actions
+    proactive_density_reference: int = 3       # action density reference for recovery pressure
+    proactive_recovery_seconds: float = 300.0  # recovery curve after proactive actions
     proactive_check_interval: float = 60.0     # how often the proactive loop runs
+
+    # Character independence runtime
+    character_independence: bool = False
+    coherence_min_score: float = 0.6
+    coherence_max_regenerations: int = 2
+    pending_intake_ttl_turns: int = 3
 
     # Public integration API (standalone web server)
     api_key: str = ""                          # bearer token; empty = auth disabled
@@ -92,6 +102,9 @@ class RuntimeConfig:
         co = data.get("cors_origins")
         if co is not None:
             data["cors_origins"] = [str(x) for x in co]
+        for legacy_key, current_key in _LEGACY_FIELD_ALIASES.items():
+            if current_key not in data and legacy_key in data:
+                data[current_key] = data[legacy_key]
         # Drop unknown keys so __init__ doesn't blow up
         known = {f.name for f in dc_fields(cls)}
         filtered = {k: v for k, v in data.items() if k in known}

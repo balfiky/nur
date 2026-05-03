@@ -11,6 +11,7 @@ import re
 from typing import Protocol
 
 from config.loader import get_config
+from core.character_vector import assemble_character_vector, format_character_vector_prompt
 from core.types import PipelineContext
 
 _INTERNAL_MARKER_RE = re.compile(
@@ -62,6 +63,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
     template = get_config().generator_prompt
 
     # Build each section
+    character_vector_section = _build_character_vector_section(ctx)
     modulator_section = _build_modulator_section(ctx)
     soul_section = _build_soul_section(ctx)
     self_section = _build_self_section(ctx)
@@ -79,6 +81,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
     defense_section = _build_defense_instruction_section(ctx)
     strategy_section = _build_strategy_section(ctx)
     affect_section = _build_affect_agency_section(ctx)
+    intake_receipt_section = _build_intake_receipt_section(ctx)
 
     agent_name = ctx.soul_profile.name if ctx.soul_profile else get_config().soul.name
 
@@ -87,6 +90,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
         prompt = template
         prompt = prompt.replace("{agent_name}", agent_name)
         prompt = prompt.replace("{modulator_state}", modulator_section)
+        prompt = prompt.replace("{character_vector}", character_vector_section)
         prompt = prompt.replace("{soul_profile}", soul_section)
         prompt = prompt.replace("{self_profile}", self_section)
         prompt = prompt.replace("{person_name}", _get_person_name(ctx))
@@ -104,13 +108,16 @@ def build_system_prompt(ctx: PipelineContext) -> str:
         prompt = prompt.replace("{defense_instruction}", defense_section)
         prompt = prompt.replace("{response_strategy}", strategy_section)
         prompt = prompt.replace("{affect_agency}", affect_section)
+        prompt = prompt.replace("{last_intake_receipt}", intake_receipt_section)
         # Append strategy if placeholder was absent from template
         if strategy_section and "{response_strategy}" not in template:
             prompt = prompt.rstrip() + "\n\n" + strategy_section
         if affect_section and "{affect_agency}" not in template:
             prompt = prompt.rstrip() + "\n\n" + affect_section
-        if life_history_section and "{life_history}" not in template:
-            prompt = prompt.rstrip() + "\n\n" + life_history_section
+        if character_vector_section and "{character_vector}" not in template:
+            prompt = prompt.rstrip() + "\n\n" + character_vector_section
+        if intake_receipt_section and "{last_intake_receipt}" not in template:
+            prompt = prompt.rstrip() + "\n\n" + intake_receipt_section
         if skill_section and "{skills}" not in template:
             prompt = prompt.rstrip() + "\n\n" + skill_section
         return prompt
@@ -120,6 +127,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
     parts.append(f"You are {agent_name}, an assistant with a seeded soul and persistent emotional state.")
     parts.append("Let soul, current feelings, and remembered context shape the response naturally.")
     parts.append("")
+    parts.append(character_vector_section)
     parts.append(modulator_section)
     parts.append(soul_section)
     parts.append(self_section)
@@ -128,7 +136,6 @@ def build_system_prompt(ctx: PipelineContext) -> str:
     parts.append(values_section)
     parts.append(memory_section)
     parts.append(semantic_memory_section)
-    parts.append(life_history_section)
     parts.append(skill_section)
     parts.append(contradiction_section)
     parts.append(guidance_section)
@@ -136,9 +143,22 @@ def build_system_prompt(ctx: PipelineContext) -> str:
     parts.append(candidate_section)
     parts.append(tool_section)
     parts.append(affect_section)
+    parts.append(intake_receipt_section)
     parts.append(strategy_section)
     parts.append(defense_section)
     return "\n".join(parts)
+
+
+def _build_character_vector_section(ctx: PipelineContext) -> str:
+    vector = assemble_character_vector(ctx)
+    block = format_character_vector_prompt(vector)
+    return block if block.strip() != "## Durable Character State" else ""
+
+
+def _build_intake_receipt_section(ctx: PipelineContext) -> str:
+    if not ctx.last_intake_receipt:
+        return ""
+    return "## Last Learning Receipt\n" + _trim_prompt_text(ctx.last_intake_receipt, 600) + "\n"
 
 
 def _get_person_name(ctx: PipelineContext) -> str:

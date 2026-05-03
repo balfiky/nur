@@ -116,7 +116,7 @@ def _life_history(life: dict[str, Any], influence: Any, effects: dict[str, Any])
         ]
         if active:
             pressure = f" Active pressure: {', '.join(active[:3])}."
-    effect = " It did not change deterministic policy." if not effects else " It made a bounded deterministic adjustment."
+    effect = " It did not change deterministic policy." if not effects else " It made a domain-clamped deterministic adjustment."
     return "Life History contributed " + ", ".join(parts) + "." + pressure + effect
 
 

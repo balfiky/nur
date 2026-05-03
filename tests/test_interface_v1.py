@@ -531,8 +531,8 @@ class TestAdminEndpoints:
             ("debug_port", 0),
             ("debug_port", 65536),
             ("proactive_idle_threshold", -1),
-            ("proactive_max_per_session", -1),
-            ("proactive_cooldown", -1),
+            ("proactive_density_reference", -1),
+            ("proactive_recovery_seconds", -1),
             ("proactive_check_interval", 0),
         ],
     )

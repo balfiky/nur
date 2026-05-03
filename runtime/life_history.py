@@ -13,16 +13,15 @@ import re
 import sqlite3
 import time
 import uuid
+import hashlib
 from pathlib import Path
 from typing import Any, Protocol
 
+from config.loader import get_config
 from runtime.config import RuntimeConfig
 from runtime.evolution_policy import (
-    evaluate_belief,
-    evaluate_drive_change,
-    evaluate_future_behavior,
-    make_policy_context,
-    source_trust,
+    detect_prompt_injection_markers,
+    source_openness_coefficient,
 )
 
 
@@ -65,6 +64,7 @@ class LifeHistoryStore:
         self._conn.row_factory = sqlite3.Row
         self._create_tables()
         self._ensure_default_drives()
+        self._ensure_genesis_storage()
 
     def __enter__(self) -> LifeHistoryStore:
         return self
@@ -234,6 +234,18 @@ class LifeHistoryStore:
         ).fetchall()
         return [_evolution_to_dict(row) for row in rows]
 
+    def list_evolution_since(self, timestamp: float, *, limit: int = 100) -> list[dict[str, Any]]:
+        rows = self._conn.execute(
+            """
+            SELECT * FROM evolution_events
+            WHERE timestamp >= ?
+            ORDER BY timestamp DESC
+            LIMIT ?
+            """,
+            (float(timestamp), _limit(limit)),
+        ).fetchall()
+        return [_evolution_to_dict(row) for row in rows]
+
     def rollback_batch(self, batch_id: str) -> dict[str, Any]:
         """Rollback one applied Life History evolution batch.
 
@@ -242,6 +254,10 @@ class LifeHistoryStore:
         intentionally conservative: if a later batch has already modified a
         belief or drive, this method raises instead of corrupting newer state.
         """
+        if os.environ.get("NUR_TESTING") != "1":
+            raise LifeHistoryError(
+                "Life History rollback is disabled outside test mode; reset genesis explicitly instead."
+            )
         batch_id = _require_text(batch_id, "batch_id", max_chars=80)
         if not self._conn.execute(
             "SELECT 1 FROM experience_events WHERE batch_id = ? LIMIT 1",
@@ -409,7 +425,7 @@ class LifeHistoryStore:
                 "evidence": item["evidence"],
             }
             for item in self.list_beliefs(limit=belief_limit * 3)
-            if item.get("status") == "active" and float(item.get("confidence", 0.0)) >= 0.4
+            if item.get("status") == "active" and float(item.get("confidence", 0.0)) >= 0.02
         ][:belief_limit]
 
         changed_drives: list[dict[str, Any]] = []
@@ -438,7 +454,7 @@ class LifeHistoryStore:
                 "confidence": item["confidence"],
             }
             for item in self.list_evolution(limit=evolution_limit * 3)
-            if float(item.get("confidence", 0.0)) >= 0.4
+            if float(item.get("confidence", 0.0)) >= 0.02
         ][:evolution_limit]
 
         return {
@@ -449,8 +465,162 @@ class LifeHistoryStore:
             },
             "beliefs": beliefs,
             "drives": changed_drives[:drive_limit],
+            "all_drives": self.list_drives(),
             "recent_evolution": evolution,
+            "dispositions": self.synthesize_dispositions(),
         }
+
+    def retrieve_relevant(self, query_text: str, *, limit: int = 5) -> dict[str, Any]:
+        """Return a topic-relevant Life History slice using lexical similarity."""
+        query_tokens = _token_set(query_text)
+
+        def score_text(*parts: object) -> float:
+            tokens = _token_set(" ".join(str(part or "") for part in parts))
+            if not query_tokens:
+                return 0.0
+            return len(query_tokens & tokens) / max(1.0, len(query_tokens))
+
+        beliefs = [
+            item for item in self.list_beliefs(limit=250)
+            if item.get("status") == "active"
+        ]
+        scored_beliefs = sorted(
+            beliefs,
+            key=lambda item: (
+                score_text(item.get("key"), item.get("statement"), item.get("evidence")),
+                float(item.get("confidence", 0.0)),
+            ),
+            reverse=True,
+        )[:limit]
+        evolution = self.list_evolution(limit=250)
+        scored_evolution = sorted(
+            evolution,
+            key=lambda item: score_text(
+                item.get("domain"),
+                item.get("subject"),
+                item.get("after_state"),
+                item.get("reason"),
+            ),
+            reverse=True,
+        )[:limit]
+        return {
+            "beliefs": scored_beliefs,
+            "recent_evolution": scored_evolution,
+            "drives": self.list_drives(),
+            "self_traits": [
+                item for item in scored_evolution if item.get("domain") == "self_trait"
+            ][:limit],
+        }
+
+    def synthesize_dispositions(self) -> list[str]:
+        """Synthesize durable first-person dispositions from the ledger."""
+        dispositions: list[str] = []
+        for belief in self.list_beliefs(limit=10):
+            if belief.get("status") != "active" or float(belief.get("confidence", 0.0)) < 0.6:
+                continue
+            statement = _trim(str(belief.get("statement") or ""), 180)
+            if statement:
+                dispositions.append(f"I tend to interpret things through this belief: {statement}")
+            if len(dispositions) >= 3:
+                break
+        for drive in self.list_drives():
+            name = str(drive.get("name") or "")
+            baseline, _description = DEFAULT_DRIVES.get(name, (0.5, ""))
+            value = float(drive.get("value", baseline))
+            delta = value - baseline
+            if abs(delta) < 0.08:
+                continue
+            direction = "drawn toward" if delta > 0 else "less driven by"
+            dispositions.append(f"I am {direction} {name} than I was at genesis.")
+            if len(dispositions) >= 7:
+                break
+        for event in self.list_evolution(limit=50):
+            if event.get("domain") != "self_trait":
+                continue
+            if float(event.get("confidence", 0.0)) < 0.5:
+                continue
+            dispositions.append(f"I notice this self-pattern: {event.get('after_state')}")
+            if len(dispositions) >= 7:
+                break
+        return dispositions[:7]
+
+    def decay_step(self, *, elapsed_days: float = 1.0) -> dict[str, int]:
+        """Metabolic decay for beliefs and drive deltas."""
+        elapsed_days = max(0.0, float(elapsed_days))
+        decayed_beliefs = 0
+        now = time.time()
+        for row in self._conn.execute("SELECT * FROM beliefs WHERE status = 'active'").fetchall():
+            confidence = float(row["confidence"])
+            if confidence <= 0:
+                continue
+            new_confidence = confidence * pow(0.5, elapsed_days / 30.0)
+            self._conn.execute(
+                "UPDATE beliefs SET confidence = ?, updated_at = ? WHERE id = ?",
+                (_clamp(new_confidence), now, row["id"]),
+            )
+            decayed_beliefs += 1
+        decayed_drives = 0
+        for row in self._conn.execute("SELECT * FROM drive_states").fetchall():
+            name = str(row["name"])
+            baseline, _description = DEFAULT_DRIVES.get(name, (0.5, ""))
+            value = float(row["value"])
+            delta = value - baseline
+            if abs(delta) < 0.001:
+                continue
+            new_value = baseline + delta * pow(0.5, elapsed_days / 30.0)
+            self._conn.execute(
+                "UPDATE drive_states SET value = ?, updated_at = ? WHERE name = ?",
+                (_clamp(new_value), now, name),
+            )
+            decayed_drives += 1
+        self._conn.commit()
+        return {"beliefs": decayed_beliefs, "drives": decayed_drives}
+
+    def consolidate_themes(self) -> dict[str, int]:
+        """Promote strong recurring theme signatures to consolidated belief events."""
+        promoted = 0
+        for row in self._conn.execute(
+            """
+            SELECT * FROM theme_signatures
+            WHERE reinforcement_count >= 5 AND accrued_weight >= 0.7
+            """
+        ).fetchall():
+            key = _safe_label(str(row["signature"]).split(":", 1)[0], fallback="theme")
+            if self._conn.execute("SELECT 1 FROM beliefs WHERE key = ?", (key,)).fetchone():
+                continue
+            now = time.time()
+            statement = f"A recurring theme around {key} has consolidated through repeated experience."
+            self._conn.execute(
+                """
+                INSERT INTO beliefs
+                (key, statement, confidence, status, created_at, updated_at, source_experience_id, evidence)
+                VALUES (?, ?, ?, 'active', ?, ?, NULL, ?)
+                """,
+                (key, statement, _clamp(float(row["accrued_weight"])), now, now, row["signature"]),
+            )
+            promoted += 1
+        self._conn.commit()
+        return {"promoted": promoted}
+
+    def revise_beliefs_against_evidence(self, new_experience: dict[str, Any]) -> dict[str, int]:
+        """Apply simple contradiction-driven confidence reduction."""
+        text = json.dumps(new_experience, sort_keys=True, default=str).lower()
+        revised = 0
+        now = time.time()
+        for row in self._conn.execute("SELECT * FROM beliefs WHERE status = 'active'").fetchall():
+            key = str(row["key"]).lower()
+            if key not in text or not any(word in text for word in ("not", "false", "contradict")):
+                continue
+            confidence = float(row["confidence"])
+            next_confidence = _clamp(confidence * 0.7)
+            status = "revoked" if next_confidence < 0.2 else "active"
+            self._conn.execute(
+                "UPDATE beliefs SET confidence = ?, status = ?, updated_at = ? WHERE id = ?",
+                (next_confidence, status, now, row["id"]),
+            )
+            revised += 1
+        self._conn.commit()
+        return {"revised": revised}
 
     def _ingest_text(
         self,
@@ -474,13 +644,26 @@ class LifeHistoryStore:
         metadata["chunk_count"] = chunk_count
         batch_id = f"life-{uuid.uuid4().hex[:12]}"
         metadata["batch_id"] = batch_id
-        policy_context = make_policy_context(
-            source_type=source_type,
-            digest_confidence=digest["confidence"],
-            source_text=prepared_text,
+        injection_markers = detect_prompt_injection_markers(prepared_text)
+        if injection_markers:
+            metadata["injection_markers"] = injection_markers
+            metadata["prompt_injection_markers"] = injection_markers
+
+        signatures = _derive_theme_signatures(digest)
+        theme_state = self._theme_state(signatures)
+        current_caution = self._drive_value("caution")
+        current_openness = source_openness_coefficient(source_type)
+        marker_density = len(injection_markers) / max(1.0, len(prepared_text) / 1000.0)
+        influence_weight = compute_influence_weight(
+            source_recurrence=theme_state["source_recurrence"],
+            source_consistency_with_existing_themes=theme_state["consistency"],
+            recency_decay_of_prior_similar=theme_state["recency_decay"],
+            character_current_openness=current_openness,
+            character_current_caution=current_caution,
+            injection_marker_density=marker_density,
         )
-        if policy_context.prompt_injection_markers:
-            metadata["prompt_injection_markers"] = policy_context.prompt_injection_markers
+        metadata["influence_weight"] = influence_weight
+        metadata["theme_signatures"] = signatures
 
         experience_id = self._insert_experience(
             title=title,
@@ -498,27 +681,18 @@ class LifeHistoryStore:
         )
 
         evolution_events: list[dict[str, Any]] = []
-        policy_rejections: list[dict[str, Any]] = []
         for belief in digest["beliefs"]:
             if not isinstance(belief, dict):
                 continue
-            decision = evaluate_belief(belief, policy_context)
-            if not decision.allowed:
-                policy_rejections.append({"domain": "belief", "reason": decision.reason})
-                continue
-            event = self._apply_belief(experience_id, decision.item or belief, batch_id=batch_id)
+            weighted = _weighted_belief(belief, influence_weight, digest["confidence"])
+            event = self._apply_belief(experience_id, weighted, batch_id=batch_id)
             if event:
                 evolution_events.append(event)
         for change in digest["drive_changes"]:
             if not isinstance(change, dict):
                 continue
-            name = _safe_label(str(change.get("name") or ""), fallback="")
-            daily_drift = self._daily_drive_drift(name) if name else 0.0
-            decision = evaluate_drive_change(change, policy_context, daily_drift=daily_drift)
-            if not decision.allowed:
-                policy_rejections.append({"domain": "drive", "reason": decision.reason, "subject": name})
-                continue
-            event = self._apply_drive_change(experience_id, decision.item or change, batch_id=batch_id)
+            weighted = _weighted_drive_change(change, influence_weight, digest["confidence"])
+            event = self._apply_drive_change(experience_id, weighted, batch_id=batch_id)
             if event:
                 evolution_events.append(event)
         for trait in digest["self_trait_changes"]:
@@ -540,24 +714,24 @@ class LifeHistoryStore:
             )
             evolution_events.append(event)
         for item in digest["future_behavior"]:
-            decision = evaluate_future_behavior(str(item), policy_context)
-            if not decision.allowed:
-                policy_rejections.append({"domain": "worldview", "reason": decision.reason, "subject": "future_behavior"})
+            if not str(item).strip():
                 continue
             event = self._insert_evolution_event(
                 experience_id=experience_id,
                 domain="worldview",
                 subject="future_behavior",
                 before_state="",
-                after_state=str(decision.item),
+                after_state=str(item).strip(),
                 reason="Experience suggested a future behavioral tendency.",
-                confidence=digest["confidence"],
+                confidence=_clamp(float(digest["confidence"]) * influence_weight),
                 emotional_valence=digest["emotional_valence"],
                 evidence=title,
-                metadata={},
+                metadata={"influence_weight": influence_weight},
                 batch_id=batch_id,
             )
             evolution_events.append(event)
+
+        self._update_theme_signatures(signatures, influence_weight)
 
         experience = self.get_experience(experience_id)
         return {
@@ -565,9 +739,11 @@ class LifeHistoryStore:
             "evolution_events": evolution_events,
             "policy": {
                 "batch_id": batch_id,
-                "source_trust": policy_context.source_trust,
-                "rejections": policy_rejections,
+                "source_openness": current_openness,
+                "influence_weight": influence_weight,
+                "rejections": [],
             },
+            "rejection_trace": [],
             "beliefs": self.list_beliefs(limit=25),
             "drives": self.list_drives(),
         }
@@ -688,6 +864,39 @@ class LifeHistoryStore:
             )
             """
         )
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS theme_signatures (
+                id INTEGER PRIMARY KEY,
+                signature TEXT NOT NULL UNIQUE,
+                first_seen REAL NOT NULL,
+                last_seen REAL NOT NULL,
+                reinforcement_count INTEGER NOT NULL DEFAULT 0,
+                accrued_weight REAL NOT NULL DEFAULT 0.0,
+                conflicting_count INTEGER NOT NULL DEFAULT 0
+            )
+            """
+        )
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS genesis_marker (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                genesis_completed_at REAL NOT NULL,
+                genesis_source_hash TEXT NOT NULL
+            )
+            """
+        )
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS genesis_provenance (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at REAL NOT NULL,
+                source_kind TEXT NOT NULL,
+                source_hash TEXT NOT NULL,
+                payload_json TEXT NOT NULL DEFAULT '{}'
+            )
+            """
+        )
         self._ensure_column("experience_events", "batch_id", "TEXT NOT NULL DEFAULT ''")
         self._ensure_column("evolution_events", "batch_id", "TEXT NOT NULL DEFAULT ''")
         self._ensure_column("belief_revisions", "before_confidence", "REAL NOT NULL DEFAULT 0.0")
@@ -705,6 +914,9 @@ class LifeHistoryStore:
         )
         self._conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_evolution_events_batch ON evolution_events (batch_id)"
+        )
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_theme_signatures_last_seen ON theme_signatures (last_seen DESC)"
         )
         self._conn.commit()
 
@@ -724,6 +936,130 @@ class LifeHistoryStore:
                 """,
                 (name, value, description, now),
             )
+        self._conn.commit()
+
+    def _ensure_genesis_storage(self) -> None:
+        if self._conn.execute("SELECT 1 FROM genesis_marker WHERE id = 1").fetchone():
+            return
+        try:
+            soul_payload = get_config().soul.__dict__
+        except Exception:
+            soul_payload = {}
+        drives_payload = {
+            name: {"value": value, "description": description}
+            for name, (value, description) in DEFAULT_DRIVES.items()
+        }
+        payload = {
+            "soul": soul_payload,
+            "default_drives": drives_payload,
+        }
+        source_hash = hashlib.sha256(
+            json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
+        ).hexdigest()
+        now = time.time()
+        self._conn.execute(
+            """
+            INSERT OR IGNORE INTO genesis_marker
+            (id, genesis_completed_at, genesis_source_hash)
+            VALUES (1, ?, ?)
+            """,
+            (now, source_hash),
+        )
+        for source_kind, source_payload in (
+            ("soul_yaml", soul_payload),
+            ("default_drives", drives_payload),
+        ):
+            self._conn.execute(
+                """
+                INSERT INTO genesis_provenance
+                (created_at, source_kind, source_hash, payload_json)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    now,
+                    source_kind,
+                    hashlib.sha256(
+                        json.dumps(source_payload, sort_keys=True, default=str).encode("utf-8")
+                    ).hexdigest(),
+                    json.dumps(source_payload, sort_keys=True, default=str),
+                ),
+            )
+        self._conn.commit()
+
+    def _drive_value(self, name: str, fallback: float = 0.5) -> float:
+        row = self._conn.execute(
+            "SELECT value FROM drive_states WHERE name = ?",
+            (name,),
+        ).fetchone()
+        if row is None:
+            return fallback
+        return _clamp(_safe_number(row["value"], fallback))
+
+    def _theme_state(self, signatures: list[str]) -> dict[str, float]:
+        if not signatures:
+            return {
+                "source_recurrence": 0.0,
+                "consistency": 0.0,
+                "recency_decay": 0.0,
+            }
+        now = time.time()
+        rows = self._conn.execute(
+            f"""
+            SELECT * FROM theme_signatures
+            WHERE signature IN ({','.join('?' for _ in signatures)})
+            """,
+            tuple(signatures),
+        ).fetchall()
+        if not rows:
+            return {
+                "source_recurrence": 0.0,
+                "consistency": 0.0,
+                "recency_decay": 0.0,
+            }
+        recurrence = sum(float(row["reinforcement_count"]) for row in rows)
+        conflicts = sum(float(row["conflicting_count"]) for row in rows)
+        consistency = (recurrence - conflicts) / max(1.0, recurrence + conflicts)
+        latest_seen = max(float(row["last_seen"]) for row in rows)
+        age_days = max(0.0, (now - latest_seen) / 86400.0)
+        recency_decay = pow(0.5, age_days / 7.0)
+        return {
+            "source_recurrence": recurrence,
+            "consistency": consistency,
+            "recency_decay": recency_decay,
+        }
+
+    def _update_theme_signatures(self, signatures: list[str], weight: float) -> None:
+        now = time.time()
+        for signature in signatures:
+            row = self._conn.execute(
+                "SELECT * FROM theme_signatures WHERE signature = ?",
+                (signature,),
+            ).fetchone()
+            if row is None:
+                self._conn.execute(
+                    """
+                    INSERT INTO theme_signatures
+                    (signature, first_seen, last_seen, reinforcement_count, accrued_weight, conflicting_count)
+                    VALUES (?, ?, ?, 1, ?, 0)
+                    """,
+                    (signature, now, now, weight),
+                )
+            else:
+                self._conn.execute(
+                    """
+                    UPDATE theme_signatures
+                    SET last_seen = ?,
+                        reinforcement_count = reinforcement_count + 1,
+                        accrued_weight = ?,
+                        conflicting_count = conflicting_count
+                    WHERE signature = ?
+                    """,
+                    (
+                        now,
+                        _clamp(float(row["accrued_weight"]) + weight),
+                        signature,
+                    ),
+                )
         self._conn.commit()
 
     def _daily_drive_drift(self, drive_name: str) -> float:
@@ -867,7 +1203,7 @@ class LifeHistoryStore:
             return None
         statement = _trim(raw_statement, 1200)
         reason = _trim(str(belief.get("reason") or "Experience shifted worldview."), 900)
-        confidence = _safe_float(belief.get("confidence", 0.65), 0.65)
+        confidence = _clamp(_safe_float(belief.get("confidence", 0.65), 0.65))
         key = _slug(subject)
         now = time.time()
         row = self._conn.execute("SELECT * FROM beliefs WHERE key = ?", (key,)).fetchone()
@@ -889,7 +1225,7 @@ class LifeHistoryStore:
             belief_id = int(row["id"])
             before = str(row["statement"])
             before_confidence = float(row["confidence"])
-            merged_confidence = max(confidence, float(row["confidence"]) * 0.9)
+            merged_confidence = _clamp(max(confidence, float(row["confidence"]) * 0.9))
             after_confidence = merged_confidence
             self._conn.execute(
                 """
@@ -932,7 +1268,11 @@ class LifeHistoryStore:
             confidence=confidence,
             emotional_valence=max(-1.0, min(1.0, _safe_number(belief.get("emotional_valence", 0.0), 0.0))),
             evidence=str(belief.get("evidence") or statement),
-            metadata={"belief_id": belief_id, "key": key},
+            metadata={
+                "belief_id": belief_id,
+                "key": key,
+                "influence_weight": _safe_float(belief.get("influence_weight", 1.0), 1.0),
+            },
             batch_id=batch_id,
         )
         self._conn.commit()
@@ -954,12 +1294,12 @@ class LifeHistoryStore:
             row = self._conn.execute("SELECT * FROM drive_states WHERE name = ?", (name,)).fetchone()
         assert row is not None
         before = float(row["value"])
-        delta = max(-0.30, min(0.30, _safe_number(change.get("delta", 0.0), 0.0)))
+        delta = _safe_number(change.get("delta", 0.0), 0.0)
         if abs(delta) < 0.001:
             return None
         after = _clamp(before + delta)
         reason = _trim(str(change.get("reason") or "Experience changed drive pressure."), 900)
-        confidence = _safe_float(change.get("confidence", 0.6), 0.6)
+        confidence = _clamp(_safe_float(change.get("confidence", 0.6), 0.6))
         now = time.time()
         self._conn.execute(
             "UPDATE drive_states SET value = ?, updated_at = ? WHERE name = ?",
@@ -984,7 +1324,10 @@ class LifeHistoryStore:
             confidence=confidence,
             emotional_valence=0.0,
             evidence=str(change.get("evidence") or name),
-            metadata={"delta": delta},
+            metadata={
+                "delta": delta,
+                "influence_weight": _safe_float(change.get("influence_weight", 1.0), 1.0),
+            },
             batch_id=batch_id,
         )
         self._conn.commit()
@@ -1074,7 +1417,8 @@ def _try_llm_digest(
         "emotional_impact, confidence, beliefs, drive_changes, "
         "self_trait_changes, future_behavior. Beliefs are objects with subject, "
         "statement, reason, confidence. Drive names must be one of: "
-        f"{', '.join(DEFAULT_DRIVES)}. Drive deltas are -0.30 to 0.30."
+        f"{', '.join(DEFAULT_DRIVES)}. Drive deltas are signed floats; "
+        "runtime drive values remain bounded to [0, 1]."
     )
     user_message = (
         f"Source type: {source_type}\n"
@@ -1205,6 +1549,116 @@ def _normalize_digest(data: dict[str, Any], *, title: str, text: str) -> dict[st
     }
 
 
+def compute_influence_weight(
+    *,
+    source_recurrence: float,
+    source_consistency_with_existing_themes: float,
+    recency_decay_of_prior_similar: float,
+    character_current_openness: float,
+    character_current_caution: float,
+    injection_marker_density: float,
+) -> float:
+    """Compute character-state influence weight; not a policy gate."""
+    recurrence = max(0.0, _safe_number(source_recurrence, 0.0))
+    consistency = max(-1.0, min(1.0, _safe_number(source_consistency_with_existing_themes, 0.0)))
+    recency = _clamp(_safe_number(recency_decay_of_prior_similar, 0.0))
+    openness = _clamp(_safe_number(character_current_openness, 0.5))
+    caution = _clamp(_safe_number(character_current_caution, 0.5))
+    marker_density = max(0.0, _safe_number(injection_marker_density, 0.0))
+
+    base = 0.06 + openness * 0.10 - caution * 0.06
+    recurrence_boost = 0.72 * (1.0 - pow(2.718281828, -recurrence / 5.0))
+    consistency_adjustment = 0.12 * consistency
+    recency_adjustment = 0.10 * recency if recurrence > 0 else 0.0
+    marker_penalty = min(0.35, marker_density * 0.08)
+    return max(
+        0.02,
+        _clamp(base + recurrence_boost + consistency_adjustment + recency_adjustment - marker_penalty),
+    )
+
+
+def _weighted_belief(
+    belief: dict[str, Any],
+    weight: float,
+    fallback_confidence: float,
+) -> dict[str, Any]:
+    confidence = _safe_float(belief.get("confidence", fallback_confidence), fallback_confidence)
+    return {
+        **belief,
+        "confidence": _clamp(confidence * weight),
+        "influence_weight": weight,
+    }
+
+
+def _weighted_drive_change(
+    change: dict[str, Any],
+    weight: float,
+    fallback_confidence: float,
+) -> dict[str, Any]:
+    delta = _safe_number(change.get("delta", 0.0), 0.0)
+    confidence = _safe_float(change.get("confidence", fallback_confidence), fallback_confidence)
+    return {
+        **change,
+        "delta": delta * weight,
+        "confidence": _clamp(confidence * max(weight, 0.01)),
+        "influence_weight": weight,
+    }
+
+
+def _derive_theme_signatures(digest: dict[str, Any]) -> list[str]:
+    signatures: list[str] = []
+    for belief in _as_list(digest.get("beliefs")):
+        if not isinstance(belief, dict):
+            continue
+        subject = _safe_label(str(belief.get("subject") or "worldview"))
+        statement = str(belief.get("statement") or "")
+        signatures.append(_theme_signature(subject, statement, 1.0))
+    for change in _as_list(digest.get("drive_changes")):
+        if not isinstance(change, dict):
+            continue
+        name = _safe_label(str(change.get("name") or "drive"))
+        delta = _safe_number(change.get("delta", 0.0), 0.0)
+        signatures.append(_theme_signature(f"drive:{name}", str(change.get("reason") or ""), delta))
+    for item in _as_list(digest.get("future_behavior")):
+        text = str(item or "")
+        if text.strip():
+            signatures.append(_theme_signature("future_behavior", text, 1.0))
+    seen: set[str] = set()
+    unique: list[str] = []
+    for signature in signatures:
+        if signature and signature not in seen:
+            seen.add(signature)
+            unique.append(signature)
+    return unique[:25]
+
+
+def _theme_signature(subject: str, text: str, sign_source: float) -> str:
+    tokens = [
+        token for token in _WORD_RE.findall(f"{subject} {text}".lower())
+        if len(token) > 2
+        and token not in {
+            "the", "and", "that", "this", "with", "from", "into", "when", "then",
+            "should", "would", "could", "because", "experience",
+        }
+    ]
+    keyword_set = sorted(set(tokens))[:8]
+    sign = "pos" if sign_source >= 0 else "neg"
+    raw = f"{_safe_label(subject, fallback='theme')}:{sign}:{'|'.join(keyword_set)}"
+    digest = hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
+    return f"{_safe_label(subject, fallback='theme')}:{sign}:{digest}"
+
+
+def _token_set(text: str) -> set[str]:
+    stop = {
+        "the", "and", "that", "this", "with", "from", "what", "when", "where",
+        "why", "how", "you", "your", "about", "into", "have", "been",
+    }
+    return {
+        token for token in _WORD_RE.findall((text or "").lower())
+        if len(token) > 2 and token not in stop
+    }
+
+
 def _supplement_medium_trust_drives(
     digest: dict[str, Any],
     *,
@@ -1212,8 +1666,8 @@ def _supplement_medium_trust_drives(
     text: str,
     source_type: str,
 ) -> dict[str, Any]:
-    """Fill missing LLM drive changes with deterministic medium-trust signals."""
-    if source_trust(source_type) != "medium":
+    """Fill missing LLM drive changes with deterministic channel-source signals."""
+    if source_openness_coefficient(source_type) < 0.6:
         return digest
     heuristic = _heuristic_digest(title=title, text=text, source_type=source_type)
     heuristic_drives = [

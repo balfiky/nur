@@ -6,6 +6,26 @@ All notable changes to Project Nur are documented here.
 
 ## Unreleased
 
+### Character independence
+- Implemented the channels-not-gates Life History path: learning intake now has
+  cross-turn pending state, Life History ingestion records perception metadata
+  and weighted influence, and external belief/drive gate functions were removed.
+- Added deterministic character vectors, coherence checks, genesis provenance
+  storage, consolidation/introspection hooks, and the `nur-genesis-reset` CLI.
+- Removed admin rollback as a mutation path. The endpoint now returns `410 Gone`
+  and the admin console no longer renders rollback controls.
+- Updated generator prompts, tool-loop action variables, proactive scoring, and
+  debug explanations to consume durable character state and domain-clamped
+  pressures instead of old fixed caps.
+- Added character-independence runtime config fields plus a sandbox config
+  profile and channel audit notes.
+- Wired topic-relevant Life History retrieval into the turn context and added
+  six character-independence behavioral evals.
+- Renamed proactive recovery config to `proactive_density_reference` /
+  `proactive_recovery_seconds`, tightened durable-change coherence to recent
+  ledger evidence, and added direct tests for Life History decay,
+  consolidation, belief revision, introspection, and genesis reset.
+
 ### Emotional engine
 - Direct attacks against Nūr (insults, profanity, appraisal-detected
   attacks targeting the assistant) now route to `EventType.CONFLICT`

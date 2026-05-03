@@ -15,6 +15,7 @@ from typing import Any
 from openai import OpenAI
 
 from core.action_variables import derive_action_variables
+from core.character_vector import CharacterVector
 from core.dual_process.tool_loop import (
     HARD_CAP_EXECUTIONS,
     DEFAULT_MAX_EXECUTIONS,
@@ -27,6 +28,7 @@ from core.dual_process.tool_loop import (
 from core.life_influence import (
     LifeInfluence,
     action_variable_deltas,
+    apply_character_vector_to_action_variables,
     apply_life_influence_to_action_variables,
 )
 from core.task_planning import (
@@ -129,6 +131,7 @@ class NativeToolCallRunner:
         agency_decision: AgencyDecision | None = None,
         autonomy_level: str = "autonomous",
         life_influence: LifeInfluence | None = None,
+        character_vector: CharacterVector | None = None,
     ) -> ToolLoopResult:
         from core.dual_process.tool_loop import autonomy_execution_budget
         if max_executions is None or hard_cap is None:
@@ -159,6 +162,7 @@ class NativeToolCallRunner:
             agency_decision=agency_decision,
             autonomy_level=autonomy_level,
             life_influence=life_influence,
+            character_vector=character_vector,
         )
         if not capabilities:
             return ToolLoopResult(
@@ -197,6 +201,7 @@ class NativeToolCallRunner:
                         agency_decision=agency_decision,
                         autonomy_level=autonomy_level,
                         life_influence=life_influence,
+                        character_vector=character_vector,
                     )
                     if _trace_has_activity(fallback.trace):
                         return fallback
@@ -221,6 +226,7 @@ class NativeToolCallRunner:
                                 agency_decision=agency_decision,
                                 autonomy_level=autonomy_level,
                                 life_influence=life_influence,
+                                character_vector=character_vector,
                             )
                             if _trace_has_activity(fallback.trace):
                                 return fallback
@@ -259,6 +265,7 @@ class NativeToolCallRunner:
                     adjusted_action_vars = _with_life_influence(
                         action_vars,
                         life_influence,
+                        character_vector,
                         category,
                     )
                     effective_action_vars = adjusted_action_vars
@@ -354,6 +361,7 @@ class NativeToolCallRunner:
         agency_decision: AgencyDecision | None,
         autonomy_level: str,
         life_influence: LifeInfluence | None,
+        character_vector: CharacterVector | None = None,
     ) -> ToolLoopResult:
         if not self._fallback_to_heuristic:
             trust = person.trust if person else 0.5
@@ -377,6 +385,7 @@ class NativeToolCallRunner:
             agency_decision=agency_decision,
             autonomy_level=autonomy_level,
             life_influence=life_influence,
+            character_vector=character_vector,
         )
 
     def _maybe_run_active_plan(
@@ -427,12 +436,14 @@ class NativeToolCallRunner:
         agency_decision: AgencyDecision | None,
         autonomy_level: str,
         life_influence: LifeInfluence | None = None,
+        character_vector: CharacterVector | None = None,
     ) -> list[Any]:
         capabilities: list[Any] = []
         for capability in self._executor._registry.list_tools():
             adjusted_action_vars = _with_life_influence(
                 action_vars,
                 life_influence,
+                character_vector,
                 capability.category,
             )
             intent = ToolIntent(
@@ -703,8 +714,15 @@ def _get_value(obj: Any, key: str) -> Any:
 def _with_life_influence(
     action_vars: ActionVariables,
     life_influence: LifeInfluence | None,
+    character_vector: CharacterVector | None,
     category: ToolCategory,
 ) -> ActionVariables:
+    if character_vector is not None:
+        return apply_character_vector_to_action_variables(
+            action_vars,
+            character_vector,
+            read_only_action=category == ToolCategory.READ_ONLY,
+        )
     if life_influence is None or life_influence.is_neutral:
         return action_vars
     return apply_life_influence_to_action_variables(

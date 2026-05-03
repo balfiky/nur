@@ -593,9 +593,15 @@ a.icon-btn { text-decoration: none; }
       <div class="settings-section"><h3>Proactive</h3><div class="settings-grid">
         <div class="settings-field"><label for="cfg-proactive_enabled">Enabled</label><select id="cfg-proactive_enabled"><option value="false">No</option><option value="true">Yes</option></select></div>
         <div class="settings-field"><label for="cfg-proactive_idle_threshold">Idle Threshold (s)</label><input id="cfg-proactive_idle_threshold" type="number" min="0"></div>
-        <div class="settings-field"><label for="cfg-proactive_max_per_session">Max/Session</label><input id="cfg-proactive_max_per_session" type="number" min="0"></div>
-        <div class="settings-field"><label for="cfg-proactive_cooldown">Cooldown (s)</label><input id="cfg-proactive_cooldown" type="number" min="0"></div>
+        <div class="settings-field"><label for="cfg-proactive_density_reference">Density Ref</label><input id="cfg-proactive_density_reference" type="number" min="0"></div>
+        <div class="settings-field"><label for="cfg-proactive_recovery_seconds">Recovery (s)</label><input id="cfg-proactive_recovery_seconds" type="number" min="0"></div>
         <div class="settings-field"><label for="cfg-proactive_check_interval">Check Interval (s)</label><input id="cfg-proactive_check_interval" type="number" min="1"></div>
+      </div></div>
+      <div class="settings-section"><h3>Character</h3><div class="settings-grid">
+        <div class="settings-field"><label for="cfg-character_independence">Independence</label><select id="cfg-character_independence"><option value="false">No</option><option value="true">Yes</option></select></div>
+        <div class="settings-field"><label for="cfg-coherence_min_score">Coherence Min</label><input id="cfg-coherence_min_score" type="number" min="0" max="1" step="0.05"></div>
+        <div class="settings-field"><label for="cfg-coherence_max_regenerations">Regenerations</label><input id="cfg-coherence_max_regenerations" type="number" min="0" max="5"></div>
+        <div class="settings-field"><label for="cfg-pending_intake_ttl_turns">Intake TTL Turns</label><input id="cfg-pending_intake_ttl_turns" type="number" min="1" max="20"></div>
       </div></div>
       <div class="settings-actions">
         <button onclick="saveSettings()">Save</button>
@@ -1296,8 +1302,10 @@ async function saveSettings() {
     cors_origins: lines('cfg-cors_origins'),
     tools_enabled: gb('cfg-tools_enabled'), autonomy_level: gv('cfg-autonomy_level'), tools_workspace: gv('cfg-tools_workspace'), shell_tool_enabled: gb('cfg-shell_tool_enabled'),
     proactive_enabled: gb('cfg-proactive_enabled'), proactive_idle_threshold: gf('cfg-proactive_idle_threshold'),
-    proactive_max_per_session: gi('cfg-proactive_max_per_session'), proactive_cooldown: gf('cfg-proactive_cooldown'),
+    proactive_density_reference: gi('cfg-proactive_density_reference'), proactive_recovery_seconds: gf('cfg-proactive_recovery_seconds'),
     proactive_check_interval: gf('cfg-proactive_check_interval'),
+    character_independence: gb('cfg-character_independence'), coherence_min_score: gf('cfg-coherence_min_score'),
+    coherence_max_regenerations: gi('cfg-coherence_max_regenerations'), pending_intake_ttl_turns: gi('cfg-pending_intake_ttl_turns'),
     telegram_token: gv('cfg-telegram_token'), llm_api_key: gv('cfg-llm_api_key'), minimax_api_key: gv('cfg-minimax_api_key'),
     api_key: gv('cfg-api_key'),
     setup_completed: document.getElementById('cfg-setup_completed').checked,
@@ -1331,8 +1339,12 @@ function applySettings(payload) {
   sv('cfg-cors_origins', (c.cors_origins||[]).join('\n'));
   sv('cfg-tools_enabled', String(!!c.tools_enabled)); sv('cfg-autonomy_level', c.autonomy_level||'assisted'); sv('cfg-tools_workspace', c.tools_workspace||''); sv('cfg-shell_tool_enabled', String(!!c.shell_tool_enabled));
   sv('cfg-proactive_enabled', String(c.proactive_enabled)); sv('cfg-proactive_idle_threshold', c.proactive_idle_threshold??300);
-  sv('cfg-proactive_max_per_session', c.proactive_max_per_session??3); sv('cfg-proactive_cooldown', c.proactive_cooldown??300);
+  sv('cfg-proactive_density_reference', c.proactive_density_reference??3); sv('cfg-proactive_recovery_seconds', c.proactive_recovery_seconds??300);
   sv('cfg-proactive_check_interval', c.proactive_check_interval??60);
+  sv('cfg-character_independence', String(!!c.character_independence));
+  sv('cfg-coherence_min_score', c.coherence_min_score??0.6);
+  sv('cfg-coherence_max_regenerations', c.coherence_max_regenerations??2);
+  sv('cfg-pending_intake_ttl_turns', c.pending_intake_ttl_turns??3);
   sv('cfg-telegram_allowlist', (c.telegram_allowlist||[]).join('\n'));
   sv('cfg-telegram_token',''); sv('cfg-llm_api_key',''); sv('cfg-minimax_api_key',''); sv('cfg-api_key','');
   ['cfg-clear_telegram_token','cfg-clear_llm_api_key','cfg-clear_minimax_api_key','cfg-clear_api_key'].forEach(id => document.getElementById(id).checked = false);

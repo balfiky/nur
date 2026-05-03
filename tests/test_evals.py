@@ -38,6 +38,7 @@ from evals.scenarios import (
     calibration_scenarios,
     phase12_relationship_scenarios,
     phase13_life_scenarios,
+    character_independence_scenarios,
     semantic_memory_scenarios,
 )
 
@@ -130,6 +131,11 @@ class TestEvalTypes:
         scenarios = phase13_life_scenarios()
         assert len(scenarios) == 6
         assert all("phase13_life" in scenario.tags for scenario in scenarios)
+
+    def test_character_independence_scenarios_registered(self):
+        scenarios = character_independence_scenarios()
+        assert len(scenarios) == 6
+        assert all("character_independence" in scenario.tags for scenario in scenarios)
 
     def test_semantic_memory_scenarios_registered(self):
         scenarios = semantic_memory_scenarios()
@@ -589,6 +595,14 @@ class TestRunnerBatch:
 
     def test_run_by_phase13_life_tag(self):
         report = run_by_tag(all_scenarios(), "phase13_life")
+        assert report.total_scenarios == 6
+        assert report.failed_scenarios == 0, [
+            (result.scenario_id, _failures(result))
+            for result in report.results if not result.passed
+        ]
+
+    def test_run_by_character_independence_tag(self):
+        report = run_by_tag(all_scenarios(), "character_independence")
         assert report.total_scenarios == 6
         assert report.failed_scenarios == 0, [
             (result.scenario_id, _failures(result))

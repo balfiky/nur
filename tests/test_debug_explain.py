@@ -66,7 +66,7 @@ def test_life_history_effect_explanation():
     explanation = explain_turn(debug)
 
     assert "Life History contributed" in explanation["life_history"]
-    assert "bounded deterministic adjustment" in explanation["life_history"]
+    assert "domain-clamped deterministic adjustment" in explanation["life_history"]
 
 
 def test_tool_and_no_tool_explanations():

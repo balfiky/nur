@@ -297,9 +297,13 @@ class ConfigUpdateRequest(BaseModel):
     debug_port: int = Field(8077, ge=1, le=65535)
     proactive_enabled: bool = False
     proactive_idle_threshold: float = Field(300.0, ge=0)
-    proactive_max_per_session: int = Field(3, ge=0)
-    proactive_cooldown: float = Field(300.0, ge=0)
+    proactive_density_reference: int = Field(3, ge=0)
+    proactive_recovery_seconds: float = Field(300.0, ge=0)
     proactive_check_interval: float = Field(60.0, ge=1)
+    character_independence: bool = False
+    coherence_min_score: float = Field(0.6, ge=0, le=1)
+    coherence_max_regenerations: int = Field(2, ge=0, le=5)
+    pending_intake_ttl_turns: int = Field(3, ge=1, le=20)
     telegram_token: str = ""
     llm_api_key: str = ""
     minimax_api_key: str = ""
@@ -624,9 +628,13 @@ async def update_config(req: ConfigUpdateRequest) -> dict:
         debug_port=req.debug_port,
         proactive_enabled=req.proactive_enabled,
         proactive_idle_threshold=req.proactive_idle_threshold,
-        proactive_max_per_session=req.proactive_max_per_session,
-        proactive_cooldown=req.proactive_cooldown,
+        proactive_density_reference=req.proactive_density_reference,
+        proactive_recovery_seconds=req.proactive_recovery_seconds,
         proactive_check_interval=req.proactive_check_interval,
+        character_independence=req.character_independence,
+        coherence_min_score=req.coherence_min_score,
+        coherence_max_regenerations=req.coherence_max_regenerations,
+        pending_intake_ttl_turns=req.pending_intake_ttl_turns,
         api_key=existing.api_key,
         cors_origins=[o.strip() for o in req.cors_origins if o.strip()],
         tools_enabled=(
@@ -1356,14 +1364,10 @@ async def admin_life_drives() -> dict:
 
 @app.post("/admin/life/rollback", dependencies=[Depends(_require_bearer)])
 async def admin_life_rollback(req: AdminLifeRollbackRequest) -> dict:
-    from runtime.life_history import LifeHistoryError, LifeHistoryStore
-
-    try:
-        with LifeHistoryStore(_load_runtime_config()) as store:
-            result = store.rollback_batch(req.batch_id)
-    except LifeHistoryError as exc:
-        _raise_life_http_error(exc)
-    return {"ok": True, **result}
+    raise HTTPException(
+        status_code=410,
+        detail="Life History rollback was removed; use an explicit genesis reset for a full reset.",
+    )
 
 
 @app.post("/session/end", dependencies=[Depends(_require_bearer)])
@@ -1882,9 +1886,13 @@ _CONFIG_FIELD_SECTIONS = {
     "shell_tool_enabled": "tools",
     "proactive_enabled": "runtime",
     "proactive_idle_threshold": "runtime",
-    "proactive_max_per_session": "runtime",
-    "proactive_cooldown": "runtime",
+    "proactive_density_reference": "runtime",
+    "proactive_recovery_seconds": "runtime",
     "proactive_check_interval": "runtime",
+    "character_independence": "runtime",
+    "coherence_min_score": "runtime",
+    "coherence_max_regenerations": "runtime",
+    "pending_intake_ttl_turns": "runtime",
 }
 
 _RESTART_REQUIRED_FIELDS = {"debug_host", "debug_port", "cors_origins"}
@@ -1900,9 +1908,13 @@ _SESSION_RELOAD_FIELDS = {
     "minimax_api_key",
     "proactive_enabled",
     "proactive_idle_threshold",
-    "proactive_max_per_session",
-    "proactive_cooldown",
+    "proactive_density_reference",
+    "proactive_recovery_seconds",
     "proactive_check_interval",
+    "character_independence",
+    "coherence_min_score",
+    "coherence_max_regenerations",
+    "pending_intake_ttl_turns",
     "tools_enabled",
     "autonomy_level",
     "tools_workspace",

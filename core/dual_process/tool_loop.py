@@ -22,9 +22,11 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from core.action_variables import derive_action_variables
+from core.character_vector import CharacterVector
 from core.life_influence import (
     LifeInfluence,
     action_variable_deltas,
+    apply_character_vector_to_action_variables,
     apply_life_influence_to_action_variables,
 )
 from core.task_planning import (
@@ -93,6 +95,7 @@ class ToolLoopResult:
     action_variables: ActionVariables
     tool_context_summary: str  # summarized for the generator — not raw output
     life_influence_effects: dict[str, float] = field(default_factory=dict)
+    capability_gaps: list[dict[str, Any]] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -272,6 +275,29 @@ def detect_tool_intent(
                     reason=f"User requested: {tool_name}",
                     expected_outcome=f"Execute {tool_name}",
                 )
+    return None
+
+
+def detect_capability_gap(user_message: str, available_tools: set[str]) -> dict[str, Any] | None:
+    """Detect a likely capability gap when no current tool can satisfy the request."""
+    text = (user_message or "").lower()
+    if "pdf" in text and not any("pdf" in name.lower() for name in available_tools):
+        return {
+            "id": "gap:pdf_reader",
+            "gap_type": "pdf_reader",
+            "recent_recurrence": 1,
+            "frustration_intensity": 0.4,
+        }
+    if re.search(r"\b(transcribe|speech[- ]to[- ]text|audio)\b", text) and not any(
+        "transcribe" in name.lower() or "speech" in name.lower() or "audio" in name.lower()
+        for name in available_tools
+    ):
+        return {
+            "id": "gap:speech_to_text",
+            "gap_type": "speech_to_text",
+            "recent_recurrence": 1,
+            "frustration_intensity": 0.35,
+        }
     return None
 
 
@@ -601,11 +627,18 @@ def _format_result_output(result: ToolResult, limit: int = 1200) -> str:
 # Main tool loop
 # ---------------------------------------------------------------------------
 
-def _with_life_influence(
+def _with_character_state(
     action_vars: ActionVariables,
     life_influence: LifeInfluence | None,
+    character_vector: CharacterVector | None,
     category: ToolCategory,
 ) -> ActionVariables:
+    if character_vector is not None:
+        return apply_character_vector_to_action_variables(
+            action_vars,
+            character_vector,
+            read_only_action=category == ToolCategory.READ_ONLY,
+        )
     if life_influence is None or life_influence.is_neutral:
         return action_vars
     return apply_life_influence_to_action_variables(
@@ -635,6 +668,7 @@ def run_tool_loop(
     agency_decision: AgencyDecision | None = None,
     autonomy_level: str = "autonomous",
     life_influence: LifeInfluence | None = None,
+    character_vector: CharacterVector | None = None,
 ) -> ToolLoopResult:
     """Run the cognitive tool loop.
 
@@ -695,7 +729,12 @@ def run_tool_loop(
         first_step = plan.steps[0]
         cap = executor._registry.get(first_step.tool_name)
         first_category = cap.category if cap else ToolCategory.READ_ONLY
-        plan_action_vars = _with_life_influence(action_vars, life_influence, first_category)
+        plan_action_vars = _with_character_state(
+            action_vars,
+            life_influence,
+            character_vector,
+            first_category,
+        )
         life_effects = _action_effects(action_vars, plan_action_vars)
         # Build a synthetic intent for arbiter
         synthetic_intent = ToolIntent(
@@ -757,10 +796,12 @@ def run_tool_loop(
 
     # No tool needed → empty trace
     if intent is None:
+        gap = detect_capability_gap(user_message, available)
         return ToolLoopResult(
             trace=ToolTrace(),
             action_variables=action_vars,
             tool_context_summary="",
+            capability_gaps=[gap] if gap else [],
         )
 
     # Populate intent with derived action variables
@@ -773,7 +814,12 @@ def run_tool_loop(
     # 4. Action arbiter
     capability = executor._registry.get(intent.tool_name)
     category = capability.category if capability else ToolCategory.READ_ONLY
-    action_vars = _with_life_influence(action_vars, life_influence, category)
+    action_vars = _with_character_state(
+        action_vars,
+        life_influence,
+        character_vector,
+        category,
+    )
     life_effects = _action_effects(
         derive_action_variables(state, trust=trust, defense_active=defense_active),
         action_vars,

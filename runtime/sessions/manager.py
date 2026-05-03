@@ -15,7 +15,11 @@ from core.dual_process.generator import LLMBackend
 from core.types import UnresolvedItem
 from pipeline import CognitivePipeline
 from runtime.config import RuntimeConfig
-from runtime.learning_intake import LearningIntakeError, ingest_learning_from_message
+from runtime.learning_intake import (
+    LearningIntakeError,
+    PendingLearningIntake,
+    ingest_learning_from_message,
+)
 from runtime.sessions.persistence import load_conversation_history, load_engine_state
 from runtime.sessions.user_session import UserSession
 
@@ -30,6 +34,17 @@ def _append_learning_note(response: str, note: str) -> str:
     if not response:
         return note
     return f"{response}\n\n{note}"
+
+
+def _looks_like_pending_learning_text(text: str) -> bool:
+    stripped = (text or "").strip()
+    if len(stripped) < 200:
+        return False
+    lower = stripped.lower()
+    if lower.startswith(("learn", "study", "digest", "internalize", "absorb")):
+        return False
+    words = stripped.split()
+    return len(words) >= 30
 
 
 class SessionManager:
@@ -117,8 +132,9 @@ class SessionManager:
                     await send_task
                 raise
             response = send_task.result()
-            learning_note = await self._maybe_run_learning_intake(user_id, text)
+            learning_note = await self._maybe_run_learning_intake(session, user_id, text)
             if learning_note:
+                session.pipeline.last_intake_receipt = learning_note
                 return _append_learning_note(response, learning_note)
             return response
         finally:
@@ -146,23 +162,46 @@ class SessionManager:
             partial(fn, *args, **kwargs),
         )
 
-    async def _maybe_run_learning_intake(self, user_id: str, text: str) -> str:
+    async def _maybe_run_learning_intake(
+        self,
+        session: UserSession,
+        user_id: str,
+        text: str,
+    ) -> str:
         """Persist explicit "learn from this" requests into Life History."""
+        pending_inline = False
+        if session.pending_learning_intake is not None:
+            pending = session.pending_learning_intake
+            if pending.expired(session.turn_index):
+                session.pending_learning_intake = None
+            elif _looks_like_pending_learning_text(text):
+                pending_inline = True
+            else:
+                session.pending_learning_intake = None
         try:
             async with self._learning_lock:
+                kwargs: dict[str, Any] = {"actor": user_id}
+                if pending_inline:
+                    kwargs["pending_inline_text"] = True
                 result = await self._run_blocking(
                     ingest_learning_from_message,
                     self.config,
                     text,
-                    actor=user_id,
+                    **kwargs,
                 )
         except LearningIntakeError as exc:
+            if "URL or a longer pasted text" in str(exc):
+                session.pending_learning_intake = PendingLearningIntake(
+                    created_turn_index=session.turn_index,
+                    expires_after_turns=max(1, int(self.config.pending_intake_ttl_turns)),
+                )
             return f"Learning intake failed: {exc}"
         except Exception:
             log.exception("Learning intake failed")
             return "Learning intake failed: unexpected runtime error."
         if result is None:
             return ""
+        session.pending_learning_intake = None
         return result.confirmation_text()
 
     @property
@@ -320,7 +359,10 @@ class SessionManager:
             self_db_path=self.config.shared_db_path,
             tool_executor=tool_executor,
             autonomy_level=self.config.autonomy_level,
+            coherence_min_score=self.config.coherence_min_score,
+            coherence_max_regenerations=self.config.coherence_max_regenerations,
             life_history_provider=self._life_history_context_provider,
+            life_history_snapshot_provider=self._life_history_snapshot_provider,
             skill_provider=self._skill_context_provider,
         )
 
@@ -348,7 +390,7 @@ class SessionManager:
             pipeline.restore_conversation_history(history)
             log.info("Restored %d hot transcript item(s) for %s", len(history), session_key)
 
-        return UserSession(
+        session = UserSession(
             rel_key=rel_key,
             user_id=user_id,
             pipeline=pipeline,
@@ -359,8 +401,11 @@ class SessionManager:
             session_key=session_key,
             user_lock=self._get_or_create_user_lock(rel_key),
         )
+        if saved is not None:
+            session.restore_session_extra_state(saved)
+        return session
 
-    def _life_history_context_provider(self) -> dict[str, Any]:
+    def _life_history_context_provider(self, query_text: str = "") -> dict[str, Any]:
         """Load shared identity-level life context for prompt generation."""
         from runtime.life_history import LifeHistoryStore, life_history_db_path
 
@@ -368,9 +413,39 @@ class SessionManager:
             return {}
         try:
             with LifeHistoryStore(self.config) as store:
-                return store.prompt_context()
+                context = store.prompt_context()
+                query = str(query_text or "").strip()
+                if not query:
+                    return context
+                relevant = store.retrieve_relevant(query, limit=5)
+                context["beliefs"] = relevant.get("beliefs", context.get("beliefs", []))
+                context["recent_evolution"] = relevant.get(
+                    "recent_evolution",
+                    context.get("recent_evolution", []),
+                )
+                context["self_traits"] = relevant.get("self_traits", [])
+                context["relevance_query"] = query
+                return context
         except Exception:
             log.exception("Failed to load life history context")
+            return {}
+
+    def _life_history_snapshot_provider(self) -> dict[str, Any]:
+        """Load unabridged identity-level state for deterministic identity replies."""
+        from runtime.life_history import LifeHistoryStore, life_history_db_path
+
+        if not os.path.exists(life_history_db_path(self.config)):
+            return {}
+        try:
+            with LifeHistoryStore(self.config) as store:
+                return {
+                    "evolution_events": store.list_evolution(limit=10),
+                    "beliefs": store.list_beliefs(limit=10),
+                    "drives": store.list_drives(),
+                    "counts": store.overview().get("counts", {}),
+                }
+        except Exception:
+            log.exception("Failed to load life history snapshot")
             return {}
 
     def _skill_context_provider(self) -> dict[str, Any]:
@@ -440,7 +515,7 @@ class SessionManager:
         """Periodically evaluate proactive triggers for all idle sessions.
 
         Bounded: runs at config.proactive_check_interval, respects per-session
-        limits (max_proactive, cooldown, idle_threshold). Does not bypass the
+        limits (density_reference, recovery_seconds, idle_threshold). Does not bypass the
         cognitive pipeline — responses are generated through Nūr.
         """
         interval = self.config.proactive_check_interval
@@ -488,17 +563,17 @@ class SessionManager:
                     result = await self._run_blocking(
                         pipeline.process_proactive,
                         session.user_id,
-                        max_proactive=self.config.proactive_max_per_session,
+                        density_reference=self.config.proactive_density_reference,
                         idle_threshold=self.config.proactive_idle_threshold,
-                        cooldown=self.config.proactive_cooldown,
+                        recovery_seconds=self.config.proactive_recovery_seconds,
                     )
             else:
                 result = await self._run_blocking(
                     pipeline.process_proactive,
                     session.user_id,
-                    max_proactive=self.config.proactive_max_per_session,
+                    density_reference=self.config.proactive_density_reference,
                     idle_threshold=self.config.proactive_idle_threshold,
-                    cooldown=self.config.proactive_cooldown,
+                    recovery_seconds=self.config.proactive_recovery_seconds,
                 )
             if result is None:
                 return

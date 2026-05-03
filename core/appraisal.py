@@ -473,3 +473,57 @@ def appraise_message(text: str, detected: DetectedEmotion) -> AppraisalFrame:
         targets_assistant=primary_target == "assistant",
         reason="; ".join(reasons) if reasons else "default heuristic path",
     )
+
+
+def appraise_with_life_history(
+    appraisal: AppraisalFrame,
+    query_text: str,
+    life_history_slice: dict,
+) -> AppraisalFrame:
+    """Return appraisal adjusted by topic-relevant Life History."""
+    if not isinstance(life_history_slice, dict):
+        return appraisal
+    query = (query_text or "").lower()
+    beliefs = [
+        item for item in life_history_slice.get("beliefs", [])
+        if isinstance(item, dict)
+    ]
+    amplification = 1.0
+    reasons = [appraisal.reason] if appraisal.reason else []
+    for belief in beliefs:
+        statement = str(belief.get("statement") or "").lower()
+        key = str(belief.get("key") or belief.get("subject") or "").lower()
+        confidence = _safe_float(belief.get("confidence"), 0.0)
+        if confidence >= 0.7 and _touches(query, key, statement):
+            amplification = max(amplification, 1.0 + confidence * 0.5)
+            reasons.append(f"life-history belief touched:{key or 'belief'}")
+
+    return AppraisalFrame(
+        speaker_role=appraisal.speaker_role,
+        primary_target=appraisal.primary_target,
+        social_move=appraisal.social_move,
+        inferred_intent=appraisal.inferred_intent,
+        blame=min(1.0, appraisal.blame * amplification),
+        controllability=appraisal.controllability,
+        expectation_violation=min(1.0, appraisal.expectation_violation * amplification),
+        vulnerability=min(1.0, appraisal.vulnerability * amplification),
+        affiliation_bid=appraisal.affiliation_bid,
+        mixed_affect=appraisal.mixed_affect,
+        targets_assistant=appraisal.targets_assistant,
+        reason="; ".join(reason for reason in reasons if reason),
+    )
+
+
+def _touches(query: str, *parts: str) -> bool:
+    words = {word for word in re.findall(r"[a-z0-9_]{4,}", query)}
+    if not words:
+        return False
+    haystack = " ".join(parts)
+    return any(word in haystack for word in words)
+
+
+def _safe_float(value: object, fallback: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return fallback

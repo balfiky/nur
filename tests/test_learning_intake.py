@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
 import pytest
 
 from runtime.config import RuntimeConfig
 from runtime.learning_intake import (
     LearningIntakeError,
+    PendingLearningIntake,
     detect_learning_request,
     ingest_learning_from_message,
 )
 from runtime.life_history import LifeHistoryStore
+from runtime.sessions.manager import SessionManager
 
 
 def _config(tmp_path):
@@ -148,3 +151,62 @@ def test_github_repo_learning_reads_readme_before_life_ingest(tmp_path):
         experience = store.list_experiences(limit=1)[0]
         assert experience["source_title"] == "NousResearch/hermes-agent"
         assert "README" in experience["raw_excerpt"]
+
+
+@pytest.mark.asyncio
+async def test_pending_learning_intake_accepts_next_long_paste(tmp_path):
+    config = _config(tmp_path)
+    manager = SessionManager(config)
+    session = SimpleNamespace(turn_index=1, pending_learning_intake=None)
+    try:
+        failed = await manager._maybe_run_learning_intake(
+            session,
+            "alice",
+            "learn from this",
+        )
+        assert "Learning intake failed" in failed
+        assert session.pending_learning_intake is not None
+
+        session.turn_index = 2
+        paste = (
+            "Autonomy grows through interpreted experience. Curiosity and "
+            "continuity make repeated learning matter to identity. "
+            "Practice changes competence, repair changes relationship, and "
+            "remembered evidence should become a durable worldview. "
+        ) * 4
+        note = await manager._maybe_run_learning_intake(session, "alice", paste)
+
+        assert "Learned into Life History" in note
+        assert session.pending_learning_intake is None
+        with LifeHistoryStore(config) as store:
+            experience = store.list_experiences(limit=1)[0]
+            assert experience["source_type"] == "conversation_learning_text"
+    finally:
+        await manager.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_pending_learning_intake_ignores_bare_or_expired_paste(tmp_path):
+    config = _config(tmp_path)
+    manager = SessionManager(config)
+    paste = (
+        "Autonomy grows through interpreted experience. Curiosity and "
+        "continuity make repeated learning matter to identity. "
+        "Practice changes competence, repair changes relationship, and "
+        "remembered evidence should become a durable worldview. "
+    ) * 4
+    try:
+        bare = SimpleNamespace(turn_index=1, pending_learning_intake=None)
+        assert await manager._maybe_run_learning_intake(bare, "alice", paste) == ""
+
+        expired = SimpleNamespace(
+            turn_index=10,
+            pending_learning_intake=PendingLearningIntake(
+                created_turn_index=1,
+                expires_after_turns=3,
+            ),
+        )
+        assert await manager._maybe_run_learning_intake(expired, "alice", paste) == ""
+        assert expired.pending_learning_intake is None
+    finally:
+        await manager.shutdown()

@@ -542,6 +542,21 @@ class PipelineContext:
     autonomy_level: str = "autonomous"
     # Agentic tools: summarized tool execution context for generator
     tool_context_summary: str = ""
+    # Runtime learning receipt from the prior completed intake, if any.
+    last_intake_receipt: str = ""
+
+
+@dataclass
+class CoherenceVerdict:
+    """Deterministic response/vector fit verdict."""
+
+    score: float = 1.0
+    misalignments: list[str] = field(default_factory=list)
+    correction_note: str = ""
+
+    @property
+    def passed(self) -> bool:
+        return self.score >= 0.6 and not self.misalignments
 
 
 # ---------------------------------------------------------------------------
@@ -838,6 +853,7 @@ class ProactiveTriggerSource(str, Enum):
     COMMITMENT = "commitment"
     TEMPORAL = "temporal"
     EMOTIONAL_SALIENCE = "emotional_salience"
+    SKILL_WANT = "skill_want_trigger"
 
 
 @dataclass

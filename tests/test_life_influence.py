@@ -21,7 +21,7 @@ def test_life_influence_is_neutral_without_context():
     assert all(value == 0.0 for value in influence.to_dict().values())
 
 
-def test_life_influence_is_deterministic_and_bounded():
+def test_life_influence_is_deterministic_and_unclamped_with_domain_bounds_later():
     context = {
         "drives": [
             {"name": "curiosity", "delta": 0.3},
@@ -33,13 +33,13 @@ def test_life_influence_is_deterministic_and_bounded():
     first = derive_life_influence(context)
     second = derive_life_influence(context)
     assert first == second
-    assert first.curiosity_pressure == pytest.approx(0.05)
-    assert first.caution_pressure == pytest.approx(0.05)
-    assert first.autonomy_pressure == pytest.approx(0.05)
+    assert first.curiosity_pressure == pytest.approx(0.3)
+    assert first.caution_pressure == pytest.approx(0.2)
+    assert first.autonomy_pressure == pytest.approx(0.2)
     assert first.attachment_pressure == pytest.approx(0.04)
 
 
-def test_action_adjustment_limits_each_change_to_point_zero_five():
+def test_action_adjustment_uses_full_pressure_and_clamps_domain():
     base = ActionVariables(
         risk_tolerance=0.5,
         action_urgency=0.3,
@@ -59,9 +59,9 @@ def test_action_adjustment_limits_each_change_to_point_zero_five():
         influence,
         read_only_action=True,
     )
-    assert adjusted.risk_tolerance == pytest.approx(0.45)
-    assert adjusted.persistence_drive == pytest.approx(0.55)
-    assert adjusted.autonomy_bias == pytest.approx(0.55)
+    assert adjusted.risk_tolerance == pytest.approx(0.0)
+    assert adjusted.persistence_drive == pytest.approx(1.0)
+    assert adjusted.autonomy_bias == pytest.approx(1.0)
 
 
 def test_autonomy_does_not_raise_non_read_only_action_bias():
@@ -81,7 +81,7 @@ def test_autonomy_does_not_raise_non_read_only_action_bias():
     assert adjusted.risk_tolerance == pytest.approx(0.45)
 
 
-def test_repair_pressure_creates_bounded_proactive_score_delta():
+def test_repair_pressure_creates_proactive_score_delta():
     influence = derive_life_influence({"drives": [{"name": "repair", "delta": 0.2}]})
     _, trace = evaluate_proactive(
         state=ModulatorState(arousal=0.5, valence=0.5, resolution=0.0, energy=1.0),
@@ -103,7 +103,7 @@ def test_repair_pressure_creates_bounded_proactive_score_delta():
     )
 
     assert trace.life_influence_score_deltas
-    assert list(trace.life_influence_score_deltas.values())[0] == pytest.approx(0.05)
+    assert list(trace.life_influence_score_deltas.values())[0] == pytest.approx(0.08)
 
 
 def test_competence_pressure_records_action_variable_delta():
@@ -117,12 +117,12 @@ def test_competence_pressure_records_action_variable_delta():
     adjusted = apply_life_influence_to_action_variables(base, influence)
     deltas = action_variable_deltas(base, adjusted)
 
-    assert deltas["persistence_delta"] == pytest.approx(0.05)
+    assert deltas["persistence_delta"] == pytest.approx(0.2)
     assert deltas["risk_tolerance_delta"] == pytest.approx(0.0)
     assert deltas["autonomy_delta"] == pytest.approx(0.0)
 
 
-def test_curiosity_pressure_creates_bounded_semantic_salience_delta():
+def test_curiosity_pressure_creates_semantic_salience_delta():
     config = SemanticMemoryConfig()
     base_entries = derive_semantic_entries(
         config=config,
@@ -140,7 +140,7 @@ def test_curiosity_pressure_creates_bounded_semantic_salience_delta():
         life_influence=derive_life_influence({"drives": [{"name": "curiosity", "delta": 0.2}]}),
     )
 
-    assert influenced_entries[0].salience - base_entries[0].salience == pytest.approx(0.05)
+    assert influenced_entries[0].salience - base_entries[0].salience == pytest.approx(0.2)
 
 
 def test_neutral_context_creates_no_action_variable_delta():

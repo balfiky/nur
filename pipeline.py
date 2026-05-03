@@ -66,7 +66,7 @@ from core.types import (
     UnresolvedItem,
     ValueHierarchy,
 )
-from core.appraisal import appraise_message
+from core.appraisal import appraise_message, appraise_with_life_history
 from core.affect import decide_agency, resolve_affect
 from core.strategy import select_strategy_with_trace, STRATEGY_INSTRUCTIONS
 from core.grounding import grounding_correction_response, verify_response_grounding
@@ -81,6 +81,7 @@ from core.memory.semantic import (
     derive_semantic_entries,
 )
 from core.life_influence import LifeInfluence, curiosity_salience_bonus, derive_life_influence
+from core.character_vector import CharacterVector, assemble_character_vector
 from core.pipeline_features import PipelineFeatures
 from core.contagion import detect_emotion
 from core.profiles.base import ProfileStore
@@ -93,12 +94,12 @@ from core.dual_process.generator import (
     MockLLMBackend,
     ResponseGenerator,
 )
-from core.dual_process.self_check import SelfChecker
+from core.dual_process.self_check import SelfChecker, CoherenceVerdict, coherence_check
 from core.dual_process.inner_dialogue import InnerDialogue
 from core.anticipation import AnticipationEngine
 from core.defense_mechanisms import DEFENSE_INSTRUCTIONS, DefenseMechanism
 from core.dual_process.tool_loop import run_tool_loop
-from core.proactive import evaluate_proactive
+from core.proactive import collect_skill_want_triggers, evaluate_proactive
 from core.tool_memory import (
     ToolMemoryEffects,
     compute_tool_trust_delta,
@@ -138,6 +139,19 @@ _TOOL_HISTORY_ACTION_HINT_RE = re.compile(
     re.IGNORECASE,
 )
 
+_IDENTITY_QUESTION_RE = re.compile(
+    r"\bwhat (?:did|do) you learn\b|"
+    r"\bwhat (?:changed|did you change)\b|"
+    r"\bdid you evolve\b|"
+    r"^\s*evolve[.!?]?\s*$|"
+    r"\bwhat do you (?:remember|believe)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_identity_question(text: str) -> bool:
+    return bool(_IDENTITY_QUESTION_RE.search(text or ""))
+
 # ---------------------------------------------------------------------------
 # Debug state — full transparency into what happened
 # ---------------------------------------------------------------------------
@@ -168,6 +182,8 @@ class DebugState:
     retrieved_memories: list[LongTermEntry] = field(default_factory=list)
     semantic_memories: list[SemanticMemoryEntry] = field(default_factory=list)
     life_history_context: dict[str, Any] = field(default_factory=dict)
+    character_vector: CharacterVector | None = None
+    coherence_verdict: CoherenceVerdict | None = None
     life_influence: LifeInfluence = field(default_factory=LifeInfluence)
     life_influence_effects: dict[str, Any] = field(default_factory=dict)
     skill_context: dict[str, Any] = field(default_factory=dict)
@@ -311,8 +327,11 @@ class CognitivePipeline:
         self_db_path: str | None = None,
         tool_executor: Any | None = None,
         autonomy_level: str = "autonomous",
+        coherence_min_score: float = 0.6,
+        coherence_max_regenerations: int = 2,
         features: PipelineFeatures | None = None,
         life_history_provider: Callable[[], dict[str, Any] | None] | None = None,
+        life_history_snapshot_provider: Callable[[], dict[str, Any] | None] | None = None,
         skill_provider: Callable[[], dict[str, Any] | None] | None = None,
     ) -> None:
         """Create a cognitive pipeline.
@@ -409,13 +428,18 @@ class CognitivePipeline:
         self._tool_executor = tool_executor
         self._tool_runner = getattr(tool_executor, "_tool_runner", None)
         self._autonomy_level = autonomy_level
+        self._coherence_min_score = coherence_min_score
+        self._coherence_max_regenerations = coherence_max_regenerations
         self._life_history_provider = life_history_provider
+        self._life_history_snapshot_provider = life_history_snapshot_provider
         self._skill_provider = skill_provider
+        self.last_intake_receipt: str = ""
         # Session-scoped task plan (Phase 7)
         self._active_task_plan: TaskPlan | None = None
         # Proactive behavior tracking (Phase 8)
         self._proactive_count: int = 0
         self._last_proactive_at: float | None = None
+        self._capability_gaps: dict[str, dict[str, Any]] = {}
 
         # Time tracking for auto-decay between turns
         self._last_turn_time: float | None = None
@@ -443,6 +467,7 @@ class CognitivePipeline:
 
         # ---- Step 0: Auto-decay based on elapsed time ----
         now = time.time()
+        turn_started_at = now
         if self._last_turn_time is not None:
             elapsed = now - self._last_turn_time
             if elapsed > 0:
@@ -476,9 +501,20 @@ class CognitivePipeline:
         self.engine.apply_contagion(detected.arousal, detected.valence, person.trust)
         timings["contagion"] = (time.perf_counter() - _ts) * 1000
 
+        _ts = time.perf_counter()
+        life_history_context = self._load_life_history_context(user_message)
+        debug.life_history_context = life_history_context
+        life_influence = derive_life_influence(life_history_context)
+        debug.life_influence = life_influence
+        timings["life_history_retrieval"] = (time.perf_counter() - _ts) * 1000
+
         # ---- Step 3: APPRAISAL (0 LLM calls — deterministic) ----
         _ts = time.perf_counter()
-        appraisal = appraise_message(user_message, detected)
+        appraisal = appraise_with_life_history(
+            appraise_message(user_message, detected),
+            user_message,
+            life_history_context,
+        )
         debug.appraisal_frame = appraisal
         timings["appraisal"] = (time.perf_counter() - _ts) * 1000
 
@@ -561,12 +597,16 @@ class CognitivePipeline:
         debug.semantic_memories = semantic_memories
         timings["semantic_memory_retrieval"] = (time.perf_counter() - _ts) * 1000
 
-        _ts = time.perf_counter()
-        life_history_context = self._load_life_history_context()
-        debug.life_history_context = life_history_context
-        life_influence = derive_life_influence(life_history_context)
-        debug.life_influence = life_influence
-        timings["life_history_retrieval"] = (time.perf_counter() - _ts) * 1000
+        identity_response = self._identity_question_response(user_message)
+        if identity_response is not None:
+            debug.response = identity_response
+            debug.modulator_snapshot = self.engine.snapshot()
+            self._conversation_history.append({"role": "user", "content": user_message})
+            self._conversation_history.append({"role": "assistant", "content": identity_response})
+            self.last_intake_receipt = ""
+            timings["total"] = (time.perf_counter() - _t_total) * 1000
+            debug.stage_timings_ms = timings
+            return PipelineResponse(response=identity_response, debug=debug)
 
         _ts = time.perf_counter()
         skill_context = self._load_skill_context()
@@ -661,6 +701,30 @@ class CognitivePipeline:
             debug.unresolved_count = len(active_unresolved)
             debug.unresolved_items = list(active_unresolved)
 
+        decision_ctx = PipelineContext(
+            modulator_snapshot=self.engine.snapshot(),
+            soul_profile=self.soul,
+            person_profile=person,
+            self_profile=self_prof,
+            appraisal_frame=appraisal,
+            relationship_context=relationship_context,
+            topic_profiles=active_topics,
+            values=self.values,
+            retrieved_memories=retrieved,
+            semantic_memories=semantic_memories,
+            life_history_context=life_history_context,
+            skill_context=skill_context,
+            short_term_history=self.short_term.recent(5),
+            contradiction_flags=contradiction_flags,
+            contagion=detected,
+            affect_state=affect_state,
+            agency_decision=agency_decision,
+            autonomy_level=self._autonomy_level,
+            last_intake_receipt=self.last_intake_receipt,
+        )
+        character_vector = assemble_character_vector(decision_ctx)
+        debug.character_vector = character_vector
+
         # ---- Step 12b: TOOL LOOP (0+ tool executions; skipped if no executor) ----
         tool_context_summary = ""
         if self._tool_executor is not None:
@@ -680,6 +744,7 @@ class CognitivePipeline:
                     agency_decision=agency_decision,
                     autonomy_level=self._autonomy_level,
                     life_influence=life_influence,
+                    character_vector=character_vector,
                 )
             else:
                 tool_user_message = _message_for_tool_detection(
@@ -697,12 +762,14 @@ class CognitivePipeline:
                     agency_decision=agency_decision,
                     autonomy_level=self._autonomy_level,
                     life_influence=life_influence,
+                    character_vector=character_vector,
                 )
             debug.tool_trace = tool_loop_result.trace
             debug.action_variables = tool_loop_result.action_variables
             tool_context_summary = tool_loop_result.tool_context_summary
             if tool_loop_result.life_influence_effects:
                 debug.life_influence_effects.update(tool_loop_result.life_influence_effects)
+            self._record_capability_gaps(tool_loop_result.capability_gaps)
 
             # Track task trace and active plan (Phase 7)
             task_trace = tool_loop_result.trace.task_trace
@@ -860,7 +927,10 @@ class CognitivePipeline:
             agency_decision=agency_decision,
             autonomy_level=self._autonomy_level,
             tool_context_summary=tool_context_summary,
+            last_intake_receipt=self.last_intake_receipt,
         )
+        character_vector = assemble_character_vector(ctx)
+        debug.character_vector = character_vector
 
         gen_result = self.generator.generate(
             ctx, user_message, self._conversation_history
@@ -882,12 +952,31 @@ class CognitivePipeline:
         debug.self_check_passed = check_result.passed
         debug.self_check_issues = check_result.issues
 
-        if check_result.failed:
+        identity_candidate = ctx.candidate_response if _is_identity_question(user_message) else ""
+        coherence_verdict = coherence_check(
+            gen_result.response,
+            character_vector,
+            min_score=self._coherence_min_score,
+            identity_candidate=identity_candidate,
+            durable_evidence_after=turn_started_at,
+        )
+        debug.coherence_verdict = coherence_verdict
+        if coherence_verdict.misalignments:
+            debug.self_check_passed = False
+            for issue in coherence_verdict.misalignments:
+                if issue not in debug.self_check_issues:
+                    debug.self_check_issues.append(issue)
+
+        remaining_regenerations = max(0, int(self._coherence_max_regenerations))
+        if check_result.failed or (
+            coherence_verdict.score < self._coherence_min_score and remaining_regenerations > 0
+        ):
             # Retry with correction note — preserve v2 candidate/defense context
+            correction_note = check_result.correction_note or coherence_verdict.correction_note
             correction_candidate = (
                 f"{ctx.candidate_response}\n\n"
-                f"[Self-check correction: {check_result.correction_note}]"
-            ) if ctx.candidate_response else check_result.correction_note
+                f"[Self-check correction: {correction_note}]"
+            ) if ctx.candidate_response else correction_note
             correction_ctx = PipelineContext(
                 modulator_snapshot=ctx.modulator_snapshot,
                 soul_profile=ctx.soul_profile,
@@ -911,14 +1000,15 @@ class CognitivePipeline:
                 agency_decision=ctx.agency_decision,
                 autonomy_level=ctx.autonomy_level,
                 tool_context_summary=ctx.tool_context_summary,
+                last_intake_receipt=ctx.last_intake_receipt,
             )
             gen_result = self.generator.generate(
                 correction_ctx,
                 user_message,
                 self._conversation_history,
             )
-            gen_result.correction_note = check_result.correction_note
-            debug.correction_note = check_result.correction_note
+            gen_result.correction_note = correction_note
+            debug.correction_note = correction_note
             debug.generation_attempts = 2
 
         grounding_issues = verify_response_grounding(
@@ -938,6 +1028,7 @@ class CognitivePipeline:
 
         timings["self_check"] = (time.perf_counter() - _ts) * 1000
         debug.response = gen_result.response
+        self.last_intake_receipt = ""
 
         # ---- Step 15: Post-processing ----
         outcome_event = EmotionalEvent(
@@ -1010,9 +1101,9 @@ class CognitivePipeline:
         self,
         user_id: str = "default",
         *,
-        max_proactive: int = 3,
+        density_reference: int = 3,
         idle_threshold: float = 300.0,
-        cooldown: float = 300.0,
+        recovery_seconds: float = 300.0,
     ) -> PipelineResponse | None:
         """Evaluate proactive triggers and generate response if warranted.
 
@@ -1030,6 +1121,18 @@ class CognitivePipeline:
         life_influence = derive_life_influence(life_history_context)
         debug.life_history_context = life_history_context
         debug.life_influence = life_influence
+        proactive_ctx = PipelineContext(
+            modulator_snapshot=self.engine.snapshot(),
+            soul_profile=self.soul,
+            person_profile=person,
+            self_profile=self_prof,
+            life_history_context=life_history_context,
+            skill_context=self._load_skill_context(),
+            short_term_history=self.short_term.recent(5),
+            autonomy_level=self._autonomy_level,
+        )
+        character_vector = assemble_character_vector(proactive_ctx)
+        debug.character_vector = character_vector
 
         # Elapsed decay — same as process() Step 0
         now = time.time()
@@ -1049,10 +1152,15 @@ class CognitivePipeline:
             idle_seconds=idle_seconds,
             proactive_count=self._proactive_count,
             last_proactive_at=self._last_proactive_at,
-            max_proactive=max_proactive,
+            density_reference=density_reference,
             idle_threshold=idle_threshold,
-            cooldown=cooldown,
+            recovery_seconds=recovery_seconds,
             life_influence=life_influence,
+            character_vector=character_vector,
+            skill_want_triggers=collect_skill_want_triggers(
+                list(self._capability_gaps.values()),
+                character_vector=character_vector,
+            ),
         )
         debug.proactive_trace = trace
         if trace.life_influence_score_deltas:
@@ -1082,6 +1190,7 @@ class CognitivePipeline:
                     active_plan=self._active_task_plan,
                     autonomy_level=self._autonomy_level,
                     life_influence=life_influence,
+                    character_vector=character_vector,
                 )
             else:
                 tool_loop_result = run_tool_loop(
@@ -1093,12 +1202,14 @@ class CognitivePipeline:
                     engine=self.engine,
                     active_plan=self._active_task_plan,
                     life_influence=life_influence,
+                    character_vector=character_vector,
                 )
             tool_context = tool_loop_result.tool_context_summary
             debug.tool_trace = tool_loop_result.trace
             debug.action_variables = tool_loop_result.action_variables
             if tool_loop_result.life_influence_effects:
                 debug.life_influence_effects.update(tool_loop_result.life_influence_effects)
+            self._record_capability_gaps(tool_loop_result.capability_gaps)
 
             # Update plan state
             task_trace = tool_loop_result.trace.task_trace
@@ -1147,6 +1258,7 @@ class CognitivePipeline:
             candidate_response=filtered,
             defense_instruction=defense_instruction,
             tool_context_summary=tool_context,
+            last_intake_receipt=self.last_intake_receipt,
         )
         proactive_relationship = self.relationship_memory.build_context(user_id)
         if not proactive_relationship.is_empty():
@@ -1177,18 +1289,74 @@ class CognitivePipeline:
         expected.update(self.self_profile.get_expected_traits())
         return expected
 
-    def _load_life_history_context(self) -> dict[str, Any]:
+    def _load_life_history_context(self, query_text: str = "") -> dict[str, Any]:
         """Read compact identity-level life context for generation."""
         if not self._features.life_history_context:
             return {}
         if self._life_history_provider is None:
             return {}
         try:
-            context = self._life_history_provider()
+            if query_text:
+                try:
+                    context = self._life_history_provider(query_text)
+                except TypeError:
+                    context = self._life_history_provider()
+            else:
+                context = self._life_history_provider()
         except Exception as exc:
             log.warning("Life history context unavailable: %s", exc)
             return {"error": exc.__class__.__name__}
         return context if isinstance(context, dict) else {}
+
+    def _load_life_history_snapshot(self) -> dict[str, Any]:
+        if self._life_history_snapshot_provider is None:
+            return {}
+        try:
+            snapshot = self._life_history_snapshot_provider()
+        except Exception as exc:
+            log.warning("Life history snapshot unavailable: %s", exc)
+            return {"error": exc.__class__.__name__}
+        return snapshot if isinstance(snapshot, dict) else {}
+
+    def _identity_question_response(self, user_message: str) -> str | None:
+        if not _is_identity_question(user_message):
+            return None
+        snapshot = self._load_life_history_snapshot()
+        evolution = snapshot.get("evolution_events") if isinstance(snapshot, dict) else []
+        beliefs = snapshot.get("beliefs") if isinstance(snapshot, dict) else []
+        drives = snapshot.get("drives") if isinstance(snapshot, dict) else []
+        evolution = evolution if isinstance(evolution, list) else []
+        beliefs = beliefs if isinstance(beliefs, list) else []
+        drives = drives if isinstance(drives, list) else []
+        if not evolution and not beliefs:
+            return "No durable Life History change is recorded yet. My drives are still at their current baseline state."
+        lines = ["Here is what is actually recorded in Life History:"]
+        if evolution:
+            lines.append("Recent evolution:")
+            for event in evolution[:5]:
+                subject = str(event.get("subject") or event.get("domain") or "change")
+                after = str(event.get("after_state") or event.get("reason") or "")
+                if after:
+                    lines.append(f"- {subject}: {after}")
+        if beliefs:
+            lines.append("Active beliefs:")
+            for belief in beliefs[:5]:
+                statement = str(belief.get("statement") or "")
+                if statement:
+                    lines.append(
+                        f"- {belief.get('key') or 'belief'} ({float(belief.get('confidence', 0.0)):.2f}): {statement}"
+                    )
+        changed_drives = []
+        for drive in drives:
+            name = str(drive.get("name") or "")
+            value = float(drive.get("value", 0.5))
+            baseline = float(drive.get("baseline", 0.5))
+            if abs(value - baseline) >= 0.01:
+                changed_drives.append(f"- {name}: {value:.2f} ({value - baseline:+.2f})")
+        if changed_drives:
+            lines.append("Drive shifts:")
+            lines.extend(changed_drives[:7])
+        return "\n".join(lines)
 
     def _load_skill_context(self) -> dict[str, Any]:
         """Read enabled imported skill guidance for generation."""
@@ -1200,6 +1368,30 @@ class CognitivePipeline:
             log.warning("Skill context unavailable: %s", exc)
             return {"error": exc.__class__.__name__}
         return context if isinstance(context, dict) else {}
+
+    def _record_capability_gaps(self, gaps: list[dict[str, Any]]) -> None:
+        """Track repeated capability gaps as session-local skill-want pressure."""
+        now = time.time()
+        for gap in gaps:
+            if not isinstance(gap, dict):
+                continue
+            gap_id = str(gap.get("id") or gap.get("gap_type") or "").strip()
+            if not gap_id:
+                continue
+            existing = self._capability_gaps.get(gap_id)
+            if existing is None:
+                existing = dict(gap)
+                existing["recent_recurrence"] = max(1, int(existing.get("recent_recurrence") or 1))
+                existing["first_seen"] = now
+            else:
+                existing = dict(existing)
+                existing["recent_recurrence"] = int(existing.get("recent_recurrence") or 1) + 1
+                existing["frustration_intensity"] = max(
+                    float(existing.get("frustration_intensity") or 0.0),
+                    float(gap.get("frustration_intensity") or 0.0),
+                )
+            existing["last_seen"] = now
+            self._capability_gaps[gap_id] = existing
 
     def _record_semantic_memory(
         self,
@@ -1470,6 +1662,7 @@ class CognitivePipeline:
         self._active_task_plan = None
         self._proactive_count = 0
         self._last_proactive_at = None
+        self._capability_gaps.clear()
 
         return result
 

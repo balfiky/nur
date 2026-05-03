@@ -26,9 +26,12 @@
     "debug_host",
     "debug_port",
     "proactive_idle_threshold",
-    "proactive_max_per_session",
-    "proactive_cooldown",
+    "proactive_density_reference",
+    "proactive_recovery_seconds",
     "proactive_check_interval",
+    "coherence_min_score",
+    "coherence_max_regenerations",
+    "pending_intake_ttl_turns",
     "tools_workspace",
     "api_key",
     "cors_origins",
@@ -47,9 +50,13 @@
       ["debug_port", "Debug Port", "number"],
       ["proactive_enabled", "Proactive Enabled", "boolean"],
       ["proactive_idle_threshold", "Proactive Idle Threshold", "number"],
-      ["proactive_max_per_session", "Proactive Max Per Session", "number"],
-      ["proactive_cooldown", "Proactive Cooldown", "number"],
+      ["proactive_density_reference", "Proactive Density Reference", "number"],
+      ["proactive_recovery_seconds", "Proactive Recovery Seconds", "number"],
       ["proactive_check_interval", "Proactive Check Interval", "number"],
+      ["character_independence", "Character Independence", "boolean"],
+      ["coherence_min_score", "Coherence Min Score", "number"],
+      ["coherence_max_regenerations", "Coherence Regenerations", "number"],
+      ["pending_intake_ttl_turns", "Pending Intake TTL", "number"],
     ],
     models: [
       ["llm_backend", "LLM Backend", "select"],
@@ -92,9 +99,13 @@
     "debug_port",
     "proactive_enabled",
     "proactive_idle_threshold",
-    "proactive_max_per_session",
-    "proactive_cooldown",
+    "proactive_density_reference",
+    "proactive_recovery_seconds",
     "proactive_check_interval",
+    "character_independence",
+    "coherence_min_score",
+    "coherence_max_regenerations",
+    "pending_intake_ttl_turns",
     "telegram_token",
     "llm_api_key",
     "minimax_api_key",
@@ -1002,21 +1013,6 @@
     await loadLife();
   }
 
-  async function rollbackLifeBatch() {
-    const batchId = document.getElementById("lifeRollbackBatchId").value.trim();
-    if (!batchId) throw new Error("Enter a Life History batch ID first.");
-    const res = await authedFetch("/admin/life/rollback", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ batch_id: batchId }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(responseErrorMessage(data, "Rollback failed"));
-    document.getElementById("lifeRollbackBatchId").value = "";
-    showToast("Evolution batch rolled back.");
-    await loadLife();
-  }
-
   function renderLife() {
     const data = state.life || {};
     const dbPath = document.getElementById("lifeDbPath");
@@ -1579,9 +1575,6 @@
     });
     document.getElementById("ingestLifeFileBtn").addEventListener("click", () => {
       ingestLifeFile().catch((err) => showToast(err.message || String(err), "error"));
-    });
-    document.getElementById("rollbackLifeBatchBtn").addEventListener("click", () => {
-      rollbackLifeBatch().catch((err) => showToast(err.message || String(err), "error"));
     });
     document.getElementById("reloadSoulBtn").addEventListener("click", () => loadSoul(true));
     document.getElementById("saveSoulBtn").addEventListener("click", saveSoul);

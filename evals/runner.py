@@ -57,8 +57,12 @@ def _make_pipeline(
         llm_backend=backend_factory(),
         tool_executor=executor,
         life_history_provider=(
-            (lambda: dict(scenario.life_history_context or {}))
+            (lambda _query_text="": dict(scenario.life_history_context or {}))
             if scenario.life_history_context is not None else None
+        ),
+        life_history_snapshot_provider=(
+            (lambda: dict(scenario.life_history_snapshot_context or {}))
+            if scenario.life_history_snapshot_context is not None else None
         ),
     )
 

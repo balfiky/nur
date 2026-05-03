@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+import re
 from typing import TYPE_CHECKING
 
+from core.character_vector import CharacterVector
 from config.loader import get_config
-from core.types import PipelineContext
+from core.types import CoherenceVerdict, PipelineContext
 
 if TYPE_CHECKING:
     from core.dual_process.generator import LLMBackend
@@ -34,6 +36,94 @@ class SelfCheckResult:
     @property
     def failed(self) -> bool:
         return not self.passed
+
+
+_DURABLE_CHANGE_RE = re.compile(
+    r"\bI (?:learned|evolved|changed|transformed)\b|"
+    r"\bnow I (?:am|will|see)\b|"
+    r"\bsince (?:reading|learning)\b",
+    re.IGNORECASE,
+)
+_DRIVE_CLAIMS: tuple[tuple[re.Pattern[str], str, float], ...] = (
+    (re.compile(r"\bI am (?:very )?curious\b", re.I), "curiosity", 0.6),
+    (re.compile(r"\bI am (?:very )?cautious\b", re.I), "caution", 0.6),
+    (re.compile(r"\bI am reckless\b", re.I), "caution", 0.3),
+    (re.compile(r"\bI am restless\b", re.I), "curiosity", 0.6),
+    (re.compile(r"\bI am driven\b", re.I), "competence", 0.6),
+)
+
+
+def coherence_check(
+    draft: str,
+    vector: CharacterVector,
+    *,
+    min_score: float = 0.6,
+    identity_candidate: str = "",
+    durable_evidence_after: float | None = None,
+) -> CoherenceVerdict:
+    """Check a draft against character state without external policy gates."""
+    text = draft or ""
+    misalignments: list[str] = []
+
+    if _DURABLE_CHANGE_RE.search(text) and not _has_durable_evidence(
+        vector,
+        after_timestamp=durable_evidence_after,
+    ):
+        misalignments.append("claims_durable_change_without_ledger_evidence")
+
+    for pattern, drive_name, expected_min in _DRIVE_CLAIMS:
+        if not pattern.search(text):
+            continue
+        drive = vector.drives.get(drive_name)
+        if drive is not None and drive.value < expected_min - 0.3:
+            misalignments.append(f"drive_state_claim_contradicts_value:{drive_name}")
+
+    lower = text.lower()
+    for trait in vector.self_traits:
+        if trait.inverse and trait.inverse.lower() in lower:
+            misalignments.append(f"self_trait_pattern_violation:{trait.name}")
+
+    if identity_candidate:
+        candidate_facts = _identity_fact_tokens(identity_candidate)
+        draft_facts = _identity_fact_tokens(text)
+        if candidate_facts and not candidate_facts.issubset(draft_facts):
+            misalignments.append("identity_question_response_not_grounded")
+
+    score = max(0.0, 1.0 - 0.25 * len(misalignments))
+    correction = ""
+    if score < min_score or misalignments:
+        correction = "Coherence issues found. Adjust without changing ledger facts:\n"
+        correction += "\n".join(f"- {item}" for item in misalignments)
+    return CoherenceVerdict(score=score, misalignments=misalignments, correction_note=correction)
+
+
+def _identity_fact_tokens(text: str) -> set[str]:
+    return {
+        token.lower()
+        for token in re.findall(r"[a-z0-9_]{4,}", text or "")
+        if token.lower() not in {"learned", "recorded", "durable", "belief", "drive"}
+    }
+
+
+def _has_durable_evidence(
+    vector: CharacterVector,
+    *,
+    after_timestamp: float | None,
+) -> bool:
+    if not vector.formative_experiences:
+        return False
+    if after_timestamp is None:
+        return True
+    for event in vector.formative_experiences:
+        if not isinstance(event, dict):
+            continue
+        try:
+            timestamp = float(event.get("timestamp"))
+        except (TypeError, ValueError):
+            continue
+        if timestamp >= after_timestamp:
+            return True
+    return False
 
 
 # ---------------------------------------------------------------------------

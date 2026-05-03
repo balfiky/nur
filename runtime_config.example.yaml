@@ -34,9 +34,15 @@ debug_port: 8077
 
 proactive_enabled: false
 proactive_idle_threshold: 300.0
-proactive_max_per_session: 3
-proactive_cooldown: 300.0
+proactive_density_reference: 3
+proactive_recovery_seconds: 300.0
 proactive_check_interval: 60.0
+
+# Character independence sandbox controls.
+character_independence: false
+coherence_min_score: 0.6
+coherence_max_regenerations: 2
+pending_intake_ttl_turns: 3
 
 # Leave api_key empty to keep the standalone web API open on localhost.
 # When this is set, /chat, /config, /debug, /session/end, /rest, /ws, and

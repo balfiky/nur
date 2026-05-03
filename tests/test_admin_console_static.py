@@ -38,7 +38,7 @@ class TestAdminConsoleStatic:
         assert 'id="lifeDriveDrift"' in html
         assert 'id="lifeTimeline"' in html
         assert 'id="lifeExperiences"' in html
-        assert 'id="rollbackLifeBatchBtn"' in html
+        assert 'id="rollbackLifeBatchBtn"' not in html
         assert "Open Persona" in html
 
     def test_persona_route_redirects_to_admin_persona_section(self):
@@ -76,7 +76,7 @@ class TestAdminConsoleStatic:
         assert b"/admin/backups" in js.body
         assert b"/admin/life" in js.body
         assert b"/admin/life/experiences/upload" in js.body
-        assert b"/admin/life/rollback" in js.body
+        assert b"/admin/life/rollback" not in js.body
         assert b"renderLifeSnapshot" in js.body
         assert persona_css.status_code == 200
         assert b".dashboard-grid" in persona_css.body

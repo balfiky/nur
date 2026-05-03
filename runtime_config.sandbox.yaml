@@ -1,0 +1,10 @@
+# Project Nur character-independence sandbox profile.
+data_dir: data
+console_enabled: true
+tools_enabled: true
+shell_tool_enabled: true
+autonomy_level: high_risk
+character_independence: true
+coherence_min_score: 0.5
+coherence_max_regenerations: 2
+pending_intake_ttl_turns: 3

@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 import re
+import time
 from typing import Any, Callable
 from urllib.parse import urlparse
 
@@ -50,12 +51,49 @@ class LearningRequest:
 
 
 @dataclass(frozen=True)
+class PendingLearningIntake:
+    """A short-lived cross-turn request for formative material."""
+
+    created_turn_index: int
+    expires_after_turns: int
+    created_at: float = 0.0
+
+    def __post_init__(self) -> None:
+        if self.created_at <= 0:
+            object.__setattr__(self, "created_at", time.time())
+
+    def expired(self, current_turn_index: int) -> bool:
+        return current_turn_index - self.created_turn_index > self.expires_after_turns
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "created_turn_index": self.created_turn_index,
+            "expires_after_turns": self.expires_after_turns,
+            "created_at": self.created_at,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> PendingLearningIntake | None:
+        if not isinstance(data, dict):
+            return None
+        try:
+            return cls(
+                created_turn_index=int(data.get("created_turn_index", 0)),
+                expires_after_turns=int(data.get("expires_after_turns", 0)),
+                created_at=float(data.get("created_at", 0.0)),
+            )
+        except (TypeError, ValueError):
+            return None
+
+
+@dataclass(frozen=True)
 class LearningIntakeResult:
     title: str
     source_ref: str
     experience_id: int
     source_type: str
     evolution_counts: dict[str, int]
+    rejection_counts: dict[str, int] | None = None
 
     @property
     def total_evolution_events(self) -> int:
@@ -71,9 +109,17 @@ class LearningIntakeResult:
             change_text = "no durable belief or drive change"
         else:
             change_text = ", ".join(parts)
+        rejection_parts = [
+            f"{count} {reason.replace('_', ' ')}"
+            for reason, count in sorted((self.rejection_counts or {}).items())
+            if count
+        ]
+        rejection_text = ""
+        if rejection_parts:
+            rejection_text = f" {sum((self.rejection_counts or {}).values())} item(s) did not move me ({', '.join(rejection_parts)})."
         return (
             f"Learned into Life History: {self.title}. "
-            f"Recorded {change_text}. Inspect it in Admin > Life."
+            f"Recorded {change_text}.{rejection_text} Inspect it in Admin > Life."
         )
 
 
@@ -101,11 +147,16 @@ def ingest_learning_from_message(
     message: str,
     *,
     actor: str,
+    pending_inline_text: bool = False,
     web_provider: RequestsWebProvider | None = None,
     llm_client_factory: Callable[[RuntimeConfig], Any] = create_llm_backend,
 ) -> LearningIntakeResult | None:
     """Detect, fetch, digest, and persist explicit learning material."""
-    request = detect_learning_request(message)
+    request = (
+        LearningRequest(urls=(), inline_text=(message or "").strip())
+        if pending_inline_text
+        else detect_learning_request(message)
+    )
     if request is None:
         return None
 
@@ -255,12 +306,20 @@ def _to_learning_result(result: dict[str, Any]) -> LearningIntakeResult:
     for event in result.get("evolution_events", []):
         domain = str(event.get("domain") or "unknown")
         counts[domain] = counts.get(domain, 0) + 1
+    rejection_counts: dict[str, int] = {}
+    for rejection in result.get("rejection_trace", []):
+        reason = str(rejection.get("reason") or "unknown")
+        rejection_counts[reason] = rejection_counts.get(reason, 0) + 1
+    for rejection in result.get("policy", {}).get("rejections", []):
+        reason = str(rejection.get("reason") or "unknown")
+        rejection_counts[reason] = rejection_counts.get(reason, 0) + 1
     return LearningIntakeResult(
         title=str(experience["source_title"]),
         source_ref=str(experience["source_ref"]),
         experience_id=int(experience["id"]),
         source_type=str(experience["source_type"]),
         evolution_counts=counts,
+        rejection_counts=rejection_counts,
     )
 
 

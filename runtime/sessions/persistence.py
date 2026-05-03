@@ -15,6 +15,7 @@ def save_engine_state(
     state_path: str,
     snapshot: dict[str, float],
     unresolved_items: list[UnresolvedItem] | list[dict] | None = None,
+    extra_state: dict | None = None,
 ) -> None:
     """Save engine modulator snapshot to a JSON file.
 
@@ -32,6 +33,8 @@ def save_engine_state(
             else:
                 serialized.append(dict(item))
         state["unresolved_items"] = serialized
+    if extra_state:
+        state.update(extra_state)
     tmp = state_path + ".tmp"
     os.makedirs(os.path.dirname(state_path), exist_ok=True)
     with open(tmp, "w") as f:

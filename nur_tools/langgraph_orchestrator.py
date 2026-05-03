@@ -14,6 +14,7 @@ from typing import Any
 from pydantic import Field, create_model
 
 from core.action_variables import derive_action_variables
+from core.character_vector import CharacterVector
 from core.dual_process.tool_loop import (
     HARD_CAP_EXECUTIONS,
     DEFAULT_MAX_EXECUTIONS,
@@ -26,6 +27,7 @@ from core.dual_process.tool_loop import (
 from core.life_influence import (
     LifeInfluence,
     action_variable_deltas,
+    apply_character_vector_to_action_variables,
     apply_life_influence_to_action_variables,
 )
 from core.task_planning import (
@@ -157,6 +159,7 @@ class LangGraphToolRunner:
         agency_decision: AgencyDecision | None = None,
         autonomy_level: str = "autonomous",
         life_influence: LifeInfluence | None = None,
+        character_vector: CharacterVector | None = None,
     ) -> ToolLoopResult:
         """Run one tool turn and return the same shape as the legacy loop."""
         trust = person.trust if person else 0.5
@@ -205,6 +208,7 @@ class LangGraphToolRunner:
             agency_decision=agency_decision,
             autonomy_level=autonomy_level,
             life_influence=life_influence,
+            character_vector=character_vector,
         )
         if not tools:
             return ToolLoopResult(
@@ -234,6 +238,7 @@ class LangGraphToolRunner:
                     agency_decision=agency_decision,
                     autonomy_level=autonomy_level,
                     life_influence=life_influence,
+                    character_vector=character_vector,
                 )
             failure = ToolResult(
                 tool_name="langgraph.agent",
@@ -257,6 +262,7 @@ class LangGraphToolRunner:
                 agency_decision=agency_decision,
                 autonomy_level=autonomy_level,
                 life_influence=life_influence,
+                character_vector=character_vector,
                 engine=engine,
             )
             if routed is not None:
@@ -273,6 +279,7 @@ class LangGraphToolRunner:
                 agency_decision=agency_decision,
                 autonomy_level=autonomy_level,
                 life_influence=life_influence,
+                character_vector=character_vector,
             )
 
         observations = [
@@ -284,6 +291,7 @@ class LangGraphToolRunner:
             effective_action_vars = _with_life_influence(
                 action_vars,
                 life_influence,
+                character_vector,
                 category,
             )
             life_effects.update(_action_effects(action_vars, effective_action_vars))
@@ -342,6 +350,7 @@ class LangGraphToolRunner:
         agency_decision: AgencyDecision | None,
         autonomy_level: str,
         life_influence: LifeInfluence | None = None,
+        character_vector: CharacterVector | None = None,
     ) -> list[StructuredTool]:
         return [
             self._to_langchain_tool(capability.name)
@@ -351,6 +360,7 @@ class LangGraphToolRunner:
                 agency_decision=agency_decision,
                 autonomy_level=autonomy_level,
                 life_influence=life_influence,
+                character_vector=character_vector,
             )
         ]
 
@@ -362,12 +372,14 @@ class LangGraphToolRunner:
         agency_decision: AgencyDecision | None,
         autonomy_level: str,
         life_influence: LifeInfluence | None = None,
+        character_vector: CharacterVector | None = None,
     ) -> list[Any]:
         capabilities: list[Any] = []
         for capability in self._executor._registry.list_tools():
             adjusted_action_vars = _with_life_influence(
                 action_vars,
                 life_influence,
+                character_vector,
                 capability.category,
             )
             intent = ToolIntent(
@@ -470,6 +482,7 @@ class LangGraphToolRunner:
         autonomy_level: str,
         life_influence: LifeInfluence | None,
         engine: Any,
+        character_vector: CharacterVector | None = None,
     ) -> ToolLoopResult | None:
         capabilities = self._capabilities_allowed_by_policy(
             action_vars=action_vars,
@@ -477,6 +490,7 @@ class LangGraphToolRunner:
             agency_decision=agency_decision,
             autonomy_level=autonomy_level,
             life_influence=life_influence,
+            character_vector=character_vector,
         )
         if not capabilities:
             return ToolLoopResult(
@@ -502,6 +516,7 @@ class LangGraphToolRunner:
         adjusted_action_vars = _with_life_influence(
             action_vars,
             life_influence,
+            character_vector,
             capability.category,
         )
         life_effects = _action_effects(action_vars, adjusted_action_vars)
@@ -697,8 +712,15 @@ def _coerce_confidence(value: Any) -> float:
 def _with_life_influence(
     action_vars: ActionVariables,
     life_influence: LifeInfluence | None,
+    character_vector: CharacterVector | None,
     category: ToolCategory,
 ) -> ActionVariables:
+    if character_vector is not None:
+        return apply_character_vector_to_action_variables(
+            action_vars,
+            character_vector,
+            read_only_action=category == ToolCategory.READ_ONLY,
+        )
     if life_influence is None or life_influence.is_neutral:
         return action_vars
     return apply_life_influence_to_action_variables(
