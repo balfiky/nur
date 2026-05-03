@@ -150,6 +150,10 @@ class TelegramChannel:
         self._dedupe = DedupeCache(ttl=config.dedupe_ttl)
         self._running = False
 
+    def set_session_manager(self, session_manager: SessionManager) -> None:
+        """Rebind live polling to a fresh runtime manager after admin reloads."""
+        self._manager = session_manager
+
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------

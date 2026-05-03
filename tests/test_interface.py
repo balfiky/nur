@@ -897,6 +897,75 @@ class TestAdminSoulSave:
             interface_api._background_shutdown_tasks.clear()
             set_session_manager(None)
 
+    async def test_identity_save_rebinds_live_telegram_channel_manager(
+        self, monkeypatch, tmp_path
+    ):
+        """Telegram should not keep using the detached shutting-down manager."""
+
+        class HangingManager:
+            def __init__(self) -> None:
+                self.active_sessions = {"telegram:u:c": object()}
+                self.shutdown_started = asyncio.Event()
+
+            async def shutdown(self) -> None:
+                self.shutdown_started.set()
+                await asyncio.Event().wait()
+
+        class FakeTelegramChannel:
+            def __init__(self) -> None:
+                self.manager = None
+
+            def set_session_manager(self, manager) -> None:
+                self.manager = manager
+
+        runtime_cfg_path = tmp_path / "runtime_config.yaml"
+        monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(runtime_cfg_path))
+        monkeypatch.setenv("NUR_CONFIG_DIR", str(tmp_path / "identity"))
+        RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            llm_backend="mock",
+        ).write_yaml(str(runtime_cfg_path))
+        old_manager = HangingManager()
+        fake_channel = FakeTelegramChannel()
+        set_session_manager(old_manager)  # type: ignore[arg-type]
+        interface_api._telegram_channel = fake_channel
+        interface_api._background_shutdown_tasks.clear()
+
+        try:
+            result = await admin_update_soul(
+                AdminSoulUpdateRequest(
+                    name="Baheer",
+                    identity="A wise steady companion.",
+                    voice="Calm and direct.",
+                    relational_stance="Collaborator.",
+                    growth_policy="Grow through repeated experience.",
+                    likes=["clarity"],
+                    dislikes=["false certainty"],
+                    boundaries=["Do not invent runtime facts."],
+                    core_values={"honesty": 0.85},
+                    initial_traits={"calm": 0.8},
+                )
+            )
+            await asyncio.sleep(0)
+
+            assert result["saved"] is True
+            assert old_manager.shutdown_started.is_set()
+            assert fake_channel.manager is interface_api._session_manager
+            assert fake_channel.manager is not old_manager
+            assert getattr(fake_channel.manager, "_accepting", False) is True
+        finally:
+            new_manager = interface_api._session_manager
+            if isinstance(new_manager, SessionManager):
+                await new_manager.shutdown()
+            tasks = list(interface_api._background_shutdown_tasks)
+            for task in tasks:
+                task.cancel()
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+            interface_api._background_shutdown_tasks.clear()
+            interface_api._telegram_channel = None
+            set_session_manager(None)
+
 
 class TestAdminSoulDraft:
     async def test_draft_requires_llm_configured(self, monkeypatch, tmp_path):

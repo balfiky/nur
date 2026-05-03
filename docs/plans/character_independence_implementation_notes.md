@@ -21,5 +21,5 @@ Deviations:
 
 Verification:
 
-- `pytest -q` passed: 1694 passed, 1 warning.
+- `pytest -q` passed: 1695 passed, 1 warning.
 - Final gate audit found no runtime hits for removed gate names or old proactive hard-cap constants.

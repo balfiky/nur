@@ -1070,6 +1070,7 @@ async def admin_update_soul(req: AdminSoulUpdateRequest) -> dict:
     reloaded_manager, _ = _detach_session_manager_for_reload(
         reason="identity save",
     )
+    _refresh_live_channel_session_manager()
     return _admin_soul_payload(
         get_config().soul,
         saved=True,
@@ -1794,6 +1795,15 @@ def _detach_session_manager_for_reload(*, reason: str) -> tuple[bool, int]:
     _background_shutdown_tasks.add(task)
     task.add_done_callback(_background_shutdown_tasks.discard)
     return True, active_sessions
+
+
+def _refresh_live_channel_session_manager() -> None:
+    """Point live channels at the fresh manager after detaching the old one."""
+    if _telegram_channel is None:
+        return
+    setter = getattr(_telegram_channel, "set_session_manager", None)
+    if callable(setter):
+        setter(get_session_manager())
 
 
 async def _shutdown_detached_session_manager(

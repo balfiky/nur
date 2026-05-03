@@ -28,6 +28,9 @@ All notable changes to Project Nur are documented here.
 - Made web identity saves return immediately after detaching the old session
   manager, so the first-run wizard does not hang on "Saving identity..." while
   old sessions drain.
+- Rebound live Telegram polling to the fresh session manager after identity
+  saves, preventing stale channel handlers from replying with
+  "[busy] Runtime is shutting down" after an admin identity reload.
 
 ### Emotional engine
 - Direct attacks against Nūr (insults, profanity, appraisal-detected
