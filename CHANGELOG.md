@@ -18,6 +18,9 @@ All notable changes to Project Nur are documented here.
   `interface/static/lib/shared.js` ship in the wheel, and added no-store cache
   headers for bundled UI assets so browsers do not keep stale menus after an
   upgrade.
+- Collapsed the browser chrome to one Settings entry. The chat header now has a
+  single settings button that opens `/settings`; legacy `/admin`, `/persona`,
+  and `/dashboard` browser routes redirect into the same settings workspace.
 
 ### Character independence
 - Implemented the channels-not-gates Life History path: learning intake now has

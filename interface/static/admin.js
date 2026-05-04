@@ -1484,7 +1484,7 @@ const state = createSurfaceState({
     for (const item of document.querySelectorAll(".nav-item")) {
       item.classList.toggle("active", item.dataset.page === page);
     }
-    els.pageTitle.textContent = "Command Center";
+    els.pageTitle.textContent = "Nūr Settings";
     history.replaceState(null, "", "#" + page);
     if (page === "settings" && !state.toolsLoaded && Object.keys(state.config).length) {
       loadTools().catch((err) => {

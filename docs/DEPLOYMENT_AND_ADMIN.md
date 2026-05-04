@@ -44,7 +44,7 @@ nur-setup --web --config runtime_config.yaml
 Open:
 
 - Chat UI: `http://localhost:8000`
-- Admin console: `http://localhost:8000/admin`
+- Settings workspace: `http://localhost:8000/settings`
 - API docs: `http://localhost:8000/docs`
 
 A first-run setup wizard opens automatically on first launch. It walks through
@@ -53,8 +53,7 @@ Life History material in six steps (Welcome → Connect LLM → Runtime & Channe
 → Identity → First Experience → Done).
 Life History material can be pasted or uploaded from the browser as text or
 Markdown, so a normal user does not need to place files into the data directory.
-You can skip it and come back via
-**Settings → Setup → Launch Setup Wizard**.
+You can skip it and configure the same runtime fields later from `/settings`.
 
 ## Git Install
 
@@ -79,7 +78,7 @@ nur-web --host 0.0.0.0 --port 8000 --config runtime_config.yaml
 ```
 
 No API token is required by default. If you later set `api_key`, the browser
-admin console has an **API Token** button for that hardened mode.
+settings workspace has an **API Token** button for that hardened mode.
 
 `nur-web` now also accepts `--config /path/to/runtime_config.yaml` when you need
 to run from a systemd working directory that differs from the config location.
@@ -122,10 +121,10 @@ mkdir -p "$NUR_CONFIG_DIR"
 ```
 
 With the env var set:
-- The admin console writes `soul.yaml` to `$NUR_CONFIG_DIR/soul.yaml` instead
+- The settings workspace writes `soul.yaml` to `$NUR_CONFIG_DIR/soul.yaml` instead
   of the package-internal path.
 - On `pip install --upgrade`, your customized identity is untouched.
-- The admin console shows a note when the env var is **not** set so operators
+- The settings workspace shows a note when the env var is **not** set so operators
   don't silently lose their identity on the next upgrade.
 
 The env var only governs `soul.yaml`. `runtime_config.yaml` is normally written
@@ -142,39 +141,31 @@ Environment=NUR_CONFIG_DIR=/etc/nur
 docker run -e NUR_CONFIG_DIR=/config -v /host/config:/config ...
 ```
 
-## Admin Console
+## Settings Workspace
 
-The `/admin` route serves the built-in operator console. It uses the same
+The `/settings` route serves the built-in operator workspace. It uses the same
 runtime config primitives as `runtime_config.yaml`; it is not a separate config
-system.
+system. Legacy browser routes `/admin`, `/persona`, and `/dashboard` redirect
+into this one settings page so there is one place to manage and inspect Nūr.
 
-The chat UI, setup wizard, debug panel, embedded settings drawer, and
-standalone operator pages use the same tokenized plum/ember palette so
-configuration and observability remain readable during normal use.
+The chat UI exposes one Settings button. Clicking it opens the full settings
+workspace with section jumps for Overview, Settings, Skills, Observability, and
+Life History. Settings includes runtime, character independence, model, tool
+access, identity, access, channel, and maintenance controls together;
+monitoring is grouped under Observability and the adjacent Life History
+section.
 
-The chat header links directly to `/admin` for full-screen operator work. The
-admin console is a single scrollable command center with section jumps for
-Overview, Settings, Skills, Observability, and Life History. Settings includes
-runtime, character independence, model, tool access, identity, access, channel,
-and maintenance controls together; monitoring is grouped under Observability
-and the adjacent Life History section. The embedded settings drawer remains
-available for quick edits and setup-wizard access, but the full console is the
-preferred space for skills, life-history observability, maintenance, and careful
-production configuration.
+The Observability section reads active sessions from the shared runtime manager,
+so Web, Telegram, console, and future channel sessions appear in one place.
+Refreshing observability only inspects state: it does not create sessions, call
+the pipeline, or mutate emotional state, memory, Life History, or skills.
 
-The standalone `/persona` route, also available as `/dashboard`, serves a
-channel-independent persona dashboard. It reads active sessions from the
-shared runtime manager, so Web, Telegram, console, and future channel sessions
-appear in one place. Refreshing the dashboard is observability only: it does
-not create sessions, call the pipeline, or mutate emotional state, memory,
-Life History, or skills.
+The first-run **Setup Wizard** walks through LLM backend, agent identity,
+optional first formative material, runtime/channel settings, and completion in
+six steps. It is the recommended path for first-time configuration; `/settings`
+contains the same ongoing configuration controls after setup.
 
-The **Setup Wizard** (accessible from Settings → Setup → Launch Setup Wizard)
-walks through LLM backend, agent identity, optional first formative material,
-runtime/channel settings, and completion in six steps. It is the recommended
-path for first-time configuration.
-
-The full console lets you:
+The settings workspace lets you:
 
 - Configure LLM provider, model, base URL, and API keys
 - Configure Telegram token, allowlist, polling, and dedupe settings
@@ -183,8 +174,8 @@ The full console lets you:
 - Upload, import, audit, and enable external Agent Skills
 - Feed pasted or uploaded formative text/Markdown files into **Life History**
 - Observe experience count, evolution events, current beliefs, and drive shifts
-- Open `/persona` to inspect unified emotional, perception, relationship,
-  Life, memory, skills, and tool state across active channels
+- Inspect unified emotional, perception, relationship, Life, memory, skills,
+  and tool state across active channels from **Observability**
 - Test LLM, Telegram, and storage settings before relying on them
 - Inspect diagnostics: Python version, uptime, active sessions, storage paths
 - Apply saved config to the live web session manager and Telegram poller
@@ -232,11 +223,11 @@ and no public CORS origins.
 
 ## Runtime Config
 
-`runtime_config.yaml` is the source of truth for deployment settings. The admin
-console reads and writes this file.
+`runtime_config.yaml` is the source of truth for deployment settings. The
+settings workspace reads and writes this file.
 
-Saving config through `/admin` writes `runtime_config.yaml`, evicts active web
-sessions so new pipelines use the saved settings, and restarts the built-in
+Saving config through `/settings` writes `runtime_config.yaml`, evicts active
+web sessions so new pipelines use the saved settings, and restarts the built-in
 Telegram poller. If you edit `runtime_config.yaml` outside the browser, use
 Maintenance -> **Apply Saved Config**. Process-bound settings such as
 `debug_host`, `debug_port`, and `cors_origins` need Maintenance -> **Restart Web
@@ -246,7 +237,7 @@ Important fields:
 
 | Field | Production guidance |
 |-------|---------------------|
-| `api_key` | Optional bearer token for hardened deployments. Empty means no browser/API token flow. When set, it protects `/admin`, `/chat`, `/config`, `/ws`, and `/v1/*` except health/ready. |
+| `api_key` | Optional bearer token for hardened deployments. Empty means no browser/API token flow. When set, it protects `/settings`, `/admin/*`, `/chat`, `/config`, `/ws`, and `/v1/*` except health/ready. |
 | `llm_backend` | Use `provider` for hosted gateways, `openai_compatible` for local/remote compatible servers, `mock` for offline tests. |
 | `llm_base_url` / `llm_model` | Required for hosted and OpenAI-compatible backends. |
 | `llm_api_key` | Generic provider/gateway key. Prefer local-only YAML or environment injection. |
@@ -348,7 +339,7 @@ usage today, run it under your existing process supervisor and persist both
 
 ## Backup And Export
 
-From `/admin`:
+From `/settings`:
 
 - **Export Config** downloads a JSON export with secret values redacted.
 - **Create Backup** creates a zip archive under `<data_dir>/backups`.
@@ -418,4 +409,4 @@ Authorization: Bearer <api_key>
 ```
 
 The browser UI stores the token locally in the browser after you enter or rotate
-it through the admin console.
+it through the settings workspace.

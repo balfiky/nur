@@ -13,7 +13,7 @@
   <a href="https://github.com/balfiky/nur/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/balfiky/nur/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-F5A65B?style=for-the-badge" alt="MIT License"></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/python-3.10%2B-7A4A8C?style=for-the-badge" alt="Python 3.10+"></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.28.7-1A1428?style=for-the-badge" alt="Version"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.28.9-1A1428?style=for-the-badge" alt="Version"></a>
 </p>
 
 Most assistants reset to zero every turn. **Nūr keeps the room lit.**
@@ -82,13 +82,13 @@ That means the project now has two distinct continuity layers:
 - **Identity continuity:** how Nūr records experiences that may change its
   worldview, motivations, and self-model over time.
 
-This layer is intentionally experimental. It is observable in `/admin` →
-**Life** and stored under `data/shared/life_history.db`. The admin view now
-includes an evolution snapshot: first/latest experience, strongest drive
-drift, dominant drive pressure, and change-type mix. Runtime sessions load a
-compact slice of current beliefs, shifted drives, and recent evolution into
-generation, so formative experiences can bias Nūr's perspective without
-dumping raw source material into every prompt.
+This layer is intentionally experimental. It is observable in `/settings` →
+**Life History** and stored under `data/shared/life_history.db`. The settings
+workspace includes an evolution snapshot: first/latest experience, strongest
+drive drift, dominant drive pressure, and change-type mix. Runtime sessions load
+a compact slice of current beliefs, shifted drives, and recent evolution into
+generation, so formative experiences can bias Nūr's perspective without dumping
+raw source material into every prompt.
 
 When a user explicitly asks Nūr to learn from a URL, the runtime fetches
 readable text, preserves the source reference, writes the Life History event,
@@ -145,8 +145,9 @@ For a LAN/public bind, run the same command with a public host:
 nur-web --host 0.0.0.0 --port 8000 --config runtime_config.yaml
 ```
 
-No API token is required by default. If you later set `api_key` in `/admin`,
-the browser admin console has an **API Token** button for that hardened mode.
+No API token is required by default. If you later set `api_key` in `/settings`,
+the browser settings workspace has an **API Token** button for that hardened
+mode.
 
 To remove a local Nūr workspace:
 
@@ -212,7 +213,7 @@ CI runs `nur-validate --mode ci` plus the full pytest suite on Python 3.10,
 
 ## Configure An LLM
 
-The setup wizard or `/admin` console is the preferred path.
+The setup wizard or `/settings` workspace is the preferred path.
 
 | Backend | Use case |
 |---|---|
@@ -230,7 +231,7 @@ Runtime config is `runtime_config.yaml` in the current working directory. Identi
 
 Two entry points share the same session and cognition layer:
 
-- `nur-web` — FastAPI, bundled chat UI, `/admin`, legacy endpoints, `/v1/*`
+- `nur-web` — FastAPI, bundled chat UI, `/settings`, admin API endpoints, `/v1/*`
 - `nur` — console, Telegram, debug runtime
 
 The core turn path runs `SessionManager` → `UserSession` → `CognitivePipeline`. The LLM writes language; deterministic state, memory, safety gates, and retrieval happen around it. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

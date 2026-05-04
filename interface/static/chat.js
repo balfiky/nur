@@ -103,8 +103,8 @@ function handleModuleAction(event) {
   const action = target.dataset.action;
   const step = target.dataset.step ? Number(target.dataset.step) : null;
   const actions = {
-    'toggle-debug': toggleDebug,
-    'open-settings': openSettings,
+    'toggle-debug': () => { window.location.href = '/settings#observability'; },
+    'open-settings': () => { window.location.href = '/settings'; },
     'close-settings': closeSettings,
     'open-wizard': openWizard,
     'wizard-dismiss': wizardDismiss,

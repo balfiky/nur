@@ -1511,19 +1511,24 @@ def index() -> HTMLResponse:
     return _index_response()
 
 
-@app.get("/admin")
-def admin_index() -> HTMLResponse:
+@app.get("/settings")
+def settings_index() -> HTMLResponse:
     return _admin_response()
 
 
+@app.get("/admin")
+def admin_index() -> RedirectResponse:
+    return RedirectResponse(url="/settings", status_code=307)
+
+
 @app.get("/persona")
-def persona_index() -> HTMLResponse:
-    return _persona_response()
+def persona_index() -> RedirectResponse:
+    return RedirectResponse(url="/settings#observability", status_code=307)
 
 
 @app.get("/dashboard")
 def dashboard_index() -> RedirectResponse:
-    return RedirectResponse(url="/admin#persona", status_code=307)
+    return RedirectResponse(url="/settings#observability", status_code=307)
 
 
 @app.get("/admin/assets/{asset_path:path}", include_in_schema=False)
