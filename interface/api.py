@@ -195,7 +195,7 @@ _HTML_SECURITY_HEADERS = {
         "connect-src 'self' http://127.0.0.1:* http://localhost:*; "
         "img-src 'self' data:; "
         "style-src 'self' 'unsafe-inline'; "
-        "script-src 'self' 'unsafe-inline'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
         "base-uri 'none'; "
         "form-action 'self'; "
         "frame-ancestors 'none'"
@@ -1516,8 +1516,8 @@ def admin_index() -> HTMLResponse:
 
 
 @app.get("/persona")
-def persona_index() -> RedirectResponse:
-    return RedirectResponse(url="/admin#persona", status_code=307)
+def persona_index() -> HTMLResponse:
+    return _persona_response()
 
 
 @app.get("/dashboard")
@@ -1525,36 +1525,24 @@ def dashboard_index() -> RedirectResponse:
     return RedirectResponse(url="/admin#persona", status_code=307)
 
 
-@app.get("/admin/assets/{asset_name}", include_in_schema=False)
-def admin_asset(asset_name: str):
-    media_types = {
-        "admin.css": "text/css",
-        "admin.js": "application/javascript",
-        "persona.css": "text/css",
-        "persona.js": "application/javascript",
-        "tokens.css": "text/css",
-    }
-    media_type = media_types.get(asset_name)
+@app.get("/admin/assets/{asset_path:path}", include_in_schema=False)
+def admin_asset(asset_path: str):
+    media_type = _static_media_type(asset_path)
     if media_type is None:
         raise HTTPException(status_code=404, detail="Admin asset not found")
-    return _static_asset_response(asset_name, media_type)
+    return _static_asset_response(asset_path, media_type)
 
 
-@app.get("/assets/{asset_name}", include_in_schema=False)
-def brand_asset(asset_name: str):
-    media_types = {
-        "tokens.css": "text/css",
-        "wordmark-light.svg": "image/svg+xml",
-        "wordmark-dark.svg": "image/svg+xml",
-    }
-    media_type = media_types.get(asset_name)
+@app.get("/assets/{asset_path:path}", include_in_schema=False)
+def brand_asset(asset_path: str):
+    media_type = _static_media_type(asset_path)
     if media_type is None:
         raise HTTPException(status_code=404, detail="Brand asset not found")
-    if asset_name.endswith(".svg"):
+    if asset_path.endswith(".svg"):
         static_dir = os.path.join(os.path.dirname(__file__), "..", "docs", "diagrams")
-        path = os.path.normpath(os.path.join(static_dir, asset_name))
+        path = os.path.normpath(os.path.join(static_dir, asset_path))
     else:
-        return _static_asset_response(asset_name, media_type)
+        return _static_asset_response(asset_path, media_type)
     from fastapi.responses import Response
 
     with open(path, "rb") as f:
@@ -1580,11 +1568,24 @@ def _html_static_response(filename: str) -> HTMLResponse:
         return HTMLResponse(content=f.read(), headers=_HTML_SECURITY_HEADERS)
 
 
+def _static_media_type(asset_path: str) -> str | None:
+    if asset_path.endswith(".css"):
+        return "text/css"
+    if asset_path.endswith(".js"):
+        return "application/javascript"
+    if asset_path.endswith(".svg"):
+        return "image/svg+xml"
+    return None
+
+
 def _static_asset_response(filename: str, media_type: str):
     from fastapi.responses import Response
 
     static_dir = os.path.join(os.path.dirname(__file__), "static")
-    path = os.path.join(static_dir, filename)
+    path = os.path.normpath(os.path.join(static_dir, filename))
+    static_root = os.path.abspath(static_dir)
+    if not (os.path.abspath(path) == static_root or os.path.abspath(path).startswith(static_root + os.sep)):
+        raise HTTPException(status_code=404, detail="Static asset not found")
     with open(path, "rb") as f:
         return Response(
             content=f.read(),

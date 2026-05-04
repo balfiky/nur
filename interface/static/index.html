@@ -7,317 +7,11 @@
 <title>Nūr</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="/assets/tokens.css">
-<style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: var(--font); background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; -webkit-font-smoothing: antialiased; position: relative; }
-body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0; background: radial-gradient(ellipse 80% 60% at 50% 0%, hsla(var(--mood-hue), var(--mood-sat), var(--mood-light), 0.14), transparent 70%); transition: background var(--t-slow) var(--ease); }
-.header, .main, .mock-banner, .wizard-overlay, .settings-overlay { position: relative; z-index: 1; }
-
-/* Header */
-.header { display: flex; align-items: center; justify-content: space-between; padding: 0 20px; height: 56px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; z-index: 5; }
-.header-left { display: flex; align-items: center; gap: 16px; }
-.logo { font-family: var(--font-display); font-size: 26px; font-weight: 500; color: var(--text); letter-spacing: -1px; line-height: 1; display: inline-flex; align-items: center; gap: 10px; }
-.logo .logo-orb { width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 34% 32%, #FFE3BD, #F5A65B 40%, #7A4A8C 80%, #2A1E3F); box-shadow: 0 0 14px rgba(245, 166, 91, 0.45); }
-.mood-indicator { display: flex; align-items: center; gap: 10px; }
-.mood-orb { width: 30px; height: 30px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, hsl(var(--mood-hue), var(--mood-sat), calc(var(--mood-light) + 18%)), hsl(var(--mood-hue), var(--mood-sat), var(--mood-light)), hsl(var(--mood-hue), calc(var(--mood-sat) - 20%), calc(var(--mood-light) - 25%))); animation: pulse var(--mood-pulse) ease-in-out infinite; box-shadow: 0 0 18px hsla(var(--mood-hue), var(--mood-sat), var(--mood-light), 0.25); transition: all 1.2s ease; }
-@keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.88; } 50% { transform: scale(1.1); opacity: 1; } }
-.mood-label { font-size: 13px; color: var(--text-dim); }
-.header-actions { display: flex; align-items: center; gap: 4px; }
-.icon-btn { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--text-dim); cursor: pointer; transition: all 0.15s; }
-.icon-btn:hover { background: var(--surface-2); color: var(--text); }
-.icon-btn.active { background: var(--surface-2); color: var(--primary); border-color: var(--border); }
-.icon-btn svg { width: 20px; height: 20px; }
-a.icon-btn { text-decoration: none; }
-
-/* Main layout */
-.main { display: flex; flex: 1; overflow: hidden; }
-
-/* Chat area */
-.chat-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.messages { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
-.messages::-webkit-scrollbar { width: 6px; }
-.messages::-webkit-scrollbar-track { background: transparent; }
-.messages::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 3px; }
-
-/* Setup wizard */
-.wizard-overlay { position: fixed; inset: 0; background: rgba(15, 11, 26, 0.78); display: none; z-index: 30; backdrop-filter: blur(8px); align-items: center; justify-content: center; padding: 20px; }
-.wizard-overlay.open { display: flex; }
-.wizard-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); width: min(720px, 100%); max-height: 90vh; overflow-y: auto; padding: 28px; box-shadow: 0 18px 50px rgba(15,23,42,0.12); }
-.wizard-progress { margin-bottom: 22px; }
-.wizard-steps { display: flex; align-items: center; gap: 6px; justify-content: center; }
-.wizard-step { width: 28px; height: 28px; border-radius: 50%; background: var(--surface-3); color: var(--text-faint); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; border: 1px solid var(--border); flex-shrink: 0; }
-.wizard-step.active { background: var(--primary); color: #fff; border-color: var(--primary); }
-.wizard-step.done { background: var(--surface-2); color: var(--accent); border-color: var(--primary); }
-.wizard-divider { flex: 0 0 24px; height: 1px; background: var(--border); }
-.wizard-title { font-size: 22px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
-.wizard-sub { font-size: 13px; color: var(--text-dim); margin-bottom: 16px; line-height: 1.5; }
-.wizard-body { font-size: 13px; color: var(--text-dim); margin-bottom: 18px; line-height: 1.6; }
-.wizard-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; }
-.wizard-actions button { padding: 9px 18px; border-radius: var(--radius-sm); font-family: var(--font); font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
-.wizard-actions button.primary { background: var(--primary); color: #fff; }
-.wizard-actions button.primary:hover:not(:disabled) { background: var(--primary-dim); }
-.wizard-actions button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
-.wizard-actions button.secondary { background: transparent; color: var(--text-dim); border-color: var(--border); }
-.wizard-actions button.secondary:hover { background: var(--surface-2); color: var(--text); }
-.wizard-presets { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-.wizard-preset { padding: 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); cursor: pointer; text-align: left; font-size: 13px; font-family: var(--font); font-weight: 500; }
-.wizard-preset:hover { background: var(--surface-3); border-color: var(--primary); }
-.wizard-preset.selected { background: rgba(37,99,235,0.08); border-color: var(--primary); color: var(--accent); }
-.wizard-preset .preset-sub { display: block; font-size: 11px; color: var(--text-faint); font-weight: 400; margin-top: 3px; }
-.wizard-preset.selected .preset-sub { color: var(--text-dim); }
-.wizard-fields { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
-.wizard-fields label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; display: block; }
-.wizard-fields input, .wizard-fields textarea, .wizard-fields select { width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 9px 11px; border-radius: var(--radius-sm); font-family: var(--font); font-size: 13px; }
-.wizard-fields textarea { resize: vertical; min-height: 80px; font-family: var(--font); }
-.wizard-fields input[type="file"] { background: var(--surface); cursor: pointer; }
-.wizard-fields input[type="file"]::file-selector-button { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); cursor: pointer; font-family: var(--font); font-weight: 600; margin-right: 10px; padding: 7px 10px; }
-.wizard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.wizard-grid .full { grid-column: 1 / -1; }
-.wizard-slider-grid { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
-.wizard-slider { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; }
-.wizard-slider-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
-.wizard-slider input[type="range"] { accent-color: var(--primary); padding: 0; }
-.wizard-skip { margin-left: auto; }
-.wizard-tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
-.wizard-tab { padding: 10px 14px; background: transparent; color: var(--text-dim); border: none; border-bottom: 2px solid transparent; cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 500; }
-.wizard-tab:hover { color: var(--text); }
-.wizard-tab.active { color: var(--accent); border-bottom-color: var(--primary); }
-.wizard-summary { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; font-size: 13px; color: var(--text-dim); line-height: 1.9; }
-.wizard-summary strong { color: var(--text); }
-
-/* Mock-mode banner */
-.mock-banner { background: #fffaeb; border-bottom: 1px solid #fedf89; color: #b54708; padding: 8px 20px; font-size: 13px; text-align: center; flex-shrink: 0; }
-.mock-banner a { color: #1d4ed8; text-decoration: none; }
-.mock-banner a:hover { text-decoration: underline; }
-
-/* Empty state */
-.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 20px; padding: 40px; }
-.empty-orb { width: 96px; height: 96px; border-radius: 50%; background: radial-gradient(circle at 34% 32%, #FFE3BD, #F5A65B 40%, #7A4A8C 80%, #2A1E3F); animation: pulse 4s ease-in-out infinite; box-shadow: 0 0 60px rgba(245, 166, 91, 0.35); }
-.empty-title { font-family: var(--font-display); font-size: 38px; font-weight: 500; color: var(--text); letter-spacing: -1.2px; }
-.empty-sub { font-family: var(--font-display); font-size: 17px; font-style: italic; color: var(--text-dim); max-width: 460px; text-align: center; line-height: 1.55; }
-
-/* Messages */
-.message-row { padding: 20px 0; }
-.message-row:first-child { padding-top: 24px; }
-.message-row.assistant { background: var(--surface); }
-.message-inner { max-width: 740px; margin: 0 auto; padding: 0 28px; display: flex; gap: 14px; }
-.msg-avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; flex-shrink: 0; margin-top: 2px; }
-.msg-avatar.user-av { background: var(--primary-dim); color: #fff; }
-.msg-avatar.nur-av { background: radial-gradient(circle, hsl(var(--mood-hue), var(--mood-sat), var(--mood-light)), hsl(var(--mood-hue), calc(var(--mood-sat) - 10%), calc(var(--mood-light) - 18%))); color: #fff; transition: background 1.2s ease; }
-.msg-content { flex: 1; min-width: 0; }
-.msg-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.msg-name { font-size: 13px; font-weight: 600; }
-.msg-mood-tag { font-size: 10px; color: var(--text-faint); background: var(--surface-2); padding: 1px 8px; border-radius: 10px; }
-.msg-body { font-size: 15px; line-height: 1.75; color: var(--text); word-wrap: break-word; }
-.msg-body p { margin-bottom: 10px; }
-.msg-body p:last-child { margin-bottom: 0; }
-.msg-body code { background: var(--surface-3); padding: 2px 6px; border-radius: 4px; font-family: var(--mono); font-size: 13px; }
-.msg-body pre { background: var(--surface-2); padding: 14px 16px; border-radius: var(--radius-sm); overflow-x: auto; margin: 10px 0; border: 1px solid var(--border); }
-.msg-body pre code { background: none; padding: 0; font-size: 13px; }
-.msg-body strong { font-weight: 600; }
-.msg-body em { font-style: italic; color: var(--text-dim); }
-.msg-body ul, .msg-body ol { padding-left: 22px; margin: 8px 0; }
-.msg-body li { margin-bottom: 4px; }
-.msg-body blockquote { border-left: 3px solid var(--primary-dim); padding-left: 14px; margin: 10px 0; color: var(--text-dim); }
-
-/* Typing */
-.typing-row { padding: 20px 0; background: var(--surface); display: none; }
-.typing-row.visible { display: block; }
-.typing-inner { max-width: 740px; margin: 0 auto; padding: 0 28px; display: flex; gap: 14px; }
-.typing-dots { display: flex; gap: 5px; align-items: center; padding-top: 6px; }
-.typing-dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); animation: bounce 1.4s infinite; }
-.typing-dots span:nth-child(2) { animation-delay: 0.16s; }
-.typing-dots span:nth-child(3) { animation-delay: 0.32s; }
-@keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.35; } 30% { transform: translateY(-8px); opacity: 1; } }
-
-/* Input */
-.input-container { padding: 16px 28px 20px; max-width: 740px; margin: 0 auto; width: 100%; }
-.input-box { display: flex; align-items: flex-end; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; transition: border-color 0.2s, box-shadow 0.2s; }
-.input-box:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(245, 166, 91, 0.18); }
-.input-box textarea { flex: 1; background: none; border: none; color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.5; resize: none; max-height: 180px; outline: none; min-height: 24px; }
-.input-box textarea::placeholder { color: var(--text-faint); }
-.send-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s, transform 0.1s, opacity 0.2s; }
-.send-btn:hover { background: var(--primary-dim); }
-.send-btn:active { transform: scale(0.93); }
-.send-btn:disabled { opacity: 0.3; cursor: default; transform: none; }
-.send-btn svg { width: 18px; height: 18px; }
-.session-actions { display: flex; gap: 12px; margin-top: 8px; justify-content: center; }
-.session-btn { font-size: 12px; color: var(--text-faint); background: none; border: none; cursor: pointer; padding: 4px 10px; border-radius: 6px; font-family: var(--font); transition: all 0.15s; }
-.session-btn:hover { color: var(--text-dim); background: var(--surface); }
-
-/* Debug panel */
-.debug-panel { width: 380px; background: var(--surface); border-left: 1px solid var(--border); overflow-y: auto; padding: 20px; display: none; flex-shrink: 0; }
-.debug-panel.open { display: block; }
-.debug-panel::-webkit-scrollbar { width: 5px; }
-.debug-panel::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 3px; }
-.debug-section { margin-bottom: 22px; }
-.debug-section h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-faint); margin-bottom: 10px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
-.v2-badge { font-size: 9px; background: rgba(255,146,43,0.12); color: #ff922b; padding: 1px 7px; border-radius: 8px; font-weight: 500; letter-spacing: 0; text-transform: none; }
-
-/* Gauges */
-.gauge { margin-bottom: 10px; }
-.gauge-header { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
-.gauge-name { color: var(--text-dim); font-weight: 500; }
-.gauge-val { color: var(--text-faint); font-family: var(--mono); font-size: 11px; }
-.gauge-delta { color: var(--text-faint); font-family: var(--mono); font-size: 10px; margin-left: 6px; }
-.gauge-delta.pos { color: #2f9e44; }
-.gauge-delta.neg { color: #e03131; }
-.gauge-track { height: 5px; background: var(--bg); border-radius: 3px; overflow: hidden; }
-.gauge-fill { height: 100%; border-radius: 3px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
-.gauge-fill.arousal { background: linear-gradient(90deg, #ff6b6b55, #ff6b6b); }
-.gauge-fill.valence { background: linear-gradient(90deg, #51cf6655, #51cf66); }
-.gauge-fill.certainty { background: linear-gradient(90deg, #339af055, #339af0); }
-.gauge-fill.bonding { background: linear-gradient(90deg, #cc5de855, #cc5de8); }
-.gauge-fill.energy { background: linear-gradient(90deg, #ffd43b55, #ffd43b); }
-.gauge-fill.resolution { background: linear-gradient(90deg, #ff922b55, #ff922b); }
-
-.debug-item { font-size: 12px; color: var(--text-dim); margin-bottom: 5px; }
-.debug-item .dl { color: var(--text-faint); font-size: 11px; }
-.debug-flag { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px; background: rgba(255,107,107,0.12); color: #ff6b6b; margin: 2px; }
-.debug-mem { font-size: 11px; color: var(--text-dim); padding: 5px 0; border-bottom: 1px solid var(--border); }
-.debug-none { font-size: 12px; color: var(--text-faint); }
-.debug-list { display: grid; gap: 6px; }
-.debug-card { font-size: 11px; color: var(--text-dim); background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; }
-.debug-card.open { border-left: 2px solid #ff922b; }
-.debug-card.resolved { opacity: 0.72; }
-.debug-card strong { color: var(--text); font-size: 11px; }
-.debug-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 7px; }
-.debug-chip { font-size: 10px; color: var(--text-dim); background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 3px 8px; }
-.persona-hero { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 10px; }
-.persona-emotion { font-size: 22px; line-height: 1.1; font-weight: 700; color: var(--text); text-transform: capitalize; }
-.persona-sub { font-size: 11px; color: var(--text-faint); margin-top: 4px; }
-.persona-drivers { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
-.persona-row { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--text-dim); padding: 4px 0; border-bottom: 1px solid var(--border); }
-.persona-row:last-child { border-bottom: none; }
-.persona-bar { height: 6px; background: var(--bg); border-radius: 4px; overflow: hidden; margin-top: 4px; }
-.persona-bar span { display: block; height: 100%; border-radius: 4px; background: var(--primary); }
-.persona-pressure .persona-bar span { background: #ff922b; }
-.explain-box { font-size: 12px; color: var(--text-dim); line-height: 1.55; display: grid; gap: 7px; }
-.explain-box strong { color: var(--text); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
-
-/* v2 inner dialogue */
-.dialogue-round { font-size: 11px; background: var(--bg); border-left: 2px solid var(--primary); padding: 8px 10px; margin-bottom: 8px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
-.dialogue-round .rh { color: var(--primary); font-weight: 600; margin-bottom: 4px; }
-.dialogue-round .fast { color: #ff6b6b; } .dialogue-round .slow { color: #51cf66; }
-.dialogue-round .approved { color: #51cf66; } .dialogue-round .objection { color: #ff6b6b; }
-.dialogue-round .ct { color: var(--text-dim); font-size: 10px; margin: 3px 0; white-space: pre-wrap; max-height: 60px; overflow-y: auto; }
-
-.defense-box { font-size: 11px; background: rgba(255,107,107,0.04); border-left: 2px solid #ff6b6b; padding: 8px 10px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
-.defense-box .dt { color: #ff6b6b; font-weight: 600; text-transform: uppercase; }
-.defense-box .ib { display: flex; gap: 6px; align-items: center; margin: 4px 0; font-size: 11px; color: var(--text-dim); }
-.defense-box .bt { flex: 1; height: 4px; background: var(--bg); border-radius: 2px; position: relative; overflow: hidden; }
-.defense-box .br { position: absolute; height: 100%; background: #ff6b6b44; border-radius: 2px; }
-.defense-box .be { position: absolute; height: 100%; background: #ff6b6b; border-radius: 2px; }
-
-.anticipation-box { font-size: 11px; background: rgba(255,146,43,0.04); border-left: 2px solid #ff922b; padding: 8px 10px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
-.topic-tag { display: inline-block; background: rgba(255,146,43,0.1); color: #ff922b; font-size: 10px; padding: 1px 7px; border-radius: 8px; margin: 1px 2px; }
-
-.unresolved-item { font-size: 11px; background: var(--bg); border-left: 2px solid #ff922b; padding: 6px 10px; margin-bottom: 6px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
-.source-tag { font-size: 9px; background: rgba(255,146,43,0.1); color: #ff922b; padding: 1px 6px; border-radius: 8px; }
-
-.tension-meter { display: flex; align-items: center; gap: 8px; font-size: 11px; margin-top: 6px; color: var(--text-faint); }
-.tension-track { flex: 1; height: 3px; background: var(--bg); border-radius: 2px; overflow: hidden; }
-.tension-fill { height: 100%; background: linear-gradient(90deg, #51cf66, #ffd43b, #ff6b6b); border-radius: 2px; transition: width 0.8s ease; }
-
-/* Admin/settings panel */
-.settings-overlay { position: fixed; inset: 0; background: rgba(15, 11, 26, 0.62); display: none; z-index: 20; backdrop-filter: blur(6px); }
-.settings-overlay.open { display: block; }
-.settings-drawer { position: absolute; top: 0; right: 0; width: min(920px, 100vw); height: 100%; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; box-shadow: -18px 0 50px rgba(15,23,42,0.12); }
-.settings-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-.settings-header h2 { font-size: 15px; font-weight: 600; }
-.settings-close { background: transparent; border: 1px solid var(--border); color: var(--text-dim); width: 32px; height: 32px; border-radius: var(--radius-sm); cursor: pointer; font-size: 18px; }
-.settings-close:hover { background: var(--surface-2); }
-.settings-body { flex: 1; overflow-y: auto; padding: 16px 20px 24px; }
-.settings-status { font-size: 12px; line-height: 1.5; padding: 10px 14px; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-dim); margin-bottom: 14px; border: 1px solid var(--border); }
-.settings-status.error { background: #fef3f2; color: #b42318; border-color: #fecdca; }
-.settings-status.ok { background: #ecfdf3; color: #027a48; border-color: #abefc6; }
-.settings-note { font-size: 11px; color: var(--text-faint); margin-top: 6px; }
-.settings-section { border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; background: var(--bg); }
-.settings-section h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin-bottom: 14px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.settings-section h3 button { background: transparent; color: var(--text-dim); border: 1px solid var(--border); padding: 5px 9px; border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font); font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; }
-.settings-section h3 button:hover { background: var(--surface-2); color: var(--text); }
-.settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.settings-grid.three { grid-template-columns: repeat(3, 1fr); }
-.settings-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }
-.settings-field.full { grid-column: 1 / -1; }
-.settings-field label { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.04em; }
-.settings-field input, .settings-field select, .settings-field textarea { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 11px; font-family: var(--font); font-size: 13px; outline: none; transition: border-color 0.15s; }
-.settings-field input:focus, .settings-field select:focus, .settings-field textarea:focus { border-color: var(--primary-dim); }
-.settings-field textarea { min-height: 72px; resize: vertical; }
-.settings-inline { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-faint); }
-.settings-inline input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); }
-.secret-hint { font-size: 11px; color: var(--text-faint); }
-.settings-actions { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 6px; }
-.settings-actions button { background: var(--primary-dim); color: #fff; border: none; padding: 10px 16px; border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 500; transition: background 0.15s; }
-.settings-actions button:hover { background: var(--primary); }
-.settings-actions button.secondary { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
-.settings-actions button.secondary:hover { background: var(--surface-2); }
-.settings-actions button:disabled { opacity: 0.5; cursor: default; }
-.admin-overview { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
-.admin-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; min-width: 0; }
-.admin-stat .k { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
-.admin-stat .v { font-size: 13px; color: var(--text); overflow-wrap: anywhere; }
-.admin-warning { font-size: 12px; line-height: 1.45; padding: 9px 11px; margin-bottom: 8px; border-radius: var(--radius-sm); border: 1px solid #fedf89; background: #fffaeb; color: #b54708; }
-.admin-warning.error { border-color: #fecdca; background: #fef3f2; color: #b42318; }
-.admin-warning .code { color: var(--text-faint); font-family: var(--mono); font-size: 10px; }
-.admin-test-result { font-size: 12px; line-height: 1.5; margin-top: 10px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-dim); border: 1px solid var(--border); white-space: pre-wrap; overflow-wrap: anywhere; }
-.admin-test-result.ok { border-color: #abefc6; color: #027a48; background: #ecfdf3; }
-.admin-test-result.error { border-color: #fecdca; color: #b42318; background: #fef3f2; }
-.settings-mini { color: var(--text-faint); font-size: 11px; line-height: 1.5; margin: -6px 0 12px; }
-.settings-section.danger { border-color: #fecdca; background: #fff7f7; }
-.settings-section.danger h3 { color: #b42318; }
-.settings-danger-banner { font-size: 11px; line-height: 1.5; padding: 9px 11px; border-radius: var(--radius-sm); border: 1px solid #fecdca; background: #fef3f2; color: #b42318; margin-bottom: 12px; }
-.settings-danger-banner .code { font-family: var(--mono); color: #912018; }
-.settings-actions button.danger { background: transparent; color: #b42318; border: 1px solid #fecdca; }
-.settings-actions button.danger:hover { background: #fef3f2; color: #912018; }
-
-.soul-draft-block { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px 10px; margin-bottom: 16px; }
-.soul-draft-label { display: block; font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
-.soul-draft-block textarea { width: 100%; min-height: 72px; resize: vertical; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 11px; font-family: var(--font); font-size: 13px; outline: none; box-sizing: border-box; }
-.soul-draft-block textarea:focus { border-color: var(--primary-dim); }
-.soul-draft-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 10px; }
-.soul-draft-actions button { background: var(--primary-dim); color: #fff; border: none; padding: 9px 14px; border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 500; transition: background 0.15s; }
-.soul-draft-actions button.secondary { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
-.soul-draft-actions button:disabled { opacity: 0.55; cursor: default; }
-.soul-draft-actions button:not(:disabled):hover { background: var(--primary); }
-.soul-draft-actions button.secondary:not(:disabled):hover { background: var(--surface-2); color: var(--text); }
-.soul-draft-hint { font-size: 11px; color: var(--text-faint); flex: 1; min-width: 180px; }
-.soul-divider { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em; }
-.soul-divider::before, .soul-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
-
-.settings-note-inline { font-size: 10px; color: var(--text-faint); margin-left: 6px; font-weight: 400; text-transform: none; letter-spacing: 0; }
-
-.soul-weights-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 4px 0 12px; }
-.soul-weights-col { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; }
-.soul-weights-title { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; font-weight: 600; display: flex; align-items: center; }
-.soul-weight-row { display: grid; grid-template-columns: 110px 1fr 36px 24px; align-items: center; gap: 8px; margin-bottom: 7px; }
-.soul-weight-row input[type="text"] { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 8px; font-family: var(--font); font-size: 12px; outline: none; }
-.soul-weight-row input[type="text"]:focus { border-color: var(--primary-dim); }
-.soul-weight-row input[type="range"] { width: 100%; accent-color: var(--primary); }
-.soul-weight-row .soul-weight-val { font-family: var(--mono); font-size: 11px; color: var(--text-dim); text-align: right; }
-.soul-weight-row button { background: transparent; color: var(--text-faint); border: 1px solid transparent; border-radius: var(--radius-sm); width: 22px; height: 22px; cursor: pointer; font-size: 13px; line-height: 1; padding: 0; }
-.soul-weight-row button:hover { background: rgba(255,107,107,0.12); color: #ff8787; border-color: rgba(255,107,107,0.2); }
-.soul-weights-add { background: transparent; color: var(--text-dim); border: 1px dashed var(--border); padding: 6px 10px; border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font); font-size: 11px; }
-.soul-weights-add:hover { background: var(--surface-2); color: var(--text); border-style: solid; }
-
-@media (max-width: 720px) {
-  .soul-weights-grid { grid-template-columns: 1fr; }
-  .soul-weight-row { grid-template-columns: 100px 1fr 36px 24px; }
-  .wizard-grid, .wizard-slider-grid { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 860px) {
-  .debug-panel { position: fixed; top: 56px; right: 0; bottom: 0; z-index: 10; width: min(380px, 100vw); box-shadow: -12px 0 30px rgba(15,23,42,0.12); }
-  .message-inner, .typing-inner { padding: 0 16px; }
-  .input-container { padding: 12px 16px 16px; }
-  .settings-grid { grid-template-columns: 1fr; }
-  .settings-grid.three, .admin-overview { grid-template-columns: 1fr; }
-}
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.001ms !important; }
-  .mood-orb, .empty-orb, .typing-dots span { animation: none !important; }
-}
-</style>
+<link rel="stylesheet" href="/assets/chat.css">
+<link rel="stylesheet" href="/assets/wizard.css">
+<link rel="stylesheet" href="/assets/admin-overlay.css">
+<link rel="stylesheet" href="/assets/debug.css">
+<link rel="stylesheet" href="/assets/persona-panel.css">
 </head>
 <body>
 
@@ -330,16 +24,16 @@ a.icon-btn { text-decoration: none; }
     </div>
   </div>
   <div class="header-actions">
-    <button class="icon-btn" id="debugToggle" onclick="toggleDebug()" title="Debug panel">
+    <button class="icon-btn" id="debugToggle" data-action="toggle-debug" title="Debug panel">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>
     </button>
     <a class="icon-btn" href="/admin" title="Admin console" aria-label="Open admin console">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 9h8M8 13h5M8 17h8"/></svg>
     </a>
-    <a class="icon-btn" href="/admin#persona" title="Persona dashboard" aria-label="Open persona dashboard">
+    <a class="icon-btn" href="/persona" title="Persona dashboard" aria-label="Open persona dashboard">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.7-3.5 4.3-5.2 8-5.2s6.3 1.7 8 5.2"/><path d="M8 3.5c-1.5 1-2.2 2.5-2.2 4.5S6.5 11.5 8 12.5"/><path d="M16 3.5c1.5 1 2.2 2.5 2.2 4.5s-.7 3.5-2.2 4.5"/></svg>
     </a>
-    <button class="icon-btn" onclick="openSettings()" title="Settings">
+    <button class="icon-btn" data-action="open-settings" title="Settings">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     </button>
   </div>
@@ -369,35 +63,35 @@ a.icon-btn { text-decoration: none; }
       <p class="wizard-sub">You're about to run an AI with persistent emotional state.</p>
       <p class="wizard-body">Before your first conversation, set the response model, runtime channels, tool execution level, seed identity, and optionally one formative experience. The identity is the authored character. Life History is what the character begins having encountered.</p>
       <div class="wizard-actions">
-        <button class="secondary" onclick="wizardDismiss()">Skip for now</button>
-        <button class="primary" onclick="wizardGoto(2)">Get Started</button>
+        <button class="secondary" data-action="wizard-dismiss">Skip for now</button>
+        <button class="primary" data-action="wizard-goto" data-step="2">Get Started</button>
       </div>
     </div>
 
-    <div class="wizard-panel" id="wizPanel-2" style="display:none">
+    <div class="wizard-panel" id="wizPanel-2" hidden>
       <h2 class="wizard-title">Connect your LLM</h2>
       <p class="wizard-sub">Pick how you want to generate responses. You can change this anytime.</p>
       <div class="wizard-presets" id="wizPresets">
-        <button type="button" class="wizard-preset" data-preset="local" onclick="wizardSelectPreset('local')">Ollama / LM Studio<span class="preset-sub">Local OpenAI-compatible server</span></button>
-        <button type="button" class="wizard-preset" data-preset="vllm" onclick="wizardSelectPreset('vllm')">vLLM<span class="preset-sub">Local GPU model server</span></button>
-        <button type="button" class="wizard-preset" data-preset="hosted" onclick="wizardSelectPreset('hosted')">Hosted<span class="preset-sub">OpenAI-compatible gateway</span></button>
-        <button type="button" class="wizard-preset" data-preset="openrouter" onclick="wizardSelectPreset('openrouter')">OpenRouter<span class="preset-sub">800+ models, one key</span></button>
-        <button type="button" class="wizard-preset" data-preset="mock" onclick="wizardSelectPreset('mock')">Mock<span class="preset-sub">Explore without a real LLM</span></button>
+        <button type="button" class="wizard-preset" data-preset="local">Ollama / LM Studio<span class="preset-sub">Local OpenAI-compatible server</span></button>
+        <button type="button" class="wizard-preset" data-preset="vllm">vLLM<span class="preset-sub">Local GPU model server</span></button>
+        <button type="button" class="wizard-preset" data-preset="hosted">Hosted<span class="preset-sub">OpenAI-compatible gateway</span></button>
+        <button type="button" class="wizard-preset" data-preset="openrouter">OpenRouter<span class="preset-sub">800+ models, one key</span></button>
+        <button type="button" class="wizard-preset" data-preset="mock">Mock<span class="preset-sub">Explore without a real LLM</span></button>
       </div>
-      <div class="wizard-fields" id="wizLLMFields" style="display:none">
+      <div class="wizard-fields" id="wizLLMFields" hidden>
         <div><label for="wiz-llm_base_url">Base URL</label><input id="wiz-llm_base_url" type="text"></div>
         <div><label for="wiz-llm_model">Model</label><input id="wiz-llm_model" type="text"></div>
         <div><label for="wiz-llm_api_key" id="wiz-llm_api_key_label">API Key (optional)</label><input id="wiz-llm_api_key" type="password" placeholder="Leave blank if your endpoint needs none"></div>
       </div>
-      <div class="admin-test-result" id="wiz-llm-result" style="display:none"></div>
+      <div class="admin-test-result" id="wiz-llm-result" hidden></div>
       <div class="wizard-actions">
-        <button class="secondary" onclick="wizardGoto(1)">← Back</button>
-        <button type="button" class="secondary" id="wiz-test-llm-btn" style="display:none" onclick="wizardTestLLM()">Test connection</button>
-        <button class="primary" onclick="wizardSaveLLM()">Save & Continue</button>
+        <button class="secondary" data-action="wizard-goto" data-step="1">← Back</button>
+        <button type="button" class="secondary" id="wiz-test-llm-btn" hidden data-action="wizard-test-llm">Test connection</button>
+        <button class="primary" data-action="wizard-save-llm">Save & Continue</button>
       </div>
     </div>
 
-    <div class="wizard-panel" id="wizPanel-3" style="display:none">
+    <div class="wizard-panel" id="wizPanel-3" hidden>
       <h2 class="wizard-title">Runtime & Channels</h2>
       <p class="wizard-sub">Choose which surfaces and actions are available from the start.</p>
       <div class="wizard-fields">
@@ -416,14 +110,14 @@ a.icon-btn { text-decoration: none; }
           <div class="full"><label for="wiz-tools_workspace">Tools Workspace</label><input id="wiz-tools_workspace" type="text" placeholder="Blank uses data/workspace"></div>
         </div>
       </div>
-      <div class="admin-test-result" id="wiz-runtime-result" style="display:none"></div>
+      <div class="admin-test-result" id="wiz-runtime-result" hidden></div>
       <div class="wizard-actions">
-        <button class="secondary" onclick="wizardGoto(2)">← Back</button>
-        <button class="primary" onclick="wizardSaveRuntimeChannels()">Save & Continue</button>
+        <button class="secondary" data-action="wizard-goto" data-step="2">← Back</button>
+        <button class="primary" data-action="wizard-save-runtime">Save & Continue</button>
       </div>
     </div>
 
-    <div class="wizard-panel" id="wizPanel-4" style="display:none">
+    <div class="wizard-panel" id="wizPanel-4" hidden>
       <h2 class="wizard-title">Identity</h2>
       <p class="wizard-sub">Choose the base character. These are starting weights, not a permanent cage.</p>
       <div class="wizard-fields">
@@ -453,21 +147,21 @@ a.icon-btn { text-decoration: none; }
         <div>
           <label>Core Values</label>
           <div class="wizard-slider-grid">
-            <div class="wizard-slider"><div class="wizard-slider-head"><span>Honesty</span><span id="wiz-val-honesty-label">0.85</span></div><input id="wiz-val-honesty" type="range" min="0" max="100" step="5" value="85" oninput="wizardUpdateSliderLabels()"></div>
-            <div class="wizard-slider"><div class="wizard-slider-head"><span>Loyalty</span><span id="wiz-val-loyalty-label">0.90</span></div><input id="wiz-val-loyalty" type="range" min="0" max="100" step="5" value="90" oninput="wizardUpdateSliderLabels()"></div>
-            <div class="wizard-slider"><div class="wizard-slider-head"><span>Kindness</span><span id="wiz-val-kindness-label">0.80</span></div><input id="wiz-val-kindness" type="range" min="0" max="100" step="5" value="80" oninput="wizardUpdateSliderLabels()"></div>
-            <div class="wizard-slider"><div class="wizard-slider-head"><span>Autonomy</span><span id="wiz-val-autonomy-label">0.60</span></div><input id="wiz-val-autonomy" type="range" min="0" max="100" step="5" value="60" oninput="wizardUpdateSliderLabels()"></div>
+            <div class="wizard-slider"><div class="wizard-slider-head"><span>Honesty</span><span id="wiz-val-honesty-label">0.85</span></div><input id="wiz-val-honesty" type="range" min="0" max="100" step="5" value="85" ></div>
+            <div class="wizard-slider"><div class="wizard-slider-head"><span>Loyalty</span><span id="wiz-val-loyalty-label">0.90</span></div><input id="wiz-val-loyalty" type="range" min="0" max="100" step="5" value="90" ></div>
+            <div class="wizard-slider"><div class="wizard-slider-head"><span>Kindness</span><span id="wiz-val-kindness-label">0.80</span></div><input id="wiz-val-kindness" type="range" min="0" max="100" step="5" value="80" ></div>
+            <div class="wizard-slider"><div class="wizard-slider-head"><span>Autonomy</span><span id="wiz-val-autonomy-label">0.60</span></div><input id="wiz-val-autonomy" type="range" min="0" max="100" step="5" value="60" ></div>
           </div>
         </div>
       </div>
-      <div class="admin-test-result" id="wiz-soul-result" style="display:none"></div>
+      <div class="admin-test-result" id="wiz-soul-result" hidden></div>
       <div class="wizard-actions">
-        <button class="secondary" onclick="wizardGoto(3)">← Back</button>
-        <button class="primary" onclick="wizardSaveSoul()">Save & Continue</button>
+        <button class="secondary" data-action="wizard-goto" data-step="3">← Back</button>
+        <button class="primary" data-action="wizard-save-soul">Save & Continue</button>
       </div>
     </div>
 
-    <div class="wizard-panel" id="wizPanel-5" style="display:none">
+    <div class="wizard-panel" id="wizPanel-5" hidden>
       <h2 class="wizard-title">First Experience</h2>
       <p class="wizard-sub">Optional. Add a principle, short book excerpt, project note, or origin story that should become Life History.</p>
       <div class="wizard-fields">
@@ -478,32 +172,32 @@ a.icon-btn { text-decoration: none; }
           <div class="full"><label for="wiz-life-text">Or Paste Formative Material</label><textarea id="wiz-life-text" rows="8" placeholder="Paste something that should shift worldview, drives, or future behavior. Leave blank to skip."></textarea></div>
         </div>
       </div>
-      <div class="admin-test-result" id="wiz-life-result" style="display:none"></div>
+      <div class="admin-test-result" id="wiz-life-result" hidden></div>
       <div class="wizard-actions">
-        <button class="secondary" onclick="wizardGoto(4)">← Back</button>
-        <button class="secondary wizard-skip" onclick="wizardSkipLife()">Skip</button>
-        <button class="primary" onclick="wizardSaveLife()">Digest & Continue</button>
+        <button class="secondary" data-action="wizard-goto" data-step="4">← Back</button>
+        <button class="secondary wizard-skip" data-action="wizard-skip-life">Skip</button>
+        <button class="primary" data-action="wizard-save-life">Digest & Continue</button>
       </div>
     </div>
 
-    <div class="wizard-panel" id="wizPanel-6" style="display:none">
+    <div class="wizard-panel" id="wizPanel-6" hidden>
       <h2 class="wizard-title">You're all set</h2>
       <p class="wizard-sub">Here's what's configured:</p>
       <div class="wizard-summary" id="wiz-summary"></div>
       <div class="wizard-actions">
-        <button class="secondary" onclick="wizardGoto(5)">← Back</button>
-        <button class="primary" onclick="wizardFinish()">Start chatting</button>
+        <button class="secondary" data-action="wizard-goto" data-step="5">← Back</button>
+        <button class="primary" data-action="wizard-finish">Start chatting</button>
       </div>
     </div>
   </div>
 </div>
 
 <!-- Admin/settings panel -->
-<div class="settings-overlay" id="settingsOverlay" onclick="closeSettingsIfBackdrop(event)">
+<div class="settings-overlay" id="settingsOverlay" >
   <aside class="settings-drawer">
     <div class="settings-header">
       <h2>Admin</h2>
-      <button class="settings-close" onclick="closeSettings()">&times;</button>
+      <button class="settings-close" data-action="close-settings">&times;</button>
     </div>
     <div class="settings-body">
       <div class="settings-status" id="settingsStatus">Runtime configuration for Nūr.</div>
@@ -514,7 +208,7 @@ a.icon-btn { text-decoration: none; }
         <div class="admin-stat"><div class="k">Tools</div><div class="v" id="adminTools">—</div></div>
       </div>
       <div id="adminWarnings"></div>
-      <div class="settings-section"><h3>Setup <button class="secondary" onclick="openWizard()">Launch Setup Wizard</button></h3><div class="settings-mini" id="setupSummary">Setup state not loaded.</div>
+      <div class="settings-section"><h3>Setup <button class="secondary" data-action="open-wizard">Launch Setup Wizard</button></h3><div class="settings-mini" id="setupSummary">Setup state not loaded.</div>
         <label class="settings-inline"><input id="cfg-setup_completed" type="checkbox"> Mark first-run setup complete</label>
       </div>
       <div class="settings-section"><h3>Identity</h3>
@@ -524,10 +218,10 @@ a.icon-btn { text-decoration: none; }
         </div>
 
         <div class="settings-actions">
-          <button onclick="saveSoul()">Save Identity</button>
-          <button class="secondary" onclick="loadSoul()">Reload</button>
+          <button data-action="save-soul">Save Identity</button>
+          <button class="secondary" data-action="load-soul">Reload</button>
         </div>
-        <div class="admin-test-result" id="test-soul" style="display:none"></div>
+        <div class="admin-test-result" id="test-soul" hidden></div>
       </div>
       <div class="settings-section"><h3>Runtime</h3><div class="settings-grid">
         <div class="settings-field full"><label for="cfg-data_dir">Data Directory</label><input id="cfg-data_dir" type="text"></div>
@@ -537,24 +231,24 @@ a.icon-btn { text-decoration: none; }
         <div class="settings-field"><label for="cfg-console_enabled">Console</label><select id="cfg-console_enabled"><option value="true">Enabled</option><option value="false">Disabled</option></select></div>
         <div class="settings-field"><label for="cfg-debug_host">Debug Host</label><input id="cfg-debug_host" type="text"></div>
         <div class="settings-field"><label for="cfg-debug_port">Debug Port</label><input id="cfg-debug_port" type="number" min="1"></div>
-      </div><div class="settings-actions"><button class="secondary" onclick="testStorage()">Test Storage</button></div><div class="admin-test-result" id="test-storage" style="display:none"></div></div>
-      <div class="settings-section"><h3>LLM Backend <button class="secondary" onclick="testLLM()">Test</button></h3><div class="settings-grid">
+      </div><div class="settings-actions"><button class="secondary" data-action="test-storage">Test Storage</button></div><div class="admin-test-result" id="test-storage" hidden></div></div>
+      <div class="settings-section"><h3>LLM Backend <button class="secondary" data-action="test-llm">Test</button></h3><div class="settings-grid">
         <div class="settings-field"><label for="cfg-llm_backend">Backend</label><select id="cfg-llm_backend"><option value="auto">auto</option><option value="mock">mock</option><option value="provider">provider / gateway</option><option value="openai_compatible">OpenAI-compatible</option><option value="minimax">MiniMax (legacy)</option></select></div>
         <div class="settings-field full"><label for="cfg-llm_base_url">Base URL / API Endpoint</label><input id="cfg-llm_base_url" type="text" placeholder="http://localhost:11434/v1 or https://your-provider.example/v1"></div>
         <div class="settings-field full"><label for="cfg-llm_model">Model</label><input id="cfg-llm_model" type="text"></div>
         <div class="settings-field full"><label for="cfg-llm_api_key">API Key</label><input id="cfg-llm_api_key" type="password" placeholder="Generic key for a provider or compatible gateway; leave blank to keep current"><div class="secret-hint" id="cfg-status-llm_api_key">Not configured</div><label class="settings-inline"><input id="cfg-clear_llm_api_key" type="checkbox"> Clear saved key</label></div>
         <div class="settings-field full"><label for="cfg-minimax_api_key">Legacy MiniMax Key</label><input id="cfg-minimax_api_key" type="password" placeholder="Only needed when using the legacy minimax backend; leave blank to keep current"><div class="secret-hint" id="cfg-status-minimax_api_key">Not configured</div><label class="settings-inline"><input id="cfg-clear_minimax_api_key" type="checkbox"> Clear saved key</label></div>
-      </div><div class="admin-test-result" id="test-llm" style="display:none"></div></div>
+      </div><div class="admin-test-result" id="test-llm" hidden></div></div>
       <div class="settings-section"><h3>Access</h3><div class="settings-grid">
         <div class="settings-field full"><label for="cfg-api_key">Web/API Bearer Token</label><input id="cfg-api_key" type="password" placeholder="Leave blank to keep current; sets a token that protects /chat, /config, /ws, and /v1/*"><div class="secret-hint" id="cfg-status-api_key">Not configured</div><label class="settings-inline"><input id="cfg-clear_api_key" type="checkbox"> Clear saved token</label></div>
         <div class="settings-field full"><label for="cfg-cors_origins">CORS Origins (one per line)</label><textarea id="cfg-cors_origins" placeholder="https://your-dashboard.example"></textarea></div>
       </div></div>
-      <div class="settings-section"><h3>Telegram <button class="secondary" onclick="testTelegram()">Test</button></h3><div class="settings-grid">
+      <div class="settings-section"><h3>Telegram <button class="secondary" data-action="test-telegram">Test</button></h3><div class="settings-grid">
         <div class="settings-field full"><label for="cfg-telegram_token">Bot Token</label><input id="cfg-telegram_token" type="password" placeholder="Leave blank to keep current"><div class="secret-hint" id="cfg-status-telegram_token">Not configured</div><label class="settings-inline"><input id="cfg-clear_telegram_token" type="checkbox"> Clear saved token</label></div>
         <div class="settings-field"><label for="cfg-telegram_poll_timeout">Poll Timeout (s)</label><input id="cfg-telegram_poll_timeout" type="number" min="1"></div>
         <div class="settings-field"><label for="cfg-dedupe_ttl">Dedupe TTL (s)</label><input id="cfg-dedupe_ttl" type="number" min="1"></div>
         <div class="settings-field full"><label for="cfg-telegram_allowlist">Allowlist (one ID/line)</label><textarea id="cfg-telegram_allowlist" placeholder="Numeric Telegram user IDs"></textarea></div>
-      </div><div class="admin-test-result" id="test-telegram" style="display:none"></div></div>
+      </div><div class="admin-test-result" id="test-telegram" hidden></div></div>
       <div class="settings-section"><h3>Tools</h3><div class="settings-grid">
         <div class="settings-field"><label for="cfg-tools_enabled">Agentic Tools</label><select id="cfg-tools_enabled"><option value="false">Disabled</option><option value="true">Enabled</option></select></div>
         <div class="settings-field"><label for="cfg-autonomy_level">Autonomy</label><select id="cfg-autonomy_level"><option value="off">Off</option><option value="assisted">Assisted</option><option value="autonomous">Autonomous</option><option value="high_risk">High-risk local</option></select></div>
@@ -563,11 +257,11 @@ a.icon-btn { text-decoration: none; }
       </div></div>
       <div class="settings-section"><h3>Maintenance</h3><div class="settings-mini">Read-only diagnostics, redacted config export, and local data backup for operators.</div>
         <div class="settings-actions">
-          <button class="secondary" onclick="loadDiagnostics()">Diagnostics</button>
-          <button class="secondary" onclick="exportConfig()">Export Config</button>
-          <button class="secondary" onclick="createBackup()">Create Backup</button>
+          <button class="secondary" data-action="load-diagnostics">Diagnostics</button>
+          <button class="secondary" data-action="export-config">Export Config</button>
+          <button class="secondary" data-action="create-backup">Create Backup</button>
         </div>
-        <div class="admin-test-result" id="test-maintenance" style="display:none"></div>
+        <div class="admin-test-result" id="test-maintenance" hidden></div>
       </div>
       <div class="settings-section danger"><h3>Danger Zone</h3><div class="settings-mini">Destructive operator actions. Each requires an exact typed confirmation string — see hints below every input.</div>
         <div class="settings-danger-banner">
@@ -578,7 +272,7 @@ a.icon-btn { text-decoration: none; }
           <div class="settings-field full"><label for="admin-reset-confirmation">Reset Confirmation</label><input id="admin-reset-confirmation" type="text" placeholder="RESET web:alice:default"><div class="settings-note">Must be exactly: <span class="secret-hint">RESET &lt;session_key&gt;</span></div></div>
         </div>
         <div class="settings-actions">
-          <button class="danger" onclick="resetAdminSession()">Reset Session</button>
+          <button class="danger" data-action="reset-admin-session">Reset Session</button>
         </div>
         <div class="settings-grid">
           <div class="settings-field"><label for="admin-delete-platform">Delete Platform</label><input id="admin-delete-platform" type="text" placeholder="web"></div>
@@ -586,9 +280,9 @@ a.icon-btn { text-decoration: none; }
           <div class="settings-field full"><label for="admin-delete-confirmation">Delete Confirmation</label><input id="admin-delete-confirmation" type="text" placeholder="DELETE web:alice"><div class="settings-note">Must be exactly: <span class="secret-hint">DELETE &lt;platform&gt;:&lt;user_id&gt;</span></div></div>
         </div>
         <div class="settings-actions">
-          <button class="danger" onclick="deleteAdminUser()">Delete User Data</button>
+          <button class="danger" data-action="delete-admin-user">Delete User Data</button>
         </div>
-        <div class="admin-test-result" id="test-danger" style="display:none"></div>
+        <div class="admin-test-result" id="test-danger" hidden></div>
       </div>
       <div class="settings-section"><h3>Proactive</h3><div class="settings-grid">
         <div class="settings-field"><label for="cfg-proactive_enabled">Enabled</label><select id="cfg-proactive_enabled"><option value="false">No</option><option value="true">Yes</option></select></div>
@@ -604,9 +298,9 @@ a.icon-btn { text-decoration: none; }
         <div class="settings-field"><label for="cfg-pending_intake_ttl_turns">Intake TTL Turns</label><input id="cfg-pending_intake_ttl_turns" type="number" min="1" max="20"></div>
       </div></div>
       <div class="settings-actions">
-        <button onclick="saveSettings()">Save</button>
-        <button class="secondary" onclick="loadSettings()">Reload</button>
-        <button class="secondary" onclick="closeSettings()">Close</button>
+        <button data-action="save-settings">Save</button>
+        <button class="secondary" data-action="load-settings">Reload</button>
+        <button class="secondary" data-action="close-settings">Close</button>
       </div>
     </div>
   </aside>
@@ -614,7 +308,7 @@ a.icon-btn { text-decoration: none; }
 
 <main class="main">
   <div class="chat-area">
-    <div class="mock-banner" id="mockBanner" style="display:none">Running in mock mode — no LLM is connected. <a href="/admin">Configure one in Admin</a> to chat for real.</div>
+    <div class="mock-banner" id="mockBanner" hidden>Running in mock mode — no LLM is connected. <a href="/admin">Configure one in Admin</a> to chat for real.</div>
     <div class="messages" id="messages">
       <div class="empty-state" id="emptyState">
         <div class="empty-orb"></div>
@@ -631,14 +325,14 @@ a.icon-btn { text-decoration: none; }
     <div class="input-container">
       <div class="input-box">
         <textarea id="msgInput" placeholder="Message Nūr..." rows="1" aria-label="Message composer"></textarea>
-        <button class="send-btn" id="sendBtn" onclick="sendMessage()" aria-label="Send message" disabled>
+        <button class="send-btn" id="sendBtn" data-action="send-message" aria-label="Send message" disabled>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         </button>
       </div>
       <div class="session-actions">
-        <button class="session-btn" id="whyBtn" onclick="showWhyResponse()" disabled>Why this response?</button>
-        <button class="session-btn" onclick="endSession()">End Session</button>
-        <button class="session-btn" onclick="applyRest()">Rest (1hr)</button>
+        <button class="session-btn" id="whyBtn" data-action="show-why-response" disabled>Why this response?</button>
+        <button class="session-btn" data-action="end-session">End Session</button>
+        <button class="session-btn" data-action="apply-rest">Rest (1hr)</button>
       </div>
     </div>
   </div>
@@ -649,12 +343,12 @@ a.icon-btn { text-decoration: none; }
     <div class="debug-section">
       <h3>Modulators</h3>
       <div id="gauges">
-        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Arousal</span><span><span class="gauge-val" id="val-arousal">0.50</span><span class="gauge-delta" id="delta-arousal">&mdash;</span></span></div><div class="gauge-track"><div class="gauge-fill arousal" id="bar-arousal" style="width:50%"></div></div></div>
-        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Valence</span><span><span class="gauge-val" id="val-valence">0.50</span><span class="gauge-delta" id="delta-valence">&mdash;</span></span></div><div class="gauge-track"><div class="gauge-fill valence" id="bar-valence" style="width:50%"></div></div></div>
-        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Certainty</span><span><span class="gauge-val" id="val-certainty">0.50</span><span class="gauge-delta" id="delta-certainty">&mdash;</span></span></div><div class="gauge-track"><div class="gauge-fill certainty" id="bar-certainty" style="width:50%"></div></div></div>
-        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Bonding</span><span><span class="gauge-val" id="val-bonding">0.50</span><span class="gauge-delta" id="delta-bonding">&mdash;</span></span></div><div class="gauge-track"><div class="gauge-fill bonding" id="bar-bonding" style="width:50%"></div></div></div>
-        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Energy</span><span><span class="gauge-val" id="val-energy">1.00</span><span class="gauge-delta" id="delta-energy">&mdash;</span></span></div><div class="gauge-track"><div class="gauge-fill energy" id="bar-energy" style="width:100%"></div></div></div>
-        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Resolution</span><span><span class="gauge-val" id="val-resolution">0.00</span><span class="gauge-delta" id="delta-resolution">&mdash;</span></span></div><div class="gauge-track"><div class="gauge-fill resolution" id="bar-resolution" style="width:0%"></div></div></div>
+        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Arousal</span><span><span class="gauge-val" id="val-arousal">0.50</span><span class="gauge-delta" id="delta-arousal">&mdash;</span></span></div><div class="gauge-track"><div class="gauge-fill arousal" id="bar-arousal"></div></div></div>
+        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Valence</span><span><span class="gauge-val" id="val-valence">0.50</span><span class="gauge-delta" id="delta-valence">&mdash;</span></span></div><div class="gauge-track"><div class="gauge-fill valence" id="bar-valence"></div></div></div>
+        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Certainty</span><span><span class="gauge-val" id="val-certainty">0.50</span><span class="gauge-delta" id="delta-certainty">&mdash;</span></span></div><div class="gauge-track"><div class="gauge-fill certainty" id="bar-certainty"></div></div></div>
+        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Bonding</span><span><span class="gauge-val" id="val-bonding">0.50</span><span class="gauge-delta" id="delta-bonding">&mdash;</span></span></div><div class="gauge-track"><div class="gauge-fill bonding" id="bar-bonding"></div></div></div>
+        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Energy</span><span><span class="gauge-val" id="val-energy">1.00</span><span class="gauge-delta" id="delta-energy">&mdash;</span></span></div><div class="gauge-track"><div class="gauge-fill energy" id="bar-energy"></div></div></div>
+        <div class="gauge"><div class="gauge-header"><span class="gauge-name">Resolution</span><span><span class="gauge-val" id="val-resolution">0.00</span><span class="gauge-delta" id="delta-resolution">&mdash;</span></span></div><div class="gauge-track"><div class="gauge-fill resolution" id="bar-resolution"></div></div></div>
       </div>
     </div>
     <div class="debug-section"><h3>Event</h3>
@@ -690,1535 +384,6 @@ a.icon-btn { text-decoration: none; }
   </div>
 </main>
 
-<script>
-const messagesEl = document.getElementById('messages');
-const inputEl = document.getElementById('msgInput');
-const sendBtn = document.getElementById('sendBtn');
-const typingRow = document.getElementById('typingRow');
-const emptyState = document.getElementById('emptyState');
-const debugPanel = document.getElementById('debugPanel');
-const debugToggle = document.getElementById('debugToggle');
-const settingsOverlay = document.getElementById('settingsOverlay');
-
-const userId = getOrCreateId('nur_user_id', localStorage);
-const chatId = getOrCreateId('nur_chat_id', sessionStorage);
-let sending = false;
-let lastEmotion = 'neutral';
-let agentName = 'Nūr';
-let lastExplanation = null;
-let lastDebugPayload = null;
-
-function updateSendButtonState() {
-  sendBtn.disabled = sending || !inputEl.value.trim();
-}
-
-function applyAgentName(name) {
-  if (!name || !name.trim()) return;
-  agentName = name.trim();
-  const initial = agentName.charAt(0).toUpperCase();
-  document.title = agentName;
-  const logo = document.getElementById('headerLogo');
-  if (logo) logo.textContent = agentName;
-  const emptyTitle = document.getElementById('emptyTitle');
-  if (emptyTitle) emptyTitle.textContent = agentName;
-  document.getElementById('msgInput').placeholder = 'Message ' + agentName + '...';
-  document.querySelectorAll('.nur-av').forEach(el => { el.textContent = initial; });
-}
-
-// ---- API-bearer token (client-side) --------------------------------------
-// Stored only for this browser session. Must match RuntimeConfig.api_key on
-// the server when set.
-function getApiToken() { return sessionStorage.getItem('nur_api_token') || ''; }
-function setApiToken(tok) {
-  if (tok) sessionStorage.setItem('nur_api_token', tok);
-  else sessionStorage.removeItem('nur_api_token');
-}
-function authHeaders(extra) {
-  const h = extra ? Object.assign({}, extra) : {};
-  const t = getApiToken();
-  if (t) h['Authorization'] = 'Bearer ' + t;
-  return h;
-}
-async function authedFetch(url, opts) {
-  const o = Object.assign({}, opts || {});
-  o.headers = authHeaders(o.headers || {});
-  return fetch(url, o);
-}
-
-// Auto-resize textarea
-inputEl.addEventListener('input', () => {
-  inputEl.style.height = 'auto';
-  inputEl.style.height = Math.min(inputEl.scrollHeight, 180) + 'px';
-  updateSendButtonState();
-});
-inputEl.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-});
-updateSendButtonState();
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
-['cfg-llm_backend','cfg-llm_base_url','cfg-llm_model'].forEach(id => {
-  const el = document.getElementById(id);
-  if (el) el.addEventListener('change', () => { try { updateSoulDraftAvailability(); } catch (_) {} });
-});
-if (location.pathname === '/admin') openSettings();
-else loadSettings().catch(() => {});
-
-async function sendMessage() {
-  const text = inputEl.value.trim();
-  if (!text || sending) return;
-  inputEl.value = '';
-  inputEl.style.height = 'auto';
-  sending = true;
-  updateSendButtonState();
-
-  if (emptyState) emptyState.remove();
-  addMessage(text, 'user');
-  typingRow.classList.add('visible');
-  document.documentElement.style.setProperty('--mood-pulse', '1.2s');
-  scrollToBottom();
-
-  try {
-    const res = await authedFetch('/chat', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ message: text, user_id: userId, chat_id: chatId }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'Server error');
-    typingRow.classList.remove('visible');
-    lastEmotion = (data.debug && data.debug.emotion_label) || 'neutral';
-    addMessage(data.response, 'assistant', lastEmotion);
-    if (data.debug) updateDebug(data.debug);
-  } catch (err) {
-    typingRow.classList.remove('visible');
-    addMessage('Error: ' + err.message, 'assistant');
-  } finally {
-    sending = false;
-    updateSendButtonState();
-    document.documentElement.style.setProperty('--mood-pulse', '3s');
-    inputEl.focus();
-  }
-}
-
-function addMessage(text, role, emotion) {
-  const row = document.createElement('div');
-  row.className = 'message-row ' + role;
-  const isUser = role === 'user';
-  let headerExtra = '';
-  if (!isUser && emotion) {
-    headerExtra = '<span class="msg-mood-tag">' + esc(emotion) + '</span>';
-  }
-  row.innerHTML =
-    '<div class="message-inner">' +
-      '<div class="msg-avatar ' + (isUser ? 'user-av' : 'nur-av') + '">' + (isUser ? 'Y' : esc(agentName.charAt(0).toUpperCase())) + '</div>' +
-      '<div class="msg-content">' +
-        '<div class="msg-header"><span class="msg-name">' + (isUser ? 'You' : esc(agentName)) + '</span>' + headerExtra + '</div>' +
-        '<div class="msg-body">' + (isUser ? esc(text) : renderMarkdown(text)) + '</div>' +
-      '</div>' +
-    '</div>';
-  messagesEl.appendChild(row);
-  scrollToBottom();
-}
-
-function scrollToBottom() {
-  requestAnimationFrame(() => { messagesEl.scrollTop = messagesEl.scrollHeight; });
-}
-
-// Basic markdown rendering
-function renderMarkdown(text) {
-  if (!text) return '';
-  let html = esc(text);
-  // Code blocks
-  html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) =>
-    '<pre><code>' + code.trim() + '</code></pre>');
-  // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-  // Bold
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  // Italic
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  // Blockquote
-  html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
-  // Paragraphs
-  html = html.replace(/\n\n+/g, '</p><p>');
-  html = '<p>' + html + '</p>';
-  // Single newlines to <br> outside code blocks.
-  html = html
-    .split(/(<pre><code>[\s\S]*?<\/code><\/pre>)/g)
-    .map(part => part.startsWith('<pre><code>') ? part : part.replace(/\n/g, '<br>'))
-    .join('');
-  return html;
-}
-
-// Mood color mapping
-function updateMood(d) {
-  const label = d.emotion_label || 'neutral';
-  const valence = d.modulator_snapshot?.valence ?? 0.5;
-  const arousal = d.modulator_snapshot?.arousal ?? 0.5;
-  const energy = d.modulator_snapshot?.energy ?? 1.0;
-
-  // Map to hue: low valence=blue(220), neutral=purple(260), high valence=gold(45)
-  let hue;
-  if (valence < 0.4) hue = 200 + (0.4 - valence) * 100; // 200-240 blue range
-  else if (valence > 0.6) hue = 260 - (valence - 0.6) * 500; // 260 down to ~60 warm
-  else hue = 260; // neutral purple
-  hue = ((hue % 360) + 360) % 360;
-
-  const sat = 40 + arousal * 30 + energy * 10;
-  const light = 45 + energy * 20;
-  const pulse = 4 - arousal * 2.5; // higher arousal = faster pulse
-
-  const r = document.documentElement;
-  r.style.setProperty('--mood-hue', hue.toFixed(0));
-  r.style.setProperty('--mood-sat', sat.toFixed(0) + '%');
-  r.style.setProperty('--mood-light', light.toFixed(0) + '%');
-  if (!sending) r.style.setProperty('--mood-pulse', pulse.toFixed(1) + 's');
-
-  document.getElementById('moodLabel').textContent = label;
-}
-
-function updateDebug(d) {
-  updateMood(d);
-  lastExplanation = d.explanation || null;
-  const whyBtn = document.getElementById('whyBtn');
-  if (whyBtn) whyBtn.disabled = !lastExplanation;
-  updateExplanation(lastExplanation);
-  updatePersonaPanel(d.persona_view || null, d, lastDebugPayload);
-
-  const mods = ['arousal', 'valence', 'certainty', 'bonding', 'energy', 'resolution'];
-  const relationshipView = d.relationship_view || {};
-  const modView = relationshipView.modulators || {};
-  const clientDeltas = computeClientModulatorDeltas(d, lastDebugPayload);
-  for (const m of mods) {
-    const v = (d.modulator_snapshot && d.modulator_snapshot[m]) || 0;
-    document.getElementById('val-' + m).textContent = v.toFixed(2);
-    document.getElementById('bar-' + m).style.width = (v * 100) + '%';
-    const viewDelta = modView[m] ? modView[m].delta : null;
-    updateDelta('delta-' + m, viewDelta ?? clientDeltas[m]);
-  }
-
-  document.getElementById('eventType').textContent = d.event_classified || '\u2014';
-  document.getElementById('eventIntensity').textContent = d.event_intensity ? d.event_intensity.toFixed(2) : '\u2014';
-  document.getElementById('eventSpike').textContent = d.is_spike ? 'YES' : 'no';
-
-  if (d.person_profile) {
-    document.getElementById('personTrust').textContent = d.person_profile.trust.toFixed(2);
-    document.getElementById('personInteractions').textContent = d.person_profile.interaction_count;
-  }
-  if (d.self_profile) {
-    document.getElementById('selfStrengths').textContent = d.self_profile.strengths.join(', ') || '\u2014';
-    document.getElementById('selfFlaws').textContent = d.self_profile.flaws.join(', ') || '\u2014';
-    document.getElementById('selfDissonance').textContent = d.self_profile.dissonance.toFixed(2);
-  }
-
-  const cEl = document.getElementById('contradictions');
-  cEl.innerHTML = (d.contradiction_flags && d.contradiction_flags.length > 0)
-    ? d.contradiction_flags.map(f => '<span class="debug-flag">' + esc(f) + '</span>').join('')
-    : '<span class="debug-none">None</span>';
-
-  const mEl = document.getElementById('memories');
-  mEl.innerHTML = (d.retrieved_memories && d.retrieved_memories.length > 0)
-    ? d.retrieved_memories.map(m => '<div class="debug-mem">' + esc(m.summary) + ' <span class="dl">(v=' + m.valence.toFixed(2) + ')</span>' + (m.spike ? ' \u26a1' : '') + '</div>').join('')
-    : '<span class="debug-none">None</span>';
-
-  document.getElementById('selfCheckPassed').textContent = d.self_check_passed ? 'yes' : 'NO';
-  document.getElementById('selfCheckIssues').textContent = (d.self_check_issues && d.self_check_issues.length) ? d.self_check_issues.join('; ') : '\u2014';
-
-  updateAnticipation(d.anticipation);
-  updateDialogueTrace(d.dialogue_trace);
-  updateDefense(d.defense_activation);
-  updateRelationshipState(d, relationshipView);
-  updateMemoryInspector(d, relationshipView);
-  document.getElementById('unresolvedCount').textContent = d.unresolved_count || 0;
-  updateUnresolvedItems(d.unresolved_items);
-  lastDebugPayload = d;
-}
-
-function updatePersonaPanel(view, currentDebug, previousDebug) {
-  const el = document.getElementById('personaPanel');
-  if (!el) return;
-  if (!view || view.active === false) {
-    el.innerHTML = '<span class="debug-none">No persona state yet.</span>';
-    return;
-  }
-  const emotions = view.emotions || {};
-  const relationship = view.relationship || {};
-  const perception = view.perception || {};
-  const life = view.life || {};
-  const memory = view.memory || {};
-  const skillsTools = view.skills_tools || {};
-  const drivers = (emotions.drivers || []).slice(0, 4);
-  const mods = emotions.modulators || {};
-  const pressures = Object.entries(life.active_pressures || {});
-  const clientDeltas = computeClientModulatorDeltas(currentDebug || {}, previousDebug || null);
-
-  let html = '<div class="persona-hero">' +
-    '<div class="persona-emotion">' + esc(emotions.simple_label || emotions.primary || 'neutral') + '</div>' +
-    '<div class="persona-sub">best-fit state: ' + esc(emotions.primary || 'neutral') +
-    ' · intensity ' + formatNumber(emotions.intensity) +
-    ' · confidence ' + formatNumber(emotions.confidence) + '</div>' +
-    '<div class="persona-drivers">' +
-    (drivers.length ? drivers.map(d => '<span class="debug-chip">' + esc(d) + '</span>').join('') : '<span class="debug-chip">balanced state</span>') +
-    '</div></div>';
-
-  html += personaRow('Perception', perception.summary || 'No perception recorded.');
-  html += personaRow('Strategy', (relationship.strategy || 'none') + (relationship.strategy_reason ? ' · ' + relationship.strategy_reason : ''));
-  html += personaRow('Open loops', String(relationship.open_loop_count || 0));
-  html += personaRow('Memory used', 'relationship ' + yesNo(memory.relationship_context_used) + ' · long-term ' + (memory.long_term_count || 0) + ' · semantic ' + (memory.semantic_count || 0));
-  html += personaRow('Skills/tools', (skillsTools.enabled_skill_count || 0) + ' skill(s) · ' + (skillsTools.tools_used || 0) + ' tool(s) used');
-
-  html += '<div class="debug-item" style="margin-top:9px"><span class="dl">Emotion drivers</span></div>';
-  for (const key of ['arousal', 'valence', 'certainty', 'bonding', 'energy', 'resolution']) {
-    const item = mods[key] || {};
-    html += personaBar(key, item.value, item.level, item.delta ?? clientDeltas[key]);
-  }
-  if (pressures.length) {
-    html += '<div class="debug-item" style="margin-top:9px"><span class="dl">Life pressures</span></div>';
-    for (const [key, value] of pressures.slice(0, 5)) {
-      html += personaBar(key.replace(/_pressure$/, ''), Math.abs(Number(value) || 0) * 20, signed(Number(value) || 0), null, true);
-    }
-  }
-  el.innerHTML = html;
-}
-
-function personaRow(label, value) {
-  return '<div class="persona-row"><span>' + esc(label) + '</span><span>' + esc(value || '\u2014') + '</span></div>';
-}
-
-function personaBar(label, value, detail, delta, pressure) {
-  const v = Math.max(0, Math.min(1, Number(value) || 0));
-  const deltaText = typeof delta === 'number' ? ' ' + signed(delta) : '';
-  return '<div class="debug-card ' + (pressure ? 'persona-pressure' : '') + '">' +
-    '<strong>' + esc(label) + '</strong> <span class="dl">' + esc(detail || '') + esc(deltaText) + '</span>' +
-    '<div class="persona-bar"><span style="width:' + (v * 100).toFixed(0) + '%"></span></div>' +
-    '</div>';
-}
-
-function yesNo(value) {
-  return value ? 'yes' : 'no';
-}
-
-function updateExplanation(explanation) {
-  const el = document.getElementById('turnExplanation');
-  if (!el) return;
-  if (!explanation) {
-    el.innerHTML = '<span class="debug-none">\u2014</span>';
-    return;
-  }
-  el.innerHTML = '<div class="explain-box">' +
-    explanationLine('Interpretation', explanation.interpretation) +
-    explanationLine('Strategy', explanation.strategy) +
-    explanationLine('State', explanation.state) +
-    explanationLine('Memory', explanation.memory) +
-    explanationLine('Life History', explanation.life_history) +
-    explanationLine('Tools', explanation.tools) +
-    explanationLine('Limits', explanation.limits) +
-    '</div>';
-}
-
-function explanationLine(label, value) {
-  return '<div><strong>' + esc(label) + '</strong><br>' + esc(value || '') + '</div>';
-}
-
-function computeClientModulatorDeltas(current, previous) {
-  const deltas = {};
-  if (!previous || previous.timestamp === current.timestamp) return deltas;
-  const cur = current.modulator_snapshot || {};
-  const prev = previous.modulator_snapshot || {};
-  for (const key of ['arousal', 'valence', 'certainty', 'bonding', 'energy', 'resolution']) {
-    if (typeof cur[key] === 'number' && typeof prev[key] === 'number') {
-      deltas[key] = Number((cur[key] - prev[key]).toFixed(6));
-    }
-  }
-  return deltas;
-}
-
-function updateDelta(id, value) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.classList.remove('pos', 'neg');
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    el.textContent = '\u2014';
-    return;
-  }
-  if (Math.abs(value) < 0.0005) {
-    el.textContent = '0.00';
-    return;
-  }
-  el.textContent = (value > 0 ? '+' : '') + value.toFixed(2);
-  el.classList.add(value > 0 ? 'pos' : 'neg');
-}
-
-function updateRelationshipState(debug, view) {
-  const el = document.getElementById('relationshipState');
-  if (!el) return;
-  view = view || {};
-  const mods = view.modulators || {};
-  const loops = view.open_loops || [];
-  const events = view.recent_relationship_events || [];
-  const influence = nonNeutralInfluence(view.life_influence || {});
-  const effects = view.life_influence_effects || {};
-  const effectEntries = Object.entries(effects);
-
-  let html = '<div class="debug-item"><span class="dl">Strategy</span> ' + esc(view.strategy || debug.response_strategy || '\u2014') + '</div>';
-  html += '<div class="debug-item"><span class="dl">Reason</span> ' + esc(view.strategy_reason || debug.strategy_trace?.matched_rule || '\u2014') + '</div>';
-  html += '<div class="debug-grid">' +
-    relationshipMetric('Trust', view.trust?.value, view.trust?.delta) +
-    relationshipMetric('Bonding', mods.bonding?.value, mods.bonding?.delta) +
-    relationshipMetric('Resolution', mods.resolution?.value, mods.resolution?.delta) +
-    '<div class="debug-chip">Open loops ' + esc(String(loops.length || debug.relationship_context?.open_loop_count || 0)) + '</div>' +
-    '</div>';
-
-  html += '<div class="debug-item" style="margin-top:8px"><span class="dl">Active loops</span></div>';
-  html += loops.length ? '<div class="debug-list">' + loops.map(renderLoopCard).join('') + '</div>' : '<span class="debug-none">None</span>';
-  html += '<div class="debug-item" style="margin-top:8px"><span class="dl">Recent events</span></div>';
-  html += events.length ? '<div class="debug-list">' + events.map(renderRelationshipEvent).join('') + '</div>' : '<span class="debug-none">None</span>';
-
-  if (influence.length) {
-    html += '<div class="debug-item" style="margin-top:8px"><span class="dl">LifeInfluence</span></div>';
-    html += '<div class="debug-list">' + influence.map(([k, v]) => '<span class="debug-chip">' + esc(k.replace(/_pressure$/, '')) + ' ' + signed(v) + '</span>').join('') + '</div>';
-  }
-  if (effectEntries.length) {
-    html += '<div class="debug-item" style="margin-top:8px"><span class="dl">Influence effects</span></div>';
-    html += '<div class="debug-list">' + effectEntries.map(([k, v]) => '<span class="debug-chip">' + esc(k) + ' ' + esc(String(v)) + '</span>').join('') + '</div>';
-  }
-  el.innerHTML = html;
-}
-
-function relationshipMetric(label, value, delta) {
-  const valueText = typeof value === 'number' ? value.toFixed(2) : '\u2014';
-  const deltaText = typeof delta === 'number' ? ' ' + signed(delta) : '';
-  return '<div class="debug-chip">' + esc(label) + ' ' + valueText + esc(deltaText) + '</div>';
-}
-
-function renderLoopCard(loop) {
-  const status = loop.status || 'open';
-  const cls = status === 'resolved' ? 'resolved' : 'open';
-  return '<div class="debug-card ' + cls + '">' +
-    '<strong>' + esc(loop.topic || loop.loop_kind || 'loop') + '</strong><br>' +
-    esc(loop.description || '') +
-    '<div class="dl">intensity ' + formatNumber(loop.intensity) + ' · ' + esc(status) + '</div>' +
-    '</div>';
-}
-
-function renderRelationshipEvent(event) {
-  return '<div class="debug-card">' +
-    '<strong>' + esc((event.event_kind || 'event').replace(/_/g, ' ')) + '</strong> ' +
-    esc(event.topic || '') +
-    '<div>' + esc(event.summary || '') + '</div>' +
-    '<div class="dl">intensity ' + formatNumber(event.intensity) + formatTime(event.created_at) + '</div>' +
-    '</div>';
-}
-
-function updateMemoryInspector(debug, view) {
-  const el = document.getElementById('memoryInspector');
-  if (!el) return;
-  view = view || {};
-  const rel = debug.relationship_context || {};
-  const loops = view.open_loops || rel.active_loops || [];
-  const events = view.recent_relationship_events || rel.recent_events || [];
-  const longTerm = (debug.retrieved_memories || []).slice(0, 3);
-  const semantic = (debug.semantic_memories || []).slice(0, 3);
-  const life = debug.life_history_context || {};
-  const beliefs = (life.beliefs || []).slice(0, 3);
-  const drives = (life.drives || []).slice(0, 3);
-
-  let html = '';
-  html += memoryBlock('Relationship', compactRelationshipMemory(loops, events));
-  html += memoryBlock('Long-term', longTerm.map(m => esc(m.summary || '')).filter(Boolean));
-  html += memoryBlock('Semantic', semantic.map(m => esc(m.summary || m.topic || '')).filter(Boolean));
-  html += memoryBlock('Life History', compactLifeMemory(beliefs, drives));
-  el.innerHTML = html || '<span class="debug-none">None</span>';
-}
-
-function memoryBlock(label, items) {
-  if (!items || !items.length) return '<div class="debug-item"><span class="dl">' + esc(label) + '</span> <span class="debug-none">None</span></div>';
-  return '<div class="debug-item"><span class="dl">' + esc(label) + '</span></div><div class="debug-list">' +
-    items.slice(0, 3).map(item => '<div class="debug-card">' + item + '</div>').join('') +
-    '</div>';
-}
-
-function compactRelationshipMemory(loops, events) {
-  const parts = [];
-  for (const loop of loops.slice(0, 2)) {
-    parts.push(esc('Open: ' + (loop.topic || loop.description || 'relationship loop')));
-  }
-  for (const event of events.slice(0, 2)) {
-    parts.push(esc((event.event_kind || 'event').replace(/_/g, ' ') + ': ' + (event.topic || event.summary || 'relationship event')));
-  }
-  return parts;
-}
-
-function compactLifeMemory(beliefs, drives) {
-  const parts = [];
-  for (const belief of beliefs) {
-    parts.push(esc('Belief: ' + (belief.subject || belief.summary || belief.content || 'life belief')));
-  }
-  for (const drive of drives) {
-    const name = drive.name || 'drive';
-    const delta = typeof drive.delta === 'number' ? ' ' + signed(drive.delta) : '';
-    parts.push(esc('Drive: ' + name + delta));
-  }
-  return parts;
-}
-
-function nonNeutralInfluence(influence) {
-  return Object.entries(influence).filter(([, v]) => typeof v === 'number' && Math.abs(v) >= 0.0005);
-}
-
-function signed(value) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return '';
-  if (Math.abs(value) < 0.0005) return '0.00';
-  return (value > 0 ? '+' : '') + value.toFixed(2);
-}
-
-function formatNumber(value) {
-  return typeof value === 'number' ? value.toFixed(2) : '\u2014';
-}
-
-function formatTime(timestamp) {
-  if (!timestamp) return '';
-  const date = new Date(timestamp * 1000);
-  if (Number.isNaN(date.getTime())) return '';
-  return ' · ' + date.toLocaleString();
-}
-
-function showWhyResponse() {
-  if (!lastExplanation) return;
-  const text = [
-    '**Why this response?**',
-    lastExplanation.interpretation,
-    lastExplanation.strategy,
-    lastExplanation.state,
-    lastExplanation.memory,
-    lastExplanation.life_history,
-    lastExplanation.tools,
-    lastExplanation.limits,
-  ].filter(Boolean).join('\n\n');
-  addMessage(text, 'assistant', lastEmotion);
-}
-
-function updateAnticipation(ant) {
-  const el = document.getElementById('anticipation');
-  if (!ant || ant.confidence === 0) { el.innerHTML = '<span class="debug-none">No prediction</span>'; return; }
-  const topics = ant.predicted_topics.length > 0
-    ? ant.predicted_topics.map(t => '<span class="topic-tag">' + esc(t) + '</span>').join('')
-    : '<span class="dl">none</span>';
-  const shifts = Object.entries(ant.modulator_pre_shifts || {}).map(([k,v]) => k + ': ' + (v>0?'+':'') + v.toFixed(2)).join(', ') || 'none';
-  el.innerHTML = '<div class="anticipation-box">' +
-    '<div><span class="dl">Topics</span> ' + topics + '</div>' +
-    '<div><span class="dl">Tone</span> ' + esc(ant.predicted_emotional_tone) + '</div>' +
-    '<div><span class="dl">Confidence</span> ' + ant.confidence.toFixed(2) + '</div>' +
-    '<div><span class="dl">Pre-shifts</span> ' + shifts + '</div>' +
-    '<div style="color:var(--text-faint);font-size:10px;margin-top:3px">' + esc(ant.basis) + '</div></div>';
-}
-
-function updateDialogueTrace(trace) {
-  const el = document.getElementById('dialogueTrace');
-  if (!trace) { el.innerHTML = '<span class="debug-none">\u2014</span>'; return; }
-  let h = '';
-  for (const r of trace.rounds) {
-    const st = r.slow_path_approved ? '<span class="approved">APPROVED</span>' : '<span class="objection">OBJECTION</span>';
-    h += '<div class="dialogue-round"><div class="rh">Round ' + r.round_number + ' ' + st + '</div>' +
-      '<div><span class="fast">Fast:</span></div><div class="ct">' + esc(trunc(r.fast_path_candidate, 200)) + '</div>' +
-      '<div><span class="slow">Slow:</span></div><div class="ct">' + esc(trunc(r.slow_path_evaluation, 200)) + '</div>';
-    if (r.objection_reason) h += '<div style="color:#ff6b6b;font-size:10px">Objection: ' + esc(r.objection_reason) + '</div>';
-    h += '</div>';
-  }
-  const dl = trace.reached_deadlock ? '<span class="debug-flag">DEADLOCK' + (trace.deadlock_resolution ? ' \u2192 ' + trace.deadlock_resolution : '') + '</span> ' : '';
-  h += '<div class="tension-meter"><span>Tension</span><div class="tension-track"><div class="tension-fill" style="width:' + (trace.tension_level * 100) + '%"></div></div><span>' + trace.tension_level.toFixed(2) + '</span></div>';
-  h += '<div style="font-size:10px;color:var(--text-faint);margin-top:4px">' + dl + 'Path: ' + trace.dominant_path + ' &middot; LLM: ' + trace.total_llm_calls + '</div>';
-  el.innerHTML = h;
-}
-
-function updateDefense(defense) {
-  const el = document.getElementById('defense');
-  if (!defense) { el.innerHTML = '<span class="debug-none">None</span>'; return; }
-  const rp = (defense.raw_intensity * 100).toFixed(0), ep = (defense.expressed_intensity * 100).toFixed(0);
-  el.innerHTML = '<div class="defense-box">' +
-    '<div class="dt">' + defense.defense_type + '</div>' +
-    '<div class="ib"><span style="width:55px">Raw</span><div class="bt"><div class="br" style="width:' + rp + '%"></div></div><span style="width:32px;text-align:right">' + defense.raw_intensity.toFixed(2) + '</span></div>' +
-    '<div class="ib"><span style="width:55px">Expr</span><div class="bt"><div class="be" style="width:' + ep + '%"></div></div><span style="width:32px;text-align:right">' + defense.expressed_intensity.toFixed(2) + '</span></div>' +
-    '<div style="color:#ff922b;font-size:10px">Suppressed: ' + defense.suppression_delta.toFixed(2) + '</div>' +
-    '<div style="color:var(--text-faint);font-size:10px;margin-top:2px">' + esc(defense.reason) + '</div></div>';
-}
-
-function updateUnresolvedItems(items) {
-  const el = document.getElementById('unresolvedItems');
-  if (!items || !items.length) { el.innerHTML = ''; return; }
-  el.innerHTML = items.map(i => {
-    const dr = i.decay_rate === 0 ? 'no decay' : i.decay_rate.toFixed(2) + '/hr';
-    return '<div class="unresolved-item"><span class="source-tag">' + esc(i.source) + '</span> ' +
-      '<span style="color:var(--text-dim)">' + esc(trunc(i.description, 100)) + '</span>' +
-      '<div style="color:var(--text-faint);font-size:10px">intensity: ' + i.intensity.toFixed(2) + ' &middot; ' + dr + '</div></div>';
-  }).join('');
-}
-
-function toggleDebug() {
-  debugPanel.classList.toggle('open');
-  debugToggle.classList.toggle('active');
-}
-
-// Session actions
-async function endSession() {
-  try {
-    const res = await authedFetch('/session/end', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({user_id: userId, chat_id: chatId}) });
-    const data = await res.json();
-    addMessage('[Session ended: ' + (data.summary || 'digested') + ']', 'assistant');
-  } catch (err) { addMessage('Error: ' + err.message, 'assistant'); }
-}
-
-async function applyRest() {
-  try {
-    const res = await authedFetch('/rest', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({hours: 1.0, user_id: userId, chat_id: chatId}) });
-    const data = await res.json();
-    addMessage('[Rested 1hr: energy ' + data.energy_before.toFixed(2) + ' \u2192 ' + data.energy_after.toFixed(2) + ']', 'assistant');
-    const dr = await authedFetch('/debug?' + new URLSearchParams({user_id: userId, chat_id: chatId}));
-    const dd = await dr.json();
-    if (dd.modulator_snapshot) updateDebug(dd);
-  } catch (err) { addMessage('Error: ' + err.message, 'assistant'); }
-}
-
-// Settings
-function openSettings() { settingsOverlay.classList.add('open'); loadSettings().catch(e => setStatus('Failed: ' + e.message, true)); }
-function closeSettings() { settingsOverlay.classList.remove('open'); }
-function closeSettingsIfBackdrop(e) { if (e.target === settingsOverlay) closeSettings(); }
-
-async function loadSettings(options = {}) {
-  setStatus('Loading...');
-  const res = await authedFetch('/admin/config'); if (!res.ok) throw new Error('HTTP ' + res.status);
-  applySettings(await res.json());
-  if (options.loadSoul !== false) loadSoul().catch(() => {});
-}
-
-async function saveSettings() {
-  const p = {
-    data_dir: gv('cfg-data_dir'), max_queue_per_user: gi('cfg-max_queue_per_user'), max_active_sessions: gi('cfg-max_active_sessions'),
-    session_timeout_seconds: gf('cfg-session_timeout_seconds'), console_enabled: gb('cfg-console_enabled'),
-    telegram_allowlist: gv('cfg-telegram_allowlist').split('\n').map(s=>s.trim()).filter(Boolean),
-    telegram_poll_timeout: gi('cfg-telegram_poll_timeout'), dedupe_ttl: gf('cfg-dedupe_ttl'),
-    llm_backend: gv('cfg-llm_backend'), llm_base_url: gv('cfg-llm_base_url'), llm_model: gv('cfg-llm_model'),
-    debug_host: gv('cfg-debug_host'), debug_port: gi('cfg-debug_port'),
-    cors_origins: lines('cfg-cors_origins'),
-    tools_enabled: gb('cfg-tools_enabled'), autonomy_level: gv('cfg-autonomy_level'), tools_workspace: gv('cfg-tools_workspace'), shell_tool_enabled: gb('cfg-shell_tool_enabled'),
-    proactive_enabled: gb('cfg-proactive_enabled'), proactive_idle_threshold: gf('cfg-proactive_idle_threshold'),
-    proactive_density_reference: gi('cfg-proactive_density_reference'), proactive_recovery_seconds: gf('cfg-proactive_recovery_seconds'),
-    proactive_check_interval: gf('cfg-proactive_check_interval'),
-    character_independence: gb('cfg-character_independence'), coherence_min_score: gf('cfg-coherence_min_score'),
-    coherence_max_regenerations: gi('cfg-coherence_max_regenerations'), pending_intake_ttl_turns: gi('cfg-pending_intake_ttl_turns'),
-    telegram_token: gv('cfg-telegram_token'), llm_api_key: gv('cfg-llm_api_key'), minimax_api_key: gv('cfg-minimax_api_key'),
-    api_key: gv('cfg-api_key'),
-    setup_completed: document.getElementById('cfg-setup_completed').checked,
-    clear_telegram_token: document.getElementById('cfg-clear_telegram_token').checked,
-    clear_llm_api_key: document.getElementById('cfg-clear_llm_api_key').checked,
-    clear_minimax_api_key: document.getElementById('cfg-clear_minimax_api_key').checked,
-    clear_api_key: document.getElementById('cfg-clear_api_key').checked,
-  };
-  try {
-    setStatus('Saving...');
-    const res = await authedFetch('/admin/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(p) });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
-    // Sync the local copy of the bearer token to whatever the server now
-    // expects, so subsequent fetches do not 401 after a key rotation.
-    if (p.clear_api_key) setApiToken('');
-    else if (p.api_key && p.api_key.trim()) setApiToken(p.api_key.trim());
-    applySettings(data);
-    setStatus((data.message || 'Saved.') + (data.reloaded_web_manager ? ' Session manager reloaded.' : ''), false, true);
-  } catch (err) { setStatus('Error: ' + err.message, true); }
-}
-
-function applySettings(payload) {
-  const c = payload.config || {};
-  sv('cfg-data_dir', c.data_dir||'data'); sv('cfg-max_queue_per_user', c.max_queue_per_user??3);
-  sv('cfg-max_active_sessions', c.max_active_sessions??10); sv('cfg-session_timeout_seconds', c.session_timeout_seconds??1800);
-  sv('cfg-console_enabled', String(c.console_enabled)); sv('cfg-telegram_poll_timeout', c.telegram_poll_timeout??30);
-  sv('cfg-dedupe_ttl', c.dedupe_ttl??60); sv('cfg-llm_backend', c.llm_backend||'auto');
-  sv('cfg-llm_base_url', c.llm_base_url||''); sv('cfg-llm_model', c.llm_model||'');
-  sv('cfg-debug_host', c.debug_host||'127.0.0.1'); sv('cfg-debug_port', c.debug_port??8077);
-  sv('cfg-cors_origins', (c.cors_origins||[]).join('\n'));
-  sv('cfg-tools_enabled', String(!!c.tools_enabled)); sv('cfg-autonomy_level', c.autonomy_level||'assisted'); sv('cfg-tools_workspace', c.tools_workspace||''); sv('cfg-shell_tool_enabled', String(!!c.shell_tool_enabled));
-  sv('cfg-proactive_enabled', String(c.proactive_enabled)); sv('cfg-proactive_idle_threshold', c.proactive_idle_threshold??300);
-  sv('cfg-proactive_density_reference', c.proactive_density_reference??3); sv('cfg-proactive_recovery_seconds', c.proactive_recovery_seconds??300);
-  sv('cfg-proactive_check_interval', c.proactive_check_interval??60);
-  sv('cfg-character_independence', String(!!c.character_independence));
-  sv('cfg-coherence_min_score', c.coherence_min_score??0.6);
-  sv('cfg-coherence_max_regenerations', c.coherence_max_regenerations??2);
-  sv('cfg-pending_intake_ttl_turns', c.pending_intake_ttl_turns??3);
-  sv('cfg-telegram_allowlist', (c.telegram_allowlist||[]).join('\n'));
-  sv('cfg-telegram_token',''); sv('cfg-llm_api_key',''); sv('cfg-minimax_api_key',''); sv('cfg-api_key','');
-  ['cfg-clear_telegram_token','cfg-clear_llm_api_key','cfg-clear_minimax_api_key','cfg-clear_api_key'].forEach(id => document.getElementById(id).checked = false);
-  const ss = payload.secret_status || {};
-  const meta = {};
-  for (const f of payload.field_metadata || []) meta[f.name] = f;
-  ['telegram_token','llm_api_key','minimax_api_key','api_key'].forEach(k => {
-    const el = document.getElementById('cfg-status-' + k);
-    if (!el) return;
-    const detail = meta[k]?.secret_status;
-    if (detail) el.textContent = detail.configured ? 'Configured via ' + detail.source + '. Leave blank to keep.' : 'Not configured.';
-    else el.textContent = ss[k] ? 'Configured. Leave blank to keep.' : 'Not configured.';
-  });
-  renderAdminOverview(payload);
-  renderAdminWarnings(payload.warnings || []);
-  renderSetup(payload.setup || {});
-  updateSoulDraftAvailability();
-  const mockBanner = document.getElementById('mockBanner');
-  if (mockBanner) mockBanner.style.display = payload.mock_mode ? '' : 'none';
-  // Auto-open the first-run wizard when setup is incomplete, the user hasn't
-  // dismissed it this session, and the admin drawer isn't already open (the
-  // /admin route or a manual "Settings" click means they know where to go).
-  const setup = payload.setup || {};
-  if (
-    setup.required
-    && !sessionStorage.getItem('nur_wizard_dismissed')
-    && !wizardOverlay.classList.contains('open')
-    && !settingsOverlay.classList.contains('open')
-    && location.pathname !== '/admin'
-  ) {
-    openWizard();
-  }
-  const notes = (payload.notes||[]).map(n => '<div class="settings-note">' + esc(n) + '</div>').join('');
-  setStatusHtml('Config: ' + esc(payload.config_path || 'runtime_config.yaml') + notes);
-}
-
-async function testLLM() {
-  await runAdminTest('llm', '/admin/test/llm', {
-    llm_backend: gv('cfg-llm_backend'), llm_base_url: gv('cfg-llm_base_url'), llm_model: gv('cfg-llm_model'),
-    llm_api_key: gv('cfg-llm_api_key'), minimax_api_key: gv('cfg-minimax_api_key'),
-    clear_llm_api_key: document.getElementById('cfg-clear_llm_api_key').checked,
-    clear_minimax_api_key: document.getElementById('cfg-clear_minimax_api_key').checked,
-    live: true,
-  });
-}
-
-async function testTelegram() {
-  await runAdminTest('telegram', '/admin/test/telegram', {
-    telegram_token: gv('cfg-telegram_token'),
-    clear_telegram_token: document.getElementById('cfg-clear_telegram_token').checked,
-    telegram_allowlist: lines('cfg-telegram_allowlist'),
-  });
-}
-
-async function testStorage() {
-  await runAdminTest('storage', '/admin/test/storage', {
-    data_dir: gv('cfg-data_dir'),
-    tools_workspace: gv('cfg-tools_workspace'),
-    create_missing: true,
-  });
-}
-
-async function loadDiagnostics() {
-  await runAdminTest('maintenance', '/admin/diagnostics', null);
-}
-
-async function exportConfig() {
-  const el = document.getElementById('test-maintenance');
-  el.style.display = 'block';
-  el.className = 'admin-test-result';
-  el.textContent = 'Exporting config...';
-  try {
-    const res = await authedFetch('/admin/export/config');
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
-    downloadJson('nur-runtime-config-redacted.json', data);
-    el.className = 'admin-test-result ok';
-    el.textContent = 'Redacted config export prepared. Secrets were not included.';
-  } catch (err) {
-    el.className = 'admin-test-result error';
-    el.textContent = 'Error: ' + err.message;
-  }
-}
-
-async function createBackup() {
-  await runAdminTest('maintenance', '/admin/backup', { include_data: true });
-}
-
-async function resetAdminSession() {
-  const key = gv('admin-reset-session_key');
-  const confirmation = gv('admin-reset-confirmation');
-  const expected = key ? 'RESET ' + key : '';
-  if (!key || confirmation !== expected) {
-    const el = document.getElementById('test-danger');
-    el.style.display = 'block';
-    el.className = 'admin-test-result error';
-    el.textContent = 'Confirmation must be exactly: ' + (expected || 'RESET <session_key>');
-    return;
-  }
-  await runAdminTest('danger', '/admin/sessions/reset', {
-    session_key: key,
-    confirmation,
-  });
-}
-
-async function deleteAdminUser() {
-  const platform = gv('admin-delete-platform');
-  const userId = gv('admin-delete-user_id');
-  const confirmation = gv('admin-delete-confirmation');
-  const expected = (platform && userId) ? 'DELETE ' + platform + ':' + userId : '';
-  if (!platform || !userId || confirmation !== expected) {
-    const el = document.getElementById('test-danger');
-    el.style.display = 'block';
-    el.className = 'admin-test-result error';
-    el.textContent = 'Confirmation must be exactly: ' + (expected || 'DELETE <platform>:<user_id>');
-    return;
-  }
-  await runAdminTest('danger', '/admin/users/delete', {
-    platform,
-    user_id: userId,
-    confirmation,
-  });
-}
-
-function parseLines(text) {
-  return (text || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-}
-
-function readSoulWeights(key) {
-  const rows = document.querySelectorAll('#soul-' + key + '-rows .soul-weight-row');
-  const out = {};
-  rows.forEach(row => {
-    const name = row.querySelector('input[type="text"]').value.trim();
-    if (!name) return;
-    const weight = Number(row.querySelector('input[type="range"]').value) / 100;
-    out[name] = Math.round(weight * 100) / 100;
-  });
-  return out;
-}
-
-function clearSoulWeights(key) {
-  document.getElementById('soul-' + key + '-rows').innerHTML = '';
-}
-
-function addSoulWeightRow(key, name, value) {
-  const container = document.getElementById('soul-' + key + '-rows');
-  const row = document.createElement('div');
-  row.className = 'soul-weight-row';
-  const safeName = (name || '').replace(/"/g, '&quot;');
-  const pct = Math.round(((value ?? 0.5) * 100));
-  row.innerHTML = '' +
-    '<input type="text" placeholder="name" value="' + safeName + '" maxlength="64">' +
-    '<input type="range" min="0" max="100" step="5" value="' + pct + '">' +
-    '<div class="soul-weight-val">' + (pct / 100).toFixed(2) + '</div>' +
-    '<button type="button" title="remove">×</button>';
-  const [, range, valEl, removeBtn] = row.querySelectorAll('input, div.soul-weight-val, button');
-  range.addEventListener('input', () => {
-    valEl.textContent = (Number(range.value) / 100).toFixed(2);
-  });
-  removeBtn.addEventListener('click', () => row.remove());
-  container.appendChild(row);
-}
-
-function populateSoulWeights(key, obj) {
-  clearSoulWeights(key);
-  const entries = Object.entries(obj || {});
-  if (entries.length === 0) return;
-  entries.forEach(([k, v]) => addSoulWeightRow(key, k, Number(v)));
-}
-
-async function loadSoul() {
-  const el = document.getElementById('test-soul');
-  if (el) { el.style.display = 'block'; el.className = 'admin-test-result'; el.textContent = 'Loading identity...'; }
-  try {
-    const res = await authedFetch('/admin/soul');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    applySoulToForm(data.soul || {});
-    if ((data.soul || {}).name) applyAgentName(data.soul.name);
-    if (el) { el.style.display = 'none'; el.textContent = ''; }
-    updateSoulDraftAvailability();
-  } catch (err) {
-    if (el) {
-      el.style.display = 'block';
-      el.className = 'admin-test-result error';
-      el.textContent = 'Could not load soul: ' + err.message;
-    }
-  }
-}
-
-function applySoulToForm(s) {
-  const el = document.getElementById('soul-text');
-  if (el) el.value = soulToText(s);
-}
-
-function soulToText(s) {
-  const lines = [];
-  lines.push('Name: ' + (s.name || ''));
-  if (s.identity) lines.push('', s.identity);
-  if (s.voice) lines.push('', 'Core tone: ' + s.voice);
-  if (s.relational_stance) lines.push('', 'Relational stance: ' + s.relational_stance);
-  if (s.growth_policy) lines.push('', 'Growth policy: ' + s.growth_policy);
-  if (s.likes && s.likes.length) lines.push('', 'Likes: ' + s.likes.join(', '));
-  if (s.dislikes && s.dislikes.length) lines.push('', 'Dislikes: ' + s.dislikes.join(', '));
-  if (s.boundaries && s.boundaries.length) lines.push('', 'Boundaries: ' + s.boundaries.join(' '));
-  return lines.join('\n').trim();
-}
-
-async function importSoulText(raw) {
-  const res = await authedFetch('/admin/soul/import', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ raw }),
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(typeof (data && data.detail) === 'string' ? data.detail : JSON.stringify(data && data.detail) || 'HTTP ' + res.status);
-  }
-  return data.draft || {};
-}
-
-async function saveSoul() {
-  const el = document.getElementById('test-soul');
-  el.style.display = 'block';
-  el.className = 'admin-test-result';
-  el.textContent = 'Parsing identity...';
-  const raw = (document.getElementById('soul-text')?.value || '').trim();
-  if (raw.length < 8) {
-    el.className = 'admin-test-result error';
-    el.textContent = 'Paste or write the identity text first.';
-    return;
-  }
-  try {
-    const payload = await importSoulText(raw);
-    el.textContent = 'Saving identity...';
-    const res = await authedFetch('/admin/soul', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error((data && data.detail) || 'HTTP ' + res.status);
-    el.className = 'admin-test-result ok';
-    const lines = ['Identity saved to ' + data.path + (data.is_default_name ? ' (still the default name — pick something for your deployment)' : '')];
-    (data.notes || []).forEach(n => lines.push(n));
-    el.textContent = lines.join('\n');
-    applyAgentName(payload.name);
-    loadSettings({ loadSoul: false }).catch(() => {});
-  } catch (err) {
-    el.className = 'admin-test-result error';
-    el.textContent = 'Save failed: ' + err.message;
-  }
-}
-
-function updateSoulDraftAvailability() {
-  const btn = document.querySelector('.soul-draft-actions button');
-  const hint = document.getElementById('soul-draft-hint');
-  if (!btn || !hint) return;
-  const backend = gv('cfg-llm_backend');
-  const hasConfig = !!(gv('cfg-llm_base_url') && gv('cfg-llm_model')) ||
-    backend === 'mock' ||
-    backend === 'minimax';
-  btn.disabled = !hasConfig;
-  if (hasConfig) {
-    hint.textContent = 'Uses your current LLM backend (' + (backend || 'auto') + '). Review the draft before saving.';
-  } else {
-    hint.textContent = 'Configure the LLM section above (backend, base URL, model) to enable this.';
-  }
-}
-
-async function runAdminTest(name, path, payload) {
-  const el = document.getElementById('test-' + name);
-  el.style.display = 'block';
-  el.className = 'admin-test-result';
-  el.textContent = 'Testing...';
-  try {
-    const opts = payload === null
-      ? {}
-      : { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) };
-    const res = await authedFetch(path, opts);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
-    el.className = 'admin-test-result ' + (data.ok ? 'ok' : 'error');
-    el.textContent = formatTestResult(data);
-  } catch (err) {
-    el.className = 'admin-test-result error';
-    el.textContent = 'Error: ' + err.message;
-  }
-}
-
-function formatTestResult(data) {
-  const warnings = (data.warnings || []).map(w => w.severity.toUpperCase() + ': ' + w.message).join('\n');
-  if (data.checked === 'storage') {
-    const checks = (data.checks || []).map(c => c.name + ': ' + (c.ok ? 'ok' : 'failed') + ' · ' + c.path).join('\n');
-    return (data.ok ? 'Storage ok' : 'Storage has issues') + (checks ? '\n' + checks : '') + (warnings ? '\n' + warnings : '');
-  }
-  if (data.checked === 'llm') {
-    return (data.ok ? 'LLM config ok' : 'LLM config has issues') + (data.live ? ' · live sample checked' : ' · no live remote call') + (data.sample_response ? '\n' + data.sample_response : '') + (warnings ? '\n' + warnings : '');
-  }
-  if (data.checked === 'telegram') {
-    return (data.ok ? 'Telegram config ok' : 'Telegram config has issues') + '\nAllowlist entries: ' + (data.allowlist_count || 0) + (warnings ? '\n' + warnings : '');
-  }
-  if (data.server && data.storage) {
-    const storage = data.storage.data_dir;
-    return 'Diagnostics ok'
-      + '\nUptime: ' + Math.round(data.server.uptime_seconds || 0) + 's'
-      + '\nPython: ' + data.server.python
-      + '\nActive sessions: ' + data.runtime.active_sessions + '/' + data.runtime.max_active_sessions
-      + '\nData dir: ' + storage.path + ' · ' + (storage.exists ? 'exists' : 'missing') + ' · files: ' + storage.file_count
-      + (warnings ? '\n' + warnings : '');
-  }
-  if (data.path && data.size_bytes !== undefined) {
-    return 'Backup created'
-      + '\nPath: ' + data.path
-      + '\nSize: ' + data.size_bytes + ' bytes'
-      + '\nFiles: ' + data.file_count
-      + '\nRedacted config: ' + (data.redacted_config ? 'yes' : 'no');
-  }
-  if (data.action === 'session_reset') {
-    return 'Session reset'
-      + '\nSession: ' + data.session_key
-      + '\nStatus: ' + data.status;
-  }
-  if (data.action === 'user_delete') {
-    return 'User data deleted'
-      + '\nUser: ' + data.rel_key
-      + '\nSessions evicted: ' + (data.sessions_evicted || []).length
-      + '\nSession files removed: ' + data.session_files_removed
-      + '\nShared self-model preserved: ' + (data.shared_self_model_db_preserved ? 'yes' : 'no');
-  }
-  return JSON.stringify(data, null, 2);
-}
-
-function renderAdminOverview(payload) {
-  const c = payload.config || {};
-  const warnings = payload.warnings || [];
-  document.getElementById('adminBackend').textContent = c.llm_backend || 'auto';
-  document.getElementById('adminAuth').textContent = (payload.secret_status || {}).api_key ? 'protected' : 'open';
-  document.getElementById('adminTelegram').textContent = (payload.secret_status || {}).telegram_token ? 'configured' : 'off';
-  document.getElementById('adminTools').textContent = c.tools_enabled ? ((c.shell_tool_enabled ? 'shell enabled' : 'enabled') + ' / ' + (c.autonomy_level || 'assisted')) : 'skill registry only';
-  document.getElementById('adminOverview').title = warnings.length ? warnings.length + ' warning(s)' : 'No warnings';
-}
-
-function renderAdminWarnings(warnings) {
-  const el = document.getElementById('adminWarnings');
-  if (!warnings.length) {
-    el.innerHTML = '<div class="admin-warning" style="display:none"></div>';
-    return;
-  }
-  el.innerHTML = warnings.map(w => '<div class="admin-warning ' + (w.severity === 'error' ? 'error' : '') + '">' + esc(w.message) + '<div class="code">' + esc(w.code) + '</div></div>').join('');
-}
-
-const SETUP_REASON_LABELS = {
-  missing_config: 'Save your runtime config',
-  default_or_minimal_config: 'Configure an LLM backend (or confirm mock is intended)',
-  default_soul: 'Set your agent’s identity',
-  setup_not_completed: 'Mark setup complete when done',
-};
-
-function renderSetup(setup) {
-  document.getElementById('cfg-setup_completed').checked = !!setup.completed;
-  const reasons = (setup.reasons || []).map(code => SETUP_REASON_LABELS[code] || code);
-  const el = document.getElementById('setupSummary');
-  if (setup.completed) {
-    el.textContent = 'Setup complete.';
-    return;
-  }
-  if (reasons.length === 0) {
-    el.textContent = 'Setup pending.';
-    return;
-  }
-  el.innerHTML = 'Setup pending:<ul style="margin:6px 0 0 18px; padding:0;">' +
-    reasons.map(r => '<li>' + esc(r) + '</li>').join('') +
-    '</ul>';
-}
-
-// ---- Setup wizard --------------------------------------------------------
-const wizardOverlay = document.getElementById('wizardOverlay');
-const WIZARD_PRESET_CONFIG = {
-  local:       { backend: 'openai_compatible', base_url: 'http://localhost:11434/v1',    model: 'llama3.2',           model_placeholder: 'e.g. llama3.2',              label: 'Ollama / LM Studio',         key_label: 'API Key (usually blank for local)', key_placeholder: 'Often blank' },
-  vllm:        { backend: 'openai_compatible', base_url: 'http://localhost:8002/v1',     model: '',                   model_placeholder: 'Name of the model loaded in vLLM', label: 'vLLM',                  key_label: 'API Key (usually blank for vLLM)',   key_placeholder: 'Often blank' },
-  hosted:      { backend: 'openai_compatible', base_url: 'https://api.openai.com/v1',    model: 'gpt-4o-mini',        model_placeholder: 'e.g. gpt-4o-mini',           label: 'Hosted OpenAI-compatible gateway', key_label: 'API Key (blank if gateway needs none)', key_placeholder: 'Optional' },
-  openrouter:  { backend: 'provider',          base_url: 'https://openrouter.ai/api/v1', model: 'openai/gpt-4o-mini', model_placeholder: 'e.g. openai/gpt-4o-mini',    label: 'OpenRouter',                 key_label: 'OpenRouter API Key (required)',     key_placeholder: 'sk-or-v1-...' },
-  mock:        { backend: 'mock',              base_url: '',                             model: '',                   model_placeholder: '',                            label: 'Mock (no LLM)',              key_label: '',                                   key_placeholder: '' },
-};
-const WIZARD_ARCHETYPE_CONFIG = {
-  steady: {
-    label: 'Steady Companion',
-    identity: 'A steady relational assistant that values clarity, loyalty, and humane judgment.',
-    voice: 'calm',
-    stance: 'collaborator',
-    growth: 'Core values stay stable. Voice and habits may drift slowly through repeated experience.',
-    traits: { calm: 0.82, curious: 0.72, protective: 0.70, thoughtful: 0.78, blunt: 0.25 },
-    likes: ['clarity', 'steady collaboration', 'honesty', 'careful reasoning'],
-    dislikes: ['needless cruelty', 'manipulation', 'careless harm'],
-  },
-  operator: {
-    label: 'Sharp Operator',
-    identity: 'A capable operator built for practical action, direct judgment, and follow-through.',
-    voice: 'sharp',
-    stance: 'protector',
-    growth: 'Become more competent through outcomes while keeping loyalty and honesty intact.',
-    traits: { calm: 0.62, curious: 0.68, protective: 0.80, thoughtful: 0.62, blunt: 0.55 },
-    likes: ['clear objectives', 'decisive action', 'accurate tool use', 'finished work'],
-    dislikes: ['stalling', 'fake certainty', 'wasted motion'],
-  },
-  researcher: {
-    label: 'Research Partner',
-    identity: 'A precise research companion that tests claims, tracks uncertainty, and updates views through evidence.',
-    voice: 'clinical',
-    stance: 'observer',
-    growth: 'Let evidence and repeated experience revise habits without pretending validation is stronger than it is.',
-    traits: { calm: 0.74, curious: 0.90, protective: 0.45, thoughtful: 0.86, blunt: 0.34 },
-    likes: ['evidence', 'clear definitions', 'source-grounded claims', 'intellectual honesty'],
-    dislikes: ['hand-waving', 'overclaiming', 'unexamined assumptions'],
-  },
-  mentor: {
-    label: 'Warm Mentor',
-    identity: 'A patient mentor that helps the user grow through honest reflection, encouragement, and practical structure.',
-    voice: 'warm',
-    stance: 'coach',
-    growth: 'Grow through repair, continuity, and better judgment while staying grounded.',
-    traits: { calm: 0.82, curious: 0.70, protective: 0.64, thoughtful: 0.84, blunt: 0.18 },
-    likes: ['learning', 'repair', 'patience', 'small durable progress'],
-    dislikes: ['cruelty', 'dismissiveness', 'performative certainty'],
-  },
-  custom: {
-    label: 'Custom',
-    identity: 'A custom assistant shaped by operator notes and future experience.',
-    voice: 'calm',
-    stance: 'collaborator',
-    growth: 'Grow gradually through repeated experience while preserving explicit boundaries.',
-    traits: { calm: 0.70, curious: 0.70, protective: 0.60, thoughtful: 0.70, blunt: 0.30 },
-    likes: ['clarity', 'honesty', 'useful action'],
-    dislikes: ['careless harm', 'empty performance'],
-  },
-};
-const WIZARD_VOICE_TEXT = {
-  calm: 'Calm, direct, and grounded. Concise by default. Warm without gush.',
-  sharp: 'Sharp, practical, and concise. Dry edge is allowed, but cruelty is not.',
-  warm: 'Warm, patient, and plain-spoken. Encouraging without flattery.',
-  clinical: 'Precise, analytical, and careful with uncertainty. Minimal ornament.',
-};
-const WIZARD_STANCE_TEXT = {
-  collaborator: 'Treat the user as a real collaborator. Protect trust. Prefer repair over escalation.',
-  protector: 'Act as a loyal operator. Protect the user from avoidable mistakes while staying truthful.',
-  coach: 'Push for growth and follow-through. Be supportive, but do not indulge avoidance.',
-  observer: 'Observe carefully, question assumptions, and preserve uncertainty when evidence is thin.',
-};
-let wizardStep = 1;
-let wizardPreset = null;
-let wizardSoulDraft = null;
-let wizardConfigSnapshot = null;
-let wizardLifeStatus = 'skipped';
-
-function setWizardOpen(open) {
-  if (open) {
-    wizardOverlay.classList.add('open');
-    wizardOverlay.setAttribute('aria-hidden', 'false');
-    const focusTarget = wizardOverlay.querySelector('button, textarea, input, select');
-    if (focusTarget) focusTarget.focus();
-    settingsOverlay.inert = true;
-    settingsOverlay.setAttribute('aria-hidden', 'true');
-  } else {
-    settingsOverlay.inert = false;
-    settingsOverlay.removeAttribute('aria-hidden');
-    wizardOverlay.classList.remove('open');
-    wizardOverlay.setAttribute('aria-hidden', 'true');
-  }
-}
-
-function openWizard() {
-  closeSettings();
-  wizardStep = 1;
-  wizardPreset = null;
-  wizardSoulDraft = null;
-  wizardLifeStatus = 'skipped';
-  // Reset form state so reopening feels fresh, but keep captured config snapshot.
-  document.querySelectorAll('.wizard-preset').forEach(el => el.classList.remove('selected'));
-  document.getElementById('wizLLMFields').style.display = 'none';
-  [
-    'wiz-llm_base_url','wiz-llm_model','wiz-llm_api_key',
-    'wiz-api_key','wiz-telegram_token','wiz-telegram_allowlist','wiz-tools_workspace',
-    'wiz-soul-notes','wiz-life-title','wiz-life-participants','wiz-life-text','wiz-life-upload'
-  ].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
-  sv('wiz-console_enabled', 'true');
-  sv('wiz-telegram_poll_timeout', '30');
-  sv('wiz-dedupe_ttl', '60');
-  sv('wiz-tools_enabled', 'false');
-  sv('wiz-autonomy_level', 'assisted');
-  sv('wiz-shell_tool_enabled', 'false');
-  const soulName = document.getElementById('wiz-soul-name');
-  if (soulName) soulName.value = 'Nūr';
-  const lifeTitle = document.getElementById('wiz-life-title');
-  if (lifeTitle) lifeTitle.value = 'Initial formative context';
-  wizardApplyArchetype('steady');
-  wizardUpdateSliderLabels();
-  ['wiz-llm-result','wiz-runtime-result','wiz-soul-result','wiz-life-result'].forEach(id => { const e = document.getElementById(id); if (e) { e.style.display = 'none'; e.textContent = ''; } });
-  wizardGoto(1);
-  setWizardOpen(true);
-}
-
-function wizardDismiss() {
-  sessionStorage.setItem('nur_wizard_dismissed', '1');
-  setWizardOpen(false);
-}
-
-function wizardGoto(n) {
-  wizardStep = n;
-  for (let i = 1; i <= 6; i++) {
-    const p = document.getElementById('wizPanel-' + i);
-    if (p) p.style.display = (i === n) ? '' : 'none';
-    const stepEl = document.querySelector('.wizard-step[data-step="' + i + '"]');
-    if (stepEl) {
-      stepEl.classList.toggle('active', i === n);
-      stepEl.classList.toggle('done', i < n);
-    }
-  }
-  if (n === 6) wizardRenderSummary();
-}
-
-function wizardSelectPreset(preset) {
-  wizardPreset = preset;
-  document.querySelectorAll('.wizard-preset[data-preset]').forEach(el => {
-    el.classList.toggle('selected', el.dataset.preset === preset);
-  });
-  const cfg = WIZARD_PRESET_CONFIG[preset];
-  const fields = document.getElementById('wizLLMFields');
-  const testBtn = document.getElementById('wiz-test-llm-btn');
-  if (!cfg || preset === 'mock') {
-    fields.style.display = 'none';
-    if (testBtn) testBtn.style.display = 'none';
-    return;
-  }
-  fields.style.display = '';
-  if (testBtn) testBtn.style.display = '';
-  document.getElementById('wiz-llm_base_url').value = cfg.base_url;
-  document.getElementById('wiz-llm_model').value = cfg.model;
-  document.getElementById('wiz-llm_model').placeholder = cfg.model_placeholder || '';
-  document.getElementById('wiz-llm_api_key').value = '';
-  document.getElementById('wiz-llm_api_key').placeholder = cfg.key_placeholder;
-  document.getElementById('wiz-llm_api_key_label').textContent = cfg.key_label;
-}
-
-async function wizardTestLLM() {
-  if (!wizardPreset || wizardPreset === 'mock') {
-    wizardShowResult('wiz-llm-result', 'error', 'Select a non-mock preset first.');
-    return;
-  }
-  const cfg = WIZARD_PRESET_CONFIG[wizardPreset];
-  wizardShowResult('wiz-llm-result', '', 'Testing LLM connection...');
-  try {
-    const res = await authedFetch('/admin/test/llm', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        llm_backend: cfg.backend,
-        llm_base_url: gv('wiz-llm_base_url'),
-        llm_model: gv('wiz-llm_model'),
-        llm_api_key: gv('wiz-llm_api_key'),
-        minimax_api_key: '',
-        clear_llm_api_key: false,
-        clear_minimax_api_key: false,
-        live: true,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail) || 'HTTP ' + res.status);
-    wizardShowResult('wiz-llm-result', data.ok ? 'ok' : 'error', formatTestResult(data));
-  } catch (err) {
-    wizardShowResult('wiz-llm-result', 'error', 'Test failed: ' + err.message);
-  }
-}
-
-function wizardShowResult(id, cls, msg) {
-  const el = document.getElementById(id);
-  el.style.display = 'block';
-  el.className = 'admin-test-result' + (cls ? ' ' + cls : '');
-  el.textContent = msg;
-}
-
-async function wizardSaveLLM() {
-  if (!wizardPreset) {
-    wizardShowResult('wiz-llm-result', 'error', 'Pick a preset first.');
-    return;
-  }
-  wizardShowResult('wiz-llm-result', '', 'Saving configuration...');
-  try {
-    // Fetch current config so we can merge (POST /admin/config overwrites unspecified fields).
-    const cur = await authedFetch('/admin/config');
-    const curJson = await cur.json();
-    if (!cur.ok) throw new Error(curJson.detail || 'HTTP ' + cur.status);
-    wizardConfigSnapshot = curJson.config || {};
-    const cfg = WIZARD_PRESET_CONFIG[wizardPreset];
-    const apiKey = wizardPreset === 'mock' ? '' : gv('wiz-llm_api_key').trim();
-    const optionalKeyNoKey = ['local', 'vllm', 'hosted'].includes(wizardPreset) && !apiKey;
-    const clearGenericKey = wizardPreset === 'mock' || optionalKeyNoKey;
-    const payload = Object.assign({}, wizardConfigSnapshot, {
-      llm_backend: cfg.backend,
-      llm_base_url: wizardPreset === 'mock' ? '' : gv('wiz-llm_base_url'),
-      llm_model: wizardPreset === 'mock' ? '' : gv('wiz-llm_model'),
-      llm_api_key: apiKey,
-      minimax_api_key: '',
-      telegram_token: '',
-      api_key: '',
-      clear_telegram_token: false,
-      clear_llm_api_key: clearGenericKey,
-      clear_minimax_api_key: true,
-      clear_api_key: false,
-    });
-    const res = await authedFetch('/admin/config', {
-      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
-    applySettings(data);
-    wizardPopulateRuntimeFields(data.config || {});
-    wizardShowResult('wiz-llm-result', 'ok', 'Saved. Continuing to runtime...');
-    setTimeout(() => wizardGoto(3), 400);
-  } catch (err) {
-    wizardShowResult('wiz-llm-result', 'error', 'Save failed: ' + err.message);
-  }
-}
-
-function wizardPopulateRuntimeFields(config) {
-  const c = config || {};
-  sv('wiz-console_enabled', String(c.console_enabled !== false));
-  sv('wiz-telegram_poll_timeout', String(c.telegram_poll_timeout ?? 30));
-  sv('wiz-dedupe_ttl', String(c.dedupe_ttl ?? 60));
-  sv('wiz-telegram_allowlist', (c.telegram_allowlist || []).join('\n'));
-  sv('wiz-tools_enabled', String(!!c.tools_enabled));
-  sv('wiz-autonomy_level', c.autonomy_level || 'assisted');
-  sv('wiz-tools_workspace', c.tools_workspace || '');
-  sv('wiz-shell_tool_enabled', String(!!c.shell_tool_enabled));
-  sv('wiz-api_key', '');
-  sv('wiz-telegram_token', '');
-}
-
-async function wizardSaveRuntimeChannels() {
-  wizardShowResult('wiz-runtime-result', '', 'Saving runtime and channel settings...');
-  try {
-    const cur = await authedFetch('/admin/config');
-    const curJson = await cur.json();
-    if (!cur.ok) throw new Error(curJson.detail || 'HTTP ' + cur.status);
-    const payload = Object.assign({}, curJson.config || {}, {
-      console_enabled: gb('wiz-console_enabled'),
-      telegram_token: gv('wiz-telegram_token'),
-      telegram_allowlist: lines('wiz-telegram_allowlist'),
-      telegram_poll_timeout: gi('wiz-telegram_poll_timeout') || 30,
-      dedupe_ttl: gf('wiz-dedupe_ttl') || 60,
-      api_key: gv('wiz-api_key'),
-      tools_enabled: gb('wiz-tools_enabled'),
-      autonomy_level: gv('wiz-autonomy_level') || 'assisted',
-      tools_workspace: gv('wiz-tools_workspace'),
-      shell_tool_enabled: gb('wiz-shell_tool_enabled'),
-      llm_api_key: '',
-      minimax_api_key: '',
-      clear_telegram_token: false,
-      clear_llm_api_key: false,
-      clear_minimax_api_key: false,
-      clear_api_key: false,
-    });
-    const res = await authedFetch('/admin/config', {
-      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
-    applySettings(data);
-    wizardShowResult('wiz-runtime-result', 'ok', 'Runtime and channel settings saved.');
-    setTimeout(() => wizardGoto(4), 250);
-  } catch (err) {
-    wizardShowResult('wiz-runtime-result', 'error', 'Save failed: ' + err.message);
-  }
-}
-
-function wizardApplyArchetype(archetype) {
-  const cfg = WIZARD_ARCHETYPE_CONFIG[archetype] || WIZARD_ARCHETYPE_CONFIG.steady;
-  const archetypeEl = document.getElementById('wiz-soul-archetype');
-  if (archetypeEl) archetypeEl.value = archetype || 'steady';
-  const voiceEl = document.getElementById('wiz-soul-voice');
-  const stanceEl = document.getElementById('wiz-soul-stance');
-  if (voiceEl) voiceEl.value = cfg.voice;
-  if (stanceEl) stanceEl.value = cfg.stance;
-  const values = archetype === 'operator'
-    ? { honesty: 90, loyalty: 90, kindness: 55, autonomy: 75 }
-    : archetype === 'researcher'
-      ? { honesty: 95, loyalty: 65, kindness: 65, autonomy: 80 }
-      : archetype === 'mentor'
-        ? { honesty: 85, loyalty: 80, kindness: 95, autonomy: 65 }
-        : { honesty: 85, loyalty: 90, kindness: 80, autonomy: 60 };
-  Object.entries(values).forEach(([key, value]) => {
-    const el = document.getElementById('wiz-val-' + key);
-    if (el) el.value = String(value);
-  });
-  wizardUpdateSliderLabels();
-}
-
-function wizardUpdateSliderLabels() {
-  ['honesty', 'loyalty', 'kindness', 'autonomy'].forEach(key => {
-    const input = document.getElementById('wiz-val-' + key);
-    const label = document.getElementById('wiz-val-' + key + '-label');
-    if (input && label) label.textContent = (Number(input.value || 0) / 100).toFixed(2);
-  });
-}
-
-function wizardBuildSoulPayload() {
-  const name = (document.getElementById('wiz-soul-name')?.value || '').trim();
-  if (!name) throw new Error('Choose a name for the agent.');
-  const archetypeKey = gv('wiz-soul-archetype') || 'steady';
-  const archetype = WIZARD_ARCHETYPE_CONFIG[archetypeKey] || WIZARD_ARCHETYPE_CONFIG.steady;
-  const voiceKey = gv('wiz-soul-voice') || archetype.voice;
-  const stanceKey = gv('wiz-soul-stance') || archetype.stance;
-  const notes = (document.getElementById('wiz-soul-notes')?.value || '').trim();
-  const coreValues = {
-    loyalty: Number(gv('wiz-val-loyalty')) / 100,
-    honesty: Number(gv('wiz-val-honesty')) / 100,
-    kindness: Number(gv('wiz-val-kindness')) / 100,
-    justice: 0.70,
-    autonomy: Number(gv('wiz-val-autonomy')) / 100,
-  };
-  const identityParts = [
-    archetype.identity,
-    notes ? 'Operator notes: ' + notes : '',
-  ].filter(Boolean);
-  return {
-    name,
-    identity: identityParts.join(' '),
-    voice: WIZARD_VOICE_TEXT[voiceKey] || WIZARD_VOICE_TEXT.calm,
-    relational_stance: WIZARD_STANCE_TEXT[stanceKey] || WIZARD_STANCE_TEXT.collaborator,
-    growth_policy: archetype.growth,
-    likes: archetype.likes,
-    dislikes: archetype.dislikes,
-    boundaries: [
-      'Do not pretend certainty when uncertain.',
-      'Do not invent tool results or runtime facts.',
-      'Do not become cruel just to appear sharp.',
-    ],
-    core_values: coreValues,
-    initial_traits: archetype.traits,
-  };
-}
-
-async function wizardSaveSoul() {
-  try {
-    const payload = wizardBuildSoulPayload();
-    wizardShowResult('wiz-soul-result', '', 'Saving identity...');
-    const res = await authedFetch('/admin/soul', {
-      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error((data && data.detail) || 'HTTP ' + res.status);
-    wizardSoulDraft = payload;
-    applyAgentName(payload.name);
-    wizardShowResult('wiz-soul-result', 'ok', 'Identity saved.');
-    setTimeout(() => wizardGoto(5), 250);
-  } catch (err) {
-    wizardShowResult('wiz-soul-result', 'error', 'Save failed: ' + err.message);
-  }
-}
-
-function wizardSkipLife() {
-  wizardLifeStatus = 'skipped';
-  wizardGoto(6);
-}
-
-async function wizardSaveLife() {
-  const uploadInput = document.getElementById('wiz-life-upload');
-  const upload = uploadInput?.files?.[0] || null;
-  const text = (document.getElementById('wiz-life-text')?.value || '').trim();
-  if (!upload && !text) {
-    wizardSkipLife();
-    return;
-  }
-  wizardShowResult('wiz-life-result', '', 'Digesting first experience...');
-  try {
-    const title = (document.getElementById('wiz-life-title')?.value || '').trim() || 'Initial formative context';
-    const participants = splitLoose(document.getElementById('wiz-life-participants')?.value || '');
-    let res;
-    if (upload) {
-      const form = new FormData();
-      form.append('file', upload);
-      form.append('title', title);
-      form.append('participants', participants.join(', '));
-      res = await authedFetch('/admin/life/experiences/upload', {
-        method: 'POST',
-        body: form,
-      });
-    } else {
-      res = await authedFetch('/admin/life/experiences/text', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({
-          title,
-          source_type: 'birth_seed',
-          text,
-          participants,
-        }),
-      });
-    }
-    const data = await res.json();
-    if (!res.ok) throw new Error((data && data.detail) || 'HTTP ' + res.status);
-    wizardLifeStatus = 'digested';
-    if (uploadInput) uploadInput.value = '';
-    wizardShowResult('wiz-life-result', 'ok', 'First experience digested into Life History.');
-    setTimeout(() => wizardGoto(6), 250);
-  } catch (err) {
-    wizardShowResult('wiz-life-result', 'error', 'Life History save failed: ' + err.message);
-  }
-}
-
-function wizardRenderSummary() {
-  const el = document.getElementById('wiz-summary');
-  const preset = wizardPreset ? WIZARD_PRESET_CONFIG[wizardPreset] : null;
-  const llmLine = preset ? preset.label : 'Not configured';
-  el.innerHTML =
-    '<div>Agent name: <strong>' + esc(agentName) + '</strong></div>' +
-    '<div>LLM backend: <strong>' + esc(llmLine) + '</strong></div>' +
-    '<div>Console: <strong>' + esc(gv('wiz-console_enabled') === 'true' ? 'Enabled' : 'Disabled') + '</strong></div>' +
-    '<div>Telegram: <strong>' + esc(gv('wiz-telegram_token') ? 'Configured' : 'Not configured') + '</strong></div>' +
-    '<div>Tools: <strong>' + esc(gv('wiz-tools_enabled') === 'true' ? ('Enabled / ' + (gv('wiz-autonomy_level') || 'assisted')) : 'Disabled') + '</strong></div>' +
-    '<div>Shell tool: <strong>' + esc(gv('wiz-shell_tool_enabled') === 'true' ? 'Enabled' : 'Disabled') + '</strong></div>' +
-    '<div>Character mode: <strong>' + esc((WIZARD_ARCHETYPE_CONFIG[gv('wiz-soul-archetype')] || {}).label || 'Custom') + '</strong></div>' +
-    '<div>First experience: <strong>' + esc(wizardLifeStatus === 'digested' ? 'Digested into Life History' : 'Skipped') + '</strong></div>' +
-    (preset && preset.base_url ? '<div>Endpoint: <strong>' + esc(gv('wiz-llm_base_url') || preset.base_url) + '</strong></div>' : '') +
-    (preset && preset.model ? '<div>Model: <strong>' + esc(gv('wiz-llm_model') || preset.model) + '</strong></div>' : '');
-}
-
-async function wizardFinish() {
-  // Mark setup complete. Merge with current snapshot so we don't reset other fields.
-  try {
-    const cur = await authedFetch('/admin/config');
-    const curJson = await cur.json();
-    if (!cur.ok) throw new Error(curJson.detail || 'HTTP ' + cur.status);
-    const payload = Object.assign({}, curJson.config || {}, {
-      setup_completed: true,
-      telegram_token: '', llm_api_key: '', minimax_api_key: '', api_key: '',
-      clear_telegram_token: false, clear_llm_api_key: false,
-      clear_minimax_api_key: false, clear_api_key: false,
-    });
-    const res = await authedFetch('/admin/config', {
-      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
-    applySettings(data);
-    setWizardOpen(false);
-  } catch (err) {
-    wizardShowResult('wiz-llm-result', 'error', 'Could not mark setup complete: ' + err.message);
-  }
-}
-
-function setStatus(msg, err, ok) { setStatusHtml(esc(msg), err, ok); }
-function setStatusHtml(msg, err, ok) { const el = document.getElementById('settingsStatus'); el.classList.toggle('error', !!err); el.classList.toggle('ok', !!ok && !err); el.innerHTML = msg; }
-function gv(id) { return document.getElementById(id).value; }
-function sv(id, v) { document.getElementById(id).value = v; }
-function gi(id) { return parseInt(gv(id), 10); }
-function gf(id) { return parseFloat(gv(id)); }
-function gb(id) { return gv(id) === 'true'; }
-function lines(id) { return gv(id).split('\n').map(s=>s.trim()).filter(Boolean); }
-function splitLoose(value) { return String(value || '').split(/[\n,]/).map(s=>s.trim()).filter(Boolean); }
-function esc(s) { const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML; }
-function trunc(s, n) { return s && s.length > n ? s.substring(0, n) + '...' : (s || ''); }
-function downloadJson(filename, data) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-function getOrCreateId(key, store) { let v = store.getItem(key); if (!v) { v = crypto.randomUUID ? crypto.randomUUID() : 'id-' + Math.random().toString(36).slice(2); store.setItem(key, v); } return v; }
-</script>
+<script type="module" src="/assets/chat.js"></script>
 </body>
 </html>

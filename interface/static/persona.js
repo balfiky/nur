@@ -1,10 +1,11 @@
-(function () {
-  const state = {
+import { createSurfaceState, renderMarkdown } from "/assets/lib/shared.js";
+
+const state = createSurfaceState({
     payload: null,
     selectedSessionKey: "",
     refreshTimer: null,
     historyBySession: {},
-  };
+}, {});
 
   const modulatorNames = ["arousal", "valence", "certainty", "bonding", "energy", "resolution"];
   const emotionSeries = [
@@ -66,7 +67,7 @@
   function showToast(message, tone) {
     els.toast.textContent = message;
     els.toast.hidden = false;
-    els.toast.style.background = tone === "error" ? "#b42318" : "#172033";
+    els.toast.className = "toast" + (tone ? " " + tone : "");
     clearTimeout(showToast._timer);
     showToast._timer = setTimeout(() => { els.toast.hidden = true; }, 3200);
   }
@@ -273,15 +274,15 @@
       const y = yFor(value);
       return `<line class="chart-grid-line" x1="${pad.left}" y1="${y.toFixed(1)}" x2="${(width - pad.right).toFixed(1)}" y2="${y.toFixed(1)}"></line>`;
     }).join("");
-    const paths = series.map(([key, , color]) => {
+    const paths = series.map(([key]) => {
       const points = samples.map((sample, index) => `${xFor(index).toFixed(1)},${yFor(sample[key]).toFixed(1)}`);
-      return `<polyline class="chart-line" style="stroke:${color}" points="${points.join(" ")}"></polyline>`;
+      return `<polyline class="chart-line chart-${escapeAttr(key)}" points="${points.join(" ")}"></polyline>`;
     }).join("");
-    const latest = series.map(([key, label, color]) => {
+    const latest = series.map(([key, label]) => {
       const last = history[history.length - 1] || {};
       const x = xFor(Math.max(samples.length - 1, 0));
       const y = yFor(last[key]);
-      return `<circle class="chart-dot" style="fill:${color}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5"><title>${escapeHtml(label)} ${formatNumber(last[key])}</title></circle>`;
+      return `<circle class="chart-dot chart-${escapeAttr(key)}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5"><title>${escapeHtml(label)} ${formatNumber(last[key])}</title></circle>`;
     }).join("");
     const empty = history.length < 2
       ? `<text class="chart-empty" x="${width / 2}" y="${height / 2}" text-anchor="middle">Collecting samples</text>`
@@ -301,8 +302,8 @@
   }
 
   function renderLegend(id, series) {
-    document.getElementById(id).innerHTML = series.map(([, label, color]) => `
-      <span class="legend-item"><i style="background:${color}"></i>${escapeHtml(label)}</span>
+    document.getElementById(id).innerHTML = series.map(([key, label]) => `
+      <span class="legend-item"><i class="chart-${escapeAttr(key)}"></i>${escapeHtml(label)}</span>
     `).join("");
   }
 
@@ -324,7 +325,7 @@
         <span>${index + 1}</span>
         <strong>${escapeHtml(title)}</strong>
         <em>${escapeHtml(value)}</em>
-        <small>${escapeHtml(detail)}</small>
+        <small class="markdown-copy">${renderMarkdown(detail)}</small>
       </article>
     `).join("");
   }
@@ -340,7 +341,7 @@
             <strong>${escapeHtml(name)}</strong>
             <span class="${deltaClass(item.delta)}">${formatDelta(item.delta)}</span>
           </div>
-          <div class="bar"><span style="width:${Math.round(value * 100)}%"></span></div>
+          <div class="bar"><progress value="${Math.round(value * 100)}" max="100" aria-hidden="true"></progress></div>
           <div class="metric-foot">${escapeHtml(item.level || "")} · ${escapeHtml(item.meaning || "")} · ${value.toFixed(2)}</div>
         </article>
       `;
@@ -386,7 +387,7 @@
         <article class="timeline-item">
           <strong>${escapeHtml(labelize(item.kind))}</strong>
           <div>${escapeHtml(item.topic)}</div>
-          <div class="muted">${escapeHtml(item.detail || "")}</div>
+          <div class="muted markdown-copy">${renderMarkdown(item.detail || "")}</div>
         </article>
       `).join("")
       : `<p class="muted">No open loops or recent relationship events in the selected session.</p>`;
@@ -422,7 +423,7 @@
       ? summaries.slice(0, 6).map(([kind, text]) => `
         <article class="memory-item">
           <strong>${escapeHtml(kind)}</strong>
-          <div>${escapeHtml(text)}</div>
+          <div class="markdown-copy">${renderMarkdown(text)}</div>
         </article>
       `).join("")
       : `<p class="muted">No retrieved memory summaries on this turn.</p>`;
@@ -445,7 +446,7 @@
     document.getElementById("explanationList").innerHTML = order.map((key) => `
       <article class="explain-item">
         <strong>${escapeHtml(labelize(key))}</strong>
-        <div>${escapeHtml(explanation[key] || "")}</div>
+        <div class="markdown-copy">${renderMarkdown(explanation[key] || "")}</div>
       </article>
     `).join("");
   }
@@ -454,7 +455,7 @@
     document.getElementById(id).innerHTML = rows.map(([label, value]) => `
       <div class="kv-row">
         <span>${escapeHtml(label)}</span>
-        <strong>${escapeHtml(value)}</strong>
+        <div class="kv-value markdown-copy">${renderMarkdown(value)}</div>
       </div>
     `).join("");
   }
@@ -474,7 +475,7 @@
           <span>${escapeHtml(labelize(name.replace(/_pressure$/, "")))}</span>
           <strong>${escapeHtml(formatDelta(number))}</strong>
         </div>
-        <div class="bar"><span style="width:${width}%"></span></div>
+        <div class="bar"><progress value="${width}" max="100" aria-hidden="true"></progress></div>
       </div>
     `;
   }
@@ -590,4 +591,3 @@
   bindEvents();
   configureRefreshTimer();
   loadDashboard().catch(handleError);
-}());

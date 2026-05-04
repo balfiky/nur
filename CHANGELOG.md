@@ -6,6 +6,11 @@ All notable changes to Project Nur are documented here.
 
 ## Unreleased
 
+### Brand & UI
+- Split the chat shell into ES module/CSS surfaces, added sanitized Markdown
+  rendering, rem-based spacing and motion tokens, mood-aware contrast, and
+  migrated admin/persona/debug/wizard UI rendering to the shared surface model.
+
 ### Character independence
 - Implemented the channels-not-gates Life History path: learning intake now has
   cross-turn pending state, Life History ingestion records perception metadata

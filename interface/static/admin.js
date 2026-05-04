@@ -1,5 +1,6 @@
-(function () {
-  const state = {
+import { createSurfaceState, renderMarkdown } from "/assets/lib/shared.js";
+
+const state = createSurfaceState({
     config: {},
     metadata: [],
     status: null,
@@ -14,7 +15,7 @@
     life: null,
     lifeLoaded: false,
     activePage: "overview",
-  };
+}, {});
 
   const secretFields = new Set(["telegram_token", "llm_api_key", "minimax_api_key", "api_key"]);
   const listFields = new Set(["telegram_allowlist", "cors_origins"]);
@@ -169,7 +170,7 @@
   function showToast(message, tone) {
     els.toast.textContent = message;
     els.toast.hidden = false;
-    els.toast.style.background = tone === "error" ? "#b42318" : (tone === "warn" ? "#b54708" : "#172033");
+    els.toast.className = "toast" + (tone ? " " + tone : "");
     clearTimeout(showToast._timer);
     showToast._timer = setTimeout(() => { els.toast.hidden = true; }, 3600);
   }
@@ -383,7 +384,6 @@
     `).join("");
     if (els.tokenBtn) {
       els.tokenBtn.hidden = !status.auth_enabled;
-      els.tokenBtn.style.display = status.auth_enabled ? "" : "none";
     }
     renderOverviewPersona();
     renderPersonaAdminPage();
@@ -473,8 +473,8 @@
       <div class="persona-overview-lower">
         <section>
           <div class="mini-heading">Why This Response</div>
-          <p>${escapeHtml(explanation.interpretation || "No turn explanation is available.")}</p>
-          <p class="muted">${escapeHtml(explanation.strategy || "")}</p>
+          <div class="markdown-copy">${renderMarkdown(explanation.interpretation || "No turn explanation is available.")}</div>
+          <div class="markdown-copy muted">${renderMarkdown(explanation.strategy || "")}</div>
         </section>
         <section>
           <div class="mini-heading">Active Loops</div>
@@ -568,7 +568,7 @@
             ["vulnerability", formatNumber(perception.vulnerability)],
             ["action need", formatNumber(perception.action_need)],
           ])}
-          <p class="muted persona-summary-copy">${escapeHtml(perception.summary || "")}</p>
+          <div class="muted persona-summary-copy markdown-copy">${renderMarkdown(perception.summary || "")}</div>
         </section>
 
         <section class="panel">
@@ -618,7 +618,7 @@
             ["tools considered", skillsTools.tools_considered || 0],
             ["tools used", skillsTools.tools_used || 0],
           ])}
-          <p class="muted persona-summary-copy">${escapeHtml(skillsTools.summary || "No tools were considered.")}</p>
+          <div class="muted persona-summary-copy markdown-copy">${renderMarkdown(skillsTools.summary || "No tools were considered.")}</div>
           ${renderPersonaChips((skillsTools.enabled_skills || []).map((skill) => skill.name || skill.id))}
         </section>
       </div>
@@ -648,7 +648,7 @@
     return `<dl class="persona-facts">${items.map(([label, value]) => `
       <div>
         <dt>${escapeHtml(label)}</dt>
-        <dd>${escapeHtml(value)}</dd>
+        <dd class="markdown-copy">${renderMarkdown(value)}</dd>
       </div>
     `).join("")}</dl>`;
   }
@@ -664,7 +664,7 @@
     return `<div class="persona-mini-list">${items.map((item) => `
       <article>
         <strong>${escapeHtml(item.topic || item.loop_kind || item.event_type || item.kind || "relationship")}</strong>
-        <span>${escapeHtml(item.status || item.event_type || item.description || "active")}</span>
+        <div class="markdown-copy">${renderMarkdown(item.status || item.event_type || item.description || "active")}</div>
       </article>
     `).join("")}</div>`;
   }
@@ -680,7 +680,7 @@
             <strong>${escapeHtml(labelize(name))}</strong>
             <span>${escapeHtml(mod.meaning || "")}</span>
           </div>
-          <div class="persona-mod-meter" aria-hidden="true"><span style="width:${Math.round(value * 100)}%"></span></div>
+          <progress class="persona-mod-meter" value="${Math.round(value * 100)}" max="100" aria-hidden="true"></progress>
           <div class="persona-mod-value">${formatNumber(value)}${delta == null ? "" : ` <span class="${delta < 0 ? "negative" : "positive"}">${signed(delta)}</span>`}</div>
         </div>
       `;
@@ -704,7 +704,7 @@
     const values = (items || []).filter(Boolean).slice(0, 6);
     if (!values.length) return `<p class="empty-copy">No long-term or semantic memories were retrieved for this turn.</p>`;
     return `<div class="persona-mini-list">${values.map((item) => `
-      <article><strong>${escapeHtml(item)}</strong></article>
+      <article><div class="markdown-copy">${renderMarkdown(item)}</div></article>
     `).join("")}</div>`;
   }
 
@@ -712,7 +712,7 @@
     return `
       <article>
         <strong>${escapeHtml(label)}</strong>
-        <p>${escapeHtml(value || "No data recorded.")}</p>
+        <div class="markdown-copy">${renderMarkdown(value || "No data recorded.")}</div>
       </article>
     `;
   }
@@ -899,7 +899,7 @@
         <div class="skill-row-header">
           <div>
             <div class="skill-title">${escapeHtml(skill.name || skill.id)}</div>
-            <div class="skill-description">${escapeHtml(skill.description || "No description")}</div>
+            <div class="skill-description markdown-copy">${renderMarkdown(skill.description || "No description")}</div>
           </div>
           <div class="skill-actions">
             <span class="status-chip ${escapeAttr(skill.status || "disabled")}">${escapeHtml(labelize(skill.status || "disabled"))}</span>
@@ -1080,7 +1080,7 @@
             <article class="domain-row">
               <span>${escapeHtml(titleize(item.domain || "change"))}</span>
               <strong>${escapeHtml(count)}</strong>
-              <div class="domain-bar"><span style="width:${Math.max(3, Math.round((count / maxDomain) * 100))}%"></span></div>
+              <progress class="domain-bar" value="${Math.max(3, Math.round((count / maxDomain) * 100))}" max="100" aria-hidden="true"></progress>
             </article>
           `;
         }).join("")
@@ -1097,8 +1097,8 @@
             <article class="drift-row">
               <span>${escapeHtml(titleize(item.name || "drive"))}</span>
               <strong>${escapeHtml(signed(delta))}</strong>
-              <div class="drift-meter"><span class="${delta < 0 ? "negative" : ""}" style="width:${width}%"></span></div>
-              <div class="life-reason">${escapeHtml(item.description || "")}</div>
+              <progress class="drift-meter ${delta < 0 ? "negative" : ""}" value="${width}" max="100" aria-hidden="true"></progress>
+              <div class="life-reason markdown-copy">${renderMarkdown(item.description || "")}</div>
             </article>
           `;
         }).join("")
@@ -1118,8 +1118,8 @@
           <strong>${escapeHtml(labelize(event.domain || "change"))}</strong>
           <span>${escapeHtml(event.subject || "")}</span>
         </div>
-        <div class="life-change">${escapeHtml(event.after_state || "")}</div>
-        <div class="life-reason">${escapeHtml(event.reason || "")}</div>
+        <div class="life-change markdown-copy">${renderMarkdown(event.after_state || "")}</div>
+        <div class="life-reason markdown-copy">${renderMarkdown(event.reason || "")}</div>
         <div class="skill-meta">confidence ${Number(event.confidence || 0).toFixed(2)} · experience ${escapeHtml(event.experience_id ?? "")} · batch ${escapeHtml(event.batch_id || "")}</div>
       </article>
     `).join("");
@@ -1138,8 +1138,8 @@
           <strong>${escapeHtml(experience.source_title || "Experience")}</strong>
           <span>${escapeHtml(labelize(experience.source_type || ""))}</span>
         </div>
-        <div class="life-change">${escapeHtml(experience.content_summary || "")}</div>
-        <div class="life-reason">${escapeHtml(experience.emotional_impact || "")}</div>
+        <div class="life-change markdown-copy">${renderMarkdown(experience.content_summary || "")}</div>
+        <div class="life-reason markdown-copy">${renderMarkdown(experience.emotional_impact || "")}</div>
         <div class="skill-meta">salience ${Number(experience.salience || 0).toFixed(2)} · confidence ${Number(experience.confidence || 0).toFixed(2)} · batch ${escapeHtml(experience.batch_id || "")}</div>
       </article>
     `).join("");
@@ -1158,7 +1158,7 @@
           <strong>${escapeHtml(belief.key || "belief")}</strong>
           <span>${escapeHtml((belief.confidence || 0).toFixed ? belief.confidence.toFixed(2) : belief.confidence)}</span>
         </div>
-        <div class="life-change">${escapeHtml(belief.statement || "")}</div>
+        <div class="life-change markdown-copy">${renderMarkdown(belief.statement || "")}</div>
       </article>
     `).join("");
   }
@@ -1178,8 +1178,8 @@
             <strong>${escapeHtml(labelize(drive.name || "drive"))}</strong>
             <span>${value.toFixed(2)}</span>
           </div>
-          <div class="drive-meter"><span style="width:${Math.max(0, Math.min(100, value * 100))}%"></span></div>
-          <div class="life-reason">${escapeHtml(drive.description || "")}</div>
+          <progress class="drive-meter" value="${Math.max(0, Math.min(100, value * 100))}" max="100" aria-hidden="true"></progress>
+          <div class="life-reason markdown-copy">${renderMarkdown(drive.description || "")}</div>
         </article>
       `;
     }).join("");
@@ -1628,4 +1628,3 @@
     setStatus("Error", "error");
     showToast(err.message || String(err), "error");
   });
-})();
