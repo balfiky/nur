@@ -10,6 +10,10 @@ All notable changes to Project Nur are documented here.
 - Split the chat shell into ES module/CSS surfaces, added sanitized Markdown
   rendering, rem-based spacing and motion tokens, mood-aware contrast, and
   migrated admin/persona/debug/wizard UI rendering to the shared surface model.
+- Consolidated `/admin` into one scrollable command center with section jumps
+  for Overview, Settings, Skills, Observability, and Life History. Character
+  independence now lives with Settings, while persona/runtime monitoring is
+  grouped under Observability.
 
 ### Character independence
 - Implemented the channels-not-gates Life History path: learning intake now has

@@ -150,25 +150,24 @@ while avoiding a hidden assumption about localhost and port 8000.
 
 ### Permanent Admin Console
 
-The permanent console should replace the current single drawer layout with
-sections that can grow:
+The permanent console should replace the current drawer/page-hopping layout
+with one scrollable operator workspace. Sidebar navigation should jump to
+sections in the same page so an operator can scan configuration, skills, and
+monitoring without guessing where a control lives:
 
 - **Overview**
   - health, readiness, backend, auth status, Telegram status, tool status
-- **Model**
-  - backend, base URL, model, key status, test action
-- **Access**
-  - bearer token, CORS, bind/readiness warnings
-- **Channels**
-  - Telegram config, allowlist, poll settings, test action
-- **Runtime**
-  - data directory, queue/session limits, timeout, debug host/port
-- **Tools**
-  - master enable switch, workspace, shell opt-in, sandbox validation
-- **Memory and Data**
-  - data path summary, user reset links, future backup/export controls
-- **Diagnostics**
-  - recent config errors, provider failures, Telegram failures, startup warnings
+- **Settings**
+  - runtime, character independence, models, tool access, identity, access,
+    channels, diagnostics, backup, and maintenance controls
+- **Skills**
+  - import, review, enablement, risk flags, and bundled-resource audit
+- **Observability**
+  - persona state, active channels, emotional state, relationship memory, Life
+    influence, skills, tools, and runtime monitoring
+- **Life History**
+  - formative-material intake, data path summary, experience timeline, beliefs,
+    drive shifts, and evolution events
 
 The current chat UI can still have a Settings button, but production use should
 have a clear `/admin` or equivalent route.

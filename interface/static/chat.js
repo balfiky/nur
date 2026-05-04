@@ -77,6 +77,9 @@ document.addEventListener('click', handleModuleAction);
 document.addEventListener('input', e => {
   if (e.target && e.target.id && e.target.id.startsWith('wiz-val-')) wizardUpdateSliderLabels();
 });
+document.addEventListener('change', e => {
+  if (e.target && e.target.id === 'wiz-soul-archetype') wizardApplyArchetype(e.target.value);
+});
 settingsOverlay.addEventListener('click', closeSettingsIfBackdrop);
 ['cfg-llm_backend','cfg-llm_base_url','cfg-llm_model'].forEach(id => {
   const el = document.getElementById(id);

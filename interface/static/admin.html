@@ -19,10 +19,10 @@
     </a>
     <nav class="nav-list">
       <button class="nav-item active" data-page="overview">Overview</button>
-      <button class="nav-item" data-page="persona">Persona</button>
       <button class="nav-item" data-page="settings">Settings</button>
       <button class="nav-item" data-page="skills">Skills</button>
-      <button class="nav-item" data-page="life">Life</button>
+      <button class="nav-item" data-page="observability">Observability</button>
+      <button class="nav-item" data-page="life">Life History</button>
     </nav>
     <div class="sidebar-footer">
       <a href="/" class="text-link">Back to chat</a>
@@ -34,7 +34,7 @@
     <header class="topbar">
       <div>
         <p class="eyebrow">Operator Workspace</p>
-        <h1 id="pageTitle">Overview</h1>
+        <h1 id="pageTitle">Command Center</h1>
       </div>
       <div class="topbar-actions">
         <span class="status-pill" id="statusPill">Loading</span>
@@ -57,7 +57,7 @@
             <h3>Persona Overview</h3>
             <p class="muted">Current mental state, relationship context, memory, Life influence, and tools across active channels.</p>
           </div>
-          <button class="secondary" data-action="open-page" data-page="persona">Open Persona</button>
+          <button class="secondary" data-action="open-page" data-page="observability">Jump to Observability</button>
         </div>
         <div id="overviewPersona" class="overview-persona"></div>
       </div>
@@ -68,17 +68,6 @@
         </div>
         <div id="warningsList" class="warning-list"></div>
       </div>
-    </section>
-
-    <section class="page" id="page-persona" aria-labelledby="persona-heading">
-      <div class="section-heading">
-        <div>
-          <h2 id="persona-heading">Persona</h2>
-          <p>Unified observability for Nūr's mental state, emotion, relationship memory, Life influence, skills, and tools across every active channel.</p>
-        </div>
-        <button class="secondary" id="refreshPersonaBtn" type="button">Refresh Persona</button>
-      </div>
-      <div id="personaAdminPage" class="persona-admin-page"></div>
     </section>
 
     <section class="page" id="page-settings" aria-labelledby="settings-heading">
@@ -93,12 +82,20 @@
         <details class="settings-section" id="settings-runtime" open>
           <summary>
             <span>Runtime</span>
-            <small>Storage, sessions, debug API, and proactive behavior.</small>
+            <small>Storage, sessions, console, debug API, and proactive behavior.</small>
           </summary>
           <form class="form-grid" id="runtimeForm"></form>
         </details>
 
-        <details class="settings-section" id="settings-models">
+        <details class="settings-section" id="settings-character" open>
+          <summary>
+            <span>Character</span>
+            <small>Independence, coherence checks, and pending-intake behavior.</small>
+          </summary>
+          <form class="form-grid" id="characterForm"></form>
+        </details>
+
+        <details class="settings-section" id="settings-models" open>
           <summary>
             <span>Models</span>
             <small>LLM backend settings used by chat, Telegram, identity drafting, and native tool routing.</small>
@@ -110,7 +107,7 @@
           <pre class="output" id="llmTestOutput" hidden></pre>
         </details>
 
-        <details class="settings-section" id="settings-tools">
+        <details class="settings-section" id="settings-tools" open>
           <summary>
             <span>Tools</span>
             <small>Runtime gates, registered capabilities, risk category, and argument surface.</small>
@@ -133,7 +130,7 @@
           </div>
         </details>
 
-        <details class="settings-section" id="settings-identity">
+        <details class="settings-section" id="settings-identity" open>
           <summary>
             <span>Identity</span>
             <small>Edit the seed soul file that drives role labels, generation, self-check, and memory digestion.</small>
@@ -148,7 +145,7 @@
           <pre class="output" id="soulOutput" hidden></pre>
         </details>
 
-        <details class="settings-section" id="settings-access">
+        <details class="settings-section" id="settings-access" open>
           <summary>
             <span>Access</span>
             <small>API bearer auth, CORS, and exposure warnings.</small>
@@ -166,7 +163,7 @@
           </div>
         </details>
 
-        <details class="settings-section" id="settings-channels">
+        <details class="settings-section" id="settings-channels" open>
           <summary>
             <span>Channels</span>
             <small>Console and Telegram integration settings.</small>
@@ -178,7 +175,7 @@
           <pre class="output" id="telegramTestOutput" hidden></pre>
         </details>
 
-        <details class="settings-section" id="settings-maintenance">
+        <details class="settings-section" id="settings-maintenance" open>
           <summary>
             <span>Maintenance</span>
             <small>Storage checks, diagnostics, config export, backups, and runtime apply controls.</small>
@@ -256,6 +253,17 @@
         </div>
         <div class="skill-list" id="skillsList"></div>
       </div>
+    </section>
+
+    <section class="page" id="page-observability" aria-labelledby="observability-heading">
+      <div class="section-heading">
+        <div>
+          <h2 id="observability-heading">Observability</h2>
+          <p>Unified monitoring for Nūr's mental state, emotion, relationship memory, Life influence, skills, and tools across every active channel.</p>
+        </div>
+        <button class="secondary" id="refreshPersonaBtn" type="button">Refresh Observability</button>
+      </div>
+      <div id="personaAdminPage" class="persona-admin-page"></div>
     </section>
 
     <section class="page" id="page-life" aria-labelledby="life-heading">

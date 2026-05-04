@@ -54,6 +54,8 @@ const state = createSurfaceState({
       ["proactive_density_reference", "Proactive Density Reference", "number"],
       ["proactive_recovery_seconds", "Proactive Recovery Seconds", "number"],
       ["proactive_check_interval", "Proactive Check Interval", "number"],
+    ],
+    character: [
       ["character_independence", "Character Independence", "boolean"],
       ["coherence_min_score", "Coherence Min Score", "number"],
       ["coherence_max_regenerations", "Coherence Regenerations", "number"],
@@ -205,6 +207,7 @@ const state = createSurfaceState({
 
   function renderAllForms() {
     renderConfigForm("runtimeForm", fieldSections.runtime);
+    renderConfigForm("characterForm", fieldSections.character);
     renderConfigForm("modelsForm", fieldSections.models);
     renderConfigForm("toolsForm", fieldSections.tools);
     renderConfigForm("accessForm", fieldSections.access);
@@ -1200,15 +1203,24 @@ const state = createSurfaceState({
     await loadPersonaState();
     renderOverview();
     renderAllForms();
-    if (state.activePage === "settings") {
-      state.toolsLoaded = false;
-      await loadTools();
-    }
-    if (state.activePage === "life") {
-      state.lifeLoaded = false;
-      await loadLife();
-    }
     await loadSoul(false);
+    state.toolsLoaded = false;
+    state.skillsLoaded = false;
+    state.lifeLoaded = false;
+    await Promise.all([
+      loadTools().catch((err) => {
+        document.getElementById("toolsList").innerHTML = `<div class="tool-row"><p class="empty-copy">${escapeHtml(err.message || String(err))}</p></div>`;
+        showToast(err.message || String(err), "error");
+      }),
+      loadSkills().catch((err) => {
+        document.getElementById("skillsList").innerHTML = `<p class="empty-copy">${escapeHtml(err.message || String(err))}</p>`;
+        showToast(err.message || String(err), "error");
+      }),
+      loadLife().catch((err) => {
+        document.getElementById("lifeTimeline").innerHTML = `<p class="empty-copy">${escapeHtml(err.message || String(err))}</p>`;
+        showToast(err.message || String(err), "error");
+      }),
+    ]);
   }
 
   async function loadPersonaState() {
@@ -1283,10 +1295,8 @@ const state = createSurfaceState({
       state.metadata = data.field_metadata || [];
       await refreshStatusOnly();
       renderAllForms();
-      if (state.activePage === "settings") {
-        state.toolsLoaded = false;
-        await loadTools();
-      }
+      state.toolsLoaded = false;
+      await loadTools();
       const applyState = data.apply_state || {};
       const restartFields = applyState.restart_required_fields || [];
       if (restartFields.length) {
@@ -1455,6 +1465,7 @@ const state = createSurfaceState({
   function openPage(page) {
     const settingsAliases = {
       runtime: "runtime",
+      character: "character",
       models: "models",
       tools: "tools",
       identity: "identity",
@@ -1464,6 +1475,8 @@ const state = createSurfaceState({
     };
     const settingsSection = settingsAliases[page] || "";
     if (settingsSection) page = "settings";
+    if (page === "persona") page = "observability";
+    if (!document.getElementById("page-" + page)) page = "overview";
     state.activePage = page;
     for (const el of document.querySelectorAll(".page")) {
       el.classList.toggle("active", el.id === "page-" + page);
@@ -1471,7 +1484,7 @@ const state = createSurfaceState({
     for (const item of document.querySelectorAll(".nav-item")) {
       item.classList.toggle("active", item.dataset.page === page);
     }
-    els.pageTitle.textContent = document.querySelector(`.nav-item[data-page="${CSS.escape(page)}"]`)?.textContent || "Admin";
+    els.pageTitle.textContent = "Command Center";
     history.replaceState(null, "", "#" + page);
     if (page === "settings" && !state.toolsLoaded && Object.keys(state.config).length) {
       loadTools().catch((err) => {
@@ -1491,7 +1504,10 @@ const state = createSurfaceState({
         showToast(err.message || String(err), "error");
       });
     }
-    if (settingsSection) window.requestAnimationFrame(() => openSettingsSection(settingsSection));
+    window.requestAnimationFrame(() => {
+      if (settingsSection) openSettingsSection(settingsSection);
+      else document.getElementById("page-" + page)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
   function openSettingsSection(section) {

@@ -153,9 +153,14 @@ standalone operator pages use the same tokenized plum/ember palette so
 configuration and observability remain readable during normal use.
 
 The chat header links directly to `/admin` for full-screen operator work. The
-embedded settings drawer remains available for quick edits and setup-wizard
-access, but the full console is the preferred space for skills, life-history
-observability, maintenance, and careful production configuration.
+admin console is a single scrollable command center with section jumps for
+Overview, Settings, Skills, Observability, and Life History. Settings includes
+runtime, character independence, model, tool access, identity, access, channel,
+and maintenance controls together; monitoring is grouped under Observability
+and the adjacent Life History section. The embedded settings drawer remains
+available for quick edits and setup-wizard access, but the full console is the
+preferred space for skills, life-history observability, maintenance, and careful
+production configuration.
 
 The standalone `/persona` route, also available as `/dashboard`, serves a
 channel-independent persona dashboard. It reads active sessions from the
@@ -173,7 +178,8 @@ The full console lets you:
 
 - Configure LLM provider, model, base URL, and API keys
 - Configure Telegram token, allowlist, polling, and dedupe settings
-- Configure bearer auth, CORS, tools, shell-tool opt-in, and workspace paths
+- Configure character independence, coherence checks, pending-intake behavior,
+  bearer auth, CORS, tools, shell-tool opt-in, and workspace paths
 - Upload, import, audit, and enable external Agent Skills
 - Feed pasted or uploaded formative text/Markdown files into **Life History**
 - Observe experience count, evolution events, current beliefs, and drive shifts
