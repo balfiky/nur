@@ -149,11 +149,10 @@ system. Legacy browser routes `/admin`, `/persona`, and `/dashboard` redirect
 into this one settings page so there is one place to manage and inspect Nūr.
 
 The chat UI exposes one Settings button. Clicking it opens the full settings
-workspace with section jumps for Overview, Settings, Skills, Observability, and
-Life History. Settings includes runtime, character independence, model, tool
-access, identity, access, channel, and maintenance controls together;
-monitoring is grouped under Observability and the adjacent Life History
-section.
+workspace. The left panel switches between Overview, Settings, Skills,
+Observability, and Life History pages. Settings includes runtime, character
+independence, model, tool access, identity, access, channel, and maintenance
+controls together; monitoring is grouped under Observability and Life History.
 
 The Observability section reads active sessions from the shared runtime manager,
 so Web, Telegram, console, and future channel sessions appear in one place.

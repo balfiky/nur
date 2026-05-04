@@ -319,7 +319,6 @@ class ConfigUpdateRequest(BaseModel):
     pending_intake_ttl_turns: int = Field(3, ge=1, le=20)
     telegram_token: str = ""
     llm_api_key: str = ""
-    minimax_api_key: str = ""
     api_key: str = ""
     cors_origins: list[str] = Field(default_factory=list)
     # Tool settings. ``None`` means "leave unchanged" — without this, a
@@ -332,7 +331,6 @@ class ConfigUpdateRequest(BaseModel):
     shell_tool_enabled: bool | None = None
     clear_telegram_token: bool = False
     clear_llm_api_key: bool = False
-    clear_minimax_api_key: bool = False
     clear_api_key: bool = False
 
 
@@ -357,9 +355,7 @@ class AdminLLMTestRequest(BaseModel):
     llm_base_url: str | None = None
     llm_model: str | None = None
     llm_api_key: str = ""
-    minimax_api_key: str = ""
     clear_llm_api_key: bool = False
-    clear_minimax_api_key: bool = False
     live: bool = False
 
 
@@ -636,7 +632,6 @@ async def update_config(req: ConfigUpdateRequest) -> dict:
         llm_base_url=req.llm_base_url.strip(),
         llm_model=req.llm_model.strip(),
         llm_api_key=existing.llm_api_key,
-        minimax_api_key=existing.minimax_api_key,
         debug_host=req.debug_host.strip() or "127.0.0.1",
         debug_port=req.debug_port,
         proactive_enabled=req.proactive_enabled,
@@ -678,11 +673,6 @@ async def update_config(req: ConfigUpdateRequest) -> dict:
         config.llm_api_key = ""
     elif req.llm_api_key.strip():
         config.llm_api_key = req.llm_api_key.strip()
-
-    if req.clear_minimax_api_key:
-        config.minimax_api_key = ""
-    elif req.minimax_api_key.strip():
-        config.minimax_api_key = req.minimax_api_key.strip()
 
     if req.clear_api_key:
         config.api_key = ""
@@ -766,7 +756,6 @@ async def admin_test_llm(req: AdminLLMTestRequest) -> dict:
         "missing_provider_key",
         "missing_openai_compatible_base_url",
         "missing_openai_compatible_model",
-        "missing_minimax_key",
     }
     llm_warnings = [
         warning for warning in warnings
@@ -1932,7 +1921,6 @@ def _config_payload(
 _SECRET_ENV_VARS = {
     "telegram_token": (),
     "llm_api_key": ("LLM_API_KEY",),
-    "minimax_api_key": ("MINIMAX_API_KEY",),
     "api_key": (),
 }
 
@@ -1948,7 +1936,6 @@ _CONFIG_FIELD_SECTIONS = {
     "llm_base_url": "model",
     "llm_model": "model",
     "llm_api_key": "model",
-    "minimax_api_key": "model",
     "api_key": "access",
     "cors_origins": "access",
     "telegram_token": "channels",
@@ -1980,7 +1967,6 @@ _SESSION_RELOAD_FIELDS = {
     "llm_base_url",
     "llm_model",
     "llm_api_key",
-    "minimax_api_key",
     "proactive_enabled",
     "proactive_idle_threshold",
     "proactive_density_reference",
@@ -2135,7 +2121,7 @@ def _admin_secret_status(config: RuntimeConfig) -> dict[str, dict]:
 
 def _allowed_values_for_field(field_name: str) -> list[str] | None:
     if field_name == "llm_backend":
-        return ["auto", "provider", "openai_compatible", "minimax", "mock"]
+        return ["auto", "provider", "openai_compatible", "mock"]
     if field_name == "autonomy_level":
         return ["off", "assisted", "autonomous", "high_risk"]
     return None
@@ -2156,7 +2142,6 @@ def _admin_config_warnings(config: RuntimeConfig) -> list[dict]:
     backend = config.llm_backend
     secret_status = _admin_secret_status(config)
     has_generic_key = secret_status["llm_api_key"]["configured"]
-    has_minimax_key = secret_status["minimax_api_key"]["configured"]
 
     if backend == "provider":
         if not config.llm_base_url.strip():
@@ -2170,8 +2155,8 @@ def _admin_config_warnings(config: RuntimeConfig) -> list[dict]:
             warnings.append(_warning("error", "llm_base_url", "missing_openai_compatible_base_url", "OpenAI-compatible backend requires llm_base_url."))
         if not config.llm_model.strip():
             warnings.append(_warning("error", "llm_model", "missing_openai_compatible_model", "OpenAI-compatible backend requires llm_model."))
-    elif backend == "minimax" and not has_minimax_key:
-        warnings.append(_warning("error", "minimax_api_key", "missing_minimax_key", "MiniMax backend requires minimax_api_key or MINIMAX_API_KEY."))
+    elif backend == "minimax" and not has_generic_key:
+        warnings.append(_warning("error", "llm_api_key", "missing_provider_key", "Legacy MiniMax backend requires the generic LLM API key."))
 
     if config.tools_enabled and not config.api_key:
         warnings.append(_warning("warning", "tools_enabled", "tools_without_auth", "Agentic tools are enabled with no bearer auth. Keep this instance on a trusted network."))
@@ -2212,12 +2197,11 @@ def _llm_configured(config: RuntimeConfig) -> bool:
     if backend == "openai_compatible":
         return bool(config.llm_base_url.strip() and config.llm_model.strip())
     if backend == "minimax":
-        return secret_status["minimax_api_key"]["configured"]
+        return secret_status["llm_api_key"]["configured"]
     if backend == "auto":
         return bool(
             config.llm_base_url.strip()
             or secret_status["llm_api_key"]["configured"]
-            or secret_status["minimax_api_key"]["configured"]
         )
     return False
 
@@ -2332,14 +2316,13 @@ def _llm_configured_for_draft(config: RuntimeConfig) -> bool:
     if backend in {"provider", "openai_compatible"}:
         return bool(config.llm_base_url.strip() and config.llm_model.strip())
     if backend == "minimax":
-        return bool(config.minimax_api_key or os.environ.get("MINIMAX_API_KEY"))
+        return bool(config.llm_api_key or os.environ.get("LLM_API_KEY"))
     if backend == "auto":
         has_generic = bool(
             config.llm_base_url.strip()
             and config.llm_model.strip()
         )
-        has_minimax = bool(config.minimax_api_key or os.environ.get("MINIMAX_API_KEY"))
-        return has_generic or has_minimax
+        return has_generic or bool(config.llm_api_key or os.environ.get("LLM_API_KEY"))
     return False
 
 
@@ -2640,7 +2623,6 @@ def _looks_unconfigured(config: RuntimeConfig) -> bool:
         and not config.llm_base_url.strip()
         and not config.llm_model.strip()
         and not config.llm_api_key
-        and not config.minimax_api_key
         and not config.telegram_token
         and not config.api_key
         and not config.tools_enabled
@@ -2662,10 +2644,6 @@ def _admin_config_for_llm_test(
         config.llm_api_key = ""
     elif req.llm_api_key.strip():
         config.llm_api_key = req.llm_api_key.strip()
-    if req.clear_minimax_api_key:
-        config.minimax_api_key = ""
-    elif req.minimax_api_key.strip():
-        config.minimax_api_key = req.minimax_api_key.strip()
     return config
 
 
@@ -3031,7 +3009,6 @@ def _redact_error(message: str, config: RuntimeConfig) -> str:
     for secret in (
         config.telegram_token,
         config.llm_api_key,
-        config.minimax_api_key,
         config.api_key,
     ):
         if secret:

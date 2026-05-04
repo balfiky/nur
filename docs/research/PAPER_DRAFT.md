@@ -757,7 +757,7 @@ The command that reproduces the table in §6.4 is:
 
     python -m evals.ablation \
         --backend minimax \
-        --api-key-env MINIMAX_API_KEY \
+        --api-key-env LLM_API_KEY \
         --tag phase11 \
         --report-dir reports/ablation
 
@@ -1027,7 +1027,7 @@ the exact commit recorded in the run's provenance block by invoking:
 
     python -m evals.ablation \
         --backend minimax \
-        --api-key-env MINIMAX_API_KEY \
+        --api-key-env LLM_API_KEY \
         --tag phase11 \
         --report-dir reports/ablation
 

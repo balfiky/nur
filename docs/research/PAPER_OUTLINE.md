@@ -201,7 +201,7 @@ Reproduce the summary from `reports/ablation/summary.json`:
 ### 6.6 Reproducibility
 
 - Git SHA: from `summary.json` → `provenance.git_sha` (populated as of commit `a978477`)
-- Command: `python -m evals.ablation --backend minimax --api-key-env MINIMAX_API_KEY --tag phase11 --report-dir reports/ablation`
+- Command: `python -m evals.ablation --backend minimax --api-key-env LLM_API_KEY --tag phase11 --report-dir reports/ablation`
 - Config fingerprints: 16 prompt/config file SHA256s recorded per run
 - Tracked artifact: `reports/ablation/summary.json` (raw per-variant reports stay local)
 

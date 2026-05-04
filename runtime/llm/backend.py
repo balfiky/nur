@@ -100,14 +100,12 @@ def create_llm_backend(config=None) -> LLMBackend:
         "mock"               → always MockLLMBackend
         "provider"           → generic hosted-provider / gateway backend
         "openai_compatible"  → local/self-hosted compatible backend
-        "minimax"            → legacy MiniMax-specific backend
+        "minimax"            → legacy MiniMax-specific backend using llm_api_key
         "auto"               → generic endpoint if base_url + model configured,
-                               else legacy MiniMax if a MiniMax key is
-                               available, else Mock
+                               else Mock
     """
     backend_type = "auto"
     generic_key = os.environ.get("LLM_API_KEY", "")
-    minimax_key = os.environ.get("MINIMAX_API_KEY", "")
     base_url = ""
     model = ""
 
@@ -116,11 +114,9 @@ def create_llm_backend(config=None) -> LLMBackend:
         base_url = getattr(config, "llm_base_url", "")
         model = getattr(config, "llm_model", "")
         configured_generic_key = getattr(config, "llm_api_key", "")
-        configured_minimax_key = getattr(config, "minimax_api_key", "")
         generic_key = configured_generic_key or generic_key
-        minimax_key = configured_minimax_key or minimax_key
 
-    effective_key = generic_key or minimax_key
+    effective_key = generic_key
 
     if backend_type == "mock":
         return MockLLMBackend()
@@ -145,8 +141,5 @@ def create_llm_backend(config=None) -> LLMBackend:
             model=model,
             api_key=effective_key,
         )
-
-    if backend_type == "auto" and minimax_key:
-        return FastChatCompletionsClient(api_key=minimax_key or None)
 
     return MockLLMBackend()

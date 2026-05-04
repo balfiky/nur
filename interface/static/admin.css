@@ -226,28 +226,16 @@ h4 {
 .status-pill.warn { background: #fffaeb; border-color: #fedf89; color: var(--warning); }
 .status-pill.error { background: #fef3f2; border-color: #fecdca; color: var(--danger); }
 
-.page {
-  display: block;
-  scroll-margin-top: var(--space-6);
-}
+.page { display: none; }
 
-.page + .page {
-  border-top: 1px solid var(--border);
-  margin-top: 2rem;
-  padding-top: 2rem;
+.page.active {
+  display: block;
+  animation: slideUpFade 360ms var(--ease-out) both;
 }
 
 .page.active > .section-heading h2 {
   color: var(--ember-500);
 }
-
-.page.active { animation: slideUpFade 360ms var(--ease-out) both; }
-
-#page-overview { order: 1; }
-#page-settings { order: 2; }
-#page-skills { order: 3; }
-#page-observability { order: 4; }
-#page-life { order: 5; }
 
 .card-grid {
   display: grid;

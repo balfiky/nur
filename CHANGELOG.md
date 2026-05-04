@@ -10,10 +10,10 @@ All notable changes to Project Nur are documented here.
 - Split the chat shell into ES module/CSS surfaces, added sanitized Markdown
   rendering, rem-based spacing and motion tokens, mood-aware contrast, and
   migrated admin/persona/debug/wizard UI rendering to the shared surface model.
-- Consolidated `/admin` into one scrollable command center with section jumps
-  for Overview, Settings, Skills, Observability, and Life History. Character
-  independence now lives with Settings, while persona/runtime monitoring is
-  grouped under Observability.
+- Consolidated the settings/admin surfaces into one workspace with left-panel
+  pages for Overview, Settings, Skills, Observability, and Life History.
+  Character independence now lives with Settings, while persona/runtime
+  monitoring is grouped under Observability.
 - Fixed packaged installs so nested UI modules such as
   `interface/static/lib/shared.js` ship in the wheel, and added no-store cache
   headers for bundled UI assets so browsers do not keep stale menus after an
@@ -21,6 +21,12 @@ All notable changes to Project Nur are documented here.
 - Collapsed the browser chrome to one Settings entry. The chat header now has a
   single settings button that opens `/settings`; legacy `/admin`, `/persona`,
   and `/dashboard` browser routes redirect into the same settings workspace.
+- Removed the dedicated MiniMax API-key field from runtime config, settings UI,
+  readiness checks, and LLM test payloads. Provider keys now use the generic
+  `llm_api_key` path.
+- Restored left-panel navigation in `/settings` to page switching: Overview,
+  Settings, Skills, Observability, and Life History are separate pages inside
+  the single settings workspace.
 
 ### Character independence
 - Implemented the channels-not-gates Life History path: learning intake now has
@@ -463,9 +469,9 @@ of the admin drawer lets users rerun it manually anytime.
 Pydantic defaults (destructive). The wizard works around this by
 fetching the current config via `GET /admin/config`, merging wizard
 fields on top, then POSTing the full payload. Secrets stay empty unless
-the user typed a new value (the server preserves them). `clear_llm_api_key`
-and `clear_minimax_api_key` are set appropriately when switching presets
-so stale keys from the opposite backend don't linger.
+the user typed a new value (the server preserves them). Secret-clear flags
+are set appropriately when switching presets so stale keys from the opposite
+backend don't linger.
 
 ### Files
 - `interface/static/index.html`: added wizard CSS, HTML (new
@@ -811,9 +817,8 @@ route set. No runtime behavior change.
   matching the server-side `RESET <session_key>` /
   `DELETE <platform>:<user_id>` contract.
 - **Eval runner tests.** Added three provider-backend cases covering
-  missing `--base-url`, missing `--model`, and the
-  `LLM_API_KEY` fallback when `MINIMAX_API_KEY` is unset
-  (`tests/test_evals_runner.py`).
+  missing `--base-url`, missing `--model`, and the generic `LLM_API_KEY`
+  fallback (`tests/test_evals_runner.py`).
 
 ### Fixed
 - **SECURITY.md bearer-gated route list.** The explicit enumeration of
@@ -939,7 +944,7 @@ Adds a stable `/v1/*` HTTP surface and a thin Python client so Project Nūr can 
   - `GET /v1/tools` — enumerate registered capabilities.
   - `GET /v1/config` — runtime config with secrets redacted.
 - `interface/client.py` — `NurClient` synchronous Python wrapper (stdlib + `requests`) with typed `NurAPIError`, context-manager support, and one method per endpoint.
-- `runtime/config.py` — new fields `api_key` (bearer token; empty = auth disabled) and `cors_origins` (list; empty = same-origin only). `api_key` joins the secret-redaction set alongside `telegram_token`, `llm_api_key`, and `minimax_api_key`.
+- `runtime/config.py` — new fields `api_key` (bearer token; empty = auth disabled) and `cors_origins` (list; empty = same-origin only). `api_key` joins the secret-redaction set alongside `telegram_token` and `llm_api_key`.
 - `interface/api.py` — mounts the v1 router at app startup, installs CORS middleware driven by `cors_origins`, and extends the `POST /config` schema with `api_key`, `cors_origins`, and `clear_api_key` so the bearer token can be rotated through the settings UI.
 - `tests/test_interface_v1.py` — 26 tests covering every endpoint, the opt-in Bearer middleware, secret redaction, and the `NurClient` error path.
 
@@ -1778,9 +1783,9 @@ Five pre-merge fixes closing spec gaps in the Nūr Runtime.
 ### Fix 2: Config-driven LLM backend (`runtime/config.py`, `runtime/llm/backend.py`, `main.py`)
 - `RuntimeConfig.from_yaml(path)` classmethod loads `runtime_config.yaml` at startup
 - `main.py` now loads config from YAML instead of using defaults
-- `RuntimeConfig` gains `llm_backend` ("auto"/"minimax"/"mock") and `minimax_api_key` fields
+- `RuntimeConfig` gains `llm_backend` ("auto"/"minimax"/"mock") and a provider key field
 - `create_llm_backend(config)` uses config for backend selection, falls back to env var
-- `runtime_config.yaml` updated with `llm_backend`, `minimax_api_key`, `console_enabled` fields
+- `runtime_config.yaml` updated with `llm_backend`, provider key, and `console_enabled` fields
 
 ### Fix 3: Config-driven channel startup (`runtime/app.py`, `runtime/config.py`)
 - `RuntimeConfig` gains `console_enabled: bool = True`

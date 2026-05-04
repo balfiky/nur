@@ -12,13 +12,10 @@ dedupe_ttl: 60.0
 # llm_base_url, llm_model, and llm_api_key.
 # For a local or remote OpenAI-compatible endpoint, set llm_backend to
 # "openai_compatible" and fill llm_base_url and llm_model.
-# Legacy MiniMax path: set llm_backend to "minimax" and provide
-# minimax_api_key.
 llm_backend: mock
 llm_base_url: ''
 llm_model: ''
 llm_api_key: ''
-minimax_api_key: ''
 debug_host: 127.0.0.1
 debug_port: 8077
 proactive_enabled: false

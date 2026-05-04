@@ -20,11 +20,15 @@ def test_clean_web_chat_exposes_debug_panels(uat_server, page):
     expect(assistant_messages).to_have_count(1, timeout=45_000)
     expect(page.locator("#whyBtn")).to_be_enabled()
 
-    page.click("#debugToggle")
-    expect(page.locator("#debugPanel")).to_have_class("debug-panel open")
-    expect(page.locator("#turnExplanation")).to_contain_text("Interpretation")
-    expect(page.locator("#relationshipState")).to_contain_text("Strategy")
-    expect(page.locator("#memoryInspector")).to_contain_text("Relationship")
+    page.click("#whyBtn")
+    expect(assistant_messages).to_have_count(2, timeout=15_000)
+    expect(assistant_messages.nth(1)).to_contain_text("Why this response?")
+
+    page.goto(uat_server.base_url + "/settings#observability")
+    expect(page.locator("#page-observability")).to_be_visible(timeout=15_000)
+    expect(page.locator("#personaAdminPage")).to_contain_text("web:", timeout=15_000)
+    expect(page.locator("#personaAdminPage")).to_contain_text("Mental And Emotional State")
+    expect(page.locator("#personaAdminPage")).to_contain_text("Skills And Tools")
 
     assert_no_browser_errors(page)
 

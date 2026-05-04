@@ -82,7 +82,7 @@ def build_backend_factory(spec: BackendSpec) -> Callable[[], LLMBackend]:
         if not spec.api_key:
             raise MissingBackendConfigError(
                 "--backend minimax requires an API key. Pass --api-key or "
-                "set MINIMAX_API_KEY / LLM_API_KEY in the environment."
+                "set LLM_API_KEY in the environment."
             )
         model = spec.resolved_model
         base_url = spec.resolved_base_url
@@ -124,10 +124,7 @@ def spec_from_args(
     if not resolved_key and backend in {"provider", "openai_compat"}:
         resolved_key = os.environ.get("LLM_API_KEY", "")
     if not resolved_key and backend == "minimax":
-        resolved_key = (
-            os.environ.get("LLM_API_KEY", "")
-            or os.environ.get("MINIMAX_API_KEY", "")
-        )
+        resolved_key = os.environ.get("LLM_API_KEY", "")
     return BackendSpec(
         type=backend,
         requested_model=model,

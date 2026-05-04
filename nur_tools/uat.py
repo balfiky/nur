@@ -68,8 +68,6 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def _default_api_key_env(backend: str) -> str:
-    if backend == "minimax":
-        return "MINIMAX_API_KEY"
     return "LLM_API_KEY"
 
 

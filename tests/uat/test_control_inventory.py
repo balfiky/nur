@@ -12,14 +12,14 @@ def test_chat_and_admin_controls_have_accessible_names(uat_server, page):
     for path, required in [
         (
             "/",
-            ["#msgInput", "#sendBtn", "#whyBtn", "#debugToggle", "a.icon-btn[href='/admin']"],
+            ["#msgInput", "#sendBtn", "#whyBtn", "a.icon-btn[href='/settings']"],
         ),
         (
-            "/admin",
+            "/settings",
             ["#saveBtn", "#refreshAllBtn", "#runtimeForm", "#maintenanceOutput"],
         ),
         (
-            "/admin#persona",
+            "/settings#observability",
             ["#refreshPersonaBtn", "#personaAdminPage"],
         ),
     ]:

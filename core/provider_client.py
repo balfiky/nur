@@ -28,11 +28,7 @@ class ChatCompletionsClient:
         model: str = "MiniMax-M2.7-highspeed",
         thinking: bool = True,
     ) -> None:
-        self._api_key = (
-            api_key
-            or os.environ.get("LLM_API_KEY", "")
-            or os.environ.get("MINIMAX_API_KEY", "")
-        )
+        self._api_key = api_key or os.environ.get("LLM_API_KEY", "")
         safe_base_url = validate_http_url(
             base_url,
             allow_loopback=True,

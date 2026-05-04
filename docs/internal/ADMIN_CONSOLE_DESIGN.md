@@ -150,10 +150,10 @@ while avoiding a hidden assumption about localhost and port 8000.
 
 ### Permanent Admin Console
 
-The permanent console should replace the current drawer/page-hopping layout
-with one scrollable operator workspace. Sidebar navigation should jump to
-sections in the same page so an operator can scan configuration, skills, and
-monitoring without guessing where a control lives:
+The permanent console should replace the small drawer with one Settings entry
+that opens a full operator workspace. The left panel should switch between
+top-level pages so an operator can scan configuration, skills, and monitoring
+without guessing where a control lives:
 
 - **Overview**
   - health, readiness, backend, auth status, Telegram status, tool status
@@ -256,7 +256,7 @@ Validation should be clear and bounded:
   provider as keyless
 - `llm_backend=openai_compatible`: require `llm_base_url` and `llm_model`; key
   optional for local deployments
-- `llm_backend=minimax`: require `minimax_api_key` or `MINIMAX_API_KEY`
+- `llm_backend=minimax`: legacy installs use the generic `llm_api_key`
 - Telegram enabled means `telegram_token` is configured
 - `tools_enabled=true` should warn if `api_key` is empty
 - `shell_tool_enabled=true` should warn unless `tools_enabled=true` and

@@ -9,7 +9,6 @@ from dataclasses import dataclass, field, fields as dc_fields
 _SECRET_FIELDS = {
     "telegram_token",
     "llm_api_key",
-    "minimax_api_key",
     "api_key",
 }
 _LEGACY_FIELD_ALIASES = {
@@ -46,7 +45,6 @@ class RuntimeConfig:
     llm_base_url: str = ""         # API endpoint for OpenAI-compatible backends
     llm_model: str = ""            # model name for OpenAI-compatible backends
     llm_api_key: str = ""          # generic API key (optional for local endpoints)
-    minimax_api_key: str = ""      # provider-specific alias / fallback
 
     # Debug API
     debug_host: str = "127.0.0.1"

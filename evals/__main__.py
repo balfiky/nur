@@ -54,7 +54,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--api-key-env",
         default="",
-        help="Name of env var to read the API key from (e.g. MINIMAX_API_KEY)",
+        help="Name of env var to read the API key from (e.g. LLM_API_KEY)",
     )
     # --temperature and --max-tokens were previously accepted but never
     # propagated to the backend request payloads. Removed to stop recording

@@ -80,11 +80,11 @@ persona view, relationship view, deterministic "Why this response?"
 explanation, known state deltas, and compact current-turn memory summaries.
 These are presentation surfaces over the pipeline's state, not separate
 cognition.
-The standalone `/persona` dashboard, also available as `/dashboard`, uses the
-same runtime-owned state outside the chat interface: it lists active sessions
-from Web, Telegram, console, or future channels and renders the selected
-session's emotional, perception, relationship, Life, memory, skills, tools, and
-explanation state.
+The `/settings#observability` page uses the same runtime-owned state outside
+the chat interface: it lists active sessions from Web, Telegram, console, or
+future channels and renders the selected session's emotional, perception,
+relationship, Life, memory, skills, tools, and explanation state. Legacy
+`/persona` and `/dashboard` browser routes redirect there.
 Telegram mirrors that principle with non-mutating introspection commands
 (`/state`, `/why`, `/memory`, `/loops`, `/repair`, `/persona`) that read
 active-session debug state without creating sessions or changing cognition.

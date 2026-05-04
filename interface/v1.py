@@ -178,13 +178,11 @@ def build_v1_router(
     async def ready() -> dict[str, Any]:
         cfg = config_getter()
         mgr = get_manager()
-        env_has_key = bool(
-            os.environ.get("LLM_API_KEY") or os.environ.get("MINIMAX_API_KEY")
-        )
+        env_has_key = bool(os.environ.get("LLM_API_KEY"))
         return {
             "status": "ready",
             "llm_backend": cfg.llm_backend,
-            "has_llm_key": bool(cfg.llm_api_key or cfg.minimax_api_key or env_has_key),
+            "has_llm_key": bool(cfg.llm_api_key or env_has_key),
             "auth_enabled": bool(cfg.api_key),
             "active_sessions": len(mgr.active_sessions),
             "max_active_sessions": cfg.max_active_sessions,

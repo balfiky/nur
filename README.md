@@ -13,7 +13,7 @@
   <a href="https://github.com/balfiky/nur/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/balfiky/nur/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-F5A65B?style=for-the-badge" alt="MIT License"></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/python-3.10%2B-7A4A8C?style=for-the-badge" alt="Python 3.10+"></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.28.9-1A1428?style=for-the-badge" alt="Version"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.28.10-1A1428?style=for-the-badge" alt="Version"></a>
 </p>
 
 Most assistants reset to zero every turn. **Nūr keeps the room lit.**
@@ -220,7 +220,6 @@ The setup wizard or `/settings` workspace is the preferred path.
 | `mock` | Offline/local testing with deterministic mock responses |
 | `provider` | Hosted OpenAI-compatible gateways |
 | `openai_compatible` | Local/remote servers (Ollama, LM Studio, vLLM) |
-| `minimax` | Legacy MiniMax-specific path |
 | `auto` | Compatibility fallback; warns when no LLM is configured |
 
 Runtime config is `runtime_config.yaml` in the current working directory. Identity is `config/soul.yaml`, or `$NUR_CONFIG_DIR/soul.yaml` when the override is set.

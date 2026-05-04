@@ -98,7 +98,7 @@ class TestHealthAndReady:
         assert "auth_enabled" in data
 
     def test_ready_reports_env_backed_llm_key(self, client, monkeypatch):
-        monkeypatch.setenv("MINIMAX_API_KEY", "env-key")
+        monkeypatch.setenv("LLM_API_KEY", "env-key")
 
         resp = client.get("/v1/ready")
 

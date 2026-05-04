@@ -94,7 +94,6 @@ def test_tools_toggle_and_read_only_tool_execution(uat_server, page):
                 "tools_enabled": False,
                 "telegram_token": "",
                 "llm_api_key": "",
-                "minimax_api_key": "",
                 "api_key": "",
             },
         )
@@ -126,7 +125,6 @@ def test_tools_toggle_and_read_only_tool_execution(uat_server, page):
                 "tools_workspace": str(workspace),
                 "telegram_token": "",
                 "llm_api_key": "",
-                "minimax_api_key": "",
                 "api_key": "",
             },
         )
@@ -146,7 +144,7 @@ def test_tools_toggle_and_read_only_tool_execution(uat_server, page):
 
 
 def test_restart_required_config_fields_are_reported_in_ui(uat_server, page):
-    page.goto(uat_server.base_url + "/admin#runtime")
+    page.goto(uat_server.base_url + "/settings#runtime")
     expect(page.locator("#page-settings")).to_be_visible()
     expect(page.locator("#settings-runtime")).to_have_attribute("open", "")
     page.locator("#settings-runtime details.advanced-settings summary").click()

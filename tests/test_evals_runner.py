@@ -108,8 +108,7 @@ class TestSpecFromArgs:
         assert spec.api_key == "from-arg"
 
     def test_fallback_env_vars_for_minimax(self, monkeypatch):
-        monkeypatch.delenv("LLM_API_KEY", raising=False)
-        monkeypatch.setenv("MINIMAX_API_KEY", "mm-key")
+        monkeypatch.setenv("LLM_API_KEY", "generic-key")
         spec = spec_from_args(
             backend="minimax",
             model="",
@@ -117,10 +116,9 @@ class TestSpecFromArgs:
             api_key="",
             api_key_env="",
         )
-        assert spec.api_key == "mm-key"
+        assert spec.api_key == "generic-key"
 
     def test_provider_falls_back_to_llm_api_key(self, monkeypatch):
-        monkeypatch.delenv("MINIMAX_API_KEY", raising=False)
         monkeypatch.setenv("LLM_API_KEY", "generic-key")
         spec = spec_from_args(
             backend="provider",

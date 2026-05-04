@@ -14,23 +14,26 @@ pytestmark = pytest.mark.uat
 
 ADMIN_PAGES = [
     "overview",
-    "persona",
     "settings",
     "skills",
+    "observability",
     "life",
 ]
 
 
 def test_admin_pages_and_core_options_are_operable(uat_server, page):
-    page.goto(uat_server.base_url + "/admin")
+    page.goto(uat_server.base_url + "/settings")
     expect(page.locator("#overviewCards .card")).to_have_count(8, timeout=15_000)
 
     for page_name in ADMIN_PAGES:
         page.click(f".nav-item[data-page='{page_name}']")
         expect(page.locator(f"#page-{page_name}")).to_be_visible()
-        expect(page.locator("#pageTitle")).to_contain_text(page_name.title())
+        visible_pages = page.locator(".page").evaluate_all(
+            "(els) => els.filter((el) => getComputedStyle(el).display !== 'none').map((el) => el.id)"
+        )
+        assert visible_pages == [f"page-{page_name}"]
 
-    page.goto(uat_server.base_url + "/admin#runtime")
+    page.goto(uat_server.base_url + "/settings#runtime")
     expect(page.locator("#page-settings")).to_be_visible()
     expect(page.locator("#settings-runtime")).to_have_attribute("open", "")
     page.locator("#settings-runtime details.advanced-settings summary").click()
@@ -42,7 +45,7 @@ def test_admin_pages_and_core_options_are_operable(uat_server, page):
     assert config_payload["config"]["max_queue_per_user"] == 4
     assert config_payload["apply_state"]["restart_required"] is False
 
-    page.goto(uat_server.base_url + "/admin#maintenance")
+    page.goto(uat_server.base_url + "/settings#maintenance")
     expect(page.locator("#page-settings")).to_be_visible()
     expect(page.locator("#settings-maintenance")).to_have_attribute("open", "")
     page.click("#diagnosticsBtn")

@@ -18,9 +18,9 @@ def test_persona_dashboard_reads_runtime_sessions_across_channels(uat_server, pa
         },
     ))
 
-    page.goto(uat_server.base_url + "/admin#persona")
+    page.goto(uat_server.base_url + "/settings#observability")
 
-    expect(page.locator("#page-persona")).to_be_visible(timeout=15_000)
+    expect(page.locator("#page-observability")).to_be_visible(timeout=15_000)
     expect(page.locator("#personaAdminPage")).to_contain_text("web:uat_persona:webtab")
     expect(page.locator("#personaAdminPage")).to_contain_text("Mental And Emotional State")
     expect(page.locator("#personaAdminPage .persona-mod-row")).to_have_count(6)

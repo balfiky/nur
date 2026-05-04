@@ -62,7 +62,7 @@ class TestLLMClient:
         with pytest.raises(Exception, match="Internal Server Error"):
             client.generate("sys", "msg")
 
-    @patch.dict("os.environ", {"MINIMAX_API_KEY": "env-key"})
+    @patch.dict("os.environ", {"LLM_API_KEY": "env-key"})
     def test_api_key_from_env(self):
         client = ChatCompletionsClient()  # no explicit key
         assert client._session.headers["Authorization"] == "Bearer env-key"

@@ -24,7 +24,7 @@ Return three bullets: context, action, and verification.
 
 
 def test_admin_skills_import_enable_and_tools_inventory(uat_server, page):
-    page.goto(uat_server.base_url + "/admin#skills")
+    page.goto(uat_server.base_url + "/settings#skills")
     expect(page.locator("#page-skills")).to_be_visible()
 
     page.fill("#skillNameHint", "uat-note-keeper")
@@ -40,7 +40,7 @@ def test_admin_skills_import_enable_and_tools_inventory(uat_server, page):
     skills_payload = expect_json(uat_server.get("/admin/skills"))
     assert any(item["id"] == "uat-note-keeper" and item["enabled"] for item in skills_payload["skills"])
 
-    page.goto(uat_server.base_url + "/admin#tools")
+    page.goto(uat_server.base_url + "/settings#tools")
     expect(page.locator("#page-settings")).to_be_visible()
     expect(page.locator("#settings-tools")).to_have_attribute("open", "")
     expect(page.locator("#toolsSummary")).to_contain_text("Total", timeout=15_000)
@@ -66,7 +66,7 @@ def test_claude_style_skill_folder_zip_and_enabled_context(uat_server, page, tmp
     assert "web.fetch" in path_import["compatibility"]["required_tools"]
 
     zip_path = zip_directory(source, tmp_path / "claude-video-helper.zip")
-    page.goto(uat_server.base_url + "/admin#skills")
+    page.goto(uat_server.base_url + "/settings#skills")
     expect(page.locator("#page-skills")).to_be_visible()
     page.set_input_files("#skillUpload", str(zip_path))
     page.click("#importSkillBtn")
@@ -118,7 +118,7 @@ def test_conversation_cannot_fake_permanent_skill_creation(tmp_path):
 
 
 def test_admin_life_history_ingest_is_visible_in_ui_and_api(uat_server, page):
-    page.goto(uat_server.base_url + "/admin#life")
+    page.goto(uat_server.base_url + "/settings#life")
     expect(page.locator("#page-life")).to_be_visible()
 
     page.fill("#lifeTextTitle", "UAT formative note")

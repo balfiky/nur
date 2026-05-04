@@ -7,19 +7,21 @@ from interface import api as interface_api
 
 
 class TestAdminConsoleStatic:
-    def test_admin_route_serves_full_console(self):
-        resp = interface_api.admin_index()
+    def test_settings_route_serves_full_console(self):
+        resp = interface_api.settings_index()
         html = resp.body.decode()
 
         assert resp.status_code == 200
-        assert "Nūr Admin" in html
+        assert "Nūr Settings" in html
         assert 'href="/admin/assets/admin.css"' in html
         assert 'src="/admin/assets/admin.js"' in html
-        assert "Operator Workspace" in html
+        assert "Instance Workspace" in html
         assert "Persona Overview" in html
         assert 'id="overviewPersona"' in html
-        assert 'data-page="persona"' in html
-        assert 'id="page-persona"' in html
+        assert 'data-page="persona"' not in html
+        assert 'id="page-persona"' not in html
+        assert 'data-page="observability"' in html
+        assert 'id="page-observability"' in html
         assert 'id="personaAdminPage"' in html
         assert "Settings" in html
         assert 'id="page-settings"' in html
@@ -39,16 +41,19 @@ class TestAdminConsoleStatic:
         assert 'id="lifeTimeline"' in html
         assert 'id="lifeExperiences"' in html
         assert 'id="rollbackLifeBatchBtn"' not in html
-        assert "Open Persona" in html
+        assert "Jump to Observability" in html
 
-    def test_persona_route_redirects_to_admin_persona_section(self):
+    def test_legacy_routes_redirect_to_settings_workspace(self):
+        admin = interface_api.admin_index()
         resp = interface_api.persona_index()
         alias = interface_api.dashboard_index()
 
+        assert admin.status_code == 307
         assert resp.status_code == 307
         assert alias.status_code == 307
-        assert resp.headers["location"] == "/admin#persona"
-        assert alias.headers["location"] == "/admin#persona"
+        assert admin.headers["location"] == "/settings"
+        assert resp.headers["location"] == "/settings#observability"
+        assert alias.headers["location"] == "/settings#observability"
 
     def test_admin_assets_are_whitelisted(self):
         css = interface_api.admin_asset("admin.css")

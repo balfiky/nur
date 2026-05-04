@@ -64,7 +64,6 @@ jobs:
       )
     env:
       LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-      MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
       NUR_UAT_BACKEND: ${{ vars.NUR_UAT_BACKEND }}
       NUR_UAT_MODEL: ${{ vars.NUR_UAT_MODEL }}
       NUR_UAT_BASE_URL: ${{ vars.NUR_UAT_BASE_URL }}
@@ -91,11 +90,7 @@ jobs:
           backend="${NUR_UAT_BACKEND:-openai_compatible}"
           key_env="${NUR_UAT_API_KEY_ENV:-}"
           if [ -z "$key_env" ]; then
-            if [ "$backend" = "minimax" ]; then
-              key_env="MINIMAX_API_KEY"
-            else
-              key_env="LLM_API_KEY"
-            fi
+            key_env="LLM_API_KEY"
           fi
           if [ -z "${!key_env}" ]; then
             echo "::error::Live UAT requires \$$key_env. Configure repository secrets/variables or run trusted PRs only."

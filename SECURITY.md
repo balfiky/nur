@@ -43,7 +43,7 @@ extra scrutiny:
   excerpts can be persisted as evidence for belief/drive changes.
 - `runtime_config.yaml` — may contain API keys. The secret fields
   (enumerated in `runtime/config.py:_SECRET_FIELDS`) are `telegram_token`,
-  `llm_api_key`, `minimax_api_key`, and `api_key`. Keep real values out of
+  `llm_api_key`, and `api_key`. Keep real values out of
   committed files; use `runtime_config.example.yaml` as the tracked starter
   and inject real values locally or via environment variables.
 - `interface/api.py` and `interface/v1.py` — CORS and bearer-auth handling.

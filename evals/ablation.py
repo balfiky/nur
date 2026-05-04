@@ -23,7 +23,7 @@ Usage:
       --report-dir reports/ablation/
 
     python -m evals.ablation --backend minimax \\
-      --api-key-env MINIMAX_API_KEY --tag phase11 \\
+      --api-key-env LLM_API_KEY --tag phase11 \\
       --report-dir reports/ablation/
 
 The command prints a summary comparison table and writes:

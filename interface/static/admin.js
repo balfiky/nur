@@ -17,7 +17,7 @@ const state = createSurfaceState({
     activePage: "overview",
 }, {});
 
-  const secretFields = new Set(["telegram_token", "llm_api_key", "minimax_api_key", "api_key"]);
+  const secretFields = new Set(["telegram_token", "llm_api_key", "api_key"]);
   const listFields = new Set(["telegram_allowlist", "cors_origins"]);
   const advancedConfigFields = new Set([
     "data_dir",
@@ -66,7 +66,6 @@ const state = createSurfaceState({
       ["llm_base_url", "LLM Base URL", "text", true],
       ["llm_model", "LLM Model", "text"],
       ["llm_api_key", "LLM API Key", "secret"],
-      ["minimax_api_key", "MiniMax API Key", "secret"],
     ],
     tools: [
       ["tools_enabled", "Agentic Tools", "boolean"],
@@ -111,7 +110,6 @@ const state = createSurfaceState({
     "pending_intake_ttl_turns",
     "telegram_token",
     "llm_api_key",
-    "minimax_api_key",
     "api_key",
     "cors_origins",
     "tools_enabled",
@@ -319,7 +317,7 @@ const state = createSurfaceState({
   }
 
   function selectDefaults(name) {
-    if (name === "llm_backend") return ["auto", "provider", "openai_compatible", "minimax", "mock"];
+    if (name === "llm_backend") return ["auto", "provider", "openai_compatible", "mock"];
     if (name === "autonomy_level") return ["off", "assisted", "autonomous", "high_risk"];
     return [];
   }
@@ -1343,7 +1341,6 @@ const state = createSurfaceState({
           llm_base_url: payload.llm_base_url,
           llm_model: payload.llm_model,
           llm_api_key: payload.llm_api_key,
-          minimax_api_key: payload.minimax_api_key,
           live: true,
         }),
       });

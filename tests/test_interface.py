@@ -264,6 +264,7 @@ class TestIndexPage:
 
     async def test_has_v2_sections(self):
         html = index().body.decode()
+        js = interface_api.brand_asset("chat.js").body.decode()
         assert "Anticipation" in html
         assert "Inner Dialogue" in html
         assert "Defense" in html
@@ -273,26 +274,27 @@ class TestIndexPage:
         assert "Why This Response?" in html
         assert "What Nūr Remembers" in html
         assert 'id="personaPanel"' in html
-        assert "updatePersonaPanel" in html
-        assert 'href="/admin#persona" title="Persona dashboard"' in html
+        assert "updatePersonaPanel" in js
+        assert 'href="/settings" title="Settings"' in html
         assert 'id="delta-arousal"' in html
-        assert "updateRelationshipState" in html
-        assert "updateMemoryInspector" in html
+        assert "updateRelationshipState" in js
+        assert "updateMemoryInspector" in js
         assert "Settings" in html
         assert "Save" in html
 
     async def test_has_admin_console_hooks(self):
         html = index().body.decode()
+        js = interface_api.brand_asset("chat.js").body.decode()
         assert "Admin" in html
-        assert "/admin/config" in html
-        assert "/admin/test/llm" in html
-        assert "/admin/test/telegram" in html
-        assert "/admin/test/storage" in html
-        assert "/admin/diagnostics" in html
-        assert "/admin/export/config" in html
-        assert "/admin/backup" in html
-        assert "/admin/sessions/reset" in html
-        assert "/admin/users/delete" in html
+        assert "/admin/config" in js
+        assert "/admin/test/llm" in js
+        assert "/admin/test/telegram" in js
+        assert "/admin/test/storage" in js
+        assert "/admin/diagnostics" in js
+        assert "/admin/export/config" in js
+        assert "/admin/backup" in js
+        assert "/admin/sessions/reset" in js
+        assert "/admin/users/delete" in js
         assert "Agentic Tools" in html
         assert "cfg-autonomy_level" in html
         assert "High-risk local" in html
@@ -300,52 +302,49 @@ class TestIndexPage:
         assert "Delete User Data" in html
         assert "Mark first-run setup complete" in html
         assert '<link rel="icon" href="data:,' in html
-        assert "clearGenericKey" in html
-        assert "hosted:      { backend: 'openai_compatible'" in html
-        assert "Hosted OpenAI-compatible gateway" in html
-        assert "live: true" in html
-        assert "['local', 'vllm', 'hosted'].includes(wizardPreset)" in html
-        assert "loadSettings({ loadSoul: false })" in html
+        assert "clearGenericKey" in js
+        assert "hosted:      { backend: 'openai_compatible'" in js
+        assert "Hosted OpenAI-compatible gateway" in js
+        assert "live: true" in js
+        assert "['local', 'vllm', 'hosted'].includes(wizardPreset)" in js
+        assert "loadSettings({ loadSoul: false })" in js
         assert "Character Mode" in html
         assert 'id="wiz-soul-name" type="text" value="Nūr"' in html
         assert "First Experience" in html
-        assert "wizardBuildSoulPayload" in html
-        assert "/admin/life/experiences/text" in html
-        assert "/admin/life/experiences/upload" in html
+        assert "wizardBuildSoulPayload" in js
+        assert "/admin/life/experiences/text" in js
+        assert "/admin/life/experiences/upload" in js
 
     async def test_static_shell_has_accessibility_and_metadata_hooks(self):
         html = index().body.decode()
+        js = interface_api.brand_asset("chat.js").body.decode()
         assert '<meta name="description"' in html
         assert '<header class="header">' in html
         assert '<main class="main">' in html
-        assert 'href="/admin" title="Admin console"' in html
-        assert 'aria-label="Open persona dashboard"' in html
+        assert 'href="/settings" title="Settings"' in html
+        assert 'aria-label="Open settings"' in html
         assert '<h1 class="empty-title" id="emptyTitle">' in html
         assert 'id="msgInput"' in html
         assert 'aria-label="Message composer"' in html
         assert 'id="sendBtn"' in html
         assert 'aria-label="Send message"' in html
-        assert 'id="sendBtn" onclick="sendMessage()" aria-label="Send message" disabled' in html
-        assert "function updateSendButtonState()" in html
+        assert 'id="sendBtn" data-action="send-message" aria-label="Send message" disabled' in html
+        assert "function updateSendButtonState()" in js
 
     async def test_favicon_returns_body(self):
         resp = await favicon()
         assert resp.status_code == 200
         assert resp.body
 
-    async def test_admin_route_serves_same_shell(self):
+    async def test_admin_route_redirects_to_settings(self):
         resp = interface_api.admin_index()
-        html = resp.body.decode()
-        assert resp.status_code == 200
-        assert "Nūr" in html
-        assert "Admin" in html
-        assert "Apply Saved Config" in html
-        assert "Restart Web Server" in html
+        assert resp.status_code == 307
+        assert resp.headers["location"] == "/settings"
 
-    async def test_persona_route_redirects_to_admin_persona_section(self):
+    async def test_persona_route_redirects_to_settings_observability(self):
         resp = interface_api.persona_index()
         assert resp.status_code == 307
-        assert resp.headers["location"] == "/admin#persona"
+        assert resp.headers["location"] == "/settings#observability"
 
 
 class TestPersonaDashboard:
@@ -400,7 +399,6 @@ class TestConfigEndpoint:
         RuntimeConfig(
             telegram_token="secret-token",
             llm_api_key="generic-key",
-            minimax_api_key="minimax-key",
             telegram_allowlist={"123", "456"},
             llm_backend="openai_compatible",
             llm_model="demo-model",
@@ -411,10 +409,8 @@ class TestConfigEndpoint:
 
         assert data["config"]["telegram_token"] == ""
         assert data["config"]["llm_api_key"] == ""
-        assert data["config"]["minimax_api_key"] == ""
         assert data["secret_status"]["telegram_token"] is True
         assert data["secret_status"]["llm_api_key"] is True
-        assert data["secret_status"]["minimax_api_key"] is True
         assert data["config"]["telegram_allowlist"] == ["123", "456"]
 
     async def test_update_config_preserves_secret_when_blank(self, monkeypatch, tmp_path):
@@ -976,9 +972,8 @@ class TestAdminSoulDraft:
         runtime_cfg_path = tmp_path / "runtime_config.yaml"
         monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(runtime_cfg_path))
         RuntimeConfig(llm_backend="auto").write_yaml(str(runtime_cfg_path))
-        # No LLM_API_KEY / MINIMAX_API_KEY env either.
+        # No generic LLM key in the environment either.
         monkeypatch.delenv("LLM_API_KEY", raising=False)
-        monkeypatch.delenv("MINIMAX_API_KEY", raising=False)
 
         with pytest.raises(HTTPException) as exc:
             await admin_draft_soul(

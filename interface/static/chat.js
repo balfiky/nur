@@ -701,12 +701,11 @@ async function saveSettings() {
     proactive_check_interval: gf('cfg-proactive_check_interval'),
     character_independence: gb('cfg-character_independence'), coherence_min_score: gf('cfg-coherence_min_score'),
     coherence_max_regenerations: gi('cfg-coherence_max_regenerations'), pending_intake_ttl_turns: gi('cfg-pending_intake_ttl_turns'),
-    telegram_token: gv('cfg-telegram_token'), llm_api_key: gv('cfg-llm_api_key'), minimax_api_key: gv('cfg-minimax_api_key'),
+    telegram_token: gv('cfg-telegram_token'), llm_api_key: gv('cfg-llm_api_key'),
     api_key: gv('cfg-api_key'),
     setup_completed: document.getElementById('cfg-setup_completed').checked,
     clear_telegram_token: document.getElementById('cfg-clear_telegram_token').checked,
     clear_llm_api_key: document.getElementById('cfg-clear_llm_api_key').checked,
-    clear_minimax_api_key: document.getElementById('cfg-clear_minimax_api_key').checked,
     clear_api_key: document.getElementById('cfg-clear_api_key').checked,
   };
   try {
@@ -741,12 +740,12 @@ function applySettings(payload) {
   sv('cfg-coherence_max_regenerations', c.coherence_max_regenerations??2);
   sv('cfg-pending_intake_ttl_turns', c.pending_intake_ttl_turns??3);
   sv('cfg-telegram_allowlist', (c.telegram_allowlist||[]).join('\n'));
-  sv('cfg-telegram_token',''); sv('cfg-llm_api_key',''); sv('cfg-minimax_api_key',''); sv('cfg-api_key','');
-  ['cfg-clear_telegram_token','cfg-clear_llm_api_key','cfg-clear_minimax_api_key','cfg-clear_api_key'].forEach(id => document.getElementById(id).checked = false);
+  sv('cfg-telegram_token',''); sv('cfg-llm_api_key',''); sv('cfg-api_key','');
+  ['cfg-clear_telegram_token','cfg-clear_llm_api_key','cfg-clear_api_key'].forEach(id => document.getElementById(id).checked = false);
   const ss = payload.secret_status || {};
   const meta = {};
   for (const f of payload.field_metadata || []) meta[f.name] = f;
-  ['telegram_token','llm_api_key','minimax_api_key','api_key'].forEach(k => {
+  ['telegram_token','llm_api_key','api_key'].forEach(k => {
     const el = document.getElementById('cfg-status-' + k);
     if (!el) return;
     const detail = meta[k]?.secret_status;
@@ -779,9 +778,8 @@ function applySettings(payload) {
 async function testLLM() {
   await runAdminTest('llm', '/admin/test/llm', {
     llm_backend: gv('cfg-llm_backend'), llm_base_url: gv('cfg-llm_base_url'), llm_model: gv('cfg-llm_model'),
-    llm_api_key: gv('cfg-llm_api_key'), minimax_api_key: gv('cfg-minimax_api_key'),
+    llm_api_key: gv('cfg-llm_api_key'),
     clear_llm_api_key: document.getElementById('cfg-clear_llm_api_key').checked,
-    clear_minimax_api_key: document.getElementById('cfg-clear_minimax_api_key').checked,
     live: true,
   });
 }
@@ -1000,8 +998,7 @@ function updateSoulDraftAvailability() {
   if (!btn || !hint) return;
   const backend = gv('cfg-llm_backend');
   const hasConfig = !!(gv('cfg-llm_base_url') && gv('cfg-llm_model')) ||
-    backend === 'mock' ||
-    backend === 'minimax';
+    backend === 'mock';
   btn.disabled = !hasConfig;
   if (hasConfig) {
     hint.textContent = 'Uses your current LLM backend (' + (backend || 'auto') + '). Review the draft before saving.';
@@ -1287,9 +1284,7 @@ async function wizardTestLLM() {
         llm_base_url: gv('wiz-llm_base_url'),
         llm_model: gv('wiz-llm_model'),
         llm_api_key: gv('wiz-llm_api_key'),
-        minimax_api_key: '',
         clear_llm_api_key: false,
-        clear_minimax_api_key: false,
         live: true,
       }),
     });
@@ -1329,12 +1324,10 @@ async function wizardSaveLLM() {
       llm_base_url: wizardPreset === 'mock' ? '' : gv('wiz-llm_base_url'),
       llm_model: wizardPreset === 'mock' ? '' : gv('wiz-llm_model'),
       llm_api_key: apiKey,
-      minimax_api_key: '',
       telegram_token: '',
       api_key: '',
       clear_telegram_token: false,
       clear_llm_api_key: clearGenericKey,
-      clear_minimax_api_key: true,
       clear_api_key: false,
     });
     const res = await authedFetch('/admin/config', {
@@ -1383,10 +1376,8 @@ async function wizardSaveRuntimeChannels() {
       tools_workspace: gv('wiz-tools_workspace'),
       shell_tool_enabled: gb('wiz-shell_tool_enabled'),
       llm_api_key: '',
-      minimax_api_key: '',
       clear_telegram_token: false,
       clear_llm_api_key: false,
-      clear_minimax_api_key: false,
       clear_api_key: false,
     });
     const res = await authedFetch('/admin/config', {
@@ -1562,9 +1553,9 @@ async function wizardFinish() {
     if (!cur.ok) throw new Error(curJson.detail || 'HTTP ' + cur.status);
     const payload = Object.assign({}, curJson.config || {}, {
       setup_completed: true,
-      telegram_token: '', llm_api_key: '', minimax_api_key: '', api_key: '',
+      telegram_token: '', llm_api_key: '', api_key: '',
       clear_telegram_token: false, clear_llm_api_key: false,
-      clear_minimax_api_key: false, clear_api_key: false,
+      clear_api_key: false,
     });
     const res = await authedFetch('/admin/config', {
       method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload),

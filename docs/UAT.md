@@ -81,7 +81,7 @@ nur-uat \
 MiniMax example:
 
 ```bash
-export MINIMAX_API_KEY=...
+export LLM_API_KEY=...
 nur-uat \
   --live \
   --backend minimax \
@@ -110,8 +110,8 @@ Run live UAT in CI by either:
 
 Live UAT has no mock fallback. It requires repository variables such as
 `NUR_UAT_BACKEND`, `NUR_UAT_MODEL`, and `NUR_UAT_BASE_URL`, plus the matching
-secret selected by `NUR_UAT_API_KEY_ENV` or the default `LLM_API_KEY` /
-`MINIMAX_API_KEY`. Pull requests from forks may not have access to those
+secret selected by `NUR_UAT_API_KEY_ENV` or the default `LLM_API_KEY`.
+Pull requests from forks may not have access to those
 secrets, so run `nur-uat --live` locally or through a trusted branch before
 release.
 

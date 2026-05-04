@@ -41,7 +41,6 @@ class TestConfigFromYaml:
                     "llm_model: Local/ReasoningModel\n"
                     "llm_api_key: local-key\n"
                     "llm_backend: minimax\n"
-                    "minimax_api_key: sk-test\n"
                     "autonomy_level: high_risk\n"
                     "character_independence: true\n"
                     "coherence_min_score: 0.5\n"
@@ -62,7 +61,6 @@ class TestConfigFromYaml:
             assert config.llm_model == "Local/ReasoningModel"
             assert config.llm_api_key == "local-key"
             assert config.llm_backend == "minimax"
-            assert config.minimax_api_key == "sk-test"
             assert config.autonomy_level == "high_risk"
             assert config.character_independence is True
             assert config.coherence_min_score == 0.5
@@ -245,41 +243,39 @@ class TestBackendSelection:
 
     def test_mock_backend_forced_even_with_key(self):
         """llm_backend='mock' overrides even when API key is present."""
-        config = RuntimeConfig(llm_backend="mock", minimax_api_key="sk-test")
+        config = RuntimeConfig(llm_backend="mock", llm_api_key="sk-test")
         backend = create_llm_backend(config)
         assert isinstance(backend, MockLLMBackend)
 
     def test_auto_without_key_returns_mock(self, monkeypatch):
         """llm_backend='auto' with no API key returns MockLLMBackend."""
-        monkeypatch.delenv("MINIMAX_API_KEY", raising=False)
         monkeypatch.delenv("LLM_API_KEY", raising=False)
-        config = RuntimeConfig(llm_backend="auto", minimax_api_key="")
+        config = RuntimeConfig(llm_backend="auto")
         backend = create_llm_backend(config)
         assert isinstance(backend, MockLLMBackend)
 
     def test_auto_with_generic_key_but_no_endpoint_returns_mock(self, monkeypatch):
         """A generic key alone is not enough to guess a provider endpoint."""
-        monkeypatch.delenv("MINIMAX_API_KEY", raising=False)
         monkeypatch.delenv("LLM_API_KEY", raising=False)
         config = RuntimeConfig(llm_backend="auto", llm_api_key="generic-key")
         backend = create_llm_backend(config)
         assert isinstance(backend, MockLLMBackend)
 
     def test_minimax_backend_with_config_key(self):
-        """Explicit MiniMax config returns the fast MiniMax client."""
-        config = RuntimeConfig(llm_backend="minimax", minimax_api_key="sk-test")
+        """Explicit legacy MiniMax config uses the generic LLM API key."""
+        config = RuntimeConfig(llm_backend="minimax", llm_api_key="sk-test")
         backend = create_llm_backend(config)
         assert isinstance(backend, FastChatCompletionsClient)
 
     def test_no_config_falls_back_to_env(self, monkeypatch):
-        """Without config, uses MINIMAX_API_KEY env var."""
-        monkeypatch.delenv("MINIMAX_API_KEY", raising=False)
+        """Without config, no provider-specific key fallback is used."""
+        monkeypatch.delenv("LLM_API_KEY", raising=False)
         backend = create_llm_backend()
         assert isinstance(backend, MockLLMBackend)
 
     def test_none_config_falls_back_to_env(self, monkeypatch):
         """config=None uses env var only."""
-        monkeypatch.delenv("MINIMAX_API_KEY", raising=False)
+        monkeypatch.delenv("LLM_API_KEY", raising=False)
         backend = create_llm_backend(None)
         assert isinstance(backend, MockLLMBackend)
 
