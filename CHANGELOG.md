@@ -14,6 +14,10 @@ All notable changes to Project Nur are documented here.
   for Overview, Settings, Skills, Observability, and Life History. Character
   independence now lives with Settings, while persona/runtime monitoring is
   grouped under Observability.
+- Fixed packaged installs so nested UI modules such as
+  `interface/static/lib/shared.js` ship in the wheel, and added no-store cache
+  headers for bundled UI assets so browsers do not keep stale menus after an
+  upgrade.
 
 ### Character independence
 - Implemented the channels-not-gates Life History path: learning intake now has

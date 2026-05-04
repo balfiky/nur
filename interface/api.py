@@ -190,6 +190,7 @@ _HTML_SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "same-origin",
     "X-Frame-Options": "DENY",
+    "Cache-Control": "no-store",
     "Content-Security-Policy": (
         "default-src 'self'; "
         "connect-src 'self' http://127.0.0.1:* http://localhost:*; "

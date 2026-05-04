@@ -1,6 +1,6 @@
 [project]
 name = "project-nur"
-version = "0.28.7"
+version = "0.28.8"
 description = "Experimental AI assistant runtime with persistent emotional memory"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -95,7 +95,7 @@ exclude = ["tests*", "data*", "storage*", "reports*"]
 # these, a pip-installed wheel ships Python but no UI shell, no modulator
 # configs, and no prompt templates — so the server would crash on first
 # request.
-interface = ["static/*"]
+interface = ["static/*", "static/lib/*"]
 config = ["*.yaml", "prompts/*.md"]
 
 [tool.pytest.ini_options]
