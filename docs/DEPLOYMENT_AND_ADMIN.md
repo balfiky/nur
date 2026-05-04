@@ -48,8 +48,9 @@ Open:
 - API docs: `http://localhost:8000/docs`
 
 A first-run setup wizard opens automatically on first launch. It walks through
-LLM backend selection, seed identity, and optional first Life History material
-in five steps (Welcome → Connect LLM → Identity → First Experience → Done).
+LLM backend selection, runtime channels, seed identity, and optional first
+Life History material in six steps (Welcome → Connect LLM → Runtime & Channels
+→ Identity → First Experience → Done).
 Life History material can be pasted or uploaded from the browser as text or
 Markdown, so a normal user does not need to place files into the data directory.
 You can skip it and come back via
@@ -147,9 +148,9 @@ The `/admin` route serves the built-in operator console. It uses the same
 runtime config primitives as `runtime_config.yaml`; it is not a separate config
 system.
 
-The chat UI, setup wizard, debug panel, and embedded settings drawer use the
-same light operator palette as the standalone console so configuration and
-observability remain readable during normal use.
+The chat UI, setup wizard, debug panel, embedded settings drawer, and
+standalone operator pages use the same tokenized plum/ember palette so
+configuration and observability remain readable during normal use.
 
 The chat header links directly to `/admin` for full-screen operator work. The
 embedded settings drawer remains available for quick edits and setup-wizard
@@ -165,8 +166,8 @@ Life History, or skills.
 
 The **Setup Wizard** (accessible from Settings → Setup → Launch Setup Wizard)
 walks through LLM backend, agent identity, optional first formative material,
-and completion in five steps. It is the recommended path for first-time
-configuration.
+runtime/channel settings, and completion in six steps. It is the recommended
+path for first-time configuration.
 
 The full console lets you:
 

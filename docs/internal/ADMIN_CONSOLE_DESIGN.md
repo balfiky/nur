@@ -31,8 +31,9 @@ Nūr already has the important foundation:
   serialization, and secret-status reporting.
 - `interface/api.py` exposes `GET /config` and `POST /config` for the bundled
   web UI.
-- `interface/static/index.html` includes a settings drawer with LLM, access,
-  Telegram, runtime, and proactive fields.
+- `interface/static/index.html` contains the chat shell and settings/wizard
+  markup; the chat, wizard, debug panel, persona panel, and admin overlay
+  behavior is split into ES modules under `interface/static/`.
 - `interface/v1.py` exposes stable integration endpoints and redacted
   `GET /v1/config`.
 - `runtime_config.example.yaml` documents safe defaults.
