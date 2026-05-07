@@ -35,6 +35,18 @@ from core.dual_process.tool_loop import detect_capability_gap
 from core.types import PipelineContext
 
 
+def test_detects_common_missing_tool_capability_gaps():
+    assert (
+        detect_capability_gap("Create an image of a blue robot", set())["gap_type"]
+        == "image_generation"
+    )
+    assert (
+        detect_capability_gap("Analyze this spreadsheet and make charts", set())["gap_type"]
+        == "spreadsheet"
+    )
+    assert detect_capability_gap("Query my postgres database", set())["gap_type"] == "database"
+
+
 # ===================================================================
 # Helpers
 # ===================================================================

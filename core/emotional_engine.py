@@ -167,8 +167,10 @@ class EmotionalEngine:
 
         for mod_name, base_delta in impacts.items():
             if mod_name == "energy":
-                # Energy impact is not intensity-scaled the same way
-                delta = base_delta
+                # Energy has inertia: routine turns should not exhaust Nūr.
+                # Scale ordinary event energy by intensity, then add the
+                # explicit spike surcharge only for truly high-intensity events.
+                delta = base_delta * event.intensity
                 if is_spike:
                     delta -= ENERGY_DRAIN_PER_SPIKE
             else:

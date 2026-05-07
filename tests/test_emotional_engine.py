@@ -120,6 +120,16 @@ class TestEmotionalEngine:
         # Should approach but not drop below baseline
         assert abs(engine.state.valence - 0.5) < 0.01
 
+    def test_minor_messages_do_not_double_drain_energy(self):
+        engine = EmotionalEngine()
+        before = engine.state.energy
+        engine.update(EmotionalEvent(event_type=EventType.USER_MESSAGE, intensity=0.1))
+        after_event = engine.state.energy
+        engine.drain_energy(intensity=0.1)
+
+        assert before - after_event == pytest.approx(0.002, abs=1e-9)
+        assert before - engine.state.energy < 0.03
+
     def test_energy_drains(self):
         engine = EmotionalEngine()
         initial_energy = engine.state.energy

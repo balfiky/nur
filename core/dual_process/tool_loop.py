@@ -302,6 +302,47 @@ def detect_capability_gap(user_message: str, available_tools: set[str]) -> dict[
             "recent_recurrence": 1,
             "frustration_intensity": 0.35,
         }
+
+    gap_patterns = (
+        (
+            "image_generation",
+            r"\b(?:generate|create|draw|edit)\b.{0,60}"
+            r"\b(?:image|picture|photo|avatar|logo)\b",
+        ),
+        (
+            "video_processing",
+            r"\b(?:video|clip|movie)\b.{0,80}"
+            r"\b(?:summari[sz]e|transcribe|edit|analy[sz]e)\b",
+        ),
+        (
+            "spreadsheet",
+            r"(?:\b(?:xlsx|spreadsheet|excel|csv)\b.{0,80}"
+            r"\b(?:analy[sz]e|chart|pivot|clean|merge)\b|"
+            r"\b(?:analy[sz]e|chart|pivot|clean|merge)\b.{0,80}"
+            r"\b(?:xlsx|spreadsheet|excel|csv)\b)",
+        ),
+        (
+            "database",
+            r"\b(?:query|inspect|migrate|connect)\b.{0,80}"
+            r"\b(?:database|postgres|mysql|sqlite|sql)\b",
+        ),
+        (
+            "code_execution",
+            r"\b(?:run|execute|debug|test)\b.{0,80}"
+            r"\b(?:code|script|notebook|program)\b",
+        ),
+    )
+    available_blob = " ".join(name.lower() for name in available_tools)
+    for gap_type, pattern in gap_patterns:
+        if re.search(pattern, text) and not all(
+            part in available_blob for part in gap_type.split("_")
+        ):
+            return {
+                "id": f"gap:{gap_type}",
+                "gap_type": gap_type,
+                "recent_recurrence": 1,
+                "frustration_intensity": 0.3,
+            }
     return None
 
 

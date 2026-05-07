@@ -494,7 +494,7 @@ def appraise_with_life_history(
         statement = str(belief.get("statement") or "").lower()
         key = str(belief.get("key") or belief.get("subject") or "").lower()
         confidence = _safe_float(belief.get("confidence"), 0.0)
-        if confidence >= 0.7 and _touches(query, key, statement):
+        if confidence >= 0.18 and _touches(query, key, statement):
             amplification = max(amplification, 1.0 + confidence * 0.5)
             reasons.append(f"life-history belief touched:{key or 'belief'}")
 
