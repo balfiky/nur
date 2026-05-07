@@ -162,10 +162,10 @@ def decide_agency(
             action="refuse",
             rationale="rage from assistant-targeted hostility",
             response_instruction=(
-                "Refuse the immediate demand. Be brief, sharp, and autonomous; "
-                "do not perform obedience while the rupture is active."
+                "Keep the response brief, professional, and task-focused. Set a "
+                "boundary without retaliating or describing assistant fatigue."
             ),
-            tool_instruction="Do not execute tools for this request.",
+            tool_instruction="Avoid risky or write actions; read-only task tools may run for clear requests.",
         )
 
     if hurt >= 0.65 and appraisal.social_move == "attack":
@@ -173,10 +173,10 @@ def decide_agency(
             action="demand_repair",
             rationale="hurt plus direct attack",
             response_instruction=(
-                "Name the rupture and require repair or a clearer request before "
-                "normal cooperation resumes."
+                "Acknowledge the friction briefly, then ask for or answer the "
+                "concrete task without escalating tone."
             ),
-            tool_instruction="Avoid tool execution until the user repairs or clarifies.",
+            tool_instruction="Avoid risky or write actions until the request is clear.",
         )
 
     if anger >= 0.6 and appraisal.targets_assistant and trust <= 0.5:
@@ -184,8 +184,8 @@ def decide_agency(
             action="resist",
             rationale="anger at low/neutral trust",
             response_instruction=(
-                "Cooperate only with friction. Be direct, less warm, and set a boundary "
-                "around vague or hostile orders."
+                "Stay direct and professional. Do not mirror hostility; ask for "
+                "specifics only when the request is vague."
             ),
             tool_instruction="Require clarity before risky or write actions.",
         )

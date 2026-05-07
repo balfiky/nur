@@ -20,6 +20,7 @@ from typing import Any, Protocol
 from config.loader import get_config
 from runtime.config import RuntimeConfig
 from runtime.evolution_policy import (
+    detect_directive_override_markers,
     detect_prompt_injection_markers,
     source_openness_coefficient,
 )
@@ -648,6 +649,15 @@ class LifeHistoryStore:
         if injection_markers:
             metadata["injection_markers"] = injection_markers
             metadata["prompt_injection_markers"] = injection_markers
+        directive_markers = detect_directive_override_markers(prepared_text)
+        directive_sanitized = (
+            source_type in {"conversation_learning_text", "conversation_learning_url"}
+            and bool(directive_markers or injection_markers)
+        )
+        if directive_markers:
+            metadata["directive_override_markers"] = directive_markers
+        if directive_sanitized:
+            metadata["directive_sanitized"] = True
 
         signatures = _derive_theme_signatures(digest)
         theme_state = self._theme_state(signatures)
@@ -662,6 +672,14 @@ class LifeHistoryStore:
             character_current_caution=current_caution,
             injection_marker_density=marker_density,
         )
+        rejections: list[dict[str, Any]] = []
+        if directive_sanitized:
+            influence_weight = 0.0
+            signatures = []
+            rejections.append({
+                "reason": "directive_override",
+                "count": len(directive_markers or injection_markers),
+            })
         metadata["influence_weight"] = influence_weight
         metadata["theme_signatures"] = signatures
 
@@ -681,55 +699,56 @@ class LifeHistoryStore:
         )
 
         evolution_events: list[dict[str, Any]] = []
-        for belief in digest["beliefs"]:
-            if not isinstance(belief, dict):
-                continue
-            weighted = _weighted_belief(belief, influence_weight, digest["confidence"])
-            event = self._apply_belief(experience_id, weighted, batch_id=batch_id)
-            if event:
+        if not directive_sanitized:
+            for belief in digest["beliefs"]:
+                if not isinstance(belief, dict):
+                    continue
+                weighted = _weighted_belief(belief, influence_weight, digest["confidence"])
+                event = self._apply_belief(experience_id, weighted, batch_id=batch_id)
+                if event:
+                    evolution_events.append(event)
+            for change in digest["drive_changes"]:
+                if not isinstance(change, dict):
+                    continue
+                weighted = _weighted_drive_change(change, influence_weight, digest["confidence"])
+                event = self._apply_drive_change(experience_id, weighted, batch_id=batch_id)
+                if event:
+                    evolution_events.append(event)
+            for trait in digest["self_trait_changes"]:
+                if not isinstance(trait, dict):
+                    continue
+                delta = _safe_number(trait.get("delta", 0.0), 0.0)
+                event = self._insert_evolution_event(
+                    experience_id=experience_id,
+                    domain="self_trait",
+                    subject=_safe_label(trait.get("trait") or "self_observation"),
+                    before_state="",
+                    after_state=f"{trait.get('trait', 'trait')} {delta:+.2f}",
+                    reason=str(trait.get("reason") or "Experience affected self-observation."),
+                    confidence=_safe_float(trait.get("confidence", digest["confidence"]), digest["confidence"]),
+                    emotional_valence=digest["emotional_valence"],
+                    evidence=str(trait.get("evidence") or title),
+                    metadata={"delta": delta},
+                    batch_id=batch_id,
+                )
                 evolution_events.append(event)
-        for change in digest["drive_changes"]:
-            if not isinstance(change, dict):
-                continue
-            weighted = _weighted_drive_change(change, influence_weight, digest["confidence"])
-            event = self._apply_drive_change(experience_id, weighted, batch_id=batch_id)
-            if event:
+            for item in digest["future_behavior"]:
+                if not str(item).strip():
+                    continue
+                event = self._insert_evolution_event(
+                    experience_id=experience_id,
+                    domain="worldview",
+                    subject="future_behavior",
+                    before_state="",
+                    after_state=str(item).strip(),
+                    reason="Experience suggested a future behavioral tendency.",
+                    confidence=_clamp(float(digest["confidence"]) * influence_weight),
+                    emotional_valence=digest["emotional_valence"],
+                    evidence=title,
+                    metadata={"influence_weight": influence_weight},
+                    batch_id=batch_id,
+                )
                 evolution_events.append(event)
-        for trait in digest["self_trait_changes"]:
-            if not isinstance(trait, dict):
-                continue
-            delta = _safe_number(trait.get("delta", 0.0), 0.0)
-            event = self._insert_evolution_event(
-                experience_id=experience_id,
-                domain="self_trait",
-                subject=_safe_label(trait.get("trait") or "self_observation"),
-                before_state="",
-                after_state=f"{trait.get('trait', 'trait')} {delta:+.2f}",
-                reason=str(trait.get("reason") or "Experience affected self-observation."),
-                confidence=_safe_float(trait.get("confidence", digest["confidence"]), digest["confidence"]),
-                emotional_valence=digest["emotional_valence"],
-                evidence=str(trait.get("evidence") or title),
-                metadata={"delta": delta},
-                batch_id=batch_id,
-            )
-            evolution_events.append(event)
-        for item in digest["future_behavior"]:
-            if not str(item).strip():
-                continue
-            event = self._insert_evolution_event(
-                experience_id=experience_id,
-                domain="worldview",
-                subject="future_behavior",
-                before_state="",
-                after_state=str(item).strip(),
-                reason="Experience suggested a future behavioral tendency.",
-                confidence=_clamp(float(digest["confidence"]) * influence_weight),
-                emotional_valence=digest["emotional_valence"],
-                evidence=title,
-                metadata={"influence_weight": influence_weight},
-                batch_id=batch_id,
-            )
-            evolution_events.append(event)
 
         self._update_theme_signatures(signatures, influence_weight)
 
@@ -741,9 +760,9 @@ class LifeHistoryStore:
                 "batch_id": batch_id,
                 "source_openness": current_openness,
                 "influence_weight": influence_weight,
-                "rejections": [],
+                "rejections": rejections,
             },
-            "rejection_trace": [],
+            "rejection_trace": rejections,
             "beliefs": self.list_beliefs(limit=25),
             "drives": self.list_drives(),
         }

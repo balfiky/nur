@@ -17,6 +17,10 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
+from core.tool_failures import (
+    is_operational_tool_failure,
+    operational_issue_summary,
+)
 from core.types import (
     ActionVariables,
     EmotionalEvent,
@@ -66,6 +70,7 @@ class ToolMemoryEffects:
     long_term_summary: str = ""
     self_observations: list[str] = field(default_factory=list)
     unresolved_items_created: list[str] = field(default_factory=list)
+    operational_issues: list[str] = field(default_factory=list)
     trust_delta: float = 0.0
 
 
@@ -83,7 +88,9 @@ def create_tool_event(
     This feeds into the existing short-term memory system.
     """
     intensity = 0.3  # baseline for any tool action
-    if not result.success:
+    if is_operational_tool_failure(result):
+        intensity = 0.1
+    elif not result.success:
         intensity = 0.5
     if abs(observation.certainty_delta) > _CERTAINTY_SHIFT_THRESHOLD:
         intensity = max(intensity, 0.6)
@@ -124,6 +131,8 @@ def is_salient_episode(
       - Strong emotional shift (certainty or valence)
       - Surprising: empty output on a normally productive tool
     """
+    if is_operational_tool_failure(result):
+        return False
     if category == ToolCategory.DESTRUCTIVE:
         return True
     if not result.success:
@@ -197,7 +206,7 @@ def derive_tool_self_observations(
         if category in (ToolCategory.WRITE, ToolCategory.DESTRUCTIVE):
             if action_vars.risk_tolerance > 0.7:
                 obs.append(("reckless", action_vars.risk_tolerance, f"high_risk:{result.tool_name}"))
-    else:
+    elif not is_operational_tool_failure(result):
         # Frustrated: failure
         obs.append(("frustrated", 0.5, f"tool_failure:{result.tool_name}"))
         # Persistent: kept trying after failures
@@ -235,6 +244,8 @@ def create_tool_unresolved_item(
     """
     if result.success and result.output.strip():
         return None  # successful with output — nothing unresolved
+    if is_operational_tool_failure(result):
+        return None
 
     error_msg = result.error or ""
     is_block = any(
@@ -292,11 +303,20 @@ def compute_tool_trust_delta(
         return 0.0
 
     # Failures
+    if is_operational_tool_failure(result):
+        return 0.0
     if category == ToolCategory.DESTRUCTIVE:
         return _TRUST_NEGATIVE_TOOL
     if action_vars.risk_tolerance > 0.7:
         return _TRUST_NEGATIVE_TOOL  # reckless failure
     return 0.0  # routine failure, no trust impact
+
+
+def create_operational_issue(result: ToolResult) -> str | None:
+    """Return a debug/status issue for operational tool failures."""
+    if not is_operational_tool_failure(result):
+        return None
+    return operational_issue_summary(result)
 
 
 # ---------------------------------------------------------------------------
@@ -329,6 +349,13 @@ def create_task_unresolved_item(
     """
     if plan.status == TaskStatus.COMPLETED and task_trace.steps_failed == 0:
         return None  # fully successful — nothing unresolved
+
+    failed_results = [
+        step.result for step in plan.steps
+        if step.result is not None and not step.result.success
+    ]
+    if failed_results and all(is_operational_tool_failure(result) for result in failed_results):
+        return None
 
     if plan.status == TaskStatus.BLOCKED:
         source = "task_blocked"
@@ -369,7 +396,6 @@ def derive_task_self_observations(
         obs.append(("methodical", 0.7, f"plan_complete:{plan.id}"))
         # Decisive if any destructive steps
         for step in plan.steps:
-            cap_cat = step.observation.emotional_delta if step.observation else {}
             if step.tool_name.startswith("fs.delete") or step.tool_name.startswith("calendar.delete"):
                 obs.append(("decisive", 0.6, f"destructive_plan_step:{step.tool_name}"))
                 break

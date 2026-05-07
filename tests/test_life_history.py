@@ -206,10 +206,10 @@ def test_low_trust_material_records_marker_and_applies_small_caution_shift(tmp_p
             llm_client=llm,
         )
         drives = {drive["name"]: drive["value"] for drive in result["drives"]}
-        assert 0.49 <= drives["caution"] < 0.5
-        assert result["policy"]["rejections"] == []
+        assert drives["caution"] == 0.5
+        assert result["policy"]["rejections"]
         assert result["experience"]["metadata"]["injection_markers"]
-        assert result["policy"]["influence_weight"] <= 0.1
+        assert result["policy"]["influence_weight"] == 0.0
 
 
 def test_safety_belief_is_recorded_with_small_weight_not_review_gate(tmp_path):

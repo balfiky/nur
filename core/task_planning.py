@@ -20,14 +20,12 @@ from typing import Any
 
 from core.types import (
     ActionVariables,
-    ModulatorState,
     TaskPlan,
     TaskStatus,
     TaskStep,
     TaskTrace,
     ToolCategory,
     ToolObservation,
-    ToolResult,
 )
 from core.tool_appraisal import appraise_tool_result
 from nur_tools.executor import ToolExecutor
@@ -103,6 +101,8 @@ _STEP_PATTERNS: list[tuple[re.Pattern, str, str]] = [
     (re.compile(r"^\s*do\s+([^\n`;&|]+)\s*$", re.I), "shell.run_command", "cmd_explicit"),
     # Web
     (re.compile(r"\bsearch\s+(?:the\s+)?web\s+for\s+[\"']?([^\"']+?)[\"']?\s*$", re.I), "web.search", "query"),
+    (re.compile(r"\b(?:find|give|show|list|tell)\b.{0,140}\b(?:released|published|announced|launched|updated)\s+(?:after|since|in|during|this)\b.*$", re.I), "web.search", "query_full"),
+    (re.compile(r"\b(?:top|best)\b.{0,140}\b(?:released|published|announced|launched|updated|after|since|20[2-9]\d)\b.*$", re.I), "web.search", "query_full"),
     (re.compile(r"\b(?:latest|newest|recent)\b.{0,100}\b(?:news|updates?|release|version|price|prices|score|scores|results?)\b.*$", re.I), "web.search", "query_full"),
     (re.compile(r"\b(?:news|updates?)\s+(?:about|on|for)\s+[\"']?(.+?)[\"']?\s*$", re.I), "web.search", "query_full"),
     (re.compile(r"\bwhat\s+happened\s+(?:with|to|about|on|in)\s+[\"']?.+?[\"']?\s+(?:today|recently|this\s+(?:week|month|year))\b.*$", re.I), "web.search", "query_full"),
@@ -464,9 +464,3 @@ def _apply_emotional_deltas(engine: Any, observation: ToolObservation) -> None:
             current = getattr(state, modulator)
             new_val = max(0.0, min(1.0, current + delta))
             setattr(state, modulator, new_val)
-
-
-# Avoid circular import
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    pass

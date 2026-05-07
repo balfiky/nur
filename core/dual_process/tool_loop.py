@@ -79,7 +79,7 @@ def autonomy_execution_budget(autonomy_level: str) -> tuple[int, int]:
 
 # Arbiter decision thresholds (Section 11 of design spec)
 REFUSE_RISK_TOLERANCE = 0.4       # destructive + risk below this → refuse
-CLARIFY_AUTONOMY_BIAS = 0.35     # autonomy below this → clarify
+CLARIFY_AUTONOMY_BIAS = 0.30     # autonomy below this → clarify
 CLARIFY_WRITE_THRESHOLD = 0.65   # write/destructive + clarification above this → clarify
 DEFER_URGENCY_THRESHOLD = 0.15   # urgency below this → defer
 
@@ -237,6 +237,8 @@ _TOOL_PATTERNS: list[tuple[re.Pattern, str, str]] = [
     (re.compile(r"\b(?:google|search\s+for)\s+[\"']?(.+?)[\"']?\s*$", re.I), "web.search", "query"),
     (re.compile(r"\bbrowse\s+(?:the\s+)?(?:web|internet)\s+(?:for\s+)?[\"']?(.+?)[\"']?\s*$", re.I), "web.search", "query"),
     (re.compile(r"\bfind\s+(?:me\s+)?(?:info(?:rmation)?|(?:some(?:thing)?)\s+)?\s*(?:about|on)\s+[\"']?(.+?)[\"']?\s+(?:online|on\s+the\s+(?:web|internet))", re.I), "web.search", "query"),
+    (re.compile(r"\b(?:find|give|show|list|tell)\b.{0,140}\b(?:released|published|announced|launched|updated)\s+(?:after|since|in|during|this)\b.*$", re.I), "web.search", "query_full"),
+    (re.compile(r"\b(?:top|best)\b.{0,140}\b(?:released|published|announced|launched|updated|after|since|20[2-9]\d)\b.*$", re.I), "web.search", "query_full"),
     (re.compile(r"\b(?:latest|newest|recent)\b.{0,100}\b(?:news|updates?|release|version|price|prices|score|scores|results?)\b.*$", re.I), "web.search", "query_full"),
     (re.compile(r"\b(?:news|updates?)\s+(?:about|on|for)\s+[\"']?(.+?)[\"']?\s*$", re.I), "web.search", "query_full"),
     (re.compile(r"\bwhat\s+happened\s+(?:with|to|about|on|in)\s+[\"']?.+?[\"']?\s+(?:today|recently|this\s+(?:week|month|year))\b.*$", re.I), "web.search", "query_full"),

@@ -14,6 +14,7 @@ import time
 from datetime import datetime, timezone
 
 from config.loader import get_config
+from core.tool_failures import is_operational_unresolved_item
 from core.types import (
     AttachmentStyle,
     BaselineShift,
@@ -138,7 +139,10 @@ class EmotionalEngine:
                 setattr(self.state, mod.value, val)
 
         if unresolved_items is not None:
-            self.unresolved_items = list(unresolved_items)
+            self.unresolved_items = [
+                item for item in unresolved_items
+                if not is_operational_unresolved_item(item)
+            ]
             self._recalculate_resolution()
         else:
             # Snapshot-only restores preserve the explicit resolution value.
@@ -334,7 +338,10 @@ class EmotionalEngine:
 
     def active_unresolved(self) -> list[UnresolvedItem]:
         """Return all active (unresolved) items."""
-        return [i for i in self.unresolved_items if not i.resolved]
+        return [
+            i for i in self.unresolved_items
+            if not i.resolved and not is_operational_unresolved_item(i)
+        ]
 
     def _recalculate_resolution(self) -> None:
         """Recompute resolution modulator from active unresolved items.

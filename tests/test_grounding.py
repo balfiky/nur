@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from core.grounding import (
     extract_action_claims,
+    external_lookup_correction_response,
     grounding_correction_response,
+    system_metric_observation_response,
+    verify_external_lookup_grounding,
     verify_response_grounding,
 )
 from core.types import ToolResult, ToolTrace
@@ -257,9 +260,154 @@ def test_generic_grounding_correction_does_not_mention_skills():
 
     response = grounding_correction_response(issues, tool_trace=None)
 
-    assert "I did not perform that external action" in response
+    assert "cannot claim" in response
+    assert "Tool Execution Result" not in response
     assert "SKILL.md" not in response
     assert "Admin > Skills" not in response
+
+
+def test_system_metric_claim_requires_system_evidence():
+    issues = verify_response_grounding(
+        "Memory usage is currently at 11%, with 3.0GB used out of 28GB total.",
+        tool_trace=None,
+    )
+
+    assert len(issues) == 1
+    assert "system_metric" in issues[0].required_categories
+    response = grounding_correction_response(issues, tool_trace=None)
+    assert response == "I cannot verify that system metric because no system inspection ran this turn."
+
+
+def test_system_metric_claim_grounded_by_system_tool():
+    trace = ToolTrace(
+        executed_results=[
+            ToolResult(
+                tool_name="system.memory_usage",
+                success=True,
+                output="Memory: total=28GB used=3GB percent=11%",
+            ),
+        ]
+    )
+
+    assert verify_response_grounding(
+        "Memory usage is currently at 11%, with 3.0GB used out of 28GB total.",
+        tool_trace=trace,
+    ) == []
+
+
+def test_system_metric_observation_response_uses_tool_output():
+    trace = ToolTrace(
+        executed_results=[
+            ToolResult(
+                tool_name="system.memory_usage",
+                success=True,
+                output="Memory Total Used Free Available Use%\nRAM 28G 3.0G 14G 26G 11%",
+            ),
+        ]
+    )
+
+    assert system_metric_observation_response(
+        "what is your current memory utilization?",
+        tool_trace=trace,
+    ) == "Memory Total Used Free Available Use%\nRAM 28G 3.0G 14G 26G 11%"
+
+
+def test_time_sensitive_answer_requires_successful_external_lookup():
+    trace = ToolTrace(
+        executed_results=[
+            ToolResult(
+                tool_name="web.search",
+                success=False,
+                output="",
+                error="RuntimeError: No web provider configured",
+            ),
+        ]
+    )
+
+    issues = verify_external_lookup_grounding(
+        "what is the latest release of example product?",
+        "The latest release is definitely 9.9.",
+        tool_trace=trace,
+    )
+
+    assert len(issues) == 1
+    assert issues[0].code == "external_lookup_unavailable"
+    response = external_lookup_correction_response(issues, tool_trace=trace)
+    assert "can't verify" in response.lower()
+    assert "No web provider configured" in response
+
+
+def test_time_sensitive_answer_requires_lookup_even_if_none_attempted():
+    issues = verify_external_lookup_grounding(
+        "find me top AI books released after March 2026",
+        "Here are five titles from 2026.",
+        tool_trace=ToolTrace(),
+    )
+
+    assert len(issues) == 1
+    assert issues[0].code == "external_lookup_unavailable"
+
+
+def test_entity_list_search_results_are_not_enough_without_page_text():
+    trace = ToolTrace(
+        executed_results=[
+            ToolResult(
+                tool_name="web.search",
+                success=True,
+                output=(
+                    "- The Best AI Books in 2026: https://example.com/list\n"
+                    "- Top 20 Books on AI in 2026: https://example.com/top"
+                ),
+            ),
+        ]
+    )
+
+    issues = verify_external_lookup_grounding(
+        "find me top AI books released after March 2026",
+        "1. The Best AI Books in 2026\n2. Top 20 Books on AI in 2026",
+        tool_trace=trace,
+    )
+
+    assert len(issues) == 1
+    assert issues[0].code == "external_lookup_insufficient"
+    response = external_lookup_correction_response(issues, tool_trace=trace)
+    assert "not enough source text" in response
+
+
+def test_entity_list_page_text_allows_answer():
+    trace = ToolTrace(
+        executed_results=[
+            ToolResult(
+                tool_name="web.extract_text",
+                success=True,
+                output="Book: Example AI After March. Release date: April 2026.",
+            ),
+        ]
+    )
+
+    assert verify_external_lookup_grounding(
+        "find me top AI books released after March 2026",
+        "Example AI After March was released in April 2026.",
+        tool_trace=trace,
+    ) == []
+
+
+def test_successful_external_lookup_allows_time_sensitive_answer():
+    trace = ToolTrace(
+        executed_results=[
+            ToolResult(
+                tool_name="web.search",
+                success=True,
+                output="- Example Product 9.9: https://example.com/release",
+            ),
+        ]
+    )
+
+    assert verify_external_lookup_grounding(
+        "what is the latest release of example product?",
+        "The release page says 9.9.",
+        tool_trace=trace,
+    ) == []
 
 
 def test_registry_claim_is_not_grounded_by_skill_list_tool():

@@ -429,6 +429,7 @@ def _debug_to_dict(debug) -> dict:
             "long_term_summary": tme.long_term_summary,
             "self_observations": tme.self_observations,
             "unresolved_items_created": tme.unresolved_items_created,
+            "operational_issues": tme.operational_issues,
             "trust_delta": tme.trust_delta,
         }
         if tme else None

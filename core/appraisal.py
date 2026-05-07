@@ -17,7 +17,7 @@ import re
 
 from core.types import AppraisalFrame, DetectedEmotion
 
-_SECOND_PERSON_RE = re.compile(r"\b(you|your|you're|youre|you've|youve)\b")
+_SECOND_PERSON_RE = re.compile(r"\b(you|u|your|you're|youre|you've|youve)\b")
 
 _GRATITUDE_MARKERS = (
     "thank you",
@@ -162,6 +162,10 @@ _ACTION_REQUEST_MARKERS = (
     "would you",
     "tell me",
     "show me",
+    "find me",
+    "look up",
+    "search for",
+    "list",
     "explain",
     "review",
     "give me",
@@ -320,6 +324,7 @@ def appraise_message(text: str, detected: DetectedEmotion) -> AppraisalFrame:
                 and (profanity or negative_eval)
             )
             or (insult and not external_context and len(lower.split()) <= 4)
+            or (profanity and not external_context and len(lower.split()) <= 4)
             or "angry with you" in lower
             or "angry at you" in lower
             or "mad at you" in lower

@@ -579,8 +579,8 @@ class TestCognitivePipeline:
             user_id="alice",
         )
 
-        assert "I did not create, import, or enable" in result.response
-        assert "No skill-registry Tool Execution Result ran" in result.response
+        assert "cannot claim a durable skill or registry change" in result.response
+        assert "Tool Execution Result" not in result.response
         assert "durable runtime context" not in result.response
         assert result.debug.self_check_passed is False
         assert any(
@@ -603,7 +603,7 @@ class TestCognitivePipeline:
             user_id="alice",
         )
 
-        assert "I did not perform that external action" in result.response
+        assert "cannot claim" in result.response
         assert "cloned checkout" not in result.response
         assert result.debug.self_check_passed is False
         assert any(

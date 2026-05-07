@@ -184,6 +184,25 @@ class TestResolutionModulator:
         assert "resolution" in snap
         assert snap["resolution"] > 0.0
 
+    def test_restore_drops_legacy_operational_tool_failure(self):
+        engine = EmotionalEngine()
+        engine.restore(
+            {"arousal": 0.5, "valence": 0.5, "certainty": 0.5, "bonding": 0.5,
+             "energy": 1.0, "resolution": 0.45},
+            unresolved_items=[
+                UnresolvedItem(
+                    id="tool_failure_browser",
+                    source="tool_failure",
+                    description="Failed: browser.get_page_text - RuntimeError: No browser provider configured",
+                    created_at=datetime.now(timezone.utc),
+                    intensity=0.45,
+                    decay_rate=0.08,
+                )
+            ],
+        )
+        assert engine.active_unresolved() == []
+        assert engine.state.resolution == 0.0
+
     def test_resolution_in_modulator_state(self):
         """ModulatorState includes resolution with default 0.0."""
         state = ModulatorState()

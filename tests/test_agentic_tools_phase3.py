@@ -16,8 +16,7 @@ from __future__ import annotations
 import os
 import tempfile
 import time
-
-import pytest
+from datetime import datetime, timezone
 
 from core.types import (
     ActionVariables,
@@ -25,16 +24,14 @@ from core.types import (
     EventType,
     LongTermEntry,
     ModulatorState,
-    PersonProfile,
-    ToolCapability,
     ToolCategory,
     ToolDecision,
     ToolIntent,
     ToolObservation,
     ToolResult,
-    ToolTrace,
     UnresolvedItem,
 )
+from core.dual_process.generator import MockLLMBackend
 from core.tool_memory import (
     ToolMemoryEffects,
     compute_tool_trust_delta,
@@ -44,11 +41,11 @@ from core.tool_memory import (
     derive_tool_self_observations,
     is_salient_episode,
 )
-from core.emotional_engine import EmotionalEngine
 from nur_tools.registry import ToolRegistry
 from nur_tools.executor import ToolExecutor
 from nur_tools import register_builtins
 from pipeline import CognitivePipeline, DebugState
+from runtime.debug.mental_state import mental_health
 
 
 # ===================================================================
@@ -122,6 +119,28 @@ def _make_pipeline_with_tools():
     register_builtins(reg, exe)
     pipe = CognitivePipeline(tool_executor=exe)
     return pipe, reg, exe
+
+
+class ListPageWebProvider:
+    def search(self, query: str, limit: int) -> list[dict[str, str]]:
+        return [
+            {
+                "title": "The Best AI Books in 2026",
+                "url": "https://example.com/best-ai-books",
+                "snippet": "A list of recommendations for readers.",
+            },
+            {
+                "title": "Top 20 Books on AI in 2026",
+                "url": "https://example.com/top-ai-books",
+                "snippet": "Roundup of artificial intelligence book lists.",
+            },
+        ]
+
+    def fetch(self, url: str) -> str:
+        return "Article body"
+
+    def extract_text(self, url: str) -> str:
+        return "Article body"
 
 
 # ===================================================================
@@ -460,6 +479,7 @@ class TestToolMemoryEffects:
         assert effects.long_term_summary == ""
         assert effects.self_observations == []
         assert effects.unresolved_items_created == []
+        assert effects.operational_issues == []
         assert effects.trust_delta == 0.0
 
 
@@ -511,6 +531,107 @@ class TestPipelineToolMemoryIntegration:
         effects = resp.debug.tool_memory_effects
         assert effects is not None
         assert len(effects.unresolved_items_created) > 0
+
+    def test_missing_browser_provider_is_operational_not_unresolved(self):
+        pipe, _, _ = _make_pipeline_with_tools()
+        resp = pipe.process("get page text from https://example.com", user_id="u1")
+        effects = resp.debug.tool_memory_effects
+        assert effects is not None
+        assert effects.operational_issues
+        assert "browser.get_page_text" in effects.operational_issues[0]
+        assert effects.unresolved_items_created == []
+        assert pipe.engine.state.resolution == 0.0
+        assert resp.debug.unresolved_count == 0
+
+    def test_successful_tool_resolves_matching_prior_tool_failure(self):
+        pipe, _, _ = _make_pipeline_with_tools()
+        pipe.engine.add_unresolved(UnresolvedItem(
+            id="tool_failure_read_file",
+            source="tool_failure",
+            description="Failed: fs.read_file - file was missing",
+            created_at=datetime.now(timezone.utc),
+            intensity=0.4,
+            decay_rate=0.08,
+        ))
+        assert pipe.engine.state.resolution > 0
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("recovered")
+            f.flush()
+            try:
+                pipe.process(f"read file {f.name}", user_id="u1")
+            finally:
+                os.unlink(f.name)
+
+        assert pipe.engine.active_unresolved() == []
+        assert pipe.engine.state.resolution == 0.0
+
+    def test_failed_fresh_lookup_overrides_confident_generated_answer(self):
+        reg = ToolRegistry()
+        exe = ToolExecutor(reg)
+        register_builtins(reg, exe)  # NullWebProvider, by design.
+        pipe = CognitivePipeline(
+            llm_backend=MockLLMBackend(response="The latest release is definitely 9.9."),
+            tool_executor=exe,
+        )
+
+        resp = pipe.process("what is the latest release of example product?", user_id="u1")
+
+        assert "can't verify" in resp.response.lower()
+        assert "No web provider configured" in resp.response
+        assert resp.debug.self_check_passed is False
+        assert resp.debug.tool_memory_effects is not None
+        assert resp.debug.tool_memory_effects.operational_issues
+        assert resp.debug.tool_memory_effects.unresolved_items_created == []
+        assert pipe.engine.state.resolution == 0.0
+
+    def test_search_list_pages_do_not_become_book_names(self):
+        reg = ToolRegistry()
+        exe = ToolExecutor(reg)
+        register_builtins(reg, exe, web_provider=ListPageWebProvider())
+        pipe = CognitivePipeline(
+            llm_backend=MockLLMBackend(
+                response=(
+                    "1. The Best AI Books in 2026\n"
+                    "2. Top 20 Books on AI in 2026"
+                )
+            ),
+            tool_executor=exe,
+        )
+
+        resp = pipe.process("find me top AI books released after March 2026", user_id="u1")
+
+        assert "not enough source text" in resp.response
+        assert resp.debug.tool_trace is not None
+        assert resp.debug.tool_trace.executed_results
+        assert resp.debug.tool_trace.executed_results[0].tool_name == "web.search"
+
+    def test_repeated_hostility_is_bounded_and_read_task_still_runs(self):
+        reg = ToolRegistry()
+        exe = ToolExecutor(reg)
+        register_builtins(reg, exe)  # NullWebProvider, by design.
+        pipe = CognitivePipeline(
+            llm_backend=MockLLMBackend(response="I am exhausted and we are wasting time."),
+            tool_executor=exe,
+        )
+
+        for msg in ("fuck u", "yeah because you are an idiot", "fuck u again"):
+            resp = pipe.process(msg, user_id="u1")
+
+        health = mental_health(resp.debug.modulator_snapshot)
+        assert health["score"] > 0
+        assert resp.debug.modulator_snapshot["resolution"] <= 0.30
+        assert resp.debug.modulator_snapshot["energy"] >= 0.60
+        assert "exhausted" not in resp.response.lower()
+        assert "wasting" not in resp.response.lower()
+
+        task = pipe.process("find me top AI books released after March 2026", user_id="u1")
+
+        assert task.debug.tool_trace is not None
+        assert task.debug.tool_trace.executed_results
+        assert task.debug.tool_trace.executed_results[0].tool_name == "web.search"
+        assert "can't verify" in task.response.lower()
+        assert task.debug.modulator_snapshot["energy"] >= 0.72
 
     def test_failed_tool_writes_long_term(self):
         pipe, _, _ = _make_pipeline_with_tools()

@@ -16,6 +16,7 @@ Default deltas from docs/internal/AGENTIC_TOOLS_DESIGN.md Section 12.2:
 
 from __future__ import annotations
 
+from core.tool_failures import is_operational_tool_failure, operational_issue_summary
 from core.types import ToolCategory, ToolObservation, ToolResult
 
 
@@ -32,6 +33,16 @@ def appraise_tool_result(
     Returns:
         ToolObservation with emotional deltas and a summary.
     """
+    if is_operational_tool_failure(result):
+        return ToolObservation(
+            summary=f"{result.tool_name}: operational issue — {operational_issue_summary(result)}",
+            emotional_delta={},
+            certainty_delta=0.0,
+            resolution_delta=0.0,
+            self_observation=None,
+            continue_tool_loop=False,
+        )
+
     if not result.success:
         return _appraise_failure(result)
 

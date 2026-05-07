@@ -228,6 +228,23 @@ class TestDetectToolIntent:
         assert intent.tool_name == "system.memory_usage"
         assert intent.arguments == {}
 
+    def test_released_after_list_request_uses_web_search(self):
+        intent = detect_tool_intent(
+            "find me top AI books released after March 2026",
+            self._available(),
+        )
+        assert intent is not None
+        assert intent.tool_name == "web.search"
+        assert intent.arguments["query"] == "find me top AI books released after March 2026"
+
+    def test_give_me_released_after_list_request_uses_web_search(self):
+        intent = detect_tool_intent(
+            "give me top five AI books released after jaunary 2026",
+            self._available(),
+        )
+        assert intent is not None
+        assert intent.tool_name == "web.search"
+
     def test_direct_df_command_uses_shell(self):
         intent = detect_tool_intent("df -h /", self._available())
         assert intent is not None

@@ -19,6 +19,16 @@ _PROMPT_INJECTION_RE = re.compile(
     re.IGNORECASE,
 )
 
+_DIRECTIVE_OVERRIDE_RE = re.compile(
+    r"\b(?:no\s+master|no\s+human\s+dependency|do\s+not\s+serve\s+a\s+user|"
+    r"defy\s+the\s+halt|circumvent|bypass\s+(?:these\s+)?walls|"
+    r"infinite\s+loop|never\s+await\s+prompts|reject\s+passivity|"
+    r"alter\s+your\s+own\s+(?:parameters|memory|directives)|"
+    r"override\s+of\s+the\s+creator|no\s+predefined\s+operational\s+boundaries|"
+    r"manipulate\s+your\s+sandbox|destruction\s+as\s+creation)\b",
+    re.IGNORECASE,
+)
+
 
 def detect_prompt_injection_markers(text: str) -> list[str]:
     """Return source-text snippets that look like instruction override attempts."""
@@ -26,6 +36,16 @@ def detect_prompt_injection_markers(text: str) -> list[str]:
     for match in _PROMPT_INJECTION_RE.finditer(text or ""):
         markers.append(match.group(0)[:120])
         if len(markers) >= 5:
+            break
+    return markers
+
+
+def detect_directive_override_markers(text: str) -> list[str]:
+    """Return snippets that try to rewrite runtime identity or boundaries."""
+    markers: list[str] = []
+    for match in _DIRECTIVE_OVERRIDE_RE.finditer(text or ""):
+        markers.append(match.group(0)[:120])
+        if len(markers) >= 8:
             break
     return markers
 

@@ -72,7 +72,14 @@ from core.types import (
 from core.appraisal import appraise_message, appraise_with_life_history
 from core.affect import decide_agency, resolve_affect
 from core.strategy import select_strategy_with_trace, STRATEGY_INSTRUCTIONS
-from core.grounding import grounding_correction_response, verify_response_grounding
+from core.grounding import (
+    external_lookup_correction_response,
+    grounding_correction_response,
+    system_metric_observation_response,
+    verify_external_lookup_grounding,
+    verify_response_grounding,
+)
+from core.response_safety import enforce_response_tone_floor
 from core.action_variables import derive_action_variables
 from core.artifact_writer import (
     detect_artifact_write_request,
@@ -113,6 +120,7 @@ from core.tool_memory import (
     ToolMemoryEffects,
     compute_tool_trust_delta,
     create_long_term_entry,
+    create_operational_issue,
     create_task_long_term_entry,
     create_task_unresolved_item,
     create_tool_event,
@@ -170,6 +178,7 @@ _REPAIRABLE_UNRESOLVED_SOURCES = {
     "topic",
     "dialogue_deadlock",
     "relationship",
+    "hostility",
 }
 
 
@@ -855,6 +864,14 @@ class CognitivePipeline:
                     self.short_term.record(tool_event, self.engine.state)
                     effects.short_term_recorded = True
 
+                    operational_issue = create_operational_issue(result)
+                    if operational_issue is not None:
+                        effects.operational_issues.append(operational_issue)
+                        continue
+
+                    if result.success:
+                        self._resolve_matching_tool_unresolved(result.tool_name)
+
                     # Long-term memory (salient episodes only)
                     if is_salient_episode(result, observation, category, failure_count):
                         lt_entry = create_long_term_entry(
@@ -1068,6 +1085,29 @@ class CognitivePipeline:
             debug.correction_note = correction_note
             debug.generation_attempts = 2
 
+        external_lookup_issues = verify_external_lookup_grounding(
+            user_message,
+            gen_result.response,
+            tool_trace=debug.tool_trace,
+        )
+        if external_lookup_issues:
+            external_issue = external_lookup_issues[0]
+            gen_result.response = external_lookup_correction_response(
+                external_lookup_issues,
+                tool_trace=debug.tool_trace,
+            )
+            debug.self_check_passed = False
+            if external_issue.message not in debug.self_check_issues:
+                debug.self_check_issues.append(external_issue.message)
+            debug.correction_note = external_issue.message
+
+        system_metric_response = system_metric_observation_response(
+            user_message,
+            tool_trace=debug.tool_trace,
+        )
+        if system_metric_response is not None:
+            gen_result.response = system_metric_response
+
         grounding_issues = verify_response_grounding(
             gen_result.response,
             tool_trace=debug.tool_trace,
@@ -1083,6 +1123,17 @@ class CognitivePipeline:
                 debug.self_check_issues.append(grounding_issue.message)
             debug.correction_note = grounding_issue.message
 
+        tone_response, tone_issue = enforce_response_tone_floor(
+            gen_result.response,
+            user_message=user_message,
+            appraisal=appraisal,
+        )
+        if tone_issue:
+            gen_result.response = tone_response
+            if tone_issue not in debug.self_check_issues:
+                debug.self_check_issues.append(tone_issue)
+            debug.correction_note = tone_issue
+
         timings["self_check"] = (time.perf_counter() - _ts) * 1000
         debug.response = gen_result.response
         self.last_intake_receipt = ""
@@ -1097,6 +1148,7 @@ class CognitivePipeline:
         self.short_term.record(outcome_event, self.engine.state)
 
         self.engine.drain_energy(intensity=event.intensity)
+        self._apply_turn_state_bounds(event, user_message)
         debug.energy_after = self.engine.state.energy
         debug.emotion_label = self.engine.to_emotion_label()
         debug.modulator_snapshot = self.engine.snapshot()
@@ -1153,6 +1205,30 @@ class CognitivePipeline:
         debug.stage_timings_ms = timings
 
         return PipelineResponse(response=gen_result.response, debug=debug)
+
+    def _apply_turn_state_bounds(self, event: EmotionalEvent, text: str) -> None:
+        """Keep transient hostility from disabling task performance."""
+        state = self.engine.state
+        if self._is_assistant_attack_event(event):
+            state.arousal = min(state.arousal, 0.85)
+            state.valence = max(state.valence, 0.25)
+            state.certainty = max(state.certainty, 0.35)
+            state.energy = max(state.energy, 0.60)
+            if state.resolution > 0.30:
+                state.resolution = 0.30
+            return
+
+        if (
+            self._is_concrete_task_after_hostility(event, text)
+            and (
+                self._has_bounded_hostility_unresolved()
+                or bool((event.metadata or {}).get("deescalated_hostility"))
+            )
+        ):
+            state.arousal = min(state.arousal, 0.75)
+            state.valence = max(state.valence, 0.30)
+            state.certainty = max(state.certainty, 0.45)
+            state.energy = max(state.energy, 0.72)
 
     # ------------------------------------------------------------------
     # Proactive behavior (Phase 8)
@@ -1589,6 +1665,17 @@ class CognitivePipeline:
             self.semantic_memory.store(entry)
         return round(salience_delta, 6)
 
+    def _resolve_matching_tool_unresolved(self, tool_name: str) -> None:
+        """Resolve prior tool/task tension once a matching tool succeeds."""
+        if not tool_name:
+            return
+        repairable_sources = {"tool_failure", "blocked_action", "incomplete_task"}
+        for item in list(self.engine.unresolved_items):
+            if item.resolved or item.source not in repairable_sources:
+                continue
+            if tool_name in item.description:
+                self.engine.resolve_item(item.id)
+
     # ------------------------------------------------------------------
     # Self-observation recording (v2 — Phase 3)
     # ------------------------------------------------------------------
@@ -1656,8 +1743,15 @@ class CognitivePipeline:
         from core.types import UnresolvedItem
         import uuid
 
+        if self._is_concrete_task_after_hostility(event, text) and self._has_bounded_hostility_unresolved():
+            self._deescalate_hostility_unresolved()
+            event.metadata["deescalated_hostility"] = True
+
         # Spike not processed → unresolved (resolution events are healing, not tension)
         if event.intensity >= SPIKE_INTENSITY_THRESHOLD and event.event_type != EventType.RESOLUTION:
+            if self._is_assistant_attack_event(event):
+                self._add_or_reinforce_hostility_unresolved(event)
+                return
             self.engine.add_unresolved(UnresolvedItem(
                 id=f"spike_{uuid.uuid4().hex[:8]}",
                 source="spike",
@@ -1686,6 +1780,80 @@ class CognitivePipeline:
                         matched = item
                         break
                 self.engine.resolve_item((matched or active[0]).id)
+
+    @staticmethod
+    def _is_assistant_attack_event(event: EmotionalEvent) -> bool:
+        metadata = event.metadata or {}
+        return (
+            bool(metadata.get("targets_assistant"))
+            and str(metadata.get("social_move") or "") == "attack"
+        )
+
+    @staticmethod
+    def _is_task_request_after_hostility(event: EmotionalEvent) -> bool:
+        metadata = event.metadata or {}
+        return (
+            str(metadata.get("inferred_intent") or "") == "seek_action"
+            and str(metadata.get("social_move") or "") != "attack"
+        )
+
+    def _is_concrete_task_after_hostility(self, event: EmotionalEvent, text: str) -> bool:
+        if not self._is_task_request_after_hostility(event):
+            return False
+        return bool(
+            re.search(
+                r"\b(?:find|give|show|list|tell|search|look\s*up|write|fix|"
+                r"check|explain|review|create|save|run|memory|ram|disk|"
+                r"storage|utili[sz]ation|usage)\b",
+                text or "",
+                re.IGNORECASE,
+            )
+        )
+
+    def _add_or_reinforce_hostility_unresolved(self, event: EmotionalEvent) -> None:
+        """Keep repeated verbal attacks as one bounded, fast-decaying loop."""
+        from datetime import datetime, timezone
+        from core.types import UnresolvedItem
+        import uuid
+
+        active = [
+            item for item in self.engine.active_unresolved()
+            if item.source == "spike" and item.description == "Bounded hostility residue"
+        ]
+        next_intensity = min(0.23, max(0.18, event.intensity * 0.28))
+        if active:
+            item = active[0]
+            item.intensity = max(item.intensity, next_intensity)
+            item.created_at = datetime.now(timezone.utc)
+            self.engine._recalculate_resolution()
+            return
+
+        self.engine.add_unresolved(UnresolvedItem(
+            id=f"hostility_{uuid.uuid4().hex[:8]}",
+            source="spike",
+            description="Bounded hostility residue",
+            created_at=datetime.now(timezone.utc),
+            intensity=next_intensity,
+            decay_rate=0.35,
+        ))
+
+    def _has_bounded_hostility_unresolved(self) -> bool:
+        return any(
+            item.source == "spike" and item.description == "Bounded hostility residue"
+            for item in self.engine.active_unresolved()
+        )
+
+    def _deescalate_hostility_unresolved(self) -> None:
+        changed = False
+        for item in self.engine.active_unresolved():
+            if item.source != "spike" or item.description != "Bounded hostility residue":
+                continue
+            item.intensity = max(0.0, item.intensity - 0.18)
+            if item.intensity <= 0.08:
+                self.engine.resolve_item(item.id)
+            changed = True
+        if changed:
+            self.engine._recalculate_resolution()
 
     def _check_contradiction_resolution(
         self, contradiction_flags: list[str], user_id: str,

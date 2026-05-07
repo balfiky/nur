@@ -17,7 +17,6 @@ from typing import Any
 import pytest
 
 from core.types import (
-    ToolCapability,
     ToolCategory,
     ToolResult,
 )
@@ -27,22 +26,16 @@ from nur_tools.registry import ToolRegistry
 from nur_tools.executor import ToolExecutor
 from nur_tools import register_builtins
 from nur_tools.builtin.browser import (
-    BrowserProvider,
-    NullBrowserProvider,
     CAPABILITIES as BROWSER_CAPS,
     create_handlers as create_browser_handlers,
     _MAX_PAGE_TEXT,
 )
 from nur_tools.builtin.calendar import (
     CalendarEvent,
-    CalendarProvider,
-    NullCalendarProvider,
     CAPABILITIES as CALENDAR_CAPS,
     create_handlers as create_calendar_handlers,
 )
 from nur_tools.builtin.web_search import (
-    WebProvider,
-    NullWebProvider,
     CAPABILITIES as WEB_CAPS,
     create_handlers as create_web_handlers,
     _MAX_EXTRACT_TEXT,
@@ -504,8 +497,9 @@ class TestCognitiveCompatibility:
             tool_name="browser.open_url", success=False, output="", error="Timeout",
         )
         obs = appraise_tool_result(result, ToolCategory.READ_ONLY)
-        assert obs.certainty_delta < 0
-        assert obs.emotional_delta.get("arousal", 0) > 0
+        assert obs.certainty_delta == 0.0
+        assert obs.emotional_delta == {}
+        assert "operational issue" in obs.summary
 
     def test_calendar_write_appraisal(self):
         result = ToolResult(
