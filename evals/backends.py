@@ -19,7 +19,7 @@ from typing import Callable
 
 from core.dual_process.generator import LLMBackend, MockLLMBackend
 from core.provider_client import FastChatCompletionsClient
-from runtime.llm.backend import OpenAICompatibleLLMBackend
+from runtime.llm.backend import CodexCLIBackend, OpenAICompatibleLLMBackend
 
 
 # ---------------------------------------------------------------------------
@@ -44,7 +44,7 @@ class BackendSpec:
     than silently recorded as fake settings. If/when clients are
     instrumented to accept and transmit them, add back here.
     """
-    type: str                               # "mock" | "provider" | "minimax" | "openai_compat"
+    type: str                               # "mock" | "provider" | "minimax" | "openai_compat" | "codex"
     requested_model: str = ""
     base_url: str = ""
     api_key: str = ""                       # resolved from --api-key or env
@@ -54,7 +54,7 @@ class BackendSpec:
         """Model that will actually be sent to the provider."""
         if self.type == "minimax":
             return self.requested_model or DEFAULT_MINIMAX_MODEL
-        if self.type in {"provider", "openai_compat"}:
+        if self.type in {"provider", "openai_compat", "codex"}:
             return self.requested_model
         return ""                           # mock
 
@@ -105,9 +105,13 @@ def build_backend_factory(spec: BackendSpec) -> Callable[[], LLMBackend]:
             base_url=base_url, model=model, api_key=api_key,
         )
 
+    if spec.type == "codex":
+        model = spec.requested_model
+        return lambda: CodexCLIBackend(model=model)
+
     raise MissingBackendConfigError(
         f"Unknown backend type: {spec.type!r}. "
-        f"Expected one of: mock, provider, minimax, openai_compat."
+        f"Expected one of: mock, provider, minimax, openai_compat, codex."
     )
 
 

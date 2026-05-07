@@ -64,7 +64,8 @@ backend integration and keep human-likeness for a separate blinded study.
 ## Live UAT
 
 Live UAT is intentionally explicit. If `--live` is set and the configured key,
-model, or base URL is missing, the run fails rather than falling back to mock.
+model, or base URL required by that backend is missing, the run fails rather
+than falling back to mock.
 
 OpenAI-compatible/provider example:
 
@@ -89,6 +90,15 @@ nur-uat \
   --artifacts reports/uat/live
 ```
 
+Codex CLI example:
+
+```bash
+nur-uat \
+  --live \
+  --backend codex \
+  --artifacts reports/uat/live-codex
+```
+
 Useful options:
 
 ```bash
@@ -108,9 +118,11 @@ Run live UAT in CI by either:
 - manually starting the UAT workflow with `run_live=true`, or
 - setting repository variable `NUR_RUN_LIVE_UAT` to `1` or `true`.
 
-Live UAT has no mock fallback. It requires repository variables such as
-`NUR_UAT_BACKEND`, `NUR_UAT_MODEL`, and `NUR_UAT_BASE_URL`, plus the matching
-secret selected by `NUR_UAT_API_KEY_ENV` or the default `LLM_API_KEY`.
+Live UAT has no mock fallback. Provider-style live UAT requires repository
+variables such as `NUR_UAT_BACKEND`, `NUR_UAT_MODEL`, and `NUR_UAT_BASE_URL`,
+plus the matching secret selected by `NUR_UAT_API_KEY_ENV` or the default
+`LLM_API_KEY`. Codex live UAT instead requires the `codex` CLI to be installed
+and logged in on the runner.
 Pull requests from forks may not have access to those
 secrets, so run `nur-uat --live` locally or through a trusted branch before
 release.

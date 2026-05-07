@@ -12,6 +12,7 @@ dedupe_ttl: 60.0
 # llm_base_url, llm_model, and llm_api_key.
 # For a local or remote OpenAI-compatible endpoint, set llm_backend to
 # "openai_compatible" and fill llm_base_url and llm_model.
+# Codex CLI backend: set llm_backend to "codex"; llm_model is optional.
 llm_backend: mock
 llm_base_url: ''
 llm_model: ''

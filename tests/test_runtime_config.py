@@ -9,6 +9,7 @@ Covers:
 from __future__ import annotations
 
 import os
+import subprocess
 import tempfile
 from unittest.mock import patch
 
@@ -17,7 +18,7 @@ import pytest
 from core.dual_process.generator import MockLLMBackend
 from runtime.config import RuntimeConfig
 from core.provider_client import FastChatCompletionsClient
-from runtime.llm.backend import OpenAICompatibleLLMBackend, create_llm_backend
+from runtime.llm.backend import CodexCLIBackend, OpenAICompatibleLLMBackend, create_llm_backend
 
 
 # =========================================================================
@@ -192,6 +193,33 @@ class TestBackendSelection:
         assert "chat_template_kwargs" in first_payload
         assert "chat_template_kwargs" not in second_payload
 
+    def test_codex_backend_uses_read_only_ephemeral_cli(self, monkeypatch, tmp_path):
+        captured = {}
+
+        def fake_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            captured["kwargs"] = kwargs
+            output_path = cmd[cmd.index("--output-last-message") + 1]
+            with open(output_path, "w", encoding="utf-8") as handle:
+                handle.write("codex response\n")
+            return subprocess.CompletedProcess(cmd, 0, stdout="ignored", stderr="")
+
+        monkeypatch.setattr("runtime.llm.backend.shutil.which", lambda _exe: "/usr/bin/codex")
+        monkeypatch.setattr("runtime.llm.backend.subprocess.run", fake_run)
+
+        backend = CodexCLIBackend(model="gpt-test", workdir=str(tmp_path))
+
+        assert backend.generate("system text", "user text") == "codex response"
+        cmd = captured["cmd"]
+        assert cmd[:2] == ["codex", "exec"]
+        assert "--ephemeral" in cmd
+        assert "--ignore-rules" in cmd
+        assert cmd[cmd.index("--sandbox") + 1] == "read-only"
+        assert cmd[cmd.index("--model") + 1] == "gpt-test"
+        assert captured["kwargs"]["cwd"] == str(tmp_path)
+        assert "system text" in captured["kwargs"]["input"]
+        assert "user text" in captured["kwargs"]["input"]
+
     def test_provider_backend(self):
         """Explicit hosted-provider config returns the generic sync backend."""
         config = RuntimeConfig(
@@ -218,6 +246,18 @@ class TestBackendSelection:
         )
         backend = create_llm_backend(config)
         assert isinstance(backend, OpenAICompatibleLLMBackend)
+
+    def test_codex_backend(self, monkeypatch):
+        monkeypatch.setattr("runtime.llm.backend.shutil.which", lambda _exe: "/usr/bin/codex")
+        config = RuntimeConfig(llm_backend="codex", llm_model="gpt-test")
+        backend = create_llm_backend(config)
+        assert isinstance(backend, CodexCLIBackend)
+
+    def test_codex_backend_requires_cli(self, monkeypatch):
+        monkeypatch.setattr("runtime.llm.backend.shutil.which", lambda _exe: None)
+        config = RuntimeConfig(llm_backend="codex")
+        with pytest.raises(ValueError, match="codex CLI"):
+            create_llm_backend(config)
 
     def test_openai_compatible_requires_base_url_and_model(self):
         """Explicit OpenAI-compatible backend fails loudly if under-configured."""

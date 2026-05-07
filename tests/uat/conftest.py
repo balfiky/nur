@@ -264,6 +264,8 @@ def _runtime_config(*, data_dir: Path) -> RuntimeConfig:
         api_key_env = os.environ.get("NUR_UAT_API_KEY_ENV", "LLM_API_KEY")
         config.llm_model = os.environ.get("NUR_UAT_MODEL", "")
         config.llm_api_key = os.environ.get(api_key_env, "")
+    elif backend == "codex":
+        config.llm_model = os.environ.get("NUR_UAT_MODEL", "")
     if live:
         _assert_live_config(config)
     return config
@@ -278,6 +280,8 @@ def _assert_live_config(config: RuntimeConfig) -> None:
     if config.llm_backend == "minimax":
         if not config.llm_model or not config.llm_api_key:
             pytest.fail("Live MiniMax UAT requires model and LLM_API_KEY")
+    if config.llm_backend == "codex" and shutil.which(os.environ.get("NUR_CODEX_BIN", "codex")) is None:
+        pytest.fail("Live Codex UAT requires the codex CLI on PATH")
 
 
 def _free_port() -> int:

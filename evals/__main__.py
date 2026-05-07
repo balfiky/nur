@@ -41,14 +41,14 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--backend",
-        choices=["mock", "provider", "minimax", "openai_compat"],
+        choices=["mock", "provider", "minimax", "openai_compat", "codex"],
         required=False,
         help=(
             "LLM backend to run against. REQUIRED unless --list is set. "
             "No silent fallback to mock."
         ),
     )
-    parser.add_argument("--model", default="", help="Model name (provider / minimax / openai_compat)")
+    parser.add_argument("--model", default="", help="Model name (provider / minimax / openai_compat / codex)")
     parser.add_argument("--base-url", default="", help="Base URL (provider / openai_compat, or override minimax)")
     parser.add_argument("--api-key", default="", help="API key literal (prefer --api-key-env or env vars)")
     parser.add_argument(
@@ -108,7 +108,7 @@ def main() -> None:
 
     if not args.backend:
         print(
-            "error: --backend is required (mock | provider | minimax | openai_compat). "
+            "error: --backend is required (mock | provider | minimax | openai_compat | codex). "
             "There is no silent fallback.",
             file=sys.stderr,
         )

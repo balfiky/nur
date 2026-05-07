@@ -306,7 +306,7 @@ class TestIndexPage:
         assert "hosted:      { backend: 'openai_compatible'" in js
         assert "Hosted OpenAI-compatible gateway" in js
         assert "live: true" in js
-        assert "['local', 'vllm', 'hosted'].includes(wizardPreset)" in js
+        assert "['local', 'vllm', 'hosted', 'codex'].includes(wizardPreset)" in js
         assert "loadSettings({ loadSoul: false })" in js
         assert "Character Mode" in html
         assert 'id="wiz-soul-name" type="text" value="Nūr"' in html

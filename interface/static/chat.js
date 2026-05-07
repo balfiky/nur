@@ -998,7 +998,8 @@ function updateSoulDraftAvailability() {
   if (!btn || !hint) return;
   const backend = gv('cfg-llm_backend');
   const hasConfig = !!(gv('cfg-llm_base_url') && gv('cfg-llm_model')) ||
-    backend === 'mock';
+    backend === 'mock' ||
+    backend === 'codex';
   btn.disabled = !hasConfig;
   if (hasConfig) {
     hint.textContent = 'Uses your current LLM backend (' + (backend || 'auto') + '). Review the draft before saving.';
@@ -1120,6 +1121,7 @@ const WIZARD_PRESET_CONFIG = {
   vllm:        { backend: 'openai_compatible', base_url: 'http://localhost:8002/v1',     model: '',                   model_placeholder: 'Name of the model loaded in vLLM', label: 'vLLM',                  key_label: 'API Key (usually blank for vLLM)',   key_placeholder: 'Often blank' },
   hosted:      { backend: 'openai_compatible', base_url: 'https://api.openai.com/v1',    model: 'gpt-4o-mini',        model_placeholder: 'e.g. gpt-4o-mini',           label: 'Hosted OpenAI-compatible gateway', key_label: 'API Key (blank if gateway needs none)', key_placeholder: 'Optional' },
   openrouter:  { backend: 'provider',          base_url: 'https://openrouter.ai/api/v1', model: 'openai/gpt-4o-mini', model_placeholder: 'e.g. openai/gpt-4o-mini',    label: 'OpenRouter',                 key_label: 'OpenRouter API Key (required)',     key_placeholder: 'sk-or-v1-...' },
+  codex:       { backend: 'codex',             base_url: '',                             model: '',                   model_placeholder: 'Optional; blank uses Codex default', label: 'Codex CLI',          key_label: '',                                   key_placeholder: '', hide_base_url: true, hide_api_key: true },
   mock:        { backend: 'mock',              base_url: '',                             model: '',                   model_placeholder: '',                            label: 'Mock (no LLM)',              key_label: '',                                   key_placeholder: '' },
 };
 const WIZARD_ARCHETYPE_CONFIG = {
@@ -1260,11 +1262,16 @@ function wizardSelectPreset(preset) {
   }
   fields.hidden = false;
   if (testBtn) testBtn.hidden = false;
-  document.getElementById('wiz-llm_base_url').value = cfg.base_url;
-  document.getElementById('wiz-llm_model').value = cfg.model;
-  document.getElementById('wiz-llm_model').placeholder = cfg.model_placeholder || '';
-  document.getElementById('wiz-llm_api_key').value = '';
-  document.getElementById('wiz-llm_api_key').placeholder = cfg.key_placeholder;
+  const baseInput = document.getElementById('wiz-llm_base_url');
+  const modelInput = document.getElementById('wiz-llm_model');
+  const keyInput = document.getElementById('wiz-llm_api_key');
+  baseInput.closest('div').hidden = !!cfg.hide_base_url;
+  keyInput.closest('div').hidden = !!cfg.hide_api_key;
+  baseInput.value = cfg.base_url;
+  modelInput.value = cfg.model;
+  modelInput.placeholder = cfg.model_placeholder || '';
+  keyInput.value = '';
+  keyInput.placeholder = cfg.key_placeholder;
   document.getElementById('wiz-llm_api_key_label').textContent = cfg.key_label;
 }
 
@@ -1317,7 +1324,7 @@ async function wizardSaveLLM() {
     wizardConfigSnapshot = curJson.config || {};
     const cfg = WIZARD_PRESET_CONFIG[wizardPreset];
     const apiKey = wizardPreset === 'mock' ? '' : gv('wiz-llm_api_key').trim();
-    const optionalKeyNoKey = ['local', 'vllm', 'hosted'].includes(wizardPreset) && !apiKey;
+    const optionalKeyNoKey = ['local', 'vllm', 'hosted', 'codex'].includes(wizardPreset) && !apiKey;
     const clearGenericKey = wizardPreset === 'mock' || optionalKeyNoKey;
     const payload = Object.assign({}, wizardConfigSnapshot, {
       llm_backend: cfg.backend,

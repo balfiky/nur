@@ -39,7 +39,7 @@ from pipeline import CognitivePipeline
 from runtime.config import RuntimeConfig
 from runtime.debug.api import _debug_to_dict as _serialize_debug
 from runtime.debug.persona_view import build_persona_view
-from runtime.llm.backend import create_llm_backend
+from runtime.llm.backend import codex_cli_available, create_llm_backend
 from runtime.sessions.manager import SessionManager
 from runtime.sessions.user_session import UserSession
 from runtime.tools import create_tool_executor
@@ -756,6 +756,7 @@ async def admin_test_llm(req: AdminLLMTestRequest) -> dict:
         "missing_provider_key",
         "missing_openai_compatible_base_url",
         "missing_openai_compatible_model",
+        "missing_codex_cli",
     }
     llm_warnings = [
         warning for warning in warnings
@@ -2121,7 +2122,7 @@ def _admin_secret_status(config: RuntimeConfig) -> dict[str, dict]:
 
 def _allowed_values_for_field(field_name: str) -> list[str] | None:
     if field_name == "llm_backend":
-        return ["auto", "provider", "openai_compatible", "mock"]
+        return ["auto", "provider", "openai_compatible", "codex", "mock"]
     if field_name == "autonomy_level":
         return ["off", "assisted", "autonomous", "high_risk"]
     return None
@@ -2155,6 +2156,8 @@ def _admin_config_warnings(config: RuntimeConfig) -> list[dict]:
             warnings.append(_warning("error", "llm_base_url", "missing_openai_compatible_base_url", "OpenAI-compatible backend requires llm_base_url."))
         if not config.llm_model.strip():
             warnings.append(_warning("error", "llm_model", "missing_openai_compatible_model", "OpenAI-compatible backend requires llm_model."))
+    elif backend == "codex" and not codex_cli_available():
+        warnings.append(_warning("error", "llm_backend", "missing_codex_cli", "Codex backend requires the codex CLI on PATH."))
     elif backend == "minimax" and not has_generic_key:
         warnings.append(_warning("error", "llm_api_key", "missing_provider_key", "Legacy MiniMax backend requires the generic LLM API key."))
 
@@ -2196,6 +2199,8 @@ def _llm_configured(config: RuntimeConfig) -> bool:
         )
     if backend == "openai_compatible":
         return bool(config.llm_base_url.strip() and config.llm_model.strip())
+    if backend == "codex":
+        return codex_cli_available()
     if backend == "minimax":
         return secret_status["llm_api_key"]["configured"]
     if backend == "auto":
@@ -2315,6 +2320,8 @@ def _llm_configured_for_draft(config: RuntimeConfig) -> bool:
         return False
     if backend in {"provider", "openai_compatible"}:
         return bool(config.llm_base_url.strip() and config.llm_model.strip())
+    if backend == "codex":
+        return codex_cli_available()
     if backend == "minimax":
         return bool(config.llm_api_key or os.environ.get("LLM_API_KEY"))
     if backend == "auto":

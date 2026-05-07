@@ -93,7 +93,7 @@ def build_runtime_architecture() -> Canvas:
     # ---- External & persistence ---------------------------------------
     # Single column of outbound resources so arrows can fan without crossing.
     c.tile(1000, 165, 540, 70, "LLM backend",
-           body=["mock / provider / openai_compatible / minimax"],
+           body=["mock / provider / openai_compatible / codex / minimax"],
            color="external", title_size=15)
     c.cylinder(1000, 265, 540, 90, "Per-user nur.db",
                body=["memory, relationships, profiles, semantic"],

@@ -237,7 +237,7 @@ Important fields:
 | Field | Production guidance |
 |-------|---------------------|
 | `api_key` | Optional bearer token for hardened deployments. Empty means no browser/API token flow. When set, it protects `/settings`, `/admin/*`, `/chat`, `/config`, `/ws`, and `/v1/*` except health/ready. |
-| `llm_backend` | Use `provider` for hosted gateways, `openai_compatible` for local/remote compatible servers, `mock` for offline tests. |
+| `llm_backend` | Use `provider` for hosted gateways, `openai_compatible` for local/remote compatible servers, `codex` for the local Codex CLI, `mock` for offline tests. |
 | `llm_base_url` / `llm_model` | Required for hosted and OpenAI-compatible backends. |
 | `llm_api_key` | Generic provider/gateway key. Prefer local-only YAML or environment injection. |
 | `telegram_token` | Enables the Telegram channel when set. |
@@ -247,6 +247,11 @@ Important fields:
 | `tools_enabled` | Master switch for tool execution; off by default. |
 | `tools_workspace` | Filesystem sandbox root for tools; blank means `<data_dir>/workspace`. |
 | `shell_tool_enabled` | Separate opt-in for local shell execution; keep off by default. Supports normal shell syntax such as pipes once enabled. |
+
+The Codex backend does not use `llm_api_key`. It calls the local `codex` CLI
+with a read-only ephemeral session. Leave `NUR_CODEX_WORKDIR` unset for normal
+chat use; set it only when Codex should have read-only context from a specific
+local directory.
 
 ## Telegram Commands
 

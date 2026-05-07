@@ -21,6 +21,7 @@ dedupe_ttl: 60.0
 # OpenAI-compatible endpoint: set llm_backend to "openai_compatible",
 # then fill llm_base_url and llm_model. This works with Ollama's OpenAI
 # API, vLLM, LM Studio, or a compatible hosted gateway.
+# Codex CLI backend: set llm_backend to "codex"; llm_model is optional.
 llm_backend: mock
 llm_base_url: ''
 llm_model: ''

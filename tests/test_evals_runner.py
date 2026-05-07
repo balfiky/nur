@@ -35,6 +35,12 @@ class TestBackendFactory:
         # MockLLMBackend exposes a generate() method
         assert hasattr(backend, "generate")
 
+    def test_codex_has_no_api_key_requirement(self, monkeypatch):
+        monkeypatch.setattr("runtime.llm.backend.shutil.which", lambda _exe: "/usr/bin/codex")
+        factory = build_backend_factory(BackendSpec(type="codex", requested_model="gpt-test"))
+        backend = factory()
+        assert hasattr(backend, "generate")
+
     def test_minimax_without_api_key_fails_loud(self):
         with pytest.raises(MissingBackendConfigError, match="API key"):
             build_backend_factory(BackendSpec(type="minimax"))
@@ -128,6 +134,17 @@ class TestSpecFromArgs:
             api_key_env="",
         )
         assert spec.api_key == "generic-key"
+
+    def test_codex_does_not_resolve_provider_key(self, monkeypatch):
+        monkeypatch.setenv("LLM_API_KEY", "generic-key")
+        spec = spec_from_args(
+            backend="codex",
+            model="gpt-test",
+            base_url="",
+            api_key="",
+            api_key_env="",
+        )
+        assert spec.api_key == ""
 
 
 class TestProvenance:

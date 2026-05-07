@@ -49,6 +49,10 @@ extra scrutiny:
 - `interface/api.py` and `interface/v1.py` — CORS and bearer-auth handling.
   The default `cors_origins: []` is same-origin only; avoid widening it
   without careful thought.
+- `llm_backend: codex` — delegates response generation to the local Codex CLI.
+  Nūr invokes it with `codex exec --sandbox read-only --ephemeral`; keep
+  `NUR_CODEX_WORKDIR` unset unless the backend should have read-only context
+  from a specific local directory.
 - `runtime/channels/telegram.py` — allowlist logic controls who can chat.
   Misconfiguration exposes the system to arbitrary Telegram users.
 - `/admin` — operator console for configuration, diagnostics, redacted export,

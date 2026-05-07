@@ -625,6 +625,23 @@ class TestAdminEndpoints:
         assert data["warnings"] == []
         assert captured and captured[0].llm_api_key == ""
 
+    def test_admin_test_llm_codex_reports_missing_cli(
+        self, client, temp_config, tmp_path, monkeypatch,
+    ):
+        RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            llm_backend="codex",
+        ).write_yaml(str(temp_config))
+        monkeypatch.setattr(interface_api, "codex_cli_available", lambda: False)
+
+        resp = client.post("/admin/test/llm", json={})
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ok"] is False
+        assert data["backend"] == "codex"
+        assert data["warnings"][0]["code"] == "missing_codex_cli"
+
     def test_admin_test_llm_mock_runs_live_sample(
         self, client, temp_config, tmp_path,
     ):

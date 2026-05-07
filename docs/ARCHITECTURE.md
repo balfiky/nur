@@ -174,8 +174,8 @@ the pipeline, write memory, or change emotional state.
 
 ## LLM Boundary
 
-Provider-neutral interface with five backend modes: `mock`, `provider`,
-`openai_compatible`, `minimax`, `auto`. The LLM receives a rendered
+Provider-neutral interface with six backend modes: `mock`, `provider`,
+`openai_compatible`, `codex`, `minimax`, `auto`. The LLM receives a rendered
 prompt containing current cognitive context. It does not own
 persistence, tool policy, auth policy, or session lifecycle. Important
 state stays inspectable outside prompt text.

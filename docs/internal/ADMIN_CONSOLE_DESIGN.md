@@ -114,7 +114,7 @@ Recommended steps:
    - configure `api_key`
    - show remote-exposure warning when auth is empty
 3. **LLM backend**
-   - choose `mock`, `provider`, `openai_compatible`, or `minimax`
+   - choose `mock`, `provider`, `openai_compatible`, `codex`, or `minimax`
    - enter base URL, model, and key when needed
    - test provider connection
 4. **Channels**
@@ -256,6 +256,8 @@ Validation should be clear and bounded:
   provider as keyless
 - `llm_backend=openai_compatible`: require `llm_base_url` and `llm_model`; key
   optional for local deployments
+- `llm_backend=codex`: require the local `codex` CLI on `PATH`; `llm_model` is
+  optional and `llm_api_key` is not used by Nūr
 - `llm_backend=minimax`: legacy installs use the generic `llm_api_key`
 - Telegram enabled means `telegram_token` is configured
 - `tools_enabled=true` should warn if `api_key` is empty

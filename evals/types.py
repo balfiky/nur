@@ -209,7 +209,7 @@ class RunProvenance:
     dirty_worktree: bool = False               # uncommitted changes present
 
     # --- Backend identity ---
-    backend_type: str = ""                     # mock | minimax | openai_compat
+    backend_type: str = ""                     # mock | minimax | openai_compat | codex
     requested_model: str = ""                  # what the user/CLI asked for
     resolved_model: str = ""                   # what the backend actually used (may equal requested)
     base_url: str = ""                         # empty for mock

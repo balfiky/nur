@@ -25,13 +25,13 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--backend",
         default=os.environ.get("NUR_UAT_BACKEND", "mock"),
-        choices=["mock", "provider", "openai_compatible", "minimax"],
+        choices=["mock", "provider", "openai_compatible", "minimax", "codex"],
         help="Backend for the temporary runtime config.",
     )
     parser.add_argument(
         "--model",
         default=os.environ.get("NUR_UAT_MODEL", ""),
-        help="Model name for provider/openai_compatible/minimax live UAT.",
+        help="Model name for provider/openai_compatible/minimax/codex live UAT.",
     )
     parser.add_argument(
         "--base-url",
@@ -74,7 +74,9 @@ def _default_api_key_env(backend: str) -> str:
 def _validate_live_config(args: argparse.Namespace) -> str:
     backend = args.backend
     if backend == "mock":
-        raise SystemExit("--live requires --backend provider, openai_compatible, or minimax")
+        raise SystemExit("--live requires --backend provider, openai_compatible, minimax, or codex")
+    if backend == "codex":
+        return ""
     api_key_env = args.api_key_env or _default_api_key_env(backend)
     if not os.environ.get(api_key_env):
         raise SystemExit(f"--live requires ${api_key_env} to be set")

@@ -67,6 +67,7 @@
         <button type="button" class="wizard-preset" data-preset="vllm">vLLM<span class="preset-sub">Local GPU model server</span></button>
         <button type="button" class="wizard-preset" data-preset="hosted">Hosted<span class="preset-sub">OpenAI-compatible gateway</span></button>
         <button type="button" class="wizard-preset" data-preset="openrouter">OpenRouter<span class="preset-sub">800+ models, one key</span></button>
+        <button type="button" class="wizard-preset" data-preset="codex">Codex CLI<span class="preset-sub">Use local Codex login</span></button>
         <button type="button" class="wizard-preset" data-preset="mock">Mock<span class="preset-sub">Explore without a real LLM</span></button>
       </div>
       <div class="wizard-fields" id="wizLLMFields" hidden>
@@ -224,7 +225,7 @@
         <div class="settings-field"><label for="cfg-debug_port">Debug Port</label><input id="cfg-debug_port" type="number" min="1"></div>
       </div><div class="settings-actions"><button class="secondary" data-action="test-storage">Test Storage</button></div><div class="admin-test-result" id="test-storage" hidden></div></div>
       <div class="settings-section"><h3>LLM Backend <button class="secondary" data-action="test-llm">Test</button></h3><div class="settings-grid">
-        <div class="settings-field"><label for="cfg-llm_backend">Backend</label><select id="cfg-llm_backend"><option value="auto">auto</option><option value="mock">mock</option><option value="provider">provider / gateway</option><option value="openai_compatible">OpenAI-compatible</option></select></div>
+        <div class="settings-field"><label for="cfg-llm_backend">Backend</label><select id="cfg-llm_backend"><option value="auto">auto</option><option value="mock">mock</option><option value="provider">provider / gateway</option><option value="openai_compatible">OpenAI-compatible</option><option value="codex">Codex CLI</option></select></div>
         <div class="settings-field full"><label for="cfg-llm_base_url">Base URL / API Endpoint</label><input id="cfg-llm_base_url" type="text" placeholder="http://localhost:11434/v1 or https://your-provider.example/v1"></div>
         <div class="settings-field full"><label for="cfg-llm_model">Model</label><input id="cfg-llm_model" type="text"></div>
         <div class="settings-field full"><label for="cfg-llm_api_key">API Key</label><input id="cfg-llm_api_key" type="password" placeholder="Generic key for a provider or compatible gateway; leave blank to keep current"><div class="secret-hint" id="cfg-status-llm_api_key">Not configured</div><label class="settings-inline"><input id="cfg-clear_llm_api_key" type="checkbox"> Clear saved key</label></div>

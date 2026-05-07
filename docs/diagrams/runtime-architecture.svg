@@ -41,7 +41,7 @@
 <text x="760.0" y="550" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">only active when tools_enabled: true</text>
 <rect x="1000" y="165" width="540" height="70" rx="10" fill="#fff1e5" stroke="#fb8f44" stroke-width="1.5"/>
 <text x="1270.0" y="188" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="15" font-weight="700" fill="#9a5700">LLM backend</text>
-<text x="1270.0" y="210" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">mock / provider / openai_compatible / minimax</text>
+<text x="1270.0" y="210" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">mock / provider / openai_compatible / codex / minimax</text>
 <path d="M1000,275 C1000,259.0 1540,259.0 1540,275 L1540,345 C1540,361.0 1000,361.0 1000,345 Z" fill="#eae6ff" stroke="#8250df" stroke-width="1.5"/>
 <ellipse cx="1270.0" cy="275" rx="270.0" ry="10" fill="none" stroke="#8250df" stroke-width="1.5" opacity="0.6"/>
 <text x="1270.0" y="295" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#5931ad">Per-user nur.db</text>

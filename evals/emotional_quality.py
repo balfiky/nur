@@ -742,7 +742,7 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--backend",
-        choices=["mock", "provider", "minimax", "openai_compat"],
+        choices=["mock", "provider", "minimax", "openai_compat", "codex"],
         required=True,
     )
     parser.add_argument("--model", default="")

@@ -41,7 +41,7 @@ class RuntimeConfig:
     dedupe_ttl: float = 60.0
 
     # LLM backend
-    llm_backend: str = "auto"      # "auto", "provider", "openai_compatible", "minimax", "mock"
+    llm_backend: str = "auto"      # "auto", "provider", "openai_compatible", "codex", "minimax", "mock"
     llm_base_url: str = ""         # API endpoint for OpenAI-compatible backends
     llm_model: str = ""            # model name for OpenAI-compatible backends
     llm_api_key: str = ""          # generic API key (optional for local endpoints)

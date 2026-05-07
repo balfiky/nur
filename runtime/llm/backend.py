@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
+import subprocess
+import tempfile
 from typing import Any
 
 import requests
@@ -79,6 +82,123 @@ class OpenAICompatibleLLMBackend:
         self._session.close()
 
 
+class CodexCLIBackend:
+    """LLM backend that delegates generation to ``codex exec``.
+
+    The Codex CLI is agentic, so this wrapper runs it in read-only,
+    ephemeral mode and captures only the final message. By default each
+    call uses a temporary working directory so normal chat turns do not give
+    Codex a project workspace to edit or inspect. Operators can opt into a
+    stable read-only workdir with ``NUR_CODEX_WORKDIR``.
+    """
+
+    def __init__(
+        self,
+        *,
+        model: str = "",
+        timeout: float | None = None,
+        executable: str | None = None,
+        workdir: str | None = None,
+    ) -> None:
+        self._executable = executable or os.environ.get("NUR_CODEX_BIN", "codex")
+        if not shutil.which(self._executable):
+            raise ValueError("Codex backend requires the codex CLI on PATH")
+        self._model = (model or "").strip()
+        self._timeout = _codex_timeout(timeout)
+        self._workdir = (workdir or os.environ.get("NUR_CODEX_WORKDIR", "")).strip()
+        if self._workdir and not os.path.isdir(self._workdir):
+            raise ValueError(f"NUR_CODEX_WORKDIR does not exist: {self._workdir}")
+
+    def generate(self, system_prompt: str, user_message: str) -> str:
+        with tempfile.TemporaryDirectory(prefix="nur-codex-") as tmpdir:
+            workdir = self._workdir or tmpdir
+            output_path = os.path.join(tmpdir, "last_message.txt")
+            cmd = [
+                self._executable,
+                "exec",
+                "--sandbox",
+                "read-only",
+                "--ephemeral",
+                "--skip-git-repo-check",
+                "--ignore-rules",
+                "--color",
+                "never",
+                "--output-last-message",
+                output_path,
+                "-C",
+                workdir,
+            ]
+            if self._model:
+                cmd.extend(["--model", self._model])
+            cmd.append("-")
+            try:
+                result = subprocess.run(
+                    cmd,
+                    input=_codex_prompt(system_prompt, user_message),
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=self._timeout,
+                    cwd=workdir,
+                    check=False,
+                )
+            except subprocess.TimeoutExpired as exc:
+                raise RuntimeError(f"Codex backend timed out after {self._timeout:.0f}s") from exc
+            if result.returncode != 0:
+                detail = _trim_error(result.stderr or result.stdout)
+                raise RuntimeError(f"Codex backend failed with exit code {result.returncode}: {detail}")
+            content = ""
+            try:
+                with open(output_path, encoding="utf-8") as handle:
+                    content = handle.read()
+            except FileNotFoundError:
+                content = result.stdout
+            content = content.strip()
+            if not content:
+                raise RuntimeError("Codex backend returned an empty response")
+            return content
+
+
+def codex_cli_available(executable: str | None = None) -> bool:
+    """Return whether the configured Codex CLI executable is available."""
+    return shutil.which(executable or os.environ.get("NUR_CODEX_BIN", "codex")) is not None
+
+
+def _codex_timeout(timeout: float | None) -> float:
+    if timeout is not None:
+        return timeout
+    raw = os.environ.get("NUR_CODEX_TIMEOUT_SECONDS", "").strip()
+    if not raw:
+        return 300.0
+    try:
+        return max(1.0, float(raw))
+    except ValueError:
+        return 300.0
+
+
+def _codex_prompt(system_prompt: str, user_message: str) -> str:
+    return (
+        "You are acting as Nūr's response-generation backend.\n"
+        "Return only the assistant response that should be shown to the user.\n"
+        "Do not edit files, do not run commands, and do not mention this backend wrapper.\n\n"
+        "Nūr system prompt:\n"
+        "<system_prompt>\n"
+        f"{system_prompt}\n"
+        "</system_prompt>\n\n"
+        "User message:\n"
+        "<user_message>\n"
+        f"{user_message}\n"
+        "</user_message>\n"
+    )
+
+
+def _trim_error(text: str, limit: int = 1200) -> str:
+    text = (text or "").strip()
+    if len(text) <= limit:
+        return text
+    return text[:limit].rstrip() + "..."
+
+
 def _should_retry_without_chat_template_kwargs(response: requests.Response) -> bool:
     """Retry strict OpenAI-compatible providers that reject vLLM extras."""
     if response.status_code not in (400, 422):
@@ -100,6 +220,7 @@ def create_llm_backend(config=None) -> LLMBackend:
         "mock"               → always MockLLMBackend
         "provider"           → generic hosted-provider / gateway backend
         "openai_compatible"  → local/self-hosted compatible backend
+        "codex"              → local Codex CLI backend
         "minimax"            → legacy MiniMax-specific backend using llm_api_key
         "auto"               → generic endpoint if base_url + model configured,
                                else Mock
@@ -120,6 +241,9 @@ def create_llm_backend(config=None) -> LLMBackend:
 
     if backend_type == "mock":
         return MockLLMBackend()
+
+    if backend_type == "codex":
+        return CodexCLIBackend(model=model)
 
     if backend_type in {"provider", "openai_compatible"}:
         return OpenAICompatibleLLMBackend(

@@ -27,6 +27,8 @@ All notable changes to Project Nur are documented here.
 - Restored left-panel navigation in `/settings` to page switching: Overview,
   Settings, Skills, Observability, and Life History are separate pages inside
   the single settings workspace.
+- Added `llm_backend=codex`, backed by `codex exec` in read-only ephemeral
+  mode, with Settings and wizard options plus UAT/eval selector support.
 
 ### Character independence
 - Implemented the channels-not-gates Life History path: learning intake now has
