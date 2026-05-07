@@ -1328,6 +1328,7 @@ function openWizard() {
   sv('wiz-tools_enabled', 'false');
   sv('wiz-autonomy_level', 'assisted');
   sv('wiz-shell_tool_enabled', 'false');
+  sv('wiz-character_independence', 'false');
   const soulName = document.getElementById('wiz-soul-name');
   if (soulName) soulName.value = 'Nūr';
   const lifeTitle = document.getElementById('wiz-life-title');
@@ -1468,6 +1469,7 @@ function wizardPopulateRuntimeFields(config) {
   sv('wiz-autonomy_level', c.autonomy_level || 'assisted');
   sv('wiz-tools_workspace', c.tools_workspace || '');
   sv('wiz-shell_tool_enabled', String(!!c.shell_tool_enabled));
+  sv('wiz-character_independence', String(!!c.character_independence));
   sv('wiz-api_key', '');
   sv('wiz-telegram_token', '');
 }
@@ -1489,6 +1491,7 @@ async function wizardSaveRuntimeChannels() {
       autonomy_level: gv('wiz-autonomy_level') || 'assisted',
       tools_workspace: gv('wiz-tools_workspace'),
       shell_tool_enabled: gb('wiz-shell_tool_enabled'),
+      character_independence: gb('wiz-character_independence'),
       llm_api_key: '',
       clear_telegram_token: false,
       clear_llm_api_key: false,
@@ -1653,6 +1656,7 @@ function wizardRenderSummary() {
     '<div>Telegram: <strong>' + esc(gv('wiz-telegram_token') ? 'Configured' : 'Not configured') + '</strong></div>' +
     '<div>Tools: <strong>' + esc(gv('wiz-tools_enabled') === 'true' ? ('Enabled / ' + (gv('wiz-autonomy_level') || 'assisted')) : 'Disabled') + '</strong></div>' +
     '<div>Shell tool: <strong>' + esc(gv('wiz-shell_tool_enabled') === 'true' ? 'Enabled' : 'Disabled') + '</strong></div>' +
+    '<div>Character Independence: <strong>' + esc(gb('wiz-character_independence') ? 'Enabled' : 'Disabled') + '</strong></div>' +
     '<div>Character mode: <strong>' + esc((WIZARD_ARCHETYPE_CONFIG[gv('wiz-soul-archetype')] || {}).label || 'Custom') + '</strong></div>' +
     '<div>First experience: <strong>' + esc(wizardLifeStatus === 'digested' ? 'Digested into Life History' : 'Skipped') + '</strong></div>' +
     (preset && preset.base_url ? '<div>Endpoint: <strong>' + esc(gv('wiz-llm_base_url') || preset.base_url) + '</strong></div>' : '') +
@@ -1689,11 +1693,27 @@ function setStatusHtml(msg, err, ok) {
   AdminOverlayState.statusOk = !!ok && !err;
   AdminOverlayState.statusHtml = msg;
 }
-function gv(id) { return document.getElementById(id).value; }
-function sv(id, v) { document.getElementById(id).value = v; }
+function gv(id) {
+  const el = document.getElementById(id);
+  if (el && el.type === 'checkbox') return String(!!el.checked);
+  return el ? el.value : '';
+}
+function sv(id, v) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (el.type === 'checkbox') {
+    el.checked = v === true || v === 'true';
+    return;
+  }
+  el.value = v;
+}
 function gi(id) { return parseInt(gv(id), 10); }
 function gf(id) { return parseFloat(gv(id)); }
-function gb(id) { return gv(id) === 'true'; }
+function gb(id) {
+  const el = document.getElementById(id);
+  if (el && el.type === 'checkbox') return !!el.checked;
+  return gv(id) === 'true';
+}
 function lines(id) { return gv(id).split('\n').map(s=>s.trim()).filter(Boolean); }
 function splitLoose(value) { return String(value || '').split(/[\n,]/).map(s=>s.trim()).filter(Boolean); }
 function esc(s) { const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML; }

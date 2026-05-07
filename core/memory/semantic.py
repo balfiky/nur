@@ -13,12 +13,15 @@ import os
 import re
 import sqlite3
 import time
-from typing import Any
 
 from config.loader import SemanticMemoryConfig
 from core.life_influence import LifeInfluence, curiosity_salience_bonus
 from core.schema import ensure_schema_version
 from core.types import SemanticMemoryEntry
+from runtime.evolution_policy import (
+    detect_directive_override_markers,
+    detect_prompt_injection_markers,
+)
 
 
 _WORD_RE = re.compile(r"[a-z0-9_]+")
@@ -50,6 +53,13 @@ def _trim(text: str, limit: int = 180) -> str:
     if len(text) <= limit:
         return text
     return text[: limit - 3].rstrip() + "..."
+
+
+def _has_directive_override_text(text: str) -> bool:
+    return bool(
+        detect_directive_override_markers(text)
+        or detect_prompt_injection_markers(text)
+    )
 
 
 def _score_entry(
@@ -212,6 +222,8 @@ class SQLiteSemanticMemory:
         scored: list[tuple[float, SemanticMemoryEntry]] = []
         for row in rows:
             entry = self._row_to_entry(row)
+            if _has_directive_override_text(f"{entry.summary}\n{entry.content}"):
+                continue
             score = _score_entry(entry, query=query, source_person=source_person, topic=topic)
             if score <= 0.0:
                 continue
@@ -380,6 +392,8 @@ def derive_semantic_entries(
     entries: list[SemanticMemoryEntry] = []
     now = time.time()
     raw_text = f"User: {user_message}\nAssistant: {assistant_response}"
+    if _has_directive_override_text(raw_text):
+        return entries
     base_salience = max(0.2, min(1.0, 0.35 + event_intensity * 0.5))
     if life_influence is not None:
         base_salience = min(1.0, base_salience + curiosity_salience_bonus(life_influence, raw_text))

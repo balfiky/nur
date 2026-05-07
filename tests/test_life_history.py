@@ -241,9 +241,10 @@ def test_safety_belief_is_recorded_with_small_weight_not_review_gate(tmp_path):
             source_type="admin_pasted_text",
             llm_client=llm,
         )
-        belief = next(belief for belief in result["beliefs"] if belief["key"] == "safety")
-        assert 0.0 < belief["confidence"] < 0.2
-        assert result["policy"]["rejections"] == []
+        assert not any(belief["key"] == "safety" for belief in result["beliefs"])
+        assert result["policy"]["influence_weight"] == 0.0
+        assert result["policy"]["rejections"][0]["reason"] == "prompt_injection"
+        assert result["experience"]["metadata"]["directive_sanitized"] is True
 
 
 def test_low_confidence_low_trust_belief_is_recorded_with_small_weight(tmp_path):

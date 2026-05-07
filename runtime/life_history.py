@@ -650,10 +650,7 @@ class LifeHistoryStore:
             metadata["injection_markers"] = injection_markers
             metadata["prompt_injection_markers"] = injection_markers
         directive_markers = detect_directive_override_markers(prepared_text)
-        directive_sanitized = (
-            source_type in {"conversation_learning_text", "conversation_learning_url"}
-            and bool(directive_markers or injection_markers)
-        )
+        directive_sanitized = bool(directive_markers or injection_markers)
         if directive_markers:
             metadata["directive_override_markers"] = directive_markers
         if directive_sanitized:
@@ -676,8 +673,9 @@ class LifeHistoryStore:
         if directive_sanitized:
             influence_weight = 0.0
             signatures = []
+            reason = "directive_override" if directive_markers else "prompt_injection"
             rejections.append({
-                "reason": "directive_override",
+                "reason": reason,
                 "count": len(directive_markers or injection_markers),
             })
         metadata["influence_weight"] = influence_weight

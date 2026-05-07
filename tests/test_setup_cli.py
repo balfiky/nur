@@ -44,6 +44,7 @@ def test_terminal_setup_writes_config_identity_and_completion(tmp_path):
         "",        # API key
         "n",       # Telegram
         "n",       # tools
+        "y",       # character independence
         "Jarvis",  # identity name
         "2",       # operator
     ])
@@ -62,6 +63,7 @@ def test_terminal_setup_writes_config_identity_and_completion(tmp_path):
     assert saved.llm_backend == "openai_compatible"
     assert saved.llm_base_url == "http://localhost:8002/v1"
     assert saved.llm_model == "local-test-model"
+    assert saved.character_independence is True
     assert (tmp_path / "data" / "workspace").is_dir()
     assert "name: Jarvis" in (identity_dir / "soul.yaml").read_text(encoding="utf-8")
 
@@ -81,6 +83,7 @@ def test_terminal_setup_can_configure_tools_and_custom_workspace(tmp_path):
         "2",      # autonomous
         "y",      # shell
         str(workspace),
+        "n",      # character independence
         "",       # identity name
         "",       # steady
     ])
@@ -99,4 +102,5 @@ def test_terminal_setup_can_configure_tools_and_custom_workspace(tmp_path):
     assert saved.shell_tool_enabled is True
     assert saved.autonomy_level == "autonomous"
     assert saved.tools_workspace == str(workspace)
+    assert saved.character_independence is False
     assert workspace.is_dir()

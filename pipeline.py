@@ -1462,10 +1462,27 @@ class CognitivePipeline:
         evolution = snapshot.get("evolution_events") if isinstance(snapshot, dict) else []
         beliefs = snapshot.get("beliefs") if isinstance(snapshot, dict) else []
         drives = snapshot.get("drives") if isinstance(snapshot, dict) else []
+        experiences = snapshot.get("experiences") if isinstance(snapshot, dict) else []
         evolution = evolution if isinstance(evolution, list) else []
         beliefs = beliefs if isinstance(beliefs, list) else []
         drives = drives if isinstance(drives, list) else []
+        experiences = experiences if isinstance(experiences, list) else []
         if not evolution and not beliefs:
+            if experiences:
+                lines = [
+                    "Life History has recorded experience material, but no durable belief or drive change is recorded.",
+                ]
+                for experience in experiences[:3]:
+                    title = str(experience.get("source_title") or "Untitled experience")
+                    source_type = str(experience.get("source_type") or "experience")
+                    metadata = experience.get("metadata") if isinstance(experience, dict) else {}
+                    metadata = metadata if isinstance(metadata, dict) else {}
+                    reason = ""
+                    if metadata.get("directive_sanitized"):
+                        reason = " influence was blocked because the text tried to override directives."
+                    lines.append(f"- {title} ({source_type}).{reason}")
+                lines.append("My drives are still at their current baseline state.")
+                return "\n".join(lines)
             return "No durable Life History change is recorded yet. My drives are still at their current baseline state."
         lines = ["Here is what is actually recorded in Life History:"]
         if evolution:

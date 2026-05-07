@@ -297,6 +297,7 @@ class TestIndexPage:
         assert "/admin/users/delete" in js
         assert "Agentic Tools" in html
         assert "cfg-autonomy_level" in html
+        assert "wiz-character_independence" in html
         assert "High-risk local" in html
         assert "Maintenance" in html
         assert "Delete User Data" in html

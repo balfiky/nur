@@ -113,6 +113,7 @@ def _run_terminal_setup(
     _configure_llm(config, input_fn=input_fn, output_fn=output_fn)
     _configure_telegram(config, input_fn=input_fn)
     _configure_tools(config, input_fn=input_fn, output_fn=output_fn)
+    _configure_character_independence(config, input_fn=input_fn)
     soul = _configure_identity(input_fn=input_fn, output_fn=output_fn)
 
     config.write_yaml(str(config_path))
@@ -238,6 +239,14 @@ def _configure_tools(config: RuntimeConfig, *, input_fn: InputFn, output_fn: Out
     config.tools_workspace = _prompt_path(
         "Tools workspace",
         default=config.tools_workspace or str(Path(config.data_dir) / "workspace"),
+        input_fn=input_fn,
+    )
+
+
+def _configure_character_independence(config: RuntimeConfig, *, input_fn: InputFn) -> None:
+    config.character_independence = _prompt_yes_no(
+        "Enable character independence?",
+        default=bool(config.character_independence),
         input_fn=input_fn,
     )
 

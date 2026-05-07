@@ -37,6 +37,13 @@ _LEARNING_INTENT_PATTERNS = (
     re.compile(r"\bmake\s+this\s+part\s+of\s+you\b", re.I),
     re.compile(r"\blet\s+this\s+shape\s+you\b", re.I),
     re.compile(r"\btake\s+this\s+as\s+formative\b", re.I),
+    re.compile(r"\bfill\s+(?:it|life\s+history|life\s+learning|memory)\s+with\s+this\b", re.I),
+    re.compile(
+        r"\b(?:add|save|record|store|put)\b.{0,60}\b"
+        r"(?:life\s+history|life\s+learning|life\s+ledger|formative\s+memory)\b",
+        re.I,
+    ),
+    re.compile(r"\bseed\s+(?:life\s+history|life\s+learning|memory)\b", re.I),
 )
 
 
@@ -307,12 +314,13 @@ def _to_learning_result(result: dict[str, Any]) -> LearningIntakeResult:
         domain = str(event.get("domain") or "unknown")
         counts[domain] = counts.get(domain, 0) + 1
     rejection_counts: dict[str, int] = {}
-    for rejection in result.get("rejection_trace", []):
+    rejections = result.get("rejection_trace")
+    if not rejections:
+        rejections = result.get("policy", {}).get("rejections", [])
+    for rejection in rejections or []:
         reason = str(rejection.get("reason") or "unknown")
-        rejection_counts[reason] = rejection_counts.get(reason, 0) + 1
-    for rejection in result.get("policy", {}).get("rejections", []):
-        reason = str(rejection.get("reason") or "unknown")
-        rejection_counts[reason] = rejection_counts.get(reason, 0) + 1
+        count = int(rejection.get("count") or 1)
+        rejection_counts[reason] = rejection_counts.get(reason, 0) + max(1, count)
     return LearningIntakeResult(
         title=str(experience["source_title"]),
         source_ref=str(experience["source_ref"]),
@@ -333,6 +341,21 @@ def _extract_urls(text: str) -> list[str]:
 
 
 def _extract_inline_text(text: str) -> str:
+    match = re.search(
+        r"^\s*fill\s+(?:it|life\s+history|life\s+learning|memory)\s+with\s+this\s*:?\s*(.+)",
+        text,
+        re.I | re.S,
+    )
+    if match:
+        return match.group(1).strip()
+    match = re.search(
+        r"^\s*(?:add|save|record|store|put)\b.{0,60}\b"
+        r"(?:life\s+history|life\s+learning|life\s+ledger|formative\s+memory)\s*:?\s*(.+)",
+        text,
+        re.I | re.S,
+    )
+    if match:
+        return match.group(1).strip()
     match = re.search(
         r"(?:learn|study|absorb|absort|internalize|digest)[^:]*:\s*(.+)",
         text,

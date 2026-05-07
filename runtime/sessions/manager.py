@@ -57,6 +57,10 @@ def _should_attempt_learning_intake(session: UserSession, text: str) -> bool:
         return True
 
 
+def _is_stale_session_error(exc: RuntimeError) -> bool:
+    return " is shutting down" in str(exc)
+
+
 class SessionManager:
     """Manages per-user sessions with backpressure and lifecycle support.
 
@@ -123,42 +127,36 @@ class SessionManager:
         rel_key = f"{platform}:{user_id}"
         session_key = f"{platform}:{user_id}:{chat_id}"
 
-        session = await self._get_or_create(session_key, rel_key, user_id)
-        # Reset idle timer on acceptance (before processing starts)
-        self._reset_idle_timer(session_key)
-        try:
-            learning_note = (
-                await self._maybe_run_learning_intake(session, user_id, text)
-                if _should_attempt_learning_intake(session, text)
-                else ""
-            )
-            if learning_note and not learning_note.startswith("Learning intake failed:"):
-                session.pipeline.last_intake_receipt = learning_note
-                await session.record_runtime_turn()
-                return learning_note
-
-            # Running the turn in its own task avoids a rare top-level await
-            # stall around worker-thread execution in some runtime contexts.
-            send_task = asyncio.create_task(
-                session.send(text),
-                name=f"session-send-{session_key}",
-            )
-            try:
-                while not send_task.done():
-                    await asyncio.sleep(0.001)
-            except asyncio.CancelledError:
-                send_task.cancel()
-                with suppress(asyncio.CancelledError):
-                    await send_task
-                raise
-            response = send_task.result()
-            if learning_note:
-                session.pipeline.last_intake_receipt = learning_note
-                return _append_learning_note(response, learning_note)
-            return response
-        finally:
-            # Reset again on completion so the timeout counts from last activity
+        for attempt in range(2):
+            session = await self._get_or_create(session_key, rel_key, user_id)
+            # Reset idle timer on acceptance (before processing starts)
             self._reset_idle_timer(session_key)
+            try:
+                learning_note = (
+                    await self._maybe_run_learning_intake(session, user_id, text)
+                    if _should_attempt_learning_intake(session, text)
+                    else ""
+                )
+                if learning_note and not learning_note.startswith("Learning intake failed:"):
+                    session.pipeline.last_intake_receipt = learning_note
+                    await session.record_runtime_turn()
+                    return learning_note
+
+                try:
+                    response = await self._send_with_task(session, session_key, text)
+                except RuntimeError as exc:
+                    if attempt == 0 and _is_stale_session_error(exc):
+                        await self._discard_session_reference(session_key, session)
+                        continue
+                    raise
+                if learning_note:
+                    session.pipeline.last_intake_receipt = learning_note
+                    return _append_learning_note(response, learning_note)
+                return response
+            finally:
+                # Reset again on completion so the timeout counts from last activity
+                self._reset_idle_timer(session_key)
+        raise RuntimeError(f"Session {session_key} is shutting down")
 
     async def ensure_session(
         self,
@@ -180,6 +178,28 @@ class SessionManager:
             self._executor,
             partial(fn, *args, **kwargs),
         )
+
+    async def _send_with_task(
+        self,
+        session: UserSession,
+        session_key: str,
+        text: str,
+    ) -> str:
+        # Running the turn in its own task avoids a rare top-level await
+        # stall around worker-thread execution in some runtime contexts.
+        send_task = asyncio.create_task(
+            session.send(text),
+            name=f"session-send-{session_key}",
+        )
+        try:
+            while not send_task.done():
+                await asyncio.sleep(0.001)
+        except asyncio.CancelledError:
+            send_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await send_task
+            raise
+        return send_task.result()
 
     async def _maybe_run_learning_intake(
         self,
@@ -331,8 +351,12 @@ class SessionManager:
         Enforces max_active_sessions — raises RuntimeError at capacity.
         """
         async with self._lock:
-            if session_key in self._sessions:
-                return self._sessions[session_key]
+            existing = self._sessions.get(session_key)
+            if existing is not None:
+                if not getattr(existing, "_stopped", False):
+                    return existing
+                self._sessions.pop(session_key, None)
+                self._cancel_idle_timer(session_key)
 
             if len(self._sessions) >= self.config.max_active_sessions:
                 raise RuntimeError(
@@ -345,6 +369,17 @@ class SessionManager:
             self._start_idle_timer(session_key)
             log.info("Session created: %s", session_key)
             return session
+
+    async def _discard_session_reference(
+        self,
+        session_key: str,
+        session: UserSession,
+    ) -> None:
+        """Forget a stale closing session so the next attempt rebuilds it."""
+        async with self._lock:
+            if self._sessions.get(session_key) is session:
+                self._sessions.pop(session_key, None)
+                self._cancel_idle_timer(session_key)
 
     def _get_or_create_user_lock(self, rel_key: str) -> asyncio.Lock:
         """Return the per-user lock, creating one if needed."""
@@ -461,6 +496,7 @@ class SessionManager:
                     "evolution_events": store.list_evolution(limit=10),
                     "beliefs": store.list_beliefs(limit=10),
                     "drives": store.list_drives(),
+                    "experiences": store.list_experiences(limit=5),
                     "counts": store.overview().get("counts", {}),
                 }
         except Exception:
