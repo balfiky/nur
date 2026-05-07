@@ -9,6 +9,7 @@ Covers:
 from __future__ import annotations
 
 import os
+import json
 import subprocess
 import tempfile
 from unittest.mock import patch
@@ -18,7 +19,7 @@ import pytest
 from core.dual_process.generator import MockLLMBackend
 from runtime.config import RuntimeConfig
 from core.provider_client import FastChatCompletionsClient
-from runtime.llm.backend import CodexCLIBackend, OpenAICompatibleLLMBackend, create_llm_backend
+from runtime.llm.backend import CodexCLIBackend, OpenAICompatibleLLMBackend, create_llm_backend, list_codex_models
 
 
 # =========================================================================
@@ -219,6 +220,40 @@ class TestBackendSelection:
         assert captured["kwargs"]["cwd"] == str(tmp_path)
         assert "system text" in captured["kwargs"]["input"]
         assert "user text" in captured["kwargs"]["input"]
+
+    def test_list_codex_models_returns_safe_dropdown_catalog(self, monkeypatch):
+        raw_catalog = json.dumps({
+            "models": [
+                {
+                    "slug": "gpt-test",
+                    "display_name": "GPT Test",
+                    "description": "Test model",
+                    "default_reasoning_level": "medium",
+                    "supported_reasoning_levels": [{"effort": "low"}, {"effort": "medium"}],
+                    "visibility": "list",
+                    "base_instructions": "must not leak",
+                },
+                {"slug": "hidden-model", "visibility": "hidden"},
+            ],
+        })
+
+        def fake_run(cmd, **kwargs):
+            assert cmd == ["codex", "debug", "models"]
+            return subprocess.CompletedProcess(cmd, 0, stdout=raw_catalog, stderr="")
+
+        monkeypatch.setattr("runtime.llm.backend.shutil.which", lambda _exe: "/usr/bin/codex")
+        monkeypatch.setattr("runtime.llm.backend.subprocess.run", fake_run)
+
+        models = list_codex_models()
+
+        assert models == [{
+            "slug": "gpt-test",
+            "display_name": "GPT Test",
+            "description": "Test model",
+            "default_reasoning_level": "medium",
+            "supported_reasoning_levels": ["low", "medium"],
+        }]
+        assert "base_instructions" not in models[0]
 
     def test_provider_backend(self):
         """Explicit hosted-provider config returns the generic sync backend."""

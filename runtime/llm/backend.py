@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import json
 import re
 import shutil
 import subprocess
@@ -164,6 +165,37 @@ def codex_cli_available(executable: str | None = None) -> bool:
     return shutil.which(executable or os.environ.get("NUR_CODEX_BIN", "codex")) is not None
 
 
+def list_codex_models(
+    executable: str | None = None,
+    timeout: float | None = None,
+) -> list[dict[str, Any]]:
+    """Return the safe Codex model catalog for UI selection."""
+    exe = executable or os.environ.get("NUR_CODEX_BIN", "codex")
+    if not shutil.which(exe):
+        raise ValueError("Codex backend requires the codex CLI on PATH")
+    catalog_timeout = timeout if timeout is not None else 20.0
+    try:
+        result = subprocess.run(
+            [exe, "debug", "models"],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=catalog_timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"Codex model catalog timed out after {catalog_timeout:.0f}s") from exc
+
+    if result.returncode == 0:
+        return _normalize_codex_model_catalog(result.stdout)
+
+    cached = _read_codex_models_cache()
+    if cached:
+        return _normalize_codex_model_catalog(cached)
+    detail = _trim_error(result.stderr or result.stdout)
+    raise RuntimeError(f"Codex model catalog failed with exit code {result.returncode}: {detail}")
+
+
 def _codex_timeout(timeout: float | None) -> float:
     if timeout is not None:
         return timeout
@@ -174,6 +206,65 @@ def _codex_timeout(timeout: float | None) -> float:
         return max(1.0, float(raw))
     except ValueError:
         return 300.0
+
+
+def _read_codex_models_cache() -> str:
+    cache_path = os.environ.get("NUR_CODEX_MODELS_CACHE", "").strip()
+    path = cache_path or os.path.expanduser("~/.codex/models_cache.json")
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return handle.read()
+    except OSError:
+        return ""
+
+
+def _normalize_codex_model_catalog(raw: str) -> list[dict[str, Any]]:
+    try:
+        data = json.loads(raw or "{}")
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("Codex model catalog returned invalid JSON") from exc
+    models = data.get("models", []) if isinstance(data, dict) else []
+    if not isinstance(models, list):
+        raise RuntimeError("Codex model catalog did not contain a models list")
+
+    normalized: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in models:
+        if not isinstance(item, dict):
+            continue
+        slug = str(item.get("slug") or "").strip()
+        if not slug or slug in seen:
+            continue
+        visibility = str(item.get("visibility") or "list").strip()
+        if visibility and visibility != "list":
+            continue
+        seen.add(slug)
+        normalized.append({
+            "slug": slug,
+            "display_name": _codex_catalog_text(item.get("display_name")) or slug,
+            "description": _codex_catalog_text(item.get("description")),
+            "default_reasoning_level": _codex_catalog_text(item.get("default_reasoning_level")),
+            "supported_reasoning_levels": _codex_reasoning_levels(item.get("supported_reasoning_levels")),
+        })
+    return normalized
+
+
+def _codex_catalog_text(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def _codex_reasoning_levels(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    levels: list[str] = []
+    for item in value:
+        if isinstance(item, dict):
+            effort = _codex_catalog_text(item.get("effort"))
+        else:
+            effort = _codex_catalog_text(item)
+        if effort:
+            levels.append(effort)
+    return levels
 
 
 def _codex_prompt(system_prompt: str, user_message: str) -> str:

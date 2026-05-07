@@ -39,7 +39,7 @@ from pipeline import CognitivePipeline
 from runtime.config import RuntimeConfig
 from runtime.debug.api import _debug_to_dict as _serialize_debug
 from runtime.debug.persona_view import build_persona_view
-from runtime.llm.backend import codex_cli_available, create_llm_backend
+from runtime.llm.backend import codex_cli_available, create_llm_backend, list_codex_models
 from runtime.sessions.manager import SessionManager
 from runtime.sessions.user_session import UserSession
 from runtime.tools import create_tool_executor
@@ -720,6 +720,36 @@ async def admin_get_config() -> dict:
     """Redacted config plus metadata for the admin console."""
     config = _load_runtime_config()
     return _admin_config_payload(config, saved=True)
+
+
+@app.get("/admin/codex/models", dependencies=[Depends(_require_bearer)])
+async def admin_codex_models() -> dict:
+    """Return the installed Codex CLI model catalog for settings UI dropdowns."""
+    config = _load_runtime_config()
+    if not codex_cli_available():
+        return {
+            "ok": False,
+            "available": False,
+            "models": [],
+            "selected_model": config.llm_model,
+            "error": "Codex CLI is not on PATH.",
+        }
+    try:
+        models = await asyncio.to_thread(list_codex_models)
+    except Exception as exc:
+        return {
+            "ok": False,
+            "available": True,
+            "models": [],
+            "selected_model": config.llm_model,
+            "error": _redact_error(str(exc), config),
+        }
+    return {
+        "ok": True,
+        "available": True,
+        "models": models,
+        "selected_model": config.llm_model,
+    }
 
 
 @app.post("/admin/config", dependencies=[Depends(_require_bearer)])

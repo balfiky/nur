@@ -307,6 +307,8 @@ class TestIndexPage:
         assert "Hosted OpenAI-compatible gateway" in js
         assert "live: true" in js
         assert "['local', 'vllm', 'hosted', 'codex'].includes(wizardPreset)" in js
+        assert "/admin/codex/models" in js
+        assert "renderCodexModelControl" in js
         assert "loadSettings({ loadSoul: false })" in js
         assert "Character Mode" in html
         assert 'id="wiz-soul-name" type="text" value="Nūr"' in html

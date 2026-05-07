@@ -74,6 +74,8 @@ class TestAdminConsoleStatic:
         assert b"renderOverviewPersona" in js.body
         assert b"renderPersonaAdminPage" in js.body
         assert b"refreshPersonaBtn" in js.body
+        assert b"/admin/codex/models" in js.body
+        assert b"renderCodexModelSelect" in js.body
         assert b"/v1/tools" in js.body
         assert b"/admin/skills" in js.body
         assert b"/admin/skills/import/upload" in js.body

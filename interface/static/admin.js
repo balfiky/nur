@@ -12,6 +12,10 @@ const state = createSurfaceState({
     skills: [],
     skillsRoot: "",
     skillsLoaded: false,
+    codexModels: [],
+    codexModelsLoaded: false,
+    codexModelsLoading: false,
+    codexModelsError: "",
     life: null,
     lifeLoaded: false,
     activePage: "overview",
@@ -254,6 +258,9 @@ const state = createSurfaceState({
         </label>
       `;
     }
+    if (name === "llm_model" && String(state.config.llm_backend || "") === "codex") {
+      return renderCodexModelSelect(value);
+    }
     if (type === "select") {
       const allowed = fieldMeta.allowed_values || selectDefaults(name);
       return `
@@ -278,6 +285,42 @@ const state = createSurfaceState({
     }
     const inputType = type === "number" ? "number" : "text";
     return `<input id="cfg-${name}" data-config-field="${name}" type="${inputType}" value="${escapeAttr(value ?? "")}">`;
+  }
+
+  function renderCodexModelSelect(value) {
+    const selected = String(value || "");
+    const known = new Set(state.codexModels.map((model) => model.slug));
+    const options = [
+      `<option value="" ${selected ? "" : "selected"}>Codex default</option>`,
+    ];
+    if (selected && !known.has(selected)) {
+      options.push(`<option value="${escapeAttr(selected)}" selected>${escapeHtml(selected)} (custom)</option>`);
+    }
+    if (state.codexModelsLoading && !state.codexModels.length) {
+      options.push(`<option value="" disabled>Loading Codex models...</option>`);
+    }
+    for (const model of state.codexModels) {
+      const slug = String(model.slug || "");
+      if (!slug) continue;
+      const label = codexModelLabel(model);
+      const title = model.description ? ` title="${escapeAttr(model.description)}"` : "";
+      options.push(`<option value="${escapeAttr(slug)}"${title} ${selected === slug ? "selected" : ""}>${escapeHtml(label)}</option>`);
+    }
+    const hint = state.codexModelsError
+      ? `<div class="field-help">${escapeHtml(state.codexModelsError)}</div>`
+      : "";
+    return `
+      <select id="cfg-llm_model" data-config-field="llm_model">
+        ${options.join("")}
+      </select>
+      ${hint}
+    `;
+  }
+
+  function codexModelLabel(model) {
+    const slug = String(model.slug || "");
+    const name = String(model.display_name || slug);
+    return name && name !== slug ? `${name} (${slug})` : slug;
   }
 
   function renderIdentityForm() {
@@ -1186,6 +1229,26 @@ const state = createSurfaceState({
     }).join("");
   }
 
+  async function ensureCodexModels() {
+    if (state.codexModelsLoaded || state.codexModelsLoading) return;
+    state.codexModelsLoading = true;
+    state.codexModelsError = "";
+    try {
+      const res = await authedFetch("/admin/codex/models");
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(responseErrorMessage(data, data.error || "Could not load Codex models."));
+      }
+      state.codexModels = Array.isArray(data.models) ? data.models : [];
+    } catch (err) {
+      state.codexModels = [];
+      state.codexModelsError = err.message || String(err);
+    } finally {
+      state.codexModelsLoaded = true;
+      state.codexModelsLoading = false;
+    }
+  }
+
   async function loadAll() {
     setStatus("Loading");
     const [statusRes, configRes] = await Promise.all([
@@ -1198,6 +1261,7 @@ const state = createSurfaceState({
     const configPayload = await configRes.json();
     state.config = configPayload.config || {};
     state.metadata = configPayload.field_metadata || [];
+    if (state.config.llm_backend === "codex") await ensureCodexModels();
     await loadPersonaState();
     renderOverview();
     renderAllForms();
@@ -1291,6 +1355,7 @@ const state = createSurfaceState({
       if (!res.ok) throw new Error(data.detail || "HTTP " + res.status);
       state.config = data.config || {};
       state.metadata = data.field_metadata || [];
+      if (state.config.llm_backend === "codex") await ensureCodexModels();
       await refreshStatusOnly();
       renderAllForms();
       state.toolsLoaded = false;
@@ -1528,6 +1593,21 @@ const state = createSurfaceState({
     }
   }
 
+  function syncModelDraftValues() {
+    for (const name of ["llm_backend", "llm_base_url", "llm_model"]) {
+      const el = document.querySelector(`[data-config-field="${CSS.escape(name)}"]`);
+      if (el) state.config[name] = el.value;
+    }
+  }
+
+  async function handleModelsFormChange(event) {
+    const target = event.target;
+    if (!target || target.dataset.configField !== "llm_backend") return;
+    syncModelDraftValues();
+    if (state.config.llm_backend === "codex") await ensureCodexModels();
+    renderConfigForm("modelsForm", fieldSections.models);
+  }
+
   function escapeHtml(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -1555,6 +1635,9 @@ const state = createSurfaceState({
     els.refreshAllBtn.addEventListener("click", () => loadAll().then(() => showToast("Refreshed.")).catch((err) => showToast(err.message, "error")));
     els.tokenBtn.addEventListener("click", openTokenDialog);
     els.saveTokenBtn.addEventListener("click", () => setApiToken(els.apiTokenInput.value.trim()));
+    document.getElementById("modelsForm").addEventListener("change", (event) => {
+      handleModelsFormChange(event).catch((err) => showToast(err.message || String(err), "error"));
+    });
     document.getElementById("testLlmBtn").addEventListener("click", testLlm);
     document.getElementById("testTelegramBtn").addEventListener("click", testTelegram);
     document.getElementById("refreshPersonaBtn").addEventListener("click", async () => {

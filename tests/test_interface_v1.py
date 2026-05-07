@@ -642,6 +642,48 @@ class TestAdminEndpoints:
         assert data["backend"] == "codex"
         assert data["warnings"][0]["code"] == "missing_codex_cli"
 
+    def test_admin_codex_models_returns_cli_catalog(
+        self, client, temp_config, tmp_path, monkeypatch,
+    ):
+        RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            llm_backend="codex",
+            llm_model="gpt-test",
+        ).write_yaml(str(temp_config))
+        monkeypatch.setattr(interface_api, "codex_cli_available", lambda: True)
+        monkeypatch.setattr(
+            interface_api,
+            "list_codex_models",
+            lambda: [{"slug": "gpt-test", "display_name": "GPT Test"}],
+        )
+
+        resp = client.get("/admin/codex/models")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ok"] is True
+        assert data["available"] is True
+        assert data["selected_model"] == "gpt-test"
+        assert data["models"] == [{"slug": "gpt-test", "display_name": "GPT Test"}]
+
+    def test_admin_codex_models_reports_missing_cli(
+        self, client, temp_config, tmp_path, monkeypatch,
+    ):
+        RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            llm_backend="codex",
+        ).write_yaml(str(temp_config))
+        monkeypatch.setattr(interface_api, "codex_cli_available", lambda: False)
+
+        resp = client.get("/admin/codex/models")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ok"] is False
+        assert data["available"] is False
+        assert data["models"] == []
+        assert "PATH" in data["error"]
+
     def test_admin_test_llm_mock_runs_live_sample(
         self, client, temp_config, tmp_path,
     ):

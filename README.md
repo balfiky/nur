@@ -13,7 +13,7 @@
   <a href="https://github.com/balfiky/nur/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/balfiky/nur/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-F5A65B?style=for-the-badge" alt="MIT License"></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/python-3.10%2B-7A4A8C?style=for-the-badge" alt="Python 3.10+"></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.28.11-1A1428?style=for-the-badge" alt="Version"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.28.12-1A1428?style=for-the-badge" alt="Version"></a>
 </p>
 
 Most assistants reset to zero every turn. **Nūr keeps the room lit.**
@@ -224,8 +224,9 @@ The setup wizard or `/settings` workspace is the preferred path.
 | `auto` | Compatibility fallback; warns when no LLM is configured |
 
 For `codex`, install/login to the Codex CLI first. Nūr runs `codex exec` in
-read-only ephemeral mode; set `llm_model` to override Codex's default model, or
-leave it blank.
+read-only ephemeral mode. In `/settings`, choosing Codex CLI loads the installed
+Codex model catalog into the model dropdown; leave the model blank to use
+Codex's default.
 
 Runtime config is `runtime_config.yaml` in the current working directory. Identity is `config/soul.yaml`, or `$NUR_CONFIG_DIR/soul.yaml` when the override is set.
 

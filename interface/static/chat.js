@@ -79,12 +79,12 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => {
   if (e.target && e.target.id === 'wiz-soul-archetype') wizardApplyArchetype(e.target.value);
+  if (e.target && ['cfg-llm_backend','cfg-llm_base_url','cfg-llm_model'].includes(e.target.id)) {
+    if (e.target.id === 'cfg-llm_backend') handleLegacyBackendChange().catch(() => {});
+    try { updateSoulDraftAvailability(); } catch (_) {}
+  }
 });
 settingsOverlay.addEventListener('click', closeSettingsIfBackdrop);
-['cfg-llm_backend','cfg-llm_base_url','cfg-llm_model'].forEach(id => {
-  const el = document.getElementById(id);
-  if (el) el.addEventListener('change', () => { try { updateSoulDraftAvailability(); } catch (_) {} });
-});
 new MutationObserver(refreshMoodContrast)
   .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 refreshMoodContrast();
@@ -674,6 +674,100 @@ async function applyRest() {
   } catch (err) { addMessage('Error: ' + err.message, 'assistant'); }
 }
 
+let codexModels = [];
+let codexModelsLoaded = false;
+let codexModelsLoading = false;
+let codexModelsError = '';
+
+async function ensureCodexModels() {
+  if (codexModelsLoaded || codexModelsLoading) return;
+  codexModelsLoading = true;
+  codexModelsError = '';
+  try {
+    const res = await authedFetch('/admin/codex/models');
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Could not load Codex models.');
+    codexModels = Array.isArray(data.models) ? data.models : [];
+  } catch (err) {
+    codexModels = [];
+    codexModelsError = err.message || String(err);
+  } finally {
+    codexModelsLoaded = true;
+    codexModelsLoading = false;
+  }
+}
+
+function renderCodexModelControl(id, backend, value, placeholder) {
+  const current = document.getElementById(id);
+  if (!current) return;
+  const parent = current.parentElement;
+  const selected = String(value || current.value || '');
+  const shouldSelect = backend === 'codex';
+  let next = current;
+  if (shouldSelect && current.tagName !== 'SELECT') {
+    next = document.createElement('select');
+    next.id = id;
+    current.replaceWith(next);
+  } else if (!shouldSelect && current.tagName !== 'INPUT') {
+    next = document.createElement('input');
+    next.id = id;
+    next.type = 'text';
+    current.replaceWith(next);
+  }
+  if (!shouldSelect) {
+    next.value = selected;
+    next.placeholder = placeholder || '';
+    removeCodexModelHint(parent);
+    return;
+  }
+  next.innerHTML = buildCodexModelOptions(selected);
+  addCodexModelHint(parent);
+}
+
+function buildCodexModelOptions(selected) {
+  const known = new Set(codexModels.map((model) => model.slug));
+  const options = [`<option value="" ${selected ? '' : 'selected'}>Codex default</option>`];
+  if (selected && !known.has(selected)) {
+    options.push(`<option value="${esc(selected)}" selected>${esc(selected)} (custom)</option>`);
+  }
+  if (codexModelsLoading && !codexModels.length) {
+    options.push('<option value="" disabled>Loading Codex models...</option>');
+  }
+  for (const model of codexModels) {
+    const slug = String(model.slug || '');
+    if (!slug) continue;
+    const name = String(model.display_name || slug);
+    const label = name && name !== slug ? `${name} (${slug})` : slug;
+    options.push(`<option value="${esc(slug)}" ${selected === slug ? 'selected' : ''}>${esc(label)}</option>`);
+  }
+  return options.join('');
+}
+
+function addCodexModelHint(parent) {
+  if (!parent) return;
+  let hint = parent.querySelector('.codex-model-hint');
+  if (!hint) {
+    hint = document.createElement('div');
+    hint.className = 'settings-note codex-model-hint';
+    parent.appendChild(hint);
+  }
+  hint.textContent = codexModelsError || 'Models loaded from the installed Codex CLI.';
+}
+
+function removeCodexModelHint(parent) {
+  const hint = parent && parent.querySelector('.codex-model-hint');
+  if (hint) hint.remove();
+}
+
+async function handleLegacyBackendChange() {
+  const backend = gv('cfg-llm_backend');
+  renderCodexModelControl('cfg-llm_model', backend, gv('cfg-llm_model'), '');
+  if (backend === 'codex') {
+    await ensureCodexModels();
+    renderCodexModelControl('cfg-llm_model', backend, gv('cfg-llm_model'), '');
+  }
+}
+
 // Settings
 function openSettings() { AdminOverlayState.open = true; loadSettings().catch(e => setStatus('Failed: ' + e.message, true)); }
 function closeSettings() { AdminOverlayState.open = false; }
@@ -728,7 +822,14 @@ function applySettings(payload) {
   sv('cfg-max_active_sessions', c.max_active_sessions??10); sv('cfg-session_timeout_seconds', c.session_timeout_seconds??1800);
   sv('cfg-console_enabled', String(c.console_enabled)); sv('cfg-telegram_poll_timeout', c.telegram_poll_timeout??30);
   sv('cfg-dedupe_ttl', c.dedupe_ttl??60); sv('cfg-llm_backend', c.llm_backend||'auto');
-  sv('cfg-llm_base_url', c.llm_base_url||''); sv('cfg-llm_model', c.llm_model||'');
+  sv('cfg-llm_base_url', c.llm_base_url||'');
+  renderCodexModelControl('cfg-llm_model', c.llm_backend || 'auto', c.llm_model || '', '');
+  sv('cfg-llm_model', c.llm_model||'');
+  if ((c.llm_backend || '') === 'codex') {
+    ensureCodexModels().then(() => {
+      renderCodexModelControl('cfg-llm_model', 'codex', gv('cfg-llm_model'), '');
+    }).catch(() => {});
+  }
   sv('cfg-debug_host', c.debug_host||'127.0.0.1'); sv('cfg-debug_port', c.debug_port??8077);
   sv('cfg-cors_origins', (c.cors_origins||[]).join('\n'));
   sv('cfg-tools_enabled', String(!!c.tools_enabled)); sv('cfg-autonomy_level', c.autonomy_level||'assisted'); sv('cfg-tools_workspace', c.tools_workspace||''); sv('cfg-shell_tool_enabled', String(!!c.shell_tool_enabled));
@@ -1263,16 +1364,22 @@ function wizardSelectPreset(preset) {
   fields.hidden = false;
   if (testBtn) testBtn.hidden = false;
   const baseInput = document.getElementById('wiz-llm_base_url');
-  const modelInput = document.getElementById('wiz-llm_model');
   const keyInput = document.getElementById('wiz-llm_api_key');
+  renderCodexModelControl('wiz-llm_model', cfg.backend, cfg.model, cfg.model_placeholder || '');
+  const modelInput = document.getElementById('wiz-llm_model');
   baseInput.closest('div').hidden = !!cfg.hide_base_url;
   keyInput.closest('div').hidden = !!cfg.hide_api_key;
   baseInput.value = cfg.base_url;
   modelInput.value = cfg.model;
-  modelInput.placeholder = cfg.model_placeholder || '';
+  if ('placeholder' in modelInput) modelInput.placeholder = cfg.model_placeholder || '';
   keyInput.value = '';
   keyInput.placeholder = cfg.key_placeholder;
   document.getElementById('wiz-llm_api_key_label').textContent = cfg.key_label;
+  if (preset === 'codex') {
+    ensureCodexModels().then(() => {
+      renderCodexModelControl('wiz-llm_model', 'codex', gv('wiz-llm_model'), cfg.model_placeholder || '');
+    }).catch(() => {});
+  }
 }
 
 async function wizardTestLLM() {

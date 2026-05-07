@@ -29,6 +29,8 @@ All notable changes to Project Nur are documented here.
   the single settings workspace.
 - Added `llm_backend=codex`, backed by `codex exec` in read-only ephemeral
   mode, with Settings and wizard options plus UAT/eval selector support.
+- Added a Codex model catalog endpoint and Settings dropdown populated from the
+  installed `codex debug models` catalog.
 
 ### Character independence
 - Implemented the channels-not-gates Life History path: learning intake now has

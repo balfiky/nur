@@ -249,9 +249,10 @@ Important fields:
 | `shell_tool_enabled` | Separate opt-in for local shell execution; keep off by default. Supports normal shell syntax such as pipes once enabled. |
 
 The Codex backend does not use `llm_api_key`. It calls the local `codex` CLI
-with a read-only ephemeral session. Leave `NUR_CODEX_WORKDIR` unset for normal
-chat use; set it only when Codex should have read-only context from a specific
-local directory.
+with a read-only ephemeral session. The `/settings` model dropdown is populated
+from the installed Codex CLI model catalog. Leave `NUR_CODEX_WORKDIR` unset for
+normal chat use; set it only when Codex should have read-only context from a
+specific local directory.
 
 ## Telegram Commands
 
