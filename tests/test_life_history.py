@@ -70,6 +70,28 @@ def test_pasted_text_creates_experience_belief_and_drive_change(tmp_path):
         assert "Autonomy Notes" in snapshot["readable_summary"]
 
 
+def test_single_learning_intake_has_runtime_visible_influence(tmp_path):
+    config = _config(tmp_path)
+    with LifeHistoryStore(config) as store:
+        result = store.ingest_pasted_text(
+            title="Autonomy Notes",
+            text=(
+                "Autonomy and learning from experience should shape future behavior. "
+                "A character changes when formative material revises its worldview "
+                "and the drives it carries forward."
+            ),
+        )
+        policy = result["policy"]
+        autonomy_belief = next(b for b in result["beliefs"] if b["key"] == "autonomy")
+        context = store.prompt_context()
+
+        assert policy["influence_weight"] >= 0.2
+        assert autonomy_belief["confidence"] >= 0.18
+        assert any(item["key"] == "autonomy" for item in context["beliefs"])
+        assert any("Autonomy" in item for item in context["dispositions"])
+        assert any(abs(drive.get("delta", 0.0)) >= 0.02 for drive in context["drives"])
+
+
 def test_local_file_intake_is_restricted_to_tools_workspace(tmp_path):
     config = _config(tmp_path)
     outside = tmp_path / "outside.md"
@@ -255,7 +277,7 @@ def test_low_confidence_low_trust_belief_is_recorded_with_small_weight(tmp_path)
             llm_client=llm,
         )
         belief = next(belief for belief in result["beliefs"] if belief["key"] == "autonomy")
-        assert 0.0 < belief["confidence"] < 0.1
+        assert 0.0 < belief["confidence"] < 0.2
         assert result["policy"]["rejections"] == []
 
 
@@ -361,7 +383,7 @@ def test_influence_weight_is_bounded_and_reinforces_recurring_theme():
     )
 
     assert 0.0 <= marked <= first <= reinforced <= 1.0
-    assert first <= 0.2
+    assert first <= 0.35
     assert reinforced > 0.7
 
 
@@ -578,7 +600,7 @@ def test_rollback_is_disabled_outside_testing(tmp_path, monkeypatch):
         )
         batch_id = result["policy"]["batch_id"]
         assert any(belief["key"] == "autonomy" for belief in result["beliefs"])
-        assert 0.5 < {drive["name"]: drive["value"] for drive in result["drives"]}["autonomy"] < 0.55
+        assert 0.5 < {drive["name"]: drive["value"] for drive in result["drives"]}["autonomy"] < 0.6
 
         with pytest.raises(LifeHistoryError, match="disabled outside test mode"):
             store.rollback_batch(batch_id)

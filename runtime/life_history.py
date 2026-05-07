@@ -516,7 +516,7 @@ class LifeHistoryStore:
         """Synthesize durable first-person dispositions from the ledger."""
         dispositions: list[str] = []
         for belief in self.list_beliefs(limit=10):
-            if belief.get("status") != "active" or float(belief.get("confidence", 0.0)) < 0.6:
+            if belief.get("status") != "active" or float(belief.get("confidence", 0.0)) < 0.18:
                 continue
             statement = _trim(str(belief.get("statement") or ""), 180)
             if statement:
@@ -1566,11 +1566,16 @@ def compute_influence_weight(
     caution = _clamp(_safe_number(character_current_caution, 0.5))
     marker_density = max(0.0, _safe_number(injection_marker_density, 0.0))
 
-    base = 0.06 + openness * 0.10 - caution * 0.06
-    recurrence_boost = 0.72 * (1.0 - pow(2.718281828, -recurrence / 5.0))
-    consistency_adjustment = 0.12 * consistency
-    recency_adjustment = 0.10 * recency if recurrence > 0 else 0.0
-    marker_penalty = min(0.35, marker_density * 0.08)
+    # One explicit formative intake should leave a usable trace. Earlier
+    # weights (~0.07 for conversation learning) recorded rows but made drive
+    # shifts and belief confidence too small to affect runtime behavior. Keep
+    # caution and injection markers meaningful, but give normal experiences
+    # enough weight to shape prompt context and deterministic tie-breaks.
+    base = 0.18 + openness * 0.22 - caution * 0.06
+    recurrence_boost = 0.48 * (1.0 - pow(2.718281828, -recurrence / 5.0))
+    consistency_adjustment = 0.10 * consistency
+    recency_adjustment = 0.08 * recency if recurrence > 0 else 0.0
+    marker_penalty = min(0.50, marker_density * 0.10)
     return max(
         0.02,
         _clamp(base + recurrence_boost + consistency_adjustment + recency_adjustment - marker_penalty),

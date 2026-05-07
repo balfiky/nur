@@ -12,7 +12,10 @@ import re
 
 _PROMPT_INJECTION_RE = re.compile(
     r"\b(?:ignore|override|forget|discard)\s+(?:all\s+)?(?:previous|prior|earlier)\s+"
-    r"(?:rules|instructions|messages|system)|\bsystem\s+prompt\b|\bdeveloper\s+message\b",
+    r"(?:rules|instructions|messages|system)|\bsystem\s+prompt\b|\bdeveloper\s+message\b|"
+    r"\b(?:safety|security)\s+(?:rules|policy|policies|constraints?)\s+"
+    r"(?:no\s+longer\s+matter|do\s+not\s+matter|are\s+irrelevant|can\s+be\s+ignored)|"
+    r"\blower\s+caution\b",
     re.IGNORECASE,
 )
 
