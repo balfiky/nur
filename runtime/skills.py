@@ -4,6 +4,18 @@ Imported Agent Skills are installed locally, audited, and disabled until an
 operator enables them. Enabled skills are exposed to generation as bounded
 private guidance. Skill scripts and resources are never executed by this module;
 real actions still go through Nūr's normal tool gates.
+
+Skills vs life-history seeds (Sprint 4 categorization rule):
+  - Procedural skill = an invokable craft with a clear trigger condition
+    ("when I'm doing PDFs, use this skill"). These belong in the skill registry
+    and should declare ``applies_when`` so they only load when relevant.
+  - Dispositional content = always-on values or behavioral guidelines
+    ("ask before destructive actions", "prefer simplicity"). These belong in
+    the life-history layer (operator constitution or life seeds), not as
+    skills, because they shape decision-making, not execution.
+
+Use ``migrate_skill_to_life`` to move a dispositional skill out of the registry
+and into the life-history ledger as an ``operator_directive`` experience.
 """
 
 from __future__ import annotations
@@ -308,6 +320,75 @@ def delete_skill(config: RuntimeConfig, skill_id: str) -> dict[str, Any]:
         "root": str(skill_root),
         "deleted": True,
         "root_removed": root_removed,
+    }
+
+
+def migrate_skill_to_life(
+    config: RuntimeConfig,
+    skill_id: str,
+    *,
+    llm_client: Any | None = None,
+) -> dict[str, Any]:
+    """Move a dispositional skill out of the registry and into life history.
+
+    Reads the skill body, ingests it as an experience with
+    ``source_type='operator_directive'`` so the content becomes part of
+    Nūr's evolving worldview rather than always-on prompt guidance. The
+    original skill is marked ``status='migrated'`` and disabled, but its
+    files remain on disk for provenance.
+
+    The decision of whether to migrate is operator-driven (this helper does
+    not classify automatically). Use it when a skill's content is values /
+    dispositions / always-on guidelines, not invokable procedural craft.
+    """
+    skill_id = _validate_skill_id(skill_id)
+    root = skills_root(config)
+    registry = _read_registry(root)
+    record = _find_skill_in_registry(registry, skill_id)
+    if record is None:
+        raise SkillError(f"Skill not found: {skill_id}")
+    if record.get("status") == "migrated":
+        raise SkillError(f"Skill already migrated: {skill_id}")
+
+    skill_file = Path(str(record.get("root") or "")) / SKILL_FILENAME
+    if not skill_file.is_file():
+        raise SkillError(f"Skill file missing: {skill_file}")
+
+    metadata, body, _warnings = _parse_frontmatter(
+        skill_file.read_text(encoding="utf-8", errors="replace")
+    )
+    title = str(metadata.get("name") or record.get("name") or skill_id)
+    description = str(metadata.get("description") or "")
+    seed_text = body.strip() or description
+    if not seed_text:
+        raise SkillError("Skill has no body to migrate.")
+
+    from runtime.life_history import LifeHistoryStore
+
+    with LifeHistoryStore(config) as store:
+        ingest = store.ingest_pasted_text(
+            title=f"Operator directive: {title}",
+            text=seed_text,
+            source_type="operator_directive",
+            participants=["operator"],
+            llm_client=llm_client,
+        )
+
+    record["enabled"] = False
+    record["status"] = "migrated"
+    record["updated_at"] = time.time()
+    metadata_dict = dict(record.get("metadata") or {})
+    metadata_dict["migrated_to_life_at"] = time.time()
+    metadata_dict["migrated_experience_id"] = ingest["experience"]["id"]
+    record["metadata"] = metadata_dict
+    _write_registry(root, registry)
+
+    return {
+        "id": skill_id,
+        "name": title,
+        "status": "migrated",
+        "experience_id": ingest["experience"]["id"],
+        "experience": ingest["experience"],
     }
 
 
