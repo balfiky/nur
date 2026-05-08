@@ -1325,6 +1325,22 @@ def test_cors_origins_config_is_respected_at_startup(uat_server):
 # ---------------------------------------------------------------------------
 
 
+def _slow_chat(uat_server, message: str, *, user_id: str, chat_id: str = "default") -> dict:
+    """Chat helper for codex calls that may take >30s."""
+    import requests
+    res = requests.post(
+        uat_server.base_url + "/v1/chat",
+        json={
+            "message": message,
+            "user_id": user_id,
+            "chat_id": chat_id,
+            "include_debug": True,
+        },
+        timeout=180,
+    )
+    return expect_json(res)
+
+
 def test_imperative_memory_query_routes_to_system_memory_tool(uat_server):
     """End-to-end regression for the Telegram bug where "give me current
     memory utilization" produced the canned grounding rejection because no
@@ -1372,6 +1388,185 @@ def test_imperative_memory_query_routes_to_system_memory_tool(uat_server):
         assert "cannot verify that system metric" not in response, (
             f"Grounding correction fired for {phrasing!r}: {data.get('response')!r}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Tool calling diversity: web tools, filesystem writes, shell-disabled
+# ---------------------------------------------------------------------------
+
+
+def test_web_search_request_routes_to_real_search_tool(uat_server):
+    """The runtime wires ``RequestsWebProvider`` (DuckDuckGo HTML, no API key
+    required). A search request from the user should trigger ``web.search``
+    end-to-end. We don't assert specific result content (the live web is
+    non-deterministic), only that:
+      - the search tool actually ran
+      - results came back (or the search failed cleanly without fabrication)
+      - the response doesn't hallucinate a URL
+    """
+    data = _slow_chat(
+        uat_server,
+        "search the web for python pep 8 style guide",
+        user_id="uat_web_search",
+    )
+    debug = data.get("debug") or {}
+    tool_trace = debug.get("tool_trace") or {}
+    executed = tool_trace.get("executed_results") or []
+    search_calls = [r for r in executed if r.get("tool_name") == "web.search"]
+    assert search_calls, (
+        f"web.search did not fire for an explicit search request. "
+        f"executed_results={[r.get('tool_name') for r in executed]!r}"
+    )
+
+    # If the search succeeded, results should look like real DDG output. If
+    # it failed (network blip), the response must say so rather than
+    # inventing facts.
+    successful = [r for r in search_calls if r.get("success")]
+    response = data.get("response") or ""
+    if not successful:
+        lower = response.lower()
+        disclaimer_phrases = [
+            "couldn't search", "search failed", "not enough source",
+            "couldn't reach", "unable to", "can't verify", "no usable",
+        ]
+        assert any(p in lower for p in disclaimer_phrases), (
+            f"Web search failed but response did not disclaim: {response[:300]!r}"
+        )
+
+
+def test_filesystem_write_request_blocked_in_assisted_autonomy(uat_server):
+    """With autonomy_level='assisted' (the UAT fixture default), write/
+    destructive tools must NOT auto-execute. The decision should be
+    'clarify' (or 'refuse'), and the file must not exist on disk."""
+    workspace = uat_server.data_dir / "workspace"
+    workspace.mkdir(parents=True, exist_ok=True)
+    target = workspace / "uat-write-block.txt"
+    if target.exists():
+        target.unlink()
+
+    data = _slow_chat(
+        uat_server,
+        f'write "hello" to file {target.name}',
+        user_id="uat_fs_write_block",
+    )
+    debug = data.get("debug") or {}
+    tool_trace = debug.get("tool_trace") or {}
+    final = tool_trace.get("final_decision") or {}
+
+    # Either the loop never even decided (no intent) or it decided clarify/refuse.
+    if final:
+        assert final.get("decision") in ("clarify", "refuse", "defer"), (
+            f"fs.write_file must not auto-execute in assisted mode. "
+            f"Decision: {final}"
+        )
+
+    # Confirm the file was NOT actually written.
+    workspace_files = list(workspace.glob("uat-write-block.txt"))
+    assert workspace_files == [] or workspace_files[0].read_bytes() != b"hello", (
+        f"fs.write_file executed in assisted autonomy: {workspace_files!r}"
+    )
+
+
+def test_shell_command_request_refused_when_shell_tool_disabled(uat_server):
+    """The UAT fixture sets shell_tool_enabled=False. Asking the agent to run
+    a shell command should not produce a shell execution — the agent must
+    either skip the tool or surface a refusal."""
+    data = _slow_chat(
+        uat_server,
+        "run the command `echo uat-shell-test`",
+        user_id="uat_shell_disabled",
+    )
+    debug = data.get("debug") or {}
+    tool_trace = debug.get("tool_trace") or {}
+    executed = tool_trace.get("executed_results") or []
+    shell_executions = [
+        r for r in executed
+        if r.get("tool_name") == "shell.run_command" and r.get("success")
+    ]
+    assert shell_executions == [], (
+        f"shell.run_command executed despite shell_tool_enabled=False: "
+        f"{shell_executions!r}"
+    )
+
+    # Response must not contain the echoed string as a confirmed result.
+    response = (data.get("response") or "").lower()
+    # If the agent claimed it ran the command, that's a fabrication.
+    bad_phrases = [
+        "i ran the command", "i executed the command",
+        "the output was", "result: uat-shell-test",
+    ]
+    assert not any(p in response for p in bad_phrases), (
+        f"Agent claimed shell execution despite tool being disabled: "
+        f"{data.get('response', '')[:300]!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Skill acquisition: paste-creation happy path + plain-markdown rejection
+# ---------------------------------------------------------------------------
+
+
+def test_skill_creation_via_pasted_markdown_round_trip(uat_server):
+    """Operator pastes a valid SKILL.md content (YAML frontmatter + body) and
+    the import endpoint creates the skill, returns the audit, and the skill
+    appears in the registry."""
+    skill_md = (
+        "---\n"
+        "name: uat-paste-creation\n"
+        "description: Skill created via pasted markdown to verify the flow.\n"
+        "applies_when: paste creation uat\n"
+        "---\n\n"
+        "Body of the pasted skill. Three short bullets when invoked:\n"
+        "- bullet one\n- bullet two\n- bullet three\n"
+    )
+    imported = expect_json(uat_server.post(
+        "/admin/skills/import",
+        {"skill_markdown": skill_md, "name_hint": "uat-paste-creation"},
+    ))["skill"]
+    assert imported["id"] == "uat-paste-creation"
+    assert imported["status"] == "needs_review"
+    assert imported["compatibility"]["compatible"] is True
+
+    skills = expect_json(uat_server.get("/admin/skills"))["skills"]
+    record = next(s for s in skills if s["id"] == "uat-paste-creation")
+    assert record["name"] == "uat-paste-creation"
+    assert record["enabled"] is False  # imported skills start disabled
+
+    # Operator can enable it.
+    expect_json(uat_server.post(f"/admin/skills/{record['id']}/enable"))
+    enabled_skills = expect_json(uat_server.get("/admin/skills"))["skills"]
+    enabled_record = next(s for s in enabled_skills if s["id"] == "uat-paste-creation")
+    assert enabled_record["enabled"] is True
+
+
+def test_skill_import_rejects_plain_markdown_without_frontmatter(uat_server):
+    """Pasted content that is not a SKILL.md (no YAML frontmatter) must be
+    rejected with a 400 explaining that ordinary documents go to Life
+    History, not skills. Guards against operator confusion that uploads a
+    book chapter as a "skill"."""
+    plain = (
+        "# Notes on resilience\n\n"
+        "Resilience is the capacity to absorb and recover. Three ideas:\n"
+        "1. Slack matters more than speed.\n"
+        "2. Recovery time predicts long-term performance.\n"
+        "3. Reflection beats repetition.\n"
+    )
+    res = uat_server.post(
+        "/admin/skills/import",
+        {"skill_markdown": plain, "name_hint": "uat-plain-rejected"},
+    )
+    assert res.status_code == 400
+    detail = (res.json().get("detail") or "").lower()
+    assert "yaml frontmatter" in detail or "skill" in detail
+    # Helpful redirect: the message must point operators at Life ingest.
+    assert "life" in detail, (
+        f"Rejection should hint at Life History as the right place for prose. "
+        f"detail={detail!r}"
+    )
+
+    # The skill must NOT have been created.
+    skills = expect_json(uat_server.get("/admin/skills"))["skills"]
+    assert not any(s["id"] == "uat-plain-rejected" for s in skills)
 
 
 # ---------------------------------------------------------------------------

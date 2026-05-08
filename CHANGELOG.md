@@ -63,6 +63,24 @@ All notable changes to Project Nur are documented here.
   not actually freeze identity edits. Treat the wizard's
   "Character Independence" toggle as informational, not a guarantee.
 
+### Tool calling and skill acquisition coverage
+- Added five UAT tests covering tool diversity and skill creation paths so
+  the comprehensive aggregator catches regressions in agentic capability:
+  - ``test_web_search_request_routes_to_real_search_tool`` — explicit search
+    request triggers ``web.search`` end-to-end via the bundled
+    DuckDuckGo-backed ``RequestsWebProvider``
+  - ``test_filesystem_write_request_blocked_in_assisted_autonomy`` — file
+    write requests under ``autonomy_level='assisted'`` get a clarify/refuse
+    decision and the file is not actually written
+  - ``test_shell_command_request_refused_when_shell_tool_disabled`` — with
+    ``shell_tool_enabled=False`` the agent must not execute shell commands
+    or fabricate output
+  - ``test_skill_creation_via_pasted_markdown_round_trip`` — paste a valid
+    SKILL.md, verify import + enable round-trip
+  - ``test_skill_import_rejects_plain_markdown_without_frontmatter`` — prose
+    without YAML frontmatter is rejected at /admin/skills/import with a
+    helpful redirect to Life History
+
 ### Browser sweep
 - New ``tests/uat/test_ui_sweep.py`` (11 tests) drives every interactive
   element in the bundled UI through Playwright to catch regressions like a
