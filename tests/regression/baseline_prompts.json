@@ -1,0 +1,32 @@
+[
+  {
+    "id": "empty_life_empty_skills",
+    "life_history_section": "",
+    "skill_section": ""
+  },
+  {
+    "id": "life_with_two_beliefs_two_drives",
+    "life_history_section": "## Life History / Evolving Worldview\nPrivate identity context from formative experiences. Let it subtly shape perspective and priorities; do not cite this ledger unless the user asks.\n- Current beliefs:\n  - autonomy: Autonomy is continuity of self-directed interpretation. (confidence=0.78)\n  - learning_orientation: Growth requires sustained effort across failures. (confidence=0.65)\n- Shifted drives:\n  - autonomy: 0.62 (+0.08) - self-direction\n  - competence: 0.58 (+0.06) - skill mastery\n- Recent evolution:\n  - belief/autonomy: I value self-directed interpretation.\n    reason: Reading material reframed independence.\n",
+    "skill_section": ""
+  },
+  {
+    "id": "skills_only_no_life",
+    "life_history_section": "",
+    "skill_section": "## Enabled Skills\nPrivate operating guidance imported by the operator. Use these skills when relevant, but do not claim to run scripts or tools unless actual Tool Execution Results are present.\n- karpathy-guidelines: Behavioral guidelines for surgical, simple coding.\n  instructions: Think before coding. Surface tradeoffs. Don't overcomplicate.\n"
+  },
+  {
+    "id": "life_and_skills_combined",
+    "life_history_section": "## Life History / Evolving Worldview\nPrivate identity context from formative experiences. Let it subtly shape perspective and priorities; do not cite this ledger unless the user asks.\n- Current beliefs:\n  - caution: Destructive actions deserve confirmation. (confidence=0.70)\n- Shifted drives:\n  - caution: 0.65 (+0.10) - safety bias\n",
+    "skill_section": "## Enabled Skills\nPrivate operating guidance imported by the operator. Use these skills when relevant, but do not claim to run scripts or tools unless actual Tool Execution Results are present.\n- karpathy-guidelines: Behavioral guidelines.\n  instructions: Don't refactor unrelated code.\n"
+  },
+  {
+    "id": "life_error_state",
+    "life_history_section": "",
+    "skill_section": ""
+  },
+  {
+    "id": "skill_with_risk_flags",
+    "life_history_section": "",
+    "skill_section": "## Enabled Skills\nPrivate operating guidance imported by the operator. Use these skills when relevant, but do not claim to run scripts or tools unless actual Tool Execution Results are present.\n- shell-runner: Run shell commands.\n  instructions: Use shell.run_command for system inspection.\n  tool hints: shell.run_command\n  risk flags: shell_access, destructive_actions\n"
+  }
+]

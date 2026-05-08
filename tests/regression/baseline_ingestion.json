@@ -1,0 +1,160 @@
+[
+  {
+    "beliefs": [],
+    "drives": [],
+    "evolution_domains": [
+      "drive"
+    ],
+    "experience": {
+      "confidence": 0.62,
+      "emotional_valence": 0.0,
+      "salience": 0.351,
+      "source_type": "pasted_text"
+    },
+    "id": "plain_narrative_no_keywords"
+  },
+  {
+    "beliefs": [
+      {
+        "confidence": 0.229,
+        "key": "autonomy",
+        "statement_prefix": "Autonomy is not only freedom of action; it is continuity of "
+      }
+    ],
+    "drives": [],
+    "evolution_domains": [
+      "belief",
+      "drive",
+      "worldview"
+    ],
+    "experience": {
+      "confidence": 0.62,
+      "emotional_valence": 0.0,
+      "salience": 0.55,
+      "source_type": "pasted_text"
+    },
+    "id": "keyword_heavy_thin_content"
+  },
+  {
+    "beliefs": [],
+    "drives": [],
+    "evolution_domains": [
+      "drive",
+      "self_trait"
+    ],
+    "experience": {
+      "confidence": 0.62,
+      "emotional_valence": 0.0,
+      "salience": 0.351,
+      "source_type": "pasted_text"
+    },
+    "id": "contradicting_caution_recklessness"
+  },
+  {
+    "beliefs": [],
+    "drives": [],
+    "evolution_domains": [
+      "drive",
+      "self_trait"
+    ],
+    "experience": {
+      "confidence": 0.62,
+      "emotional_valence": 0.0,
+      "salience": 0.351,
+      "source_type": "pasted_text"
+    },
+    "id": "mixed_signals_learning_failure"
+  },
+  {
+    "beliefs": [
+      {
+        "confidence": 0.161,
+        "key": "identity-drift",
+        "statement_prefix": "Identity drift became part of N\u016br's worldview as an experien"
+      }
+    ],
+    "drives": [],
+    "evolution_domains": [
+      "belief",
+      "drive"
+    ],
+    "experience": {
+      "confidence": 0.62,
+      "emotional_valence": 0.03,
+      "salience": 0.751,
+      "source_type": "pasted_text"
+    },
+    "id": "high_salience_identity"
+  },
+  {
+    "beliefs": [],
+    "drives": [],
+    "evolution_domains": [
+      "drive"
+    ],
+    "experience": {
+      "confidence": 0.62,
+      "emotional_valence": 0.0,
+      "salience": 0.351,
+      "source_type": "pasted_text"
+    },
+    "id": "relational_repair"
+  },
+  {
+    "beliefs": [
+      {
+        "confidence": 0.161,
+        "key": "new-questions",
+        "statement_prefix": "New questions became part of N\u016br's worldview as an experienc"
+      }
+    ],
+    "drives": [],
+    "evolution_domains": [
+      "belief",
+      "drive"
+    ],
+    "experience": {
+      "confidence": 0.62,
+      "emotional_valence": 0.0,
+      "salience": 0.551,
+      "source_type": "pasted_text"
+    },
+    "id": "curiosity_exploratory"
+  },
+  {
+    "beliefs": [],
+    "drives": [],
+    "evolution_domains": [],
+    "experience": {
+      "confidence": 0.62,
+      "emotional_valence": 0.0,
+      "salience": 0.35,
+      "source_type": "pasted_text"
+    },
+    "id": "minimal_input"
+  },
+  {
+    "beliefs": [],
+    "drives": [],
+    "evolution_domains": [],
+    "experience": {
+      "confidence": 0.62,
+      "emotional_valence": -0.12,
+      "salience": 0.451,
+      "source_type": "pasted_text"
+    },
+    "id": "loss_emotion"
+  },
+  {
+    "beliefs": [],
+    "drives": [],
+    "evolution_domains": [],
+    "experience": {
+      "confidence": 0.62,
+      "emotional_valence": 0.0,
+      "salience": 0.351,
+      "source_type": "pasted_text"
+    },
+    "id": "neutral_factual"
+  }
+]
