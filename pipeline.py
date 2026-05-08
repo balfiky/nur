@@ -389,6 +389,7 @@ class CognitivePipeline:
         life_history_provider: Callable[[], dict[str, Any] | None] | None = None,
         life_history_snapshot_provider: Callable[[], dict[str, Any] | None] | None = None,
         skill_provider: Callable[[], dict[str, Any] | None] | None = None,
+        runtime_config: Any | None = None,
     ) -> None:
         """Create a cognitive pipeline.
 
@@ -495,6 +496,10 @@ class CognitivePipeline:
         self._life_history_provider = life_history_provider
         self._life_history_snapshot_provider = life_history_snapshot_provider
         self._skill_provider = skill_provider
+        # ``runtime_config`` is the RuntimeConfig used by the session manager.
+        # The legacy ``self._config`` is the global NurConfig from get_config()
+        # which has no data_dir, so paths to shared SQLite databases need this.
+        self._runtime_config = runtime_config
         self.last_intake_receipt: str = ""
 
         # Sprint 5: Ask-user autonomy. One budget per pipeline (per session)
@@ -1555,16 +1560,20 @@ class CognitivePipeline:
             return None
         if self._life_history_provider is None:
             return None
+        if self._runtime_config is None:
+            # Without a RuntimeConfig we can't resolve the shared DB path. Tests
+            # that use the pipeline without a runtime context skip surfacing.
+            return None
         try:
             from runtime.learning.surface import should_surface_question
             from runtime.life_history import LifeHistoryStore, life_history_db_path
             import os
 
             # Need the same db the rest of the runtime uses.
-            db_path = life_history_db_path(self._config)
+            db_path = life_history_db_path(self._runtime_config)
             if not os.path.exists(db_path):
                 return None
-            with LifeHistoryStore(self._config) as store:
+            with LifeHistoryStore(self._runtime_config) as store:
                 question = should_surface_question(
                     store, budget=self.learning_budget,
                 )

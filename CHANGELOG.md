@@ -6,6 +6,21 @@ All notable changes to Project Nur are documented here.
 
 ## Unreleased
 
+### Fixed
+- Pipeline ask-user surfacing always failed silently because
+  ``_maybe_surface_open_question`` looked up the life-history DB on
+  ``self._config`` (NurConfig, no ``data_dir`` attribute). Pipeline now takes
+  a ``runtime_config`` argument that the session manager wires from its own
+  RuntimeConfig, so surfacing actually fires.
+
+### Added
+- New UAT file ``tests/uat/test_evolution_features.py`` covers the Sprint 1-5
+  surfaces end-to-end against a live LLM: constitution GET/PUT/restart and
+  Save UI, open-questions lifecycle (list/filter/abandon/resolve, render +
+  abandon button), metabolism-tick idempotence within a day, ``applies_when``
+  trigger filtering on imported skills, and an open-question surfacing in the
+  chat response with the question transitioning to ``pursuing`` state.
+
 ### Removed
 - Removed the mock LLM backend from production entirely. `llm_backend="mock"`
   is no longer accepted by `RuntimeConfig`, the backend factory, the setup

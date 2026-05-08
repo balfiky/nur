@@ -420,6 +420,7 @@ class SessionManager:
             life_history_provider=self._life_history_context_provider,
             life_history_snapshot_provider=self._life_history_snapshot_provider,
             skill_provider=self._skill_context_provider,
+            runtime_config=self.config,
         )
 
         # Restore per-session engine state from disk if present. Fall back to the
