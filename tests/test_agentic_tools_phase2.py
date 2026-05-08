@@ -229,6 +229,29 @@ class TestDetectToolIntent:
         assert intent.tool_name == "system.memory_usage"
         assert intent.arguments == {}
 
+    def test_memory_request_phrasings_route_to_system_tool(self):
+        """Common imperative phrasings of "give me memory" must route to the
+        memory tool. Regression: a Telegram user asking "give me current
+        memory utilization" produced an unhelpful "cannot verify" reply
+        because the verb wasn't in the original pattern verb-list.
+        """
+        available = self._available()
+        for phrasing in [
+            "give me current memory utilization",
+            "give me the current memory utilization",
+            "read current system memory utilization",
+            "read memory utilization",
+            "fetch the memory usage",
+            "report memory usage",
+            "grab the memory usage now",
+            "show memory utilization",
+        ]:
+            intent = detect_tool_intent(phrasing, available)
+            assert intent is not None, f"intent missed: {phrasing!r}"
+            assert intent.tool_name == "system.memory_usage", (
+                f"wrong tool for {phrasing!r}: {intent.tool_name}"
+            )
+
     def test_released_after_list_request_uses_web_search(self):
         intent = detect_tool_intent(
             "find me top AI books released after March 2026",

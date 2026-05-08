@@ -7,6 +7,13 @@ All notable changes to Project Nur are documented here.
 ## Unreleased
 
 ### Fixed
+- Tool-intent detection for memory queries now matches imperative phrasings
+  ("give me", "read", "fetch", "report", "grab"), not only declarative ones
+  ("what's", "show", "check", "get", "tell me"). A user asking "give me
+  current memory utilization" previously got the canned grounding rejection
+  ("I cannot verify that system metric...") because no tool fired and the
+  LLM hallucinated a value that grounding then erased. Regression covered
+  in ``tests/test_agentic_tools_phase2.py::TestDetectToolIntent::test_memory_request_phrasings_route_to_system_tool``.
 - Pipeline ask-user surfacing always failed silently because
   ``_maybe_surface_open_question`` looked up the life-history DB on
   ``self._config`` (NurConfig, no ``data_dir`` attribute). Pipeline now takes

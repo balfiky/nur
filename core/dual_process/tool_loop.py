@@ -202,9 +202,10 @@ _TOOL_PATTERNS: list[tuple[re.Pattern, str, str]] = [
     (re.compile(r"\bdelete\s+(?:the\s+)?(?:file|dir(?:ectory)?)\s+(\S+)", re.I), "fs.delete_path", "path"),
     (re.compile(r"\brm\s+(\S+)", re.I), "fs.delete_path", "path"),
     # System inspection
-    (re.compile(r"\b(?:what(?:'s|\s+is)|show|check|get|tell(?:\s+me)?)\b.{0,80}\b(?:memory|ram)\b.{0,80}\b(?:usage|utili[sz]ation|used|free|available|total)\b", re.I), "system.memory_usage", "empty"),
+    (re.compile(r"\b(?:what(?:'s|\s+is)|show|check|get|tell(?:\s+me)?|give(?:\s+me)?|read|fetch|report|grab)\b.{0,80}\b(?:memory|ram)\b.{0,80}\b(?:usage|utili[sz]ation|used|free|available|total)\b", re.I), "system.memory_usage", "empty"),
     (re.compile(r"\b(?:how\s+much|what(?:'s|\s+is))\b.{0,80}\b(?:memory|ram)\b.{0,80}\b(?:left|available|used|free|total)\b", re.I), "system.memory_usage", "empty"),
     (re.compile(r"^\s*free(?:\s+-[a-z]+)?\s*$", re.I), "system.memory_usage", "empty"),
+    (re.compile(r"\b(?:give(?:\s+me)?|read|show|get|tell(?:\s+me)?|fetch|report|check)\b.{0,80}\b(?:current|live|active)?\s*\b(?:system\s+)?(?:memory|ram)\b\s*(?:usage|utili[sz]ation|status|info(?:rmation)?|stats?)?\b", re.I), "system.memory_usage", "empty"),
     # Shell
     (re.compile(r"\b(?:what(?:'s|\s+is)|show|check|get|tell(?:\s+me)?)\b.{0,80}\b(?:your|the)?\s*(?:host\s*name|hostname|machine\s+name|node\s+name|server\s+name)\b", re.I), "shell.run_command", "cmd_hostname"),
     (re.compile(r"\bname\s+of\s+the\s+machine\b.{0,80}\b(?:running|run)\b", re.I), "shell.run_command", "cmd_hostname"),
