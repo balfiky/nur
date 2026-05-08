@@ -418,6 +418,12 @@ class AdminLifeRollbackRequest(BaseModel):
     batch_id: str = Field(..., min_length=1, max_length=80)
 
 
+class AdminConstitutionRequest(BaseModel):
+    """Operator-set stable orientation rendered above evolving beliefs."""
+
+    constitution: str = Field(..., max_length=2000)
+
+
 class AdminSoulDraftRequest(BaseModel):
     """LLM-assisted soul drafting from a natural-language description."""
 
@@ -1404,6 +1410,28 @@ async def admin_life_rollback(req: AdminLifeRollbackRequest) -> dict:
         status_code=410,
         detail="Life History rollback was removed; use an explicit genesis reset for a full reset.",
     )
+
+
+@app.get("/admin/identity/constitution", dependencies=[Depends(_require_bearer)])
+async def admin_get_constitution() -> dict:
+    from runtime.life_history import LifeHistoryError, LifeHistoryStore
+
+    try:
+        with LifeHistoryStore(_load_runtime_config()) as store:
+            return store.get_constitution()
+    except LifeHistoryError as exc:
+        _raise_life_http_error(exc)
+
+
+@app.put("/admin/identity/constitution", dependencies=[Depends(_require_bearer)])
+async def admin_set_constitution(req: AdminConstitutionRequest) -> dict:
+    from runtime.life_history import LifeHistoryError, LifeHistoryStore
+
+    try:
+        with LifeHistoryStore(_load_runtime_config()) as store:
+            return {"ok": True, **store.set_constitution(req.constitution)}
+    except LifeHistoryError as exc:
+        _raise_life_http_error(exc)
 
 
 @app.get("/admin/life/open-questions", dependencies=[Depends(_require_bearer)])

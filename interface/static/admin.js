@@ -1074,6 +1074,25 @@ const state = createSurfaceState({
       data.open_questions || [],
       (data.counts && data.counts.open_questions) || {},
     );
+    loadConstitution();
+  }
+
+  async function loadConstitution() {
+    const textarea = document.getElementById("constitutionText");
+    const updatedEl = document.getElementById("constitutionUpdated");
+    if (!textarea) return;
+    const res = await authedFetch("/admin/identity/constitution");
+    if (!res || !res.ok) return;
+    const data = await res.json();
+    textarea.value = data.constitution || "";
+    if (updatedEl) {
+      const ts = Number(data.updated_at || 0);
+      if (ts > 0) {
+        updatedEl.textContent = `last updated ${new Date(ts * 1000).toISOString()}`;
+      } else {
+        updatedEl.textContent = "not yet set";
+      }
+    }
   }
 
   function renderLifeSummary(counts) {
@@ -1722,6 +1741,21 @@ const state = createSurfaceState({
     document.getElementById("refreshLifeBtn").addEventListener("click", () => {
       state.lifeLoaded = false;
       loadLife().catch((err) => showToast(err.message || String(err), "error"));
+    });
+    document.getElementById("saveConstitutionBtn").addEventListener("click", async () => {
+      const textarea = document.getElementById("constitutionText");
+      if (!textarea) return;
+      const res = await authedFetch("/admin/identity/constitution", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ constitution: textarea.value }),
+      });
+      if (res && res.ok) {
+        showToast("Constitution saved", "ok");
+        await loadConstitution();
+      } else {
+        showToast("Failed to save constitution", "error");
+      }
     });
     document.getElementById("ingestLifeTextBtn").addEventListener("click", () => {
       ingestLifeText().catch((err) => showToast(err.message || String(err), "error"));

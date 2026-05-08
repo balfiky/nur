@@ -70,6 +70,7 @@ class LifeHistoryStore:
         self._ensure_default_drives()
         self._ensure_genesis_storage()
         self._ensure_metabolism_state()
+        self._ensure_identity_state()
 
     def __enter__(self) -> LifeHistoryStore:
         return self
@@ -470,6 +471,7 @@ class LifeHistoryStore:
                 "evolution_events": self._count("evolution_events"),
                 "beliefs": self._count("beliefs"),
             },
+            "constitution": self.get_constitution().get("constitution", ""),
             "beliefs": beliefs,
             "drives": changed_drives[:drive_limit],
             "all_drives": self.list_drives(),
@@ -1196,6 +1198,15 @@ class LifeHistoryStore:
         )
         self._conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS identity_state (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                constitution TEXT NOT NULL DEFAULT '',
+                updated_at REAL NOT NULL
+            )
+            """
+        )
+        self._conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS genesis_provenance (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 created_at REAL NOT NULL,
@@ -1286,6 +1297,51 @@ class LifeHistoryStore:
             (time.time(),),
         )
         self._conn.commit()
+
+    def _ensure_identity_state(self) -> None:
+        """Seed an empty constitution row on first creation."""
+        if self._conn.execute(
+            "SELECT 1 FROM identity_state WHERE id = 1"
+        ).fetchone():
+            return
+        self._conn.execute(
+            "INSERT OR IGNORE INTO identity_state (id, constitution, updated_at) VALUES (1, '', ?)",
+            (time.time(),),
+        )
+        self._conn.commit()
+
+    # ------------------------------------------------------------------
+    # Constitution (operator-set stable orientation)
+    # ------------------------------------------------------------------
+
+    def get_constitution(self) -> dict[str, Any]:
+        """Return the operator-set constitution and its last-updated timestamp."""
+        row = self._conn.execute(
+            "SELECT constitution, updated_at FROM identity_state WHERE id = 1"
+        ).fetchone()
+        if row is None:
+            return {"constitution": "", "updated_at": 0.0}
+        return {
+            "constitution": str(row["constitution"] or ""),
+            "updated_at": float(row["updated_at"] or 0.0),
+        }
+
+    def set_constitution(self, text: str, *, max_chars: int = 2000) -> dict[str, Any]:
+        """Replace the constitution. Returns the new state."""
+        cleaned = _trim(str(text or "").strip(), max_chars)
+        now = time.time()
+        self._conn.execute(
+            """
+            INSERT INTO identity_state (id, constitution, updated_at)
+            VALUES (1, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                constitution = excluded.constitution,
+                updated_at = excluded.updated_at
+            """,
+            (cleaned, now),
+        )
+        self._conn.commit()
+        return {"constitution": cleaned, "updated_at": now}
 
     def _ensure_genesis_storage(self) -> None:
         if self._conn.execute("SELECT 1 FROM genesis_marker WHERE id = 1").fetchone():

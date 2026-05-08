@@ -290,12 +290,13 @@ def _build_life_history_section(ctx: PipelineContext) -> str:
     if not isinstance(life, dict) or life.get("error"):
         return ""
 
+    constitution = _trim_prompt_text(life.get("constitution") or "", 2000)
     beliefs = [item for item in _as_list(life.get("beliefs")) if isinstance(item, dict)]
     drives = [item for item in _as_list(life.get("drives")) if isinstance(item, dict)]
     evolution = [
         item for item in _as_list(life.get("recent_evolution")) if isinstance(item, dict)
     ]
-    if not beliefs and not drives and not evolution:
+    if not constitution and not beliefs and not drives and not evolution:
         return ""
 
     lines = ["## Life History / Evolving Worldview"]
@@ -303,6 +304,9 @@ def _build_life_history_section(ctx: PipelineContext) -> str:
         "Private identity context from formative experiences. Let it subtly shape "
         "perspective and priorities; do not cite this ledger unless the user asks."
     )
+    if constitution:
+        lines.append("- Stable orientation (operator-set):")
+        lines.append(f"  {constitution}")
     if beliefs:
         lines.append("- Current beliefs:")
         for belief in beliefs[:5]:

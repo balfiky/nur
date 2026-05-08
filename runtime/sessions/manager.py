@@ -523,12 +523,21 @@ class SessionManager:
             log.exception("Failed to load life history snapshot")
             return {}
 
-    def _skill_context_provider(self) -> dict[str, Any]:
-        """Load enabled imported skill guidance for prompt generation."""
+    def _skill_context_provider(
+        self,
+        *,
+        context_hint: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Load enabled imported skill guidance for prompt generation.
+
+        When ``context_hint`` is provided (user_message / tool_name /
+        response_strategy), skills with non-empty ``applies_when`` filter
+        themselves out unless their trigger tokens overlap the hint.
+        """
         from runtime.skills import enabled_skill_context
 
         try:
-            return enabled_skill_context(self.config)
+            return enabled_skill_context(self.config, context_hint=context_hint)
         except Exception:
             log.exception("Failed to load enabled skill context")
             return {}

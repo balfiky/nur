@@ -666,7 +666,7 @@ class CognitivePipeline:
             return PipelineResponse(response=identity_response, debug=debug)
 
         _ts = time.perf_counter()
-        skill_context = self._load_skill_context()
+        skill_context = self._load_skill_context(user_message=user_message)
         debug.skill_context = skill_context
         timings["skill_context_retrieval"] = (time.perf_counter() - _ts) * 1000
 
@@ -1512,12 +1512,36 @@ class CognitivePipeline:
             lines.extend(changed_drives[:7])
         return "\n".join(lines)
 
-    def _load_skill_context(self) -> dict[str, Any]:
-        """Read enabled imported skill guidance for generation."""
+    def _load_skill_context(
+        self,
+        *,
+        user_message: str = "",
+        tool_name: str = "",
+        response_strategy: str = "",
+    ) -> dict[str, Any]:
+        """Read enabled imported skill guidance for generation.
+
+        ``user_message``/``tool_name``/``response_strategy`` form a context
+        hint passed to the provider so triggered-only skills can filter
+        themselves out when not relevant. Skills with no ``applies_when``
+        keep their always-on behavior.
+        """
         if self._skill_provider is None:
             return {}
+        context_hint: dict[str, Any] = {}
+        if user_message:
+            context_hint["user_message"] = user_message
+        if tool_name:
+            context_hint["tool_name"] = tool_name
+        if response_strategy:
+            context_hint["response_strategy"] = response_strategy
         try:
-            context = self._skill_provider()
+            try:
+                context = self._skill_provider(context_hint=context_hint or None)
+            except TypeError:
+                # Provider doesn't accept context_hint — fall back to no-filter
+                # behavior so older callers/tests keep working.
+                context = self._skill_provider()
         except Exception as exc:
             log.warning("Skill context unavailable: %s", exc)
             return {"error": exc.__class__.__name__}

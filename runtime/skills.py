@@ -62,15 +62,22 @@ def enabled_skill_context(
     *,
     limit: int = 5,
     max_instruction_chars: int = 1200,
+    context_hint: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return bounded instructions for enabled, compatible skills.
 
     The generator receives this context as private guidance. It is deliberately
     text-only and omits bundled scripts/resources so importing a community skill
     cannot bypass runtime tool policy.
+
+    When ``context_hint`` is provided (typically containing ``user_message``
+    and/or ``tool_name``), skills whose ``applies_when`` frontmatter does not
+    match the hint are filtered out. Skills with no ``applies_when`` field
+    keep current always-on behavior for backward compatibility.
     """
     root = skills_root(config)
     registry = _read_registry(root)
+    hint_tokens = _context_hint_tokens(context_hint)
     skills: list[dict[str, Any]] = []
     for record in registry.get("skills", []):
         if not record.get("enabled") or record.get("status") != "enabled":
@@ -87,6 +94,9 @@ def enabled_skill_context(
         )
         if warnings:
             continue
+        applies_when = str(metadata.get("applies_when") or "").strip()
+        if applies_when and hint_tokens and not _trigger_matches(applies_when, hint_tokens):
+            continue
         skills.append({
             "id": record.get("id") or "",
             "name": metadata.get("name") or record.get("name") or record.get("id") or "",
@@ -98,6 +108,7 @@ def enabled_skill_context(
             "instructions": _trim_runtime_text(body, max_instruction_chars),
             "required_tools": list(compatibility.get("required_tools") or []),
             "risk_flags": list(compatibility.get("risk_flags") or []),
+            "applies_when": applies_when,
         })
         if len(skills) >= max(1, limit):
             break
@@ -105,7 +116,30 @@ def enabled_skill_context(
         "root": str(root),
         "count": len(skills),
         "skills": skills,
+        "context_hint_tokens": sorted(hint_tokens),
     }
+
+
+def _context_hint_tokens(context_hint: dict[str, Any] | None) -> set[str]:
+    if not context_hint:
+        return set()
+    parts: list[str] = []
+    for key in ("user_message", "tool_name", "response_strategy"):
+        value = context_hint.get(key)
+        if value:
+            parts.append(str(value))
+    extras = context_hint.get("extras")
+    if isinstance(extras, (list, tuple)):
+        parts.extend(str(item) for item in extras if item)
+    blob = " ".join(parts).lower()
+    # Tokenize on word boundaries; keep alphanumeric + dot for tool names like fs.read_file.
+    return set(re.findall(r"[a-z0-9][a-z0-9._-]*", blob))
+
+
+def _trigger_matches(applies_when: str, hint_tokens: set[str]) -> bool:
+    """Return True if any token in applies_when appears in the context hint."""
+    trigger_tokens = set(re.findall(r"[a-z0-9][a-z0-9._-]*", applies_when.lower()))
+    return bool(trigger_tokens & hint_tokens)
 
 
 def import_skill(
@@ -299,6 +333,12 @@ def audit_skill_text(text: str, *, source_root: Path | None = None) -> dict[str,
         errors.append("Frontmatter field 'name' is required.")
     if not str(metadata.get("description", "")).strip():
         errors.append("Frontmatter field 'description' is required.")
+    if not str(metadata.get("applies_when", "")).strip():
+        warnings.append(
+            "Frontmatter field 'applies_when' is missing — this skill will load "
+            "for every generation. Add a trigger condition (e.g. tool name or "
+            "user-message keywords) so it only loads when relevant."
+        )
     if source_root is not None and not (source_root / SKILL_FILENAME).is_file():
         errors.append(f"{SKILL_FILENAME} not found under source root.")
     return _audit_payload(
