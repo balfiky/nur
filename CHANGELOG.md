@@ -41,6 +41,20 @@ All notable changes to Project Nur are documented here.
   - Public-release controls: bearer auth enforced on /admin/* when api_key
     set, backup create/list/delete with typed-confirmation guard, soul
     GET/POST round-trip with validation rejection on blank name.
+  - Operator surfaces: ``/admin/diagnostics`` shape, ``/admin/sessions/reset``
+    typed-confirmation guard + 404 for unknown sessions, LLM-assisted
+    ``/admin/soul/draft`` returns a schema-valid draft without persisting,
+    file-path skill import accepts a real folder and rejects missing paths
+    or directories without SKILL.md, and ``cors_origins`` is honored at
+    startup so only the configured origin gets the
+    Access-Control-Allow-Origin header.
+
+### Known
+- ``character_independence`` is a runtime config flag with no enforcement
+  path in the codebase (the genesis_marker row is written but never read).
+  Until enforcement is added, the flag persists across save/load but does
+  not actually freeze identity edits. Treat the wizard's
+  "Character Independence" toggle as informational, not a guarantee.
 
 ### Removed
 - Removed the mock LLM backend from production entirely. `llm_backend="mock"`

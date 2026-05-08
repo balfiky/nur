@@ -1115,3 +1115,206 @@ def test_skill_audit_warns_when_applies_when_missing(uat_server):
     # The skill should still be importable (status=needs_review, not erroring).
     assert record["status"] == "needs_review"
     assert record.get("compatibility", {}).get("compatible") is True
+
+
+# ---------------------------------------------------------------------------
+# Diagnostics, sessions reset, soul draft, file-path skill import, CORS
+# ---------------------------------------------------------------------------
+
+
+def test_admin_diagnostics_returns_expected_shape(uat_server):
+    payload = expect_json(uat_server.get("/admin/diagnostics"))
+    assert payload["status"] == "ok"
+    assert "generated_at" in payload
+    server = payload.get("server") or {}
+    assert isinstance(server.get("pid"), int) and server["pid"] > 0
+    assert server.get("python")
+    assert isinstance(server.get("uptime_seconds"), (int, float))
+    config_block = payload.get("config") or {}
+    assert config_block["llm_backend"] == "codex"
+    assert config_block["auth_enabled"] is False  # no api_key set in fixture
+    runtime_block = payload.get("runtime") or {}
+    assert isinstance(runtime_block["active_sessions"], int)
+    assert runtime_block["active_sessions"] >= 0
+    storage = payload.get("storage") or {}
+    assert "data_dir" in storage
+    assert isinstance(payload.get("warnings"), list)
+
+
+def test_admin_sessions_reset_evicts_active_session(uat_server):
+    """Operator must be able to evict a runaway session with typed
+    confirmation; wrong confirmation must 400; unknown session 404."""
+    user_id = "uat_session_reset"
+    chat_id = "default"
+    session_key = f"web:{user_id}:{chat_id}"
+
+    # Create the session by sending a chat turn.
+    expect_json(uat_server.post("/v1/chat", {
+        "message": "Hello, please respond briefly.",
+        "user_id": user_id,
+        "chat_id": chat_id,
+    }))
+
+    diag_before = expect_json(uat_server.get("/admin/diagnostics"))
+    assert diag_before["runtime"]["active_sessions"] >= 1
+
+    # Wrong confirmation → 400.
+    bad = uat_server.post(
+        "/admin/sessions/reset",
+        {"session_key": session_key, "confirmation": "RESET wrong"},
+    )
+    assert bad.status_code == 400
+
+    # Unknown session_key with right-shape confirmation → 404.
+    unknown = uat_server.post(
+        "/admin/sessions/reset",
+        {"session_key": "web:nobody:nada", "confirmation": "RESET web:nobody:nada"},
+    )
+    assert unknown.status_code == 404
+
+    # Correct confirmation → eviction.
+    ok_payload = expect_json(uat_server.post(
+        "/admin/sessions/reset",
+        {"session_key": session_key, "confirmation": f"RESET {session_key}"},
+    ))
+    assert ok_payload["status"] == "evicted"
+    assert ok_payload["session_key"] == session_key
+
+    diag_after = expect_json(uat_server.get("/admin/diagnostics"))
+    # The session that was active is now gone.
+    assert diag_after["runtime"]["active_sessions"] < diag_before["runtime"]["active_sessions"]
+
+
+def test_admin_soul_draft_returns_validated_schema_from_llm(uat_server):
+    """LLM-assisted soul drafting must:
+    - require a non-trivial description (>=8 chars after strip)
+    - call the LLM with the soul_from_description prompt template
+    - return a draft that parses as a valid AdminSoulUpdateRequest schema
+    - explicitly NOT persist (operator clicks Save Identity to commit)
+    """
+    import requests
+
+    # Too-short description → 422.
+    too_short = uat_server.post("/admin/soul/draft", {"description": "hi"})
+    assert too_short.status_code == 422
+
+    # Real description → live LLM call (slow with codex).
+    res = requests.post(
+        uat_server.base_url + "/admin/soul/draft",
+        json={
+            "description": (
+                "A grounded coding partner who pushes back when assumptions "
+                "look weak and prefers to ask one clarifying question over "
+                "guessing. Voice: dry, concise. Boundaries: no fabrication."
+            ),
+        },
+        timeout=180,
+    )
+    payload = expect_json(res)
+    assert payload["ok"] is True
+    assert payload["backend"] == "codex"
+    draft = payload.get("draft") or {}
+    # Required schema fields.
+    assert isinstance(draft.get("name"), str) and draft["name"].strip()
+    for field in (
+        "identity", "voice", "relational_stance", "growth_policy",
+    ):
+        assert field in draft
+    assert isinstance(draft.get("likes"), list)
+    assert isinstance(draft.get("dislikes"), list)
+    assert isinstance(draft.get("boundaries"), list)
+    # Weights bounded.
+    for trait, weight in (draft.get("core_values") or {}).items():
+        assert 0.0 <= float(weight) <= 1.0, f"Out-of-bounds value for {trait}: {weight}"
+    for trait, weight in (draft.get("initial_traits") or {}).items():
+        assert 0.0 <= float(weight) <= 1.0, f"Out-of-bounds trait for {trait}: {weight}"
+
+    # The draft must NOT have been persisted.
+    current = expect_json(uat_server.get("/admin/soul"))
+    assert current["soul"].get("name") != draft["name"], (
+        "Soul draft should not auto-persist; operator must click Save Identity."
+    )
+
+
+def test_skill_import_via_file_path_validates_input(uat_server, tmp_path):
+    """Filesystem-path skill import must:
+    - succeed for a valid skill folder
+    - reject a path that doesn't exist
+    - reject a directory that has no SKILL.md
+    """
+    # Valid: a real skill folder with SKILL.md.
+    valid_root = tmp_path / "uat-fs-skill"
+    valid_root.mkdir()
+    (valid_root / "SKILL.md").write_text(
+        "---\n"
+        "name: uat-fs-skill\n"
+        "description: A simple UAT skill imported by file path.\n"
+        "applies_when: filesystem\n"
+        "---\n\n"
+        "Body of the skill.\n",
+        encoding="utf-8",
+    )
+    imported = expect_json(uat_server.post(
+        "/admin/skills/import",
+        {"source_path": str(valid_root), "name_hint": "uat-fs-skill"},
+    ))["skill"]
+    assert imported["id"] == "uat-fs-skill"
+    assert imported["status"] == "needs_review"
+
+    # Non-existent path → 4xx.
+    missing = uat_server.post(
+        "/admin/skills/import",
+        {"source_path": str(tmp_path / "does-not-exist")},
+    )
+    assert missing.status_code >= 400
+    detail = (missing.json().get("detail") or "").lower()
+    assert "exist" in detail or "not found" in detail
+
+    # Directory without SKILL.md → 4xx.
+    empty_dir = tmp_path / "no-skill-md"
+    empty_dir.mkdir()
+    (empty_dir / "README.md").write_text("not a skill", encoding="utf-8")
+    no_md = uat_server.post(
+        "/admin/skills/import",
+        {"source_path": str(empty_dir)},
+    )
+    assert no_md.status_code >= 400
+
+    # Both fields filled → rejected (must pick one).
+    both = uat_server.post(
+        "/admin/skills/import",
+        {"source_path": str(valid_root), "skill_markdown": "---\nname: x\n---\n"},
+    )
+    assert both.status_code >= 400
+
+
+def test_cors_origins_config_is_respected_at_startup(uat_server):
+    """``cors_origins`` is read at app startup. Setting it via /admin/config
+    + restart should make the running server emit Access-Control-Allow-Origin
+    only for the configured origin and not for unrelated ones."""
+    import requests
+
+    allowed = "https://nur-allowed.example.com"
+    expect_json(uat_server.post(
+        "/admin/config",
+        {"cors_origins": [allowed]},
+    ))
+    uat_server.restart()
+
+    # Allowed origin → CORS header present and matches.
+    allowed_res = requests.get(
+        uat_server.base_url + "/v1/health",
+        headers={"Origin": allowed},
+        timeout=10,
+    )
+    assert allowed_res.ok
+    assert allowed_res.headers.get("access-control-allow-origin") == allowed
+
+    # Disallowed origin → no CORS allow header (browser would block).
+    blocked_res = requests.get(
+        uat_server.base_url + "/v1/health",
+        headers={"Origin": "https://evil.example.com"},
+        timeout=10,
+    )
+    assert blocked_res.ok  # Server still answers; browser enforces CORS.
+    assert blocked_res.headers.get("access-control-allow-origin") in (None, "")
