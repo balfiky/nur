@@ -232,6 +232,35 @@ def test_wall_clock_decay_skips_when_under_one_day_elapsed(tmp_path):
     assert second["elapsed_days"] < 0.001
 
 
+def test_theme_signatures_decay_alongside_beliefs_and_drives(tmp_path):
+    """Saturated theme signatures must drift back over time so the
+    low_confidence emission window can ever fire on previously-strong themes.
+    """
+    config = _config(tmp_path)
+    now = time.time()
+    with LifeHistoryStore(config) as store:
+        store._conn.execute(
+            """
+            INSERT INTO theme_signatures
+            (signature, first_seen, last_seen, reinforcement_count,
+             accrued_weight, conflicting_count)
+            VALUES ('saturated:theme', ?, ?, 6, 1.0, 0)
+            """,
+            (now, now),
+        )
+        store._conn.commit()
+
+        result = store.decay_step(elapsed_days=30.0)
+
+        row = store._conn.execute(
+            "SELECT accrued_weight FROM theme_signatures WHERE signature = 'saturated:theme'"
+        ).fetchone()
+
+    assert result["themes"] >= 1
+    # 30 days = one half-life: 1.0 -> ~0.5
+    assert float(row["accrued_weight"]) == pytest.approx(0.5, rel=1e-3)
+
+
 def test_wall_clock_decay_runs_after_one_day(tmp_path):
     """Backdate last_decay_at to >1 day ago and verify decay fires."""
     config = _config(tmp_path)

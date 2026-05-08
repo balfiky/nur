@@ -482,7 +482,7 @@ def test_decay_step_halves_beliefs_and_drive_deltas_over_thirty_days(tmp_path):
             "SELECT value FROM drive_states WHERE name = 'autonomy'"
         ).fetchone()
 
-    assert result == {"beliefs": 1, "drives": 1, "revoked_beliefs": 0}
+    assert result == {"beliefs": 1, "drives": 1, "revoked_beliefs": 0, "themes": 0}
     assert belief["confidence"] == pytest.approx(0.4)
     assert drive["value"] == pytest.approx(0.65)
 
@@ -507,8 +507,8 @@ def test_consolidate_themes_promotes_once(tmp_path):
             "SELECT statement, confidence, evidence FROM beliefs WHERE key = 'autonomy'"
         ).fetchone()
 
-    assert first == {"promoted": 1}
-    assert second == {"promoted": 0}
+    assert first == {"promoted": 1, "open_questions_emitted": 0}
+    assert second == {"promoted": 0, "open_questions_emitted": 0}
     assert "recurring theme around autonomy" in belief["statement"]
     assert belief["confidence"] == pytest.approx(0.8)
     assert belief["evidence"] == "autonomy:continuity"
@@ -541,7 +541,8 @@ def test_revise_beliefs_against_evidence_reduces_confidence_and_revokes_low_conf
             "SELECT confidence, status FROM beliefs WHERE key = 'repair'"
         ).fetchone()
 
-    assert result == {"revised": 2}
+    assert result["revised"] == 2
+    assert result["open_questions_emitted"] == 2  # one per revised belief
     assert autonomy["confidence"] == pytest.approx(0.63)
     assert autonomy["status"] == "active"
     assert repair["confidence"] == pytest.approx(0.14)

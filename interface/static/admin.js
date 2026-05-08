@@ -1070,6 +1070,10 @@ const state = createSurfaceState({
     renderLifeExperiences(data.recent_experiences || []);
     renderLifeBeliefs(data.beliefs || []);
     renderLifeDrives(data.drives || []);
+    renderLifeOpenQuestions(
+      data.open_questions || [],
+      (data.counts && data.counts.open_questions) || {},
+    );
   }
 
   function renderLifeSummary(counts) {
@@ -1227,6 +1231,56 @@ const state = createSurfaceState({
         </article>
       `;
     }).join("");
+  }
+
+  function renderLifeOpenQuestions(questions, counts) {
+    const list = document.getElementById("lifeOpenQuestions");
+    const countsEl = document.getElementById("lifeOpenQuestionsCounts");
+    if (countsEl) {
+      const open = Number(counts.open || 0);
+      const pursuing = Number(counts.pursuing || 0);
+      const resolved = Number(counts.resolved || 0);
+      const abandoned = Number(counts.abandoned || 0);
+      countsEl.textContent =
+        `open ${open} · pursuing ${pursuing} · resolved ${resolved} · abandoned ${abandoned}`;
+    }
+    if (!list) return;
+    if (!questions.length) {
+      list.innerHTML = `<p class="empty-copy">No open questions yet. Reflection populates this on each session-start metabolism tick.</p>`;
+      return;
+    }
+    list.innerHTML = questions.map((q) => {
+      const id = Number(q.id || 0);
+      const priority = Number(q.priority || 0);
+      const sourceKind = String(q.source_kind || "open_question");
+      const targetDrive = q.target_drive ? ` · drive=${escapeHtml(String(q.target_drive))}` : "";
+      return `
+        <article class="life-row compact">
+          <div class="life-row-head">
+            <strong>${escapeHtml(labelize(sourceKind))}</strong>
+            <span>priority ${priority.toFixed(2)}${targetDrive}</span>
+          </div>
+          <div class="life-change markdown-copy">${renderMarkdown(q.prompt_text || "")}</div>
+          <div class="button-row end">
+            <button class="secondary" data-abandon-oq="${id}">Abandon</button>
+          </div>
+        </article>
+      `;
+    }).join("");
+    list.querySelectorAll("[data-abandon-oq]").forEach((btn) => {
+      btn.addEventListener("click", async (event) => {
+        const target = event.currentTarget;
+        const id = Number(target.getAttribute("data-abandon-oq") || 0);
+        if (!id) return;
+        const res = await authedFetch(
+          `/admin/life/open-questions/${id}/abandon`,
+          { method: "POST" },
+        );
+        if (res && res.ok) {
+          await loadLife();
+        }
+      });
+    });
   }
 
   async function ensureCodexModels() {

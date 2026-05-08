@@ -1406,6 +1406,56 @@ async def admin_life_rollback(req: AdminLifeRollbackRequest) -> dict:
     )
 
 
+@app.get("/admin/life/open-questions", dependencies=[Depends(_require_bearer)])
+async def admin_life_open_questions(
+    status: str | None = "open",
+    limit: int = 50,
+) -> dict:
+    from runtime.life_history import LifeHistoryError, LifeHistoryStore
+
+    normalized_status: str | None
+    if status in ("", "all"):
+        normalized_status = None
+    elif status in ("open", "pursuing", "resolved", "abandoned"):
+        normalized_status = status
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid status filter: {status}",
+        )
+    bounded_limit = max(1, min(int(limit), 200))
+    try:
+        with LifeHistoryStore(_load_runtime_config()) as store:
+            return {
+                "questions": store.list_open_questions(
+                    status=normalized_status, limit=bounded_limit,
+                ),
+                "counts": store.count_open_questions(),
+            }
+    except LifeHistoryError as exc:
+        _raise_life_http_error(exc)
+
+
+@app.post(
+    "/admin/life/open-questions/{question_id}/abandon",
+    dependencies=[Depends(_require_bearer)],
+)
+async def admin_life_abandon_open_question(question_id: int) -> dict:
+    from runtime.life_history import LifeHistoryError, LifeHistoryStore
+
+    try:
+        with LifeHistoryStore(_load_runtime_config()) as store:
+            updated = store.abandon_open_question(question_id)
+    except LifeHistoryError as exc:
+        _raise_life_http_error(exc)
+    if not updated:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Open question {question_id} not found or already closed.",
+        )
+    return {"ok": True, "id": question_id, "status": "abandoned"}
+
+
 @app.post("/session/end", dependencies=[Depends(_require_bearer)])
 async def end_session(req: EndSessionRequest) -> dict:
     if _pipeline_override is not None:

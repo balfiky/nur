@@ -8,6 +8,7 @@ produce in beliefs, drives, and self-observations.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import sqlite3
@@ -16,6 +17,8 @@ import uuid
 import hashlib
 from pathlib import Path
 from typing import Any, Protocol
+
+log = logging.getLogger(__name__)
 
 from config.loader import get_config
 from runtime.config import RuntimeConfig
@@ -203,6 +206,7 @@ class LifeHistoryStore:
             "evolution_events": self._count("evolution_events"),
             "beliefs": self._count("beliefs"),
             "drives": self._count("drive_states"),
+            "open_questions": self.count_open_questions(),
         }
         return {
             "db_path": self.db_path,
@@ -212,6 +216,7 @@ class LifeHistoryStore:
             "recent_evolution": self.list_evolution(limit=50),
             "beliefs": self.list_beliefs(limit=25),
             "drives": self.list_drives(),
+            "open_questions": self.list_open_questions(status="open", limit=10),
         }
 
     def list_experiences(self, *, limit: int = 50) -> list[dict[str, Any]]:
@@ -583,19 +588,36 @@ class LifeHistoryStore:
                 (_clamp(new_value), now, name),
             )
             decayed_drives += 1
+        decayed_themes = 0
+        for row in self._conn.execute(
+            "SELECT id, accrued_weight FROM theme_signatures WHERE accrued_weight > 0"
+        ).fetchall():
+            weight = float(row["accrued_weight"])
+            new_weight = weight * pow(0.5, elapsed_days / 30.0)
+            if new_weight < 0.001:
+                new_weight = 0.0
+            self._conn.execute(
+                "UPDATE theme_signatures SET accrued_weight = ? WHERE id = ?",
+                (new_weight, row["id"]),
+            )
+            decayed_themes += 1
         self._conn.commit()
         return {
             "beliefs": decayed_beliefs,
             "drives": decayed_drives,
             "revoked_beliefs": revoked_beliefs,
+            "themes": decayed_themes,
         }
 
     def wall_clock_decay(self, *, min_elapsed_days: float = 1.0) -> dict[str, Any]:
-        """Run decay using elapsed wall-clock time since the last tick.
+        """Run decay (and consolidation) using elapsed wall-clock time.
 
-        No-op if fewer than ``min_elapsed_days`` have passed. Updates
-        ``last_decay_at`` only when decay actually runs, so a long-quiet
-        period accumulates and gets applied on the next active session.
+        No-op if fewer than ``min_elapsed_days`` have passed. When decay does
+        fire, this also runs ``consolidate_themes`` so the open-questions
+        queue populates on the same cadence as decay. Both are gated by a
+        single rate limit — there is no separate consolidation tick.
+
+        Updates ``last_decay_at`` only when decay actually runs.
         """
         now = time.time()
         row = self._conn.execute(
@@ -612,17 +634,29 @@ class LifeHistoryStore:
         elapsed_days = max(0.0, (now - last_at) / 86400.0)
         if elapsed_days < min_elapsed_days:
             return {"decayed": False, "elapsed_days": elapsed_days, "result": {}}
-        result = self.decay_step(elapsed_days=elapsed_days)
+        decay_result = self.decay_step(elapsed_days=elapsed_days)
+        consolidation_result = self.consolidate_themes()
         self._conn.execute(
             "UPDATE metabolism_state SET last_decay_at = ? WHERE id = 1",
             (now,),
         )
         self._conn.commit()
-        return {"decayed": True, "elapsed_days": elapsed_days, "result": result}
+        return {
+            "decayed": True,
+            "elapsed_days": elapsed_days,
+            "result": decay_result,
+            "consolidation": consolidation_result,
+        }
 
     def consolidate_themes(self) -> dict[str, int]:
-        """Promote strong recurring theme signatures to consolidated belief events."""
+        """Promote strong recurring theme signatures to consolidated belief events.
+
+        Themes with notable recurrence but weak weight (>=3 reinforcements,
+        accrued_weight in [0.3, 0.7)) emit low_confidence open questions so
+        the queue surfaces "I keep encountering X but I'm not confident."
+        """
         promoted = 0
+        emitted_questions = 0
         for row in self._conn.execute(
             """
             SELECT * FROM theme_signatures
@@ -643,14 +677,81 @@ class LifeHistoryStore:
                 (key, statement, _clamp(float(row["accrued_weight"])), now, now, row["signature"]),
             )
             promoted += 1
+
+        for row in self._conn.execute(
+            """
+            SELECT * FROM theme_signatures
+            WHERE reinforcement_count >= 3
+              AND accrued_weight >= 0.3
+              AND accrued_weight < 0.7
+            """
+        ).fetchall():
+            signature = str(row["signature"])
+            key = _safe_label(signature.split(":", 1)[0], fallback="theme")
+            prompt = (
+                f"The theme '{signature}' keeps coming up but I'm not yet "
+                f"confident in it (weight={float(row['accrued_weight']):.2f} "
+                f"after {int(row['reinforcement_count'])} encounters). "
+                "What's actually true here?"
+            )
+            priority = _clamp(0.4 + min(0.4, int(row["reinforcement_count"]) * 0.05))
+            if self._emit_open_question(
+                prompt_text=prompt,
+                source_kind="low_confidence",
+                priority=priority,
+                metadata={"signature": signature, "theme_key": key},
+                dedupe_signature=signature,
+            ):
+                emitted_questions += 1
+
+        emitted_questions += self._detect_drive_gaps()
+
         self._conn.commit()
-        return {"promoted": promoted}
+        return {"promoted": promoted, "open_questions_emitted": emitted_questions}
+
+    def _detect_drive_gaps(self, *, gap_threshold: float = 0.2) -> int:
+        """Emit drive_gap questions for drives sitting well below baseline.
+
+        Snapshot-based: any drive whose value is at least ``gap_threshold``
+        below its baseline produces an open question. Time-based
+        (sustained-for-N-days) detection is deferred to a later sprint that
+        adds historical drive snapshots.
+        """
+        emitted = 0
+        for row in self._conn.execute("SELECT * FROM drive_states").fetchall():
+            name = str(row["name"])
+            baseline, _description = DEFAULT_DRIVES.get(name, (0.5, ""))
+            value = float(row["value"])
+            gap = baseline - value
+            if gap < gap_threshold:
+                continue
+            prompt = (
+                f"My {name} drive has been running below baseline "
+                f"(value={value:.2f}, baseline={baseline:.2f}). "
+                "What experience or learning would help close this gap?"
+            )
+            priority = _clamp(0.3 + min(0.5, gap))
+            if self._emit_open_question(
+                prompt_text=prompt,
+                source_kind="drive_gap",
+                target_drive=name,
+                priority=priority,
+                metadata={"baseline": baseline, "value": value, "gap": gap},
+            ):
+                emitted += 1
+        return emitted
 
     def revise_beliefs_against_evidence(self, new_experience: dict[str, Any]) -> dict[str, int]:
-        """Apply simple contradiction-driven confidence reduction."""
+        """Apply simple contradiction-driven confidence reduction.
+
+        Each revised belief also emits a contradiction open question so the
+        queue surfaces unresolved tensions for later reflection.
+        """
         text = json.dumps(new_experience, sort_keys=True, default=str).lower()
         revised = 0
+        emitted_questions = 0
         now = time.time()
+        source_experience_id = new_experience.get("source_experience_id") if isinstance(new_experience, dict) else None
         for row in self._conn.execute("SELECT * FROM beliefs WHERE status = 'active'").fetchall():
             key = str(row["key"]).lower()
             if key not in text or not any(word in text for word in ("not", "false", "contradict")):
@@ -663,8 +764,137 @@ class LifeHistoryStore:
                 (next_confidence, status, now, row["id"]),
             )
             revised += 1
+            statement = str(row["statement"])
+            prompt = (
+                f"I believed '{statement}' but encountered evidence that "
+                "contradicts it. How do I reconcile this?"
+            )
+            priority = _clamp(0.5 + (confidence - next_confidence))
+            if self._emit_open_question(
+                prompt_text=prompt,
+                source_kind="contradiction",
+                source_belief_id=int(row["id"]),
+                source_experience_id=source_experience_id,
+                priority=priority,
+            ):
+                emitted_questions += 1
         self._conn.commit()
-        return {"revised": revised}
+        return {"revised": revised, "open_questions_emitted": emitted_questions}
+
+    # ------------------------------------------------------------------
+    # Open questions
+    # ------------------------------------------------------------------
+
+    def _emit_open_question(
+        self,
+        *,
+        prompt_text: str,
+        source_kind: str,
+        source_experience_id: int | None = None,
+        source_belief_id: int | None = None,
+        target_drive: str | None = None,
+        priority: float = 0.5,
+        metadata: dict[str, Any] | None = None,
+        dedupe_signature: str | None = None,
+    ) -> bool:
+        """Insert an open question if no equivalent open question exists.
+
+        Dedup rule: a question is considered equivalent to an existing OPEN
+        one if (source_kind, dedupe_signature) match and status='open'. The
+        dedupe_signature defaults to f"{source_belief_id}|{target_drive}" so
+        callers that only key on belief or drive don't have to think about it;
+        callers with a richer notion of identity (e.g., theme signature for
+        low_confidence questions) pass it explicitly. Resolved/abandoned
+        questions don't block new ones.
+
+        Returns True when a row was inserted.
+        """
+        if not prompt_text:
+            return False
+        prompt_text = _trim(str(prompt_text), 600)
+        priority = _clamp(float(priority))
+        if dedupe_signature is None:
+            dedupe_signature = f"{source_belief_id or ''}|{target_drive or ''}"
+        existing = self._conn.execute(
+            """
+            SELECT id FROM open_questions
+            WHERE source_kind = ? AND status = 'open'
+              AND COALESCE(json_extract(metadata_json, '$._dedupe'), '') = ?
+            LIMIT 1
+            """,
+            (source_kind, dedupe_signature),
+        ).fetchone()
+        if existing:
+            return False
+        merged_metadata = dict(metadata or {})
+        merged_metadata["_dedupe"] = dedupe_signature
+        metadata_json = json.dumps(merged_metadata, sort_keys=True, default=str)
+        self._conn.execute(
+            """
+            INSERT INTO open_questions
+            (created_at, prompt_text, source_kind, source_experience_id,
+             source_belief_id, target_drive, status, priority,
+             last_pursued_at, resolution_experience_id, metadata_json)
+            VALUES (?, ?, ?, ?, ?, ?, 'open', ?, NULL, NULL, ?)
+            """,
+            (
+                time.time(),
+                prompt_text,
+                source_kind,
+                source_experience_id,
+                source_belief_id,
+                target_drive,
+                priority,
+                metadata_json,
+            ),
+        )
+        return True
+
+    def list_open_questions(
+        self,
+        *,
+        status: str | None = "open",
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """Return open questions ordered by priority (descending)."""
+        if status:
+            rows = self._conn.execute(
+                """
+                SELECT * FROM open_questions
+                WHERE status = ?
+                ORDER BY priority DESC, created_at ASC
+                LIMIT ?
+                """,
+                (status, max(1, int(limit))),
+            ).fetchall()
+        else:
+            rows = self._conn.execute(
+                """
+                SELECT * FROM open_questions
+                ORDER BY priority DESC, created_at ASC
+                LIMIT ?
+                """,
+                (max(1, int(limit)),),
+            ).fetchall()
+        return [_open_question_to_dict(row) for row in rows]
+
+    def abandon_open_question(self, question_id: int) -> bool:
+        """Operator override — mark a question abandoned. Returns True on update."""
+        cursor = self._conn.execute(
+            "UPDATE open_questions SET status = 'abandoned' WHERE id = ? AND status = 'open'",
+            (int(question_id),),
+        )
+        self._conn.commit()
+        return cursor.rowcount > 0
+
+    def count_open_questions(self) -> dict[str, int]:
+        """Return counts grouped by status for the admin overview."""
+        counts = {"open": 0, "pursuing": 0, "resolved": 0, "abandoned": 0}
+        for row in self._conn.execute(
+            "SELECT status, COUNT(*) AS n FROM open_questions GROUP BY status"
+        ).fetchall():
+            counts[str(row["status"])] = int(row["n"])
+        return counts
 
     def _ingest_text(
         self,
@@ -975,6 +1205,24 @@ class LifeHistoryStore:
             )
             """
         )
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS open_questions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at REAL NOT NULL,
+                prompt_text TEXT NOT NULL,
+                source_kind TEXT NOT NULL,
+                source_experience_id INTEGER,
+                source_belief_id INTEGER,
+                target_drive TEXT,
+                status TEXT NOT NULL DEFAULT 'open',
+                priority REAL NOT NULL DEFAULT 0.5,
+                last_pursued_at REAL,
+                resolution_experience_id INTEGER,
+                metadata_json TEXT NOT NULL DEFAULT '{}'
+            )
+            """
+        )
         self._ensure_column("experience_events", "batch_id", "TEXT NOT NULL DEFAULT ''")
         self._ensure_column("evolution_events", "batch_id", "TEXT NOT NULL DEFAULT ''")
         self._ensure_column("belief_revisions", "before_confidence", "REAL NOT NULL DEFAULT 0.0")
@@ -995,6 +1243,15 @@ class LifeHistoryStore:
         )
         self._conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_theme_signatures_last_seen ON theme_signatures (last_seen DESC)"
+        )
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_open_questions_status ON open_questions (status)"
+        )
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_open_questions_priority ON open_questions (priority DESC)"
+        )
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_open_questions_target_drive ON open_questions (target_drive)"
         )
         self._conn.commit()
 
@@ -1488,6 +1745,21 @@ def _digest_experience(
             digest = _normalize_digest(parsed, title=title, text=text)
             digest["digest_quality"] = "high"
             return digest
+        log.warning(
+            "LLM digest unavailable for %r (source=%s); falling back to keyword "
+            "heuristic. This produces low-quality digests; check the configured "
+            "backend.",
+            title,
+            source_type,
+        )
+    else:
+        log.warning(
+            "No LLM client configured for digestion of %r (source=%s); using "
+            "keyword heuristic. Configure llm_backend in runtime_config.yaml "
+            "for production-quality digests.",
+            title,
+            source_type,
+        )
     digest = _heuristic_digest(title=title, text=text, source_type=source_type)
     digest["digest_quality"] = "low"
     return digest
@@ -1953,6 +2225,23 @@ def _drive_to_dict(row: sqlite3.Row) -> dict[str, Any]:
         "value": row["value"],
         "description": row["description"],
         "updated_at": row["updated_at"],
+    }
+
+
+def _open_question_to_dict(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "id": row["id"],
+        "created_at": row["created_at"],
+        "prompt_text": row["prompt_text"],
+        "source_kind": row["source_kind"],
+        "source_experience_id": row["source_experience_id"],
+        "source_belief_id": row["source_belief_id"],
+        "target_drive": row["target_drive"],
+        "status": row["status"],
+        "priority": row["priority"],
+        "last_pursued_at": row["last_pursued_at"],
+        "resolution_experience_id": row["resolution_experience_id"],
+        "metadata": _loads_json(row["metadata_json"] or "{}", {}),
     }
 
 
