@@ -883,8 +883,40 @@ class LifeHistoryStore:
     def abandon_open_question(self, question_id: int) -> bool:
         """Operator override — mark a question abandoned. Returns True on update."""
         cursor = self._conn.execute(
-            "UPDATE open_questions SET status = 'abandoned' WHERE id = ? AND status = 'open'",
+            "UPDATE open_questions SET status = 'abandoned' WHERE id = ? AND status IN ('open', 'pursuing')",
             (int(question_id),),
+        )
+        self._conn.commit()
+        return cursor.rowcount > 0
+
+    def mark_question_pursuing(self, question_id: int) -> bool:
+        """Transition an open question into 'pursuing' state and stamp last_pursued_at."""
+        now = time.time()
+        cursor = self._conn.execute(
+            """
+            UPDATE open_questions
+            SET status = 'pursuing', last_pursued_at = ?
+            WHERE id = ? AND status = 'open'
+            """,
+            (now, int(question_id)),
+        )
+        self._conn.commit()
+        return cursor.rowcount > 0
+
+    def resolve_open_question(
+        self,
+        question_id: int,
+        *,
+        resolution_experience_id: int | None = None,
+    ) -> bool:
+        """Mark a question resolved, optionally linking to the experience that did it."""
+        cursor = self._conn.execute(
+            """
+            UPDATE open_questions
+            SET status = 'resolved', resolution_experience_id = ?
+            WHERE id = ? AND status IN ('open', 'pursuing')
+            """,
+            (resolution_experience_id, int(question_id)),
         )
         self._conn.commit()
         return cursor.rowcount > 0

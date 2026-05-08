@@ -1484,6 +1484,42 @@ async def admin_life_abandon_open_question(question_id: int) -> dict:
     return {"ok": True, "id": question_id, "status": "abandoned"}
 
 
+@app.post(
+    "/admin/life/open-questions/{question_id}/resolve",
+    dependencies=[Depends(_require_bearer)],
+)
+async def admin_life_resolve_open_question(question_id: int) -> dict:
+    from runtime.life_history import LifeHistoryError, LifeHistoryStore
+
+    try:
+        with LifeHistoryStore(_load_runtime_config()) as store:
+            updated = store.resolve_open_question(question_id)
+    except LifeHistoryError as exc:
+        _raise_life_http_error(exc)
+    if not updated:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Open question {question_id} not found or already closed.",
+        )
+    return {"ok": True, "id": question_id, "status": "resolved"}
+
+
+@app.post("/admin/life/metabolism/tick", dependencies=[Depends(_require_bearer)])
+async def admin_life_metabolism_tick() -> dict:
+    """Manually trigger the wall-clock metabolism tick.
+
+    Idempotent under the existing rate limit (>=1 day elapsed). Useful for
+    operator-driven reflection and as a stand-in for an external scheduler.
+    """
+    from runtime.life_history import LifeHistoryError, LifeHistoryStore
+
+    try:
+        with LifeHistoryStore(_load_runtime_config()) as store:
+            return {"ok": True, **store.wall_clock_decay()}
+    except LifeHistoryError as exc:
+        _raise_life_http_error(exc)
+
+
 @app.post("/session/end", dependencies=[Depends(_require_bearer)])
 async def end_session(req: EndSessionRequest) -> dict:
     if _pipeline_override is not None:

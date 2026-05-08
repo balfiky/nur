@@ -491,6 +491,17 @@ class CognitivePipeline:
         self._life_history_snapshot_provider = life_history_snapshot_provider
         self._skill_provider = skill_provider
         self.last_intake_receipt: str = ""
+
+        # Sprint 5: Ask-user autonomy. One budget per pipeline (per session)
+        # so caps roll daily even with restarts. Override-able for tests.
+        from runtime.learning_budget import LocalBudget, LearningBudget
+        self.learning_budget: LearningBudget = LocalBudget(
+            max_questions_per_day=3,
+            max_seconds_per_day=1800.0,
+        )
+        # When the pipeline surfaces an open question to the user, store the
+        # id here so the next turn can attribute the user's reply.
+        self._pending_surfaced_question_id: int | None = None
         # Session-scoped task plan (Phase 7)
         self._active_task_plan: TaskPlan | None = None
         # Proactive behavior tracking (Phase 8)
@@ -517,6 +528,11 @@ class CognitivePipeline:
         Returns the response text and full debug state.
         """
         self._ensure_bound_user(user_id)
+        # Sprint 5 throttle reset: the user has now had a turn to respond to
+        # any surfaced open question, so clear the pending id. The question
+        # itself stays in 'pursuing' state until operator action via admin —
+        # so it won't be resurfaced even though the throttle is released.
+        self._pending_surfaced_question_id = None
         debug = DebugState(user_message=user_message, user_id=user_id)
         person = self.person_profiles.get_or_create(user_id)
         _t_total = time.perf_counter()
@@ -1135,6 +1151,17 @@ class CognitivePipeline:
             debug.correction_note = tone_issue
 
         timings["self_check"] = (time.perf_counter() - _ts) * 1000
+
+        # ---- Step 14b: Surface an open question (Sprint 5 ask-user autonomy) ----
+        surfaced_question = self._maybe_surface_open_question()
+        if surfaced_question is not None:
+            follow_up = self._format_open_question_followup(surfaced_question)
+            gen_result.response = (gen_result.response.rstrip() + "\n\n" + follow_up).strip()
+            self._pending_surfaced_question_id = int(surfaced_question["id"])
+            debug.life_influence_effects.setdefault(
+                "open_question_surfaced", surfaced_question["id"]
+            )
+
         debug.response = gen_result.response
         self.last_intake_receipt = ""
 
@@ -1511,6 +1538,53 @@ class CognitivePipeline:
             lines.append("Drive shifts:")
             lines.extend(changed_drives[:7])
         return "\n".join(lines)
+
+    def _maybe_surface_open_question(self) -> dict[str, Any] | None:
+        """Pick an open question to surface, if budget + drives + throttle allow.
+
+        Throttle: never surface twice in the same response (the pending id is
+        cleared in the next turn's process call).
+        """
+        if self._pending_surfaced_question_id is not None:
+            # Throttle: don't pile a second question on the same turn flow.
+            return None
+        if self._life_history_provider is None:
+            return None
+        try:
+            from runtime.learning.surface import should_surface_question
+            from runtime.life_history import LifeHistoryStore, life_history_db_path
+            import os
+
+            # Need the same db the rest of the runtime uses.
+            db_path = life_history_db_path(self._config)
+            if not os.path.exists(db_path):
+                return None
+            with LifeHistoryStore(self._config) as store:
+                question = should_surface_question(
+                    store, budget=self.learning_budget,
+                )
+                if question is None:
+                    return None
+                store.mark_question_pursuing(int(question["id"]))
+                self.learning_budget.consume(questions=1)
+                return question
+        except Exception as exc:
+            log.warning("Open-question surfacing failed: %s", exc)
+            return None
+
+    @staticmethod
+    def _format_open_question_followup(question: dict[str, Any]) -> str:
+        """Render a surfaced question as a graceful follow-up tail.
+
+        Kept short and clearly framed as a side-question so it doesn't
+        overshadow the main response. The model isn't authoring this — we
+        append it post-generation — so the framing matters for it to feel
+        natural.
+        """
+        text = str(question.get("prompt_text") or "").strip()
+        if not text:
+            return ""
+        return f"By the way — I have been wondering: {text}"
 
     def _load_skill_context(
         self,
