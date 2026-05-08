@@ -405,3 +405,260 @@ def test_open_question_surfaces_in_chat_and_marks_pursuing(uat_server):
     assert "open_question_surfaced" not in second_effects, (
         f"Second turn should not re-surface; effects={second_effects!r}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Constitution surfacing in the LLM prompt
+# ---------------------------------------------------------------------------
+
+
+def test_constitution_appears_in_chat_life_history_context(uat_server):
+    """The set constitution string is exposed on every chat turn's life context.
+
+    This is the contract that lets _build_life_history_section render it as
+    'Stable orientation (operator-set)' above evolving beliefs in the prompt.
+    """
+    constitution_text = "Tell me what shifted, not just what's stable."
+    expect_json(_put_constitution(uat_server, constitution_text))
+
+    turn = expect_json(
+        uat_server.post(
+            "/v1/chat",
+            {
+                "message": "Quick check.",
+                "user_id": "uat_const_prompt",
+                "chat_id": "default",
+                "include_debug": True,
+            },
+        )
+    )
+
+    assert turn["debug"]["life_history_context"].get("constitution") == constitution_text
+
+
+# ---------------------------------------------------------------------------
+# LearningBudget exhaustion blocks surfacing
+# ---------------------------------------------------------------------------
+
+
+def test_learning_budget_caps_surfacing_at_three_per_session(uat_server):
+    """Default LocalBudget allows 3 questions/day. The 4th eligible turn must
+    not surface even though questions remain in the queue."""
+    qids: list[int] = []
+    for i, prompt in enumerate([
+        "What am I learning about my own pacing?",
+        "Where does curiosity come from when energy is low?",
+        "When does directness help vs. hurt?",
+        "What feels unfinished from the last session?",
+        "Which drive matters most this week?",
+    ]):
+        qids.append(_seed_open_question(
+            uat_server,
+            prompt=prompt,
+            source_kind="drive_gap",
+            target_drive="curiosity",
+            priority=0.95 - 0.01 * i,  # distinct priorities → stable order
+        ))
+
+    user_id = "uat_budget"
+    chat_id = "default"
+    surfaced_ids: list[int] = []
+    for turn in range(4):
+        resp = expect_json(
+            uat_server.post(
+                "/v1/chat",
+                {
+                    "message": f"Turn {turn} — share something brief.",
+                    "user_id": user_id,
+                    "chat_id": chat_id,
+                    "include_debug": True,
+                },
+            )
+        )
+        sid = (resp["debug"].get("life_influence_effects") or {}).get(
+            "open_question_surfaced"
+        )
+        if sid:
+            surfaced_ids.append(int(sid))
+
+    assert len(surfaced_ids) == 3, (
+        f"Expected exactly 3 surfacings (budget cap); got {len(surfaced_ids)}: "
+        f"{surfaced_ids!r}"
+    )
+    assert len(set(surfaced_ids)) == 3, "Each turn should surface a distinct question"
+
+    pursuing = expect_json(uat_server.get("/admin/life/open-questions?status=pursuing"))
+    pursuing_ids = {q["id"] for q in pursuing["questions"]}
+    assert set(surfaced_ids) <= pursuing_ids, (
+        f"Surfaced questions should be 'pursuing'; surfaced={surfaced_ids}, "
+        f"pursuing={pursuing_ids}"
+    )
+
+    # Two questions remain 'open' — they were never reached because budget
+    # exhausted before the 4th turn could surface anything.
+    remaining = expect_json(uat_server.get("/admin/life/open-questions?status=open"))
+    assert len(remaining["questions"]) == 2
+
+
+# ---------------------------------------------------------------------------
+# Multi-turn behavioral arc: belief revision, drive shift, question lifecycle
+# ---------------------------------------------------------------------------
+
+
+def _seed_belief(uat_server, *, subject: str, statement: str,
+                 confidence: float = 0.7) -> int:
+    """Seed a belief directly. Returns the inserted belief id.
+
+    Subject becomes the slugified key used by ``revise_beliefs_against_evidence``;
+    callers should use a subject string whose slug is a single token if they
+    plan to trigger contradiction revision (the heuristic checks ``key in text``
+    on the lowercased serialized experience).
+    """
+    import time as _time
+    from runtime.life_history import _slug
+
+    with _open_store(uat_server) as store:
+        key = _slug(subject)
+        now = _time.time()
+        cursor = store._conn.execute(
+            """
+            INSERT INTO beliefs
+            (key, statement, confidence, status, created_at, updated_at,
+             source_experience_id, evidence)
+            VALUES (?, ?, ?, 'active', ?, ?, NULL, '')
+            """,
+            (key, statement, confidence, now, now),
+        )
+        store._conn.commit()
+        return int(cursor.lastrowid)
+
+
+def test_multi_turn_arc_belief_revision_drives_and_question_resolution(uat_server):
+    """Long-form behavioral test against a live LLM.
+
+    Stages:
+      1. Operator sets a constitution and seeds a strong belief.
+      2. Initial chat turn — verify constitution surfaces in life_history_context
+         and capture the baseline drive vector.
+      3. Operator ingests contradicting evidence. Both the digest path (LLM)
+         and revise_beliefs_against_evidence (heuristic) run.
+      4. Verify the seeded belief's confidence dropped and a contradiction
+         open question was emitted.
+      5. Follow-up chat turn — verify drives shifted and life_influence
+         pressures are non-zero.
+      6. Operator resolves the contradiction question. Verify final state.
+    """
+    user_id = "uat_arc"
+    chat_id = "default"
+    constitution_text = "Be direct and grounded in evidence."
+
+    # ---- 1. Seed constitution and a strong belief ----
+    expect_json(_put_constitution(uat_server, constitution_text))
+    belief_id = _seed_belief(
+        uat_server,
+        subject="midnight",
+        statement="Midnight sessions produce my best ideas.",
+        confidence=0.85,
+    )
+
+    # ---- 2. Baseline turn ----
+    initial = expect_json(
+        uat_server.post(
+            "/v1/chat",
+            {
+                "message": "Tell me, briefly, what you think about productive working hours.",
+                "user_id": user_id,
+                "chat_id": chat_id,
+                "include_debug": True,
+            },
+        )
+    )
+    assert initial["debug"]["life_history_context"].get("constitution") == constitution_text
+    before_drives = {
+        d["name"]: float(d["value"])
+        for d in initial["debug"]["life_history_context"].get("all_drives") or []
+    }
+    assert before_drives, "Drives should be present in life_history_context"
+
+    # ---- 3. Ingest contradicting evidence ----
+    # The text contains the belief key ("midnight") plus "not" and "false" so
+    # revise_beliefs_against_evidence triggers contradiction revision.
+    expect_json(
+        uat_server.post(
+            "/admin/life/experiences/text",
+            {
+                "title": "Counter-evidence on midnight work",
+                "source_type": "admin_pasted_text",
+                "participants": ["operator", "Nur"],
+                "text": (
+                    "Midnight sessions are not better. The claim that midnight "
+                    "produces the best ideas turned out to be false. Mornings "
+                    "produced more focused output and fewer mistakes. Curiosity "
+                    "stayed high; competence at late hours was lower."
+                ),
+            },
+        )
+    )
+
+    # ---- 4. Belief revision and contradiction question ----
+    beliefs = expect_json(uat_server.get("/admin/life/beliefs"))
+    revised = next(
+        (b for b in beliefs["beliefs"] if int(b["id"]) == belief_id),
+        None,
+    )
+    assert revised is not None, f"Belief {belief_id} missing after ingest"
+    assert float(revised["confidence"]) < 0.85, (
+        f"Belief confidence should have dropped from 0.85; got {revised['confidence']}"
+    )
+
+    questions = expect_json(uat_server.get("/admin/life/open-questions"))
+    contradictions = [
+        q for q in questions["questions"]
+        if q.get("source_kind") == "contradiction"
+        and int(q.get("source_belief_id") or 0) == belief_id
+    ]
+    assert contradictions, (
+        f"Expected contradiction question for belief {belief_id}; "
+        f"got {[q['source_kind'] for q in questions['questions']]!r}"
+    )
+    contradiction_qid = int(contradictions[0]["id"])
+
+    # ---- 5. Follow-up turn shifts drives + life_influence pressure ----
+    follow_up = expect_json(
+        uat_server.post(
+            "/v1/chat",
+            {
+                "message": "Anything you've reconsidered about how you work?",
+                "user_id": user_id,
+                "chat_id": chat_id,
+                "include_debug": True,
+            },
+        )
+    )
+    after_drives = {
+        d["name"]: float(d["value"])
+        for d in follow_up["debug"]["life_history_context"].get("all_drives") or []
+    }
+    drive_diffs = {
+        name: after_drives.get(name, 0.0) - before_drives.get(name, 0.0)
+        for name in set(before_drives) | set(after_drives)
+    }
+    assert any(abs(delta) > 0.01 for delta in drive_diffs.values()), (
+        f"No drive shifted after contradicting ingest. diffs={drive_diffs!r}"
+    )
+
+    life_influence = follow_up["debug"].get("life_influence") or {}
+    pressures = [v for k, v in life_influence.items() if k.endswith("_pressure")]
+    assert any(float(p) > 0 for p in pressures), (
+        f"life_influence pressures all zero — life context not propagating: {life_influence!r}"
+    )
+
+    # ---- 6. Resolve the contradiction question ----
+    resolve = expect_json(
+        uat_server.post(f"/admin/life/open-questions/{contradiction_qid}/resolve")
+    )
+    assert resolve["status"] == "resolved"
+
+    final_qs = expect_json(uat_server.get("/admin/life/open-questions?status=all"))
+    final_record = next(q for q in final_qs["questions"] if q["id"] == contradiction_qid)
+    assert final_record["status"] == "resolved"

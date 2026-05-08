@@ -18,8 +18,14 @@ All notable changes to Project Nur are documented here.
   surfaces end-to-end against a live LLM: constitution GET/PUT/restart and
   Save UI, open-questions lifecycle (list/filter/abandon/resolve, render +
   abandon button), metabolism-tick idempotence within a day, ``applies_when``
-  trigger filtering on imported skills, and an open-question surfacing in the
-  chat response with the question transitioning to ``pursuing`` state.
+  trigger filtering on imported skills, an open-question surfacing in the
+  chat response with the question transitioning to ``pursuing`` state, that
+  the constitution string is exposed on every chat turn's
+  ``debug.life_history_context`` so it lands in the prompt, that the default
+  3/day learning budget caps surfacing at exactly three per session, and a
+  multi-turn behavioral arc that seeds a belief, ingests contradicting
+  evidence, asserts confidence drop + contradiction question emission, drive
+  shift, life_influence pressure, and operator resolution of the question.
 
 ### Removed
 - Removed the mock LLM backend from production entirely. `llm_backend="mock"`
