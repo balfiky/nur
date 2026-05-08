@@ -33,7 +33,7 @@ from core.dual_process.inner_dialogue import (
     RESOLUTION_INSIST_THRESHOLD,
     build_slow_path_prompt,
 )
-from core.dual_process.generator import MockLLMBackend
+from tests._fakes import MockLLMBackend
 from pipeline import CognitivePipeline, PipelineResponse
 
 

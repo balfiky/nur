@@ -25,7 +25,7 @@ import time
 
 import pytest
 
-from core.dual_process.generator import MockLLMBackend
+from tests._fakes import MockLLMBackend
 from core.profiles.base import ProfileStore
 from runtime.config import RuntimeConfig
 from runtime.sessions.manager import SessionManager
@@ -407,6 +407,7 @@ class TestSharedDBSafety:
             user_db = os.path.join(tmpdir, "user.db")
             shared_db = os.path.join(tmpdir, "shared.db")
             pipeline = CognitivePipeline(
+                llm_backend=MockLLMBackend(),
                 db_path=user_db,
                 self_db_path=shared_db,
             )

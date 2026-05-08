@@ -31,6 +31,7 @@ from pipeline import (
     _message_for_model_tool_routing,
     _message_for_tool_detection,
 )
+from tests._fakes import MockLLMBackend
 
 
 # ===================================================================
@@ -50,7 +51,7 @@ def _make_pipeline_with_tools(tmp_path=None):
     reg = ToolRegistry()
     exe = ToolExecutor(reg)
     register_builtins(reg, exe)
-    pipe = CognitivePipeline(tool_executor=exe)
+    pipe = CognitivePipeline(llm_backend=MockLLMBackend(), tool_executor=exe)
     return pipe, reg, exe
 
 
@@ -675,7 +676,7 @@ class TestToolLoop:
 class TestPipelineToolIntegration:
     def test_no_executor_no_tool_trace(self):
         """Pipeline without tool_executor: tool_trace stays None."""
-        pipe = CognitivePipeline()
+        pipe = CognitivePipeline(llm_backend=MockLLMBackend())
         result = pipe.process("Hello there")
         assert result.debug.tool_trace is None
         assert result.debug.action_variables is None
@@ -726,7 +727,7 @@ class TestPipelineToolIntegration:
 
     def test_existing_pipeline_behavior_preserved(self):
         """Pipeline without tools still works exactly as before."""
-        pipe = CognitivePipeline()
+        pipe = CognitivePipeline(llm_backend=MockLLMBackend())
         r1 = pipe.process("Hello")
         r2 = pipe.process("How are you?")
         assert r1.response != ""

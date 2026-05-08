@@ -106,7 +106,6 @@ from core.profiles.topic import TopicProfileManager
 from core.profiles.contradiction import ContradictionDetector
 from core.dual_process.generator import (
     LLMBackend,
-    MockLLMBackend,
     ResponseGenerator,
 )
 from core.dual_process.self_check import SelfChecker, CoherenceVerdict, coherence_check
@@ -416,8 +415,14 @@ class CognitivePipeline:
                             guidance for generation.
         """
         self._features = features or PipelineFeatures()
+        if llm_backend is None:
+            raise ValueError(
+                "CognitivePipeline requires an llm_backend. Configure "
+                "llm_backend in runtime_config.yaml — Nūr never runs against a "
+                "fake/mock backend."
+            )
         # Primary backend (used if no fast backend provided)
-        self._llm_backend = llm_backend or MockLLMBackend()
+        self._llm_backend = llm_backend
         # Fast backend (thinking mode off) — used for ALL calls
         # Generator prompt already has full context; thinking overhead not needed
         self._llm_backend_fast = llm_backend_fast or self._llm_backend
@@ -2033,7 +2038,7 @@ class CognitivePipeline:
         self.person_profiles.close()
         self.topic_profiles.close()
         # Release HTTP connection pools on LLM backends (safe for backends
-        # without a close method, e.g. MockLLMBackend). Avoid double-close
+        # without a close method, e.g. test fakes). Avoid double-close
         # when fast and primary share the same instance.
         seen: set[int] = set()
         for backend in (self._llm_backend, self._llm_backend_fast):

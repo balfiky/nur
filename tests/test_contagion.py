@@ -134,7 +134,7 @@ class TestContagionLLM:
     """Tests for LLM-based emotion detection."""
 
     def _make_backend(self, response: str):
-        from core.dual_process.generator import MockLLMBackend
+        from tests._fakes import MockLLMBackend
         return MockLLMBackend(response=response)
 
     def test_llm_valid_json(self):

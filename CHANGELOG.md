@@ -6,6 +6,17 @@ All notable changes to Project Nur are documented here.
 
 ## Unreleased
 
+### Removed
+- Removed the mock LLM backend from production entirely. `llm_backend="mock"`
+  is no longer accepted by `RuntimeConfig`, the backend factory, the setup
+  wizard, the `/admin` UI, the LLM-test endpoint, or `runtime_config.yaml`.
+  The default config now ships pointing at a local Ollama OpenAI-compatible
+  server. The pipeline, response generator, and inner-dialogue components now
+  raise `ValueError` if no real backend is supplied. Test-only fakes moved to
+  `tests/_fakes.py` (clearly off-limits for production imports). UAT tests are
+  skipped unless `NUR_UAT_LIVE=1` is set with a real backend, since there is
+  no longer an offline path.
+
 ### Brand & UI
 - Split the chat shell into ES module/CSS surfaces, added sanitized Markdown
   rendering, rem-based spacing and motion tokens, mood-aware contrast, and

@@ -20,6 +20,7 @@ from core.types import (
 from core.action_variables import derive_action_variables
 from nur_tools.registry import ToolRegistry
 from pipeline import DebugState
+from tests._fakes import MockLLMBackend
 
 
 # ===================================================================
@@ -415,7 +416,7 @@ class TestDebugStateToolTrace:
     def test_pipeline_process_returns_none_tool_trace(self):
         """Pipeline.process() still works; tool_trace stays None."""
         from pipeline import CognitivePipeline
-        pipe = CognitivePipeline()
+        pipe = CognitivePipeline(llm_backend=MockLLMBackend())
         result = pipe.process("hello")
         assert result.debug.tool_trace is None
         pipe.close()

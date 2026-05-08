@@ -31,7 +31,7 @@ from core.types import (
     ToolResult,
     UnresolvedItem,
 )
-from core.dual_process.generator import MockLLMBackend
+from tests._fakes import MockLLMBackend
 from core.tool_memory import (
     ToolMemoryEffects,
     compute_tool_trust_delta,
@@ -117,7 +117,7 @@ def _make_pipeline_with_tools():
     reg = ToolRegistry()
     exe = ToolExecutor(reg)
     register_builtins(reg, exe)
-    pipe = CognitivePipeline(tool_executor=exe)
+    pipe = CognitivePipeline(llm_backend=MockLLMBackend(), tool_executor=exe)
     return pipe, reg, exe
 
 
@@ -489,7 +489,7 @@ class TestToolMemoryEffects:
 
 class TestPipelineToolMemoryIntegration:
     def test_no_tool_executor_no_effects(self):
-        pipe = CognitivePipeline()
+        pipe = CognitivePipeline(llm_backend=MockLLMBackend())
         resp = pipe.process("Hello!", user_id="u1")
         assert resp.debug.tool_memory_effects is None
 

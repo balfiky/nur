@@ -7,15 +7,17 @@ telegram_token: ''
 telegram_allowlist: []
 telegram_poll_timeout: 30
 dedupe_ttl: 60.0
-# Start in mock mode so the first run works without any provider key.
-# For a hosted provider / gateway, set llm_backend to "provider" and fill
-# llm_base_url, llm_model, and llm_api_key.
-# For a local or remote OpenAI-compatible endpoint, set llm_backend to
-# "openai_compatible" and fill llm_base_url and llm_model.
-# Codex CLI backend: set llm_backend to "codex"; llm_model is optional.
-llm_backend: mock
-llm_base_url: ''
-llm_model: ''
+# Nūr requires a real LLM backend. There is no mock or offline mode —
+# whenever intelligence is required, the configured model is called.
+#
+# Default below is "openai_compatible" pointed at a local Ollama endpoint.
+# Update llm_base_url and llm_model to match your installation, OR switch
+# llm_backend to one of: "provider", "codex", "minimax", "auto".
+# Provider/gateway: set llm_backend=provider, fill llm_base_url, llm_model, llm_api_key.
+# Codex CLI: set llm_backend=codex; llm_model optional.
+llm_backend: openai_compatible
+llm_base_url: 'http://localhost:11434/v1'
+llm_model: 'llama3.2'
 llm_api_key: ''
 debug_host: 127.0.0.1
 debug_port: 8077

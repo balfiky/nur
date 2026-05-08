@@ -30,6 +30,23 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "uat: installed/browser user acceptance tests")
 
 
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Skip UAT tests unless NUR_UAT_LIVE=1 with a configured real backend.
+
+    Nūr no longer ships a mock backend, so UAT tests cannot run end-to-end
+    without a live LLM. Set NUR_UAT_LIVE=1 plus NUR_UAT_BACKEND and the
+    related env vars to opt in.
+    """
+    if os.environ.get("NUR_UAT_LIVE") == "1":
+        return
+    skip_uat = pytest.mark.skip(
+        reason="UAT requires NUR_UAT_LIVE=1 — Nūr has no mock backend.",
+    )
+    for item in items:
+        if "uat" in item.keywords:
+            item.add_marker(skip_uat)
+
+
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
     outcome = yield

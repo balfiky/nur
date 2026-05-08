@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from core.dual_process.generator import MockLLMBackend
+from tests._fakes import MockLLMBackend
 from runtime.channels.telegram import TelegramChannel, TelegramConfig
 from runtime.config import RuntimeConfig
 from runtime.sessions.manager import SessionManager

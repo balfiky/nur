@@ -510,12 +510,13 @@ class TestTraceIntegrity:
         for i, r in enumerate(trace.rounds):
             assert r.round_number == i + 1
 
-    def test_default_mock_backend_unparseable_triggers_retry(self):
-        """Default MockLLMBackend returns 'I understand.' — unparseable triggers
-        retry then objection, leading to multi-round deliberation."""
-        dialogue = InnerDialogue()
+    def test_unparseable_response_triggers_retry(self):
+        """An unparseable backend response triggers retry then objection,
+        leading to multi-round deliberation."""
+        from tests._fakes import MockLLMBackend
+        dialogue = InnerDialogue(backend=MockLLMBackend(response="I understand."))
         trace = dialogue.deliberate("hello", state=_charged_state(), current_event_intensity=_CHARGED_EVENT_INTENSITY)
-        # Mock returns "I understand." which is unparseable → retry → still unparseable → objection
+        # "I understand." is unparseable → retry → still unparseable → objection
         # This causes round 2+ (revision + slow check + retry + possibly arbiter)
         assert len(trace.rounds) >= 2
         assert trace.rounds[0].slow_path_approved is False

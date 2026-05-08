@@ -77,7 +77,10 @@ def test_terminal_setup_can_configure_tools_and_custom_workspace(tmp_path):
     workspace = tmp_path / "tools"
     answers = iter([
         "",       # data directory
-        "1",      # mock
+        "1",      # ollama
+        "",       # base URL
+        "",       # model name
+        "",       # API key
         "n",      # Telegram
         "y",      # tools
         "2",      # autonomous

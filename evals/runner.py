@@ -5,7 +5,8 @@ from __future__ import annotations
 import time
 from typing import Any, Callable
 
-from core.dual_process.generator import LLMBackend, MockLLMBackend
+from core.dual_process.generator import LLMBackend
+from tests._fakes import MockLLMBackend
 from core.types import ModulatorState
 from evals.instrumented_backend import BackendCounter, InstrumentedBackend
 from evals.types import (

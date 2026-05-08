@@ -328,7 +328,7 @@ class TestStrategyInstructions:
 
 class TestPipelineIntegration:
     def test_strategy_populated_in_debug(self):
-        from core.dual_process.generator import MockLLMBackend
+        from tests._fakes import MockLLMBackend
         from pipeline import CognitivePipeline
 
         pipe = CognitivePipeline(llm_backend=MockLLMBackend())
@@ -337,7 +337,7 @@ class TestPipelineIntegration:
         assert result.debug.response_strategy in [s.value for s in ResponseStrategy]
 
     def test_strategy_validate_for_external_distress(self):
-        from core.dual_process.generator import MockLLMBackend
+        from tests._fakes import MockLLMBackend
         from pipeline import CognitivePipeline
 
         pipe = CognitivePipeline(llm_backend=MockLLMBackend())
@@ -345,7 +345,7 @@ class TestPipelineIntegration:
         assert result.debug.response_strategy == "validate"
 
     def test_strategy_set_boundary_for_attack(self):
-        from core.dual_process.generator import MockLLMBackend
+        from tests._fakes import MockLLMBackend
         from pipeline import CognitivePipeline
 
         pipe = CognitivePipeline(llm_backend=MockLLMBackend())
@@ -353,7 +353,7 @@ class TestPipelineIntegration:
         assert result.debug.response_strategy == "set_boundary"
 
     def test_strategy_set_boundary_for_repeated_attack(self):
-        from core.dual_process.generator import MockLLMBackend
+        from tests._fakes import MockLLMBackend
         from pipeline import CognitivePipeline
 
         pipe = CognitivePipeline(llm_backend=MockLLMBackend())
@@ -364,7 +364,7 @@ class TestPipelineIntegration:
         assert result.debug.response_strategy == "set_boundary"
 
     def test_strategy_practical_for_request(self):
-        from core.dual_process.generator import MockLLMBackend
+        from tests._fakes import MockLLMBackend
         from pipeline import CognitivePipeline
 
         pipe = CognitivePipeline(llm_backend=MockLLMBackend())

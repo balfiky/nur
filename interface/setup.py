@@ -134,26 +134,19 @@ def _run_terminal_setup(
 
 
 def _configure_llm(config: RuntimeConfig, *, input_fn: InputFn, output_fn: OutputFn) -> None:
-    output_fn("LLM backend")
+    output_fn("LLM backend (Nūr requires a real model — there is no offline mode)")
     choice = _prompt_choice(
         [
-            ("mock", "Mock/offline test mode"),
-            ("vllm", "vLLM local OpenAI-compatible server"),
             ("ollama", "Ollama or LM Studio local server"),
+            ("vllm", "vLLM local OpenAI-compatible server"),
             ("openrouter", "OpenRouter"),
             ("hosted", "Hosted OpenAI-compatible provider"),
             ("custom", "Custom OpenAI-compatible endpoint"),
         ],
-        default="mock",
+        default="ollama",
         input_fn=input_fn,
         output_fn=output_fn,
     )
-    if choice == "mock":
-        config.llm_backend = "mock"
-        config.llm_base_url = ""
-        config.llm_model = ""
-        config.llm_api_key = ""
-        return
 
     if choice == "vllm":
         config.llm_backend = "openai_compatible"

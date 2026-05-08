@@ -16,7 +16,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import interface.api as interface_api
-from core.dual_process.generator import MockLLMBackend
+from tests._fakes import MockLLMBackend
 from interface.api import app, set_pipeline, set_session_manager
 from interface.client import NurAPIError, NurClient
 from runtime.config import RuntimeConfig
@@ -684,7 +684,7 @@ class TestAdminEndpoints:
         assert data["models"] == []
         assert "PATH" in data["error"]
 
-    def test_admin_test_llm_mock_runs_live_sample(
+    def test_admin_test_llm_rejects_mock_backend(
         self, client, temp_config, tmp_path,
     ):
         RuntimeConfig(
@@ -696,9 +696,7 @@ class TestAdminEndpoints:
 
         assert resp.status_code == 200
         data = resp.json()
-        assert data["ok"] is True
-        assert data["live"] is True
-        assert "sample_response" in data
+        assert data["ok"] is False
 
     def test_admin_test_telegram_reports_missing_token(
         self, client, temp_config, tmp_path,

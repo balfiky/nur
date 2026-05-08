@@ -814,7 +814,7 @@ async def admin_test_llm(req: AdminLLMTestRequest) -> dict:
         "backend": config.llm_backend,
         "warnings": llm_warnings,
     }
-    if req.live or config.llm_backend == "mock":
+    if req.live:
         try:
             backend = create_llm_backend(config)
             sample = backend.generate("Reply with ok.", "health check")
@@ -2151,7 +2151,6 @@ def _admin_config_payload(
         "field_metadata": _admin_field_metadata(config),
         "warnings": _admin_config_warnings(config),
         "setup": _admin_setup_status(config),
-        "mock_mode": config.llm_backend == "auto" and not _llm_configured(config),
     }
 
 
@@ -2266,7 +2265,7 @@ def _admin_secret_status(config: RuntimeConfig) -> dict[str, dict]:
 
 def _allowed_values_for_field(field_name: str) -> list[str] | None:
     if field_name == "llm_backend":
-        return ["auto", "provider", "openai_compatible", "codex", "mock"]
+        return ["auto", "provider", "openai_compatible", "codex"]
     if field_name == "autonomy_level":
         return ["off", "assisted", "autonomous", "high_risk"]
     return None
@@ -2333,8 +2332,6 @@ def _warning(severity: str, field: str, code: str, message: str) -> dict:
 def _llm_configured(config: RuntimeConfig) -> bool:
     backend = config.llm_backend
     secret_status = _admin_secret_status(config)
-    if backend == "mock":
-        return True
     if backend == "provider":
         return bool(
             config.llm_base_url.strip()
@@ -2453,15 +2450,8 @@ def _write_soul_yaml(data: dict, path: str) -> None:
 
 
 def _llm_configured_for_draft(config: RuntimeConfig) -> bool:
-    """True when the configured LLM is callable for draft generation.
-
-    Mock backend cannot produce a valid soul draft — MockLLMBackend
-    returns a static string, not JSON. Return False so the endpoint
-    gives a clean 400 instead of a confusing 502.
-    """
+    """True when the configured LLM is callable for draft generation."""
     backend = config.llm_backend
-    if backend == "mock":
-        return False
     if backend in {"provider", "openai_compatible"}:
         return bool(config.llm_base_url.strip() and config.llm_model.strip())
     if backend == "codex":
@@ -2770,7 +2760,7 @@ def _admin_soul_payload(
 
 def _looks_unconfigured(config: RuntimeConfig) -> bool:
     return (
-        config.llm_backend in {"auto", "mock"}
+        config.llm_backend == "auto"
         and not config.llm_base_url.strip()
         and not config.llm_model.strip()
         and not config.llm_api_key

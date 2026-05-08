@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from core.dual_process.generator import MockLLMBackend
+from tests._fakes import MockLLMBackend
 from core.memory.relationship import NullRelationshipMemory, RelationshipMemory
 from core.memory.semantic import NullSemanticMemory
 from core.pipeline_features import PipelineFeatures

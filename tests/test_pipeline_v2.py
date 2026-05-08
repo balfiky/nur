@@ -4,7 +4,7 @@ import pytest
 
 from datetime import datetime, timezone
 
-from core.dual_process.generator import MockLLMBackend
+from tests._fakes import MockLLMBackend
 from core.types import Anticipation, InnerDialogueTrace, DefenseActivation, UnresolvedItem
 from pipeline import CognitivePipeline, DebugState, PipelineResponse
 

@@ -16,7 +16,6 @@ from unittest.mock import patch
 
 import pytest
 
-from core.dual_process.generator import MockLLMBackend
 from runtime.config import RuntimeConfig
 from core.provider_client import FastChatCompletionsClient
 from runtime.llm.backend import CodexCLIBackend, OpenAICompatibleLLMBackend, create_llm_backend, list_codex_models
@@ -310,31 +309,25 @@ class TestBackendSelection:
         backend = create_llm_backend(config)
         assert isinstance(backend, OpenAICompatibleLLMBackend)
 
-    def test_mock_backend_forced(self):
-        """llm_backend='mock' always returns MockLLMBackend."""
+    def test_mock_backend_no_longer_accepted(self):
+        """Mock has been removed entirely; the factory rejects it."""
         config = RuntimeConfig(llm_backend="mock")
-        backend = create_llm_backend(config)
-        assert isinstance(backend, MockLLMBackend)
+        with pytest.raises(ValueError, match="mock"):
+            create_llm_backend(config)
 
-    def test_mock_backend_forced_even_with_key(self):
-        """llm_backend='mock' overrides even when API key is present."""
-        config = RuntimeConfig(llm_backend="mock", llm_api_key="sk-test")
-        backend = create_llm_backend(config)
-        assert isinstance(backend, MockLLMBackend)
-
-    def test_auto_without_key_returns_mock(self, monkeypatch):
-        """llm_backend='auto' with no API key returns MockLLMBackend."""
+    def test_auto_without_key_raises(self, monkeypatch):
+        """llm_backend='auto' with insufficient config raises (no fallback)."""
         monkeypatch.delenv("LLM_API_KEY", raising=False)
         config = RuntimeConfig(llm_backend="auto")
-        backend = create_llm_backend(config)
-        assert isinstance(backend, MockLLMBackend)
+        with pytest.raises(ValueError):
+            create_llm_backend(config)
 
-    def test_auto_with_generic_key_but_no_endpoint_returns_mock(self, monkeypatch):
-        """A generic key alone is not enough to guess a provider endpoint."""
+    def test_auto_with_generic_key_but_no_endpoint_raises(self, monkeypatch):
+        """A generic key alone is not enough — must specify endpoint or provider."""
         monkeypatch.delenv("LLM_API_KEY", raising=False)
         config = RuntimeConfig(llm_backend="auto", llm_api_key="generic-key")
-        backend = create_llm_backend(config)
-        assert isinstance(backend, MockLLMBackend)
+        with pytest.raises(ValueError):
+            create_llm_backend(config)
 
     def test_minimax_backend_with_config_key(self):
         """Explicit legacy MiniMax config uses the generic LLM API key."""
@@ -342,17 +335,17 @@ class TestBackendSelection:
         backend = create_llm_backend(config)
         assert isinstance(backend, FastChatCompletionsClient)
 
-    def test_no_config_falls_back_to_env(self, monkeypatch):
-        """Without config, no provider-specific key fallback is used."""
+    def test_no_config_raises(self, monkeypatch):
+        """Without config, the factory raises rather than falling back."""
         monkeypatch.delenv("LLM_API_KEY", raising=False)
-        backend = create_llm_backend()
-        assert isinstance(backend, MockLLMBackend)
+        with pytest.raises(ValueError):
+            create_llm_backend()
 
-    def test_none_config_falls_back_to_env(self, monkeypatch):
-        """config=None uses env var only."""
+    def test_none_config_raises(self, monkeypatch):
+        """config=None — same; no silent fallback."""
         monkeypatch.delenv("LLM_API_KEY", raising=False)
-        backend = create_llm_backend(None)
-        assert isinstance(backend, MockLLMBackend)
+        with pytest.raises(ValueError):
+            create_llm_backend(None)
 
 
 # =========================================================================

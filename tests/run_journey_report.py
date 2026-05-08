@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import tempfile
 
-from core.dual_process.generator import MockLLMBackend
+from tests._fakes import MockLLMBackend
 from pipeline import CognitivePipeline
 
 

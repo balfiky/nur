@@ -17,7 +17,8 @@ import pytest
 
 from config.loader import load_config, reset_config
 from core.contagion import _detect_via_rules
-from core.dual_process.generator import MockLLMBackend, build_system_prompt
+from core.dual_process.generator import build_system_prompt
+from tests._fakes import MockLLMBackend
 from core.types import (
     BaselineShift,
     ModulatorState,
@@ -106,7 +107,7 @@ class TestContextShiftNoCompounding:
 
     def test_repeated_context_shift_bounded(self):
         """10 turns with arousal=+0.1 shift must not push arousal to 1.0."""
-        pipe = CognitivePipeline()
+        pipe = CognitivePipeline(llm_backend=MockLLMBackend())
         # Set a person with positive arousal shift
         pipe.person_profiles.set_baseline_shift(
             "shifty",
@@ -135,7 +136,7 @@ class TestElapsedTimeDecaysState:
 
     def test_decay_between_turns(self):
         """Simulated time gap between turns triggers automatic decay."""
-        pipe = CognitivePipeline()
+        pipe = CognitivePipeline(llm_backend=MockLLMBackend())
         # Spike arousal high
         pipe.engine.state.arousal = 0.9
 
@@ -197,7 +198,7 @@ class TestDefenseHistoryPersists:
 
     def test_defense_events_survive_reload(self):
         """After a defense fires, get_profile() should reflect it in maturity."""
-        pipe = CognitivePipeline()
+        pipe = CognitivePipeline(llm_backend=MockLLMBackend())
 
         # Force a defense to fire: high arousal + low trust
         pipe.engine.state.arousal = 0.9
@@ -270,7 +271,7 @@ class TestContradictionDedup:
     """Same contradiction appearing twice should not create two unresolved items."""
 
     def test_same_contradiction_not_duplicated(self):
-        pipe = CognitivePipeline()
+        pipe = CognitivePipeline(llm_backend=MockLLMBackend())
         # Manually call contradiction resolution with same flag twice
         pipe._check_contradiction_resolution(["user said X then Y"], "alice")
         count_1 = len(pipe.engine.active_unresolved())
@@ -283,7 +284,7 @@ class TestContradictionDedup:
         )
 
     def test_different_contradictions_both_added(self):
-        pipe = CognitivePipeline()
+        pipe = CognitivePipeline(llm_backend=MockLLMBackend())
         pipe._check_contradiction_resolution(["contradiction A"], "alice")
         pipe._check_contradiction_resolution(["contradiction B"], "alice")
         assert len(pipe.engine.active_unresolved()) == 2
@@ -507,7 +508,7 @@ class TestLLMCallReduction:
         finish well under 50ms, proving non-LLM overhead is negligible.
         """
         import time as _time
-        from core.dual_process.generator import MockLLMBackend as _Mock
+        from tests._fakes import MockLLMBackend as _Mock
 
         pipe = CognitivePipeline(llm_backend=_Mock())
         # Warm up
@@ -619,7 +620,7 @@ class TestStickyDialogueAndTimings:
 
     def test_stage_timings_present(self):
         """stage_timings_ms is present and contains required keys."""
-        pipe = CognitivePipeline()
+        pipe = CognitivePipeline(llm_backend=MockLLMBackend())
         result = pipe.process("hello", user_id="alice")
         timings = result.debug.stage_timings_ms
         assert isinstance(timings, dict)

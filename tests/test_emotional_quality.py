@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from core.dual_process.generator import MockLLMBackend
+from tests._fakes import MockLLMBackend
 from evals.emotional_quality import (
     emotional_quality_scenarios,
     markdown_report,

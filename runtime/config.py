@@ -40,8 +40,9 @@ class RuntimeConfig:
     telegram_poll_timeout: int = 30
     dedupe_ttl: float = 60.0
 
-    # LLM backend
-    llm_backend: str = "auto"      # "auto", "provider", "openai_compatible", "codex", "minimax", "mock"
+    # LLM backend — Nūr always calls a real model. There is no mock path.
+    # Valid: "auto", "provider", "openai_compatible", "codex", "minimax".
+    llm_backend: str = "auto"
     llm_base_url: str = ""         # API endpoint for OpenAI-compatible backends
     llm_model: str = ""            # model name for OpenAI-compatible backends
     llm_api_key: str = ""          # generic API key (optional for local endpoints)

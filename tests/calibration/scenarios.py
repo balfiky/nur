@@ -19,7 +19,7 @@ import time
 from dataclasses import dataclass, field
 
 from pipeline import CognitivePipeline, PipelineResponse, DebugState
-from core.dual_process.generator import MockLLMBackend
+from tests._fakes import MockLLMBackend
 from core.memory.digestion import DigestedSession
 
 

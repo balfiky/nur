@@ -17,7 +17,7 @@ import time
 
 import httpx
 
-from core.dual_process.generator import MockLLMBackend
+from tests._fakes import MockLLMBackend
 from core.types import OpenLoop, RelationshipContext, RelationshipEvent
 from runtime.channels.telegram import (
     DedupeCache,

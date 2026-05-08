@@ -32,6 +32,7 @@ from core.types import (
 )
 from core.tool_memory import ToolMemoryEffects
 from pipeline import CognitivePipeline, DebugState
+from tests._fakes import MockLLMBackend
 from runtime.debug.api import _debug_to_dict, _build_tool_summary
 from nur_tools.registry import ToolRegistry
 from nur_tools.executor import ToolExecutor
@@ -47,7 +48,7 @@ def _make_pipeline_with_tools():
     reg = ToolRegistry()
     exe = ToolExecutor(reg)
     register_builtins(reg, exe)
-    pipe = CognitivePipeline(tool_executor=exe)
+    pipe = CognitivePipeline(llm_backend=MockLLMBackend(), tool_executor=exe)
     return pipe, reg, exe
 
 
@@ -121,7 +122,7 @@ def _make_trace(executed=True) -> ToolTrace:
 class TestToolTracePresence:
     def test_non_tool_turn_trace_null(self):
         """Conversational turn has null tool_trace."""
-        pipe = CognitivePipeline()
+        pipe = CognitivePipeline(llm_backend=MockLLMBackend())
         resp = pipe.process("How are you?", user_id="u1")
         d = _debug_to_dict(resp.debug)
         assert d["tool_trace"] is None
@@ -143,7 +144,7 @@ class TestToolTracePresence:
 
     def test_no_executor_trace_null(self):
         """Pipeline without tool_executor always has null tool_trace."""
-        pipe = CognitivePipeline()
+        pipe = CognitivePipeline(llm_backend=MockLLMBackend())
         resp = pipe.process("read file /tmp/foo.txt", user_id="u1")
         d = _debug_to_dict(resp.debug)
         assert d["tool_trace"] is None
@@ -155,7 +156,7 @@ class TestToolTracePresence:
 
 class TestActionVariablesDebug:
     def test_non_tool_turn_action_vars_null(self):
-        pipe = CognitivePipeline()
+        pipe = CognitivePipeline(llm_backend=MockLLMBackend())
         resp = pipe.process("Hello!", user_id="u1")
         d = _debug_to_dict(resp.debug)
         assert d["action_variables"] is None
@@ -203,7 +204,7 @@ class TestActionVariablesDebug:
 
 class TestToolMemoryEffectsDebug:
     def test_non_tool_turn_effects_null(self):
-        pipe = CognitivePipeline()
+        pipe = CognitivePipeline(llm_backend=MockLLMBackend())
         resp = pipe.process("Hello!", user_id="u1")
         d = _debug_to_dict(resp.debug)
         assert d["tool_memory_effects"] is None
@@ -241,7 +242,7 @@ class TestToolMemoryEffectsDebug:
 
 class TestToolSummary:
     def test_non_tool_turn_summary_null(self):
-        pipe = CognitivePipeline()
+        pipe = CognitivePipeline(llm_backend=MockLLMBackend())
         resp = pipe.process("How are you?", user_id="u1")
         d = _debug_to_dict(resp.debug)
         assert d["tool_summary"] is None
@@ -348,7 +349,7 @@ class TestObservationSerialization:
 
 class TestJsonValidity:
     def test_non_tool_debug_is_json_serializable(self):
-        pipe = CognitivePipeline()
+        pipe = CognitivePipeline(llm_backend=MockLLMBackend())
         resp = pipe.process("Hello!", user_id="u1")
         d = _debug_to_dict(resp.debug)
         # Should not raise
@@ -395,7 +396,7 @@ class TestSessionIsolationWithTools:
                 debug_a = _debug_to_dict(resp_a.debug)
 
                 # Reset pipeline for user B (separate pipeline in real runtime)
-                pipe_b = CognitivePipeline()
+                pipe_b = CognitivePipeline(llm_backend=MockLLMBackend())
                 resp_b = pipe_b.process("How are you?", user_id="userB")
                 debug_b = _debug_to_dict(resp_b.debug)
 

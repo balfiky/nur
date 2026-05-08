@@ -33,6 +33,7 @@ from core.proactive import (
 from core.character_vector import assemble_character_vector
 from core.dual_process.tool_loop import detect_capability_gap
 from core.types import PipelineContext
+from tests._fakes import MockLLMBackend
 
 
 def test_detects_common_missing_tool_capability_gaps():
@@ -516,13 +517,13 @@ class TestEvaluateProactive:
 class TestPipelineProactive:
     def test_pipeline_has_proactive_tracking(self):
         from pipeline import CognitivePipeline
-        p = CognitivePipeline()
+        p = CognitivePipeline(llm_backend=MockLLMBackend())
         assert p._proactive_count == 0
         assert p._last_proactive_at is None
 
     def test_end_session_clears_proactive_state(self):
         from pipeline import CognitivePipeline
-        p = CognitivePipeline()
+        p = CognitivePipeline(llm_backend=MockLLMBackend())
         p._proactive_count = 5
         p._last_proactive_at = time.time()
         p.end_session()
@@ -531,14 +532,14 @@ class TestPipelineProactive:
 
     def test_process_proactive_returns_none_when_quiet(self):
         from pipeline import CognitivePipeline
-        p = CognitivePipeline()
+        p = CognitivePipeline(llm_backend=MockLLMBackend())
         # No unresolved items, no plan, fresh pipeline → nothing to do
         result = p.process_proactive("default", idle_threshold=0.0)
         assert result is None
 
     def test_process_proactive_with_unresolved_triggers(self):
         from pipeline import CognitivePipeline
-        p = CognitivePipeline()
+        p = CognitivePipeline(llm_backend=MockLLMBackend())
         # Simulate idle time
         p._last_turn_time = time.time() - 600.0
         # Add an unresolved item with high intensity
@@ -567,7 +568,7 @@ class TestPipelineProactive:
 
     def test_process_proactive_increments_count(self):
         from pipeline import CognitivePipeline
-        p = CognitivePipeline()
+        p = CognitivePipeline(llm_backend=MockLLMBackend())
         p._last_turn_time = time.time() - 600.0
         p.engine.add_unresolved(UnresolvedItem(
             id="test_1", source="commitment",
@@ -587,7 +588,7 @@ class TestPipelineProactive:
 
     def test_process_proactive_recent_density_is_not_hard_cap(self):
         from pipeline import CognitivePipeline
-        p = CognitivePipeline()
+        p = CognitivePipeline(llm_backend=MockLLMBackend())
         p._last_turn_time = time.time() - 600.0
         p._proactive_count = 3  # already at the density reference
         p.engine.add_unresolved(UnresolvedItem(
@@ -604,7 +605,7 @@ class TestPipelineProactive:
 
     def test_process_proactive_records_self_observation(self):
         from pipeline import CognitivePipeline
-        p = CognitivePipeline()
+        p = CognitivePipeline(llm_backend=MockLLMBackend())
         p._last_turn_time = time.time() - 600.0
         p.engine.add_unresolved(UnresolvedItem(
             id="test_1", source="contradiction",
@@ -627,7 +628,7 @@ class TestPipelineProactive:
 
     def test_normal_process_unchanged(self):
         from pipeline import CognitivePipeline
-        p = CognitivePipeline()
+        p = CognitivePipeline(llm_backend=MockLLMBackend())
         result = p.process("hello")
         assert result.response
         assert result.debug.proactive_trace is None
@@ -753,7 +754,7 @@ class TestPhase8Regression:
     def test_existing_process_unchanged(self):
         """Normal message processing is not affected by proactive additions."""
         from pipeline import CognitivePipeline
-        p = CognitivePipeline()
+        p = CognitivePipeline(llm_backend=MockLLMBackend())
         result = p.process("tell me about the weather")
         assert result.response
         assert result.debug.proactive_trace is None
@@ -769,7 +770,7 @@ class TestPhase8Regression:
         exe = ToolExecutor(reg)
         register_builtins(reg, exe)
 
-        p = CognitivePipeline(tool_executor=exe)
+        p = CognitivePipeline(llm_backend=MockLLMBackend(), tool_executor=exe)
         f = tmp_path / "test.txt"
         f.write_text("hello")
         result = p.process(f"read file {f}")
@@ -786,7 +787,7 @@ class TestPhase8Regression:
 
     def test_end_session_still_works(self):
         from pipeline import CognitivePipeline
-        p = CognitivePipeline()
+        p = CognitivePipeline(llm_backend=MockLLMBackend())
         p._proactive_count = 2
         p.process("hello")
         result = p.end_session()
@@ -1013,7 +1014,7 @@ class TestProactiveElapsedDecay:
         """Engine.decay() is called before proactive evaluation."""
         from pipeline import CognitivePipeline
 
-        p = CognitivePipeline()
+        p = CognitivePipeline(llm_backend=MockLLMBackend())
         # Set up state: process a message to establish _last_turn_time
         p.process("hello", user_id="user1")
         old_time = p._last_turn_time
@@ -1034,7 +1035,7 @@ class TestProactiveElapsedDecay:
         """Modulators should be decayed by elapsed time before proactive eval."""
         from pipeline import CognitivePipeline
 
-        p = CognitivePipeline()
+        p = CognitivePipeline(llm_backend=MockLLMBackend())
         p.process("hello", user_id="user1")
 
         # Spike arousal and set a past _last_turn_time
@@ -1057,7 +1058,7 @@ class TestProactiveElapsedDecay:
         """_last_turn_time is set even when no action is taken."""
         from pipeline import CognitivePipeline
 
-        p = CognitivePipeline()
+        p = CognitivePipeline(llm_backend=MockLLMBackend())
         p._last_turn_time = time.time() - 1000
         old = p._last_turn_time
 
@@ -1068,7 +1069,7 @@ class TestProactiveElapsedDecay:
         """No crash if _last_turn_time is None (no prior turns)."""
         from pipeline import CognitivePipeline
 
-        p = CognitivePipeline()
+        p = CognitivePipeline(llm_backend=MockLLMBackend())
         assert p._last_turn_time is None
         # Should not raise
         result = p.process_proactive("user1", idle_threshold=0.0)

@@ -31,26 +31,6 @@ class LLMBackend(Protocol):
 
 
 # ---------------------------------------------------------------------------
-# Default (mock) backend for testing
-# ---------------------------------------------------------------------------
-
-class MockLLMBackend:
-    """Returns a canned response. For testing only."""
-
-    def __init__(self, response: str = "[Mock mode] No LLM is connected. Open Settings to configure one.") -> None:
-        self._response = response
-        self.last_system_prompt: str = ""
-        self.last_user_message: str = ""
-        self.call_count: int = 0
-
-    def generate(self, system_prompt: str, user_message: str) -> str:
-        self.last_system_prompt = system_prompt
-        self.last_user_message = user_message
-        self.call_count += 1
-        return self._response
-
-
-# ---------------------------------------------------------------------------
 # System prompt builder
 # ---------------------------------------------------------------------------
 
@@ -516,8 +496,13 @@ class GenerationResult:
 class ResponseGenerator:
     """Generates responses using full emotional context."""
 
-    def __init__(self, backend: LLMBackend | None = None) -> None:
-        self._backend = backend or MockLLMBackend()
+    def __init__(self, backend: LLMBackend) -> None:
+        if backend is None:
+            raise ValueError(
+                "ResponseGenerator requires an LLMBackend. "
+                "Configure llm_backend in runtime_config.yaml."
+            )
+        self._backend = backend
 
     def generate(
         self,

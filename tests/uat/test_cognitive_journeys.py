@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from core.dual_process.generator import MockLLMBackend
+from tests._fakes import MockLLMBackend
 from pipeline import CognitivePipeline
 from playwright.sync_api import expect
 

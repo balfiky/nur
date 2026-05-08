@@ -360,7 +360,7 @@ const state = createSurfaceState({
   }
 
   function selectDefaults(name) {
-    if (name === "llm_backend") return ["auto", "provider", "openai_compatible", "codex", "mock"];
+    if (name === "llm_backend") return ["auto", "provider", "openai_compatible", "codex"];
     if (name === "autonomy_level") return ["off", "assisted", "autonomous", "high_risk"];
     return [];
   }

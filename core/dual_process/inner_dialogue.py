@@ -251,9 +251,13 @@ def parse_slow_path_response(text: str) -> tuple[bool, str, bool]:
 class InnerDialogue:
     """Iterative fast/slow path deliberation engine."""
 
-    def __init__(self, backend: LLMBackend | None = None) -> None:
-        from core.dual_process.generator import MockLLMBackend
-        self._backend = backend or MockLLMBackend()
+    def __init__(self, backend: LLMBackend) -> None:
+        if backend is None:
+            raise ValueError(
+                "InnerDialogue requires an LLMBackend. "
+                "Configure llm_backend in runtime_config.yaml."
+            )
+        self._backend = backend
         self._llm_calls = 0
 
     def deliberate(

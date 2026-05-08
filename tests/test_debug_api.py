@@ -7,7 +7,7 @@ import tempfile
 import pytest
 from fastapi import HTTPException
 
-from core.dual_process.generator import MockLLMBackend
+from tests._fakes import MockLLMBackend
 from runtime.config import RuntimeConfig
 from runtime.debug.api import create_debug_app
 from runtime.sessions.manager import SessionManager

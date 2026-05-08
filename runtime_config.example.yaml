@@ -15,16 +15,16 @@ telegram_allowlist: []
 telegram_poll_timeout: 30
 dedupe_ttl: 60.0
 
-# Fastest local start: leave this on "mock".
+# Nūr requires a real LLM backend. There is no mock or offline mode.
 # Hosted provider / gateway: set llm_backend to "provider", then fill
 # llm_base_url, llm_model, and llm_api_key.
 # OpenAI-compatible endpoint: set llm_backend to "openai_compatible",
 # then fill llm_base_url and llm_model. This works with Ollama's OpenAI
 # API, vLLM, LM Studio, or a compatible hosted gateway.
 # Codex CLI backend: set llm_backend to "codex"; llm_model is optional.
-llm_backend: mock
-llm_base_url: ''
-llm_model: ''
+llm_backend: openai_compatible
+llm_base_url: 'http://localhost:11434/v1'
+llm_model: 'llama3.2'
 llm_api_key: ''
 
 debug_host: 127.0.0.1

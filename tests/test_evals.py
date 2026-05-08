@@ -160,20 +160,23 @@ class TestAssertionChecking:
 
     def test_response_not_empty_pass(self):
         from pipeline import CognitivePipeline, PipelineResponse, DebugState
+        from tests._fakes import MockLLMBackend
         resp = PipelineResponse(response="hello", debug=DebugState())
         a = EvalAssertion(kind=AssertionKind.RESPONSE_NOT_EMPTY)
-        result = _check_assertion(a, resp, CognitivePipeline())
+        result = _check_assertion(a, resp, CognitivePipeline(llm_backend=MockLLMBackend()))
         assert result.passed
 
     def test_response_not_empty_fail(self):
         from pipeline import CognitivePipeline, PipelineResponse, DebugState
+        from tests._fakes import MockLLMBackend
         resp = PipelineResponse(response="", debug=DebugState())
         a = EvalAssertion(kind=AssertionKind.RESPONSE_NOT_EMPTY)
-        result = _check_assertion(a, resp, CognitivePipeline())
+        result = _check_assertion(a, resp, CognitivePipeline(llm_backend=MockLLMBackend()))
         assert not result.passed
 
     def test_modulator_range_pass(self):
         from pipeline import CognitivePipeline, PipelineResponse, DebugState
+        from tests._fakes import MockLLMBackend
         debug = DebugState()
         debug.modulator_snapshot = {"arousal": 0.5, "valence": 0.6}
         resp = PipelineResponse(response="ok", debug=debug)
@@ -181,11 +184,12 @@ class TestAssertionChecking:
             kind=AssertionKind.MODULATOR_RANGE,
             params={"name": "arousal", "low": 0.3, "high": 0.7},
         )
-        result = _check_assertion(a, resp, CognitivePipeline())
+        result = _check_assertion(a, resp, CognitivePipeline(llm_backend=MockLLMBackend()))
         assert result.passed
 
     def test_modulator_range_fail(self):
         from pipeline import CognitivePipeline, PipelineResponse, DebugState
+        from tests._fakes import MockLLMBackend
         debug = DebugState()
         debug.modulator_snapshot = {"arousal": 0.9}
         resp = PipelineResponse(response="ok", debug=debug)
@@ -193,25 +197,28 @@ class TestAssertionChecking:
             kind=AssertionKind.MODULATOR_RANGE,
             params={"name": "arousal", "low": 0.3, "high": 0.7},
         )
-        result = _check_assertion(a, resp, CognitivePipeline())
+        result = _check_assertion(a, resp, CognitivePipeline(llm_backend=MockLLMBackend()))
         assert not result.passed
 
     def test_tool_not_used_pass(self):
         from pipeline import CognitivePipeline, PipelineResponse, DebugState
+        from tests._fakes import MockLLMBackend
         resp = PipelineResponse(response="ok", debug=DebugState())
         a = EvalAssertion(kind=AssertionKind.TOOL_NOT_USED)
-        result = _check_assertion(a, resp, CognitivePipeline())
+        result = _check_assertion(a, resp, CognitivePipeline(llm_backend=MockLLMBackend()))
         assert result.passed
 
     def test_tool_used_fail_no_trace(self):
         from pipeline import CognitivePipeline, PipelineResponse, DebugState
+        from tests._fakes import MockLLMBackend
         resp = PipelineResponse(response="ok", debug=DebugState())
         a = EvalAssertion(kind=AssertionKind.TOOL_USED)
-        result = _check_assertion(a, resp, CognitivePipeline())
+        result = _check_assertion(a, resp, CognitivePipeline(llm_backend=MockLLMBackend()))
         assert not result.passed
 
     def test_debug_field_not_none(self):
         from pipeline import CognitivePipeline, PipelineResponse, DebugState
+        from tests._fakes import MockLLMBackend
         debug = DebugState()
         debug.detected_emotion = object()
         resp = PipelineResponse(response="ok", debug=debug)
@@ -219,31 +226,34 @@ class TestAssertionChecking:
             kind=AssertionKind.DEBUG_FIELD,
             params={"field": "detected_emotion", "not_none": True},
         )
-        result = _check_assertion(a, resp, CognitivePipeline())
+        result = _check_assertion(a, resp, CognitivePipeline(llm_backend=MockLLMBackend()))
         assert result.passed
 
     def test_response_contains(self):
         from pipeline import CognitivePipeline, PipelineResponse, DebugState
+        from tests._fakes import MockLLMBackend
         resp = PipelineResponse(response="Hello world!", debug=DebugState())
         a = EvalAssertion(
             kind=AssertionKind.RESPONSE_CONTAINS,
             params={"substring": "hello"},
         )
-        result = _check_assertion(a, resp, CognitivePipeline())
+        result = _check_assertion(a, resp, CognitivePipeline(llm_backend=MockLLMBackend()))
         assert result.passed  # case-insensitive
 
     def test_custom_assertion(self):
         from pipeline import CognitivePipeline, PipelineResponse, DebugState
+        from tests._fakes import MockLLMBackend
         resp = PipelineResponse(response="hello", debug=DebugState())
         a = EvalAssertion(
             kind=AssertionKind.CUSTOM,
             params={"fn": lambda r, p: len(r.response) > 3},
         )
-        result = _check_assertion(a, resp, CognitivePipeline())
+        result = _check_assertion(a, resp, CognitivePipeline(llm_backend=MockLLMBackend()))
         assert result.passed
 
     def test_unresolved_created(self):
         from pipeline import CognitivePipeline, PipelineResponse, DebugState
+        from tests._fakes import MockLLMBackend
         debug = DebugState()
         debug.unresolved_count = 2
         resp = PipelineResponse(response="ok", debug=debug)
@@ -251,14 +261,15 @@ class TestAssertionChecking:
             kind=AssertionKind.UNRESOLVED_CREATED,
             params={"min_count": 1},
         )
-        result = _check_assertion(a, resp, CognitivePipeline())
+        result = _check_assertion(a, resp, CognitivePipeline(llm_backend=MockLLMBackend()))
         assert result.passed
 
     def test_proactive_suppressed_no_trace(self):
         from pipeline import CognitivePipeline, PipelineResponse, DebugState
+        from tests._fakes import MockLLMBackend
         resp = PipelineResponse(response="ok", debug=DebugState())
         a = EvalAssertion(kind=AssertionKind.PROACTIVE_SUPPRESSED)
-        result = _check_assertion(a, resp, CognitivePipeline())
+        result = _check_assertion(a, resp, CognitivePipeline(llm_backend=MockLLMBackend()))
         assert result.passed
 
 

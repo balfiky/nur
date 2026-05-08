@@ -4,7 +4,7 @@ import json
 import pytest
 
 from config.loader import get_config
-from core.dual_process.generator import MockLLMBackend
+from tests._fakes import MockLLMBackend
 from core.pipeline_features import PipelineFeatures
 from core.types import SemanticMemoryEntry
 from pipeline import CognitivePipeline, DebugState, PipelineResponse

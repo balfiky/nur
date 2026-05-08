@@ -22,7 +22,7 @@ from core.profiles.self_model import SelfProfileManager, SELF_ENTITY_ID
 from core.profiles.topic import TopicProfileManager
 from core.schema import SCHEMA_VERSION, SchemaVersionError, ensure_schema_version
 from core.types import EmotionalEvent, EventType, ModulatorState
-from core.dual_process.generator import MockLLMBackend
+from tests._fakes import MockLLMBackend
 from pipeline import CognitivePipeline
 
 

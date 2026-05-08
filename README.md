@@ -217,11 +217,12 @@ The setup wizard or `/settings` workspace is the preferred path.
 
 | Backend | Use case |
 |---|---|
-| `mock` | Offline/local testing with deterministic mock responses |
 | `provider` | Hosted OpenAI-compatible gateways |
 | `openai_compatible` | Local/remote servers (Ollama, LM Studio, vLLM) |
 | `codex` | Local Codex CLI session using your existing Codex login |
-| `auto` | Compatibility fallback; warns when no LLM is configured |
+
+Nūr always calls a real LLM. There is no mock or offline backend — configure
+one of the options above before running.
 
 For `codex`, install/login to the Codex CLI first. Nūr runs `codex exec` in
 read-only ephemeral mode. In `/settings`, choosing Codex CLI loads the installed
@@ -277,8 +278,8 @@ Before exposing Nūr beyond localhost:
 ```bash
 python3 -m pytest                                # full suite
 python3 -m pytest tests/test_interface.py -q     # focused interface tests
-nur-uat --artifacts reports/uat/mock             # browser/admin UAT with mock backend
-python3 -m evals --backend mock --tag phase11    # offline behavioral eval pack
+NUR_UAT_LIVE=1 nur-uat --artifacts reports/uat   # browser/admin UAT (real backend required)
+python3 -m evals --backend openai_compatible --tag phase11  # behavioral eval pack
 python3 -m build --sdist --wheel                 # build wheel and sdist
 ```
 

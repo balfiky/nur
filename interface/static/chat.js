@@ -857,8 +857,6 @@ function applySettings(payload) {
   renderAdminWarnings(payload.warnings || []);
   renderSetup(payload.setup || {});
   updateSoulDraftAvailability();
-  const mockBanner = document.getElementById('mockBanner');
-  if (mockBanner) mockBanner.hidden = !payload.mock_mode;
   // Auto-open the first-run wizard when setup is incomplete, the user hasn't
   // dismissed it this session, and the admin drawer isn't already open (the
   // /admin route or a manual "Settings" click means they know where to go).
@@ -1099,7 +1097,6 @@ function updateSoulDraftAvailability() {
   if (!btn || !hint) return;
   const backend = gv('cfg-llm_backend');
   const hasConfig = !!(gv('cfg-llm_base_url') && gv('cfg-llm_model')) ||
-    backend === 'mock' ||
     backend === 'codex';
   btn.disabled = !hasConfig;
   if (hasConfig) {
@@ -1193,7 +1190,7 @@ function renderAdminWarnings(warnings) {
 
 const SETUP_REASON_LABELS = {
   missing_config: 'Save your runtime config',
-  default_or_minimal_config: 'Configure an LLM backend (or confirm mock is intended)',
+  default_or_minimal_config: 'Configure an LLM backend',
   default_soul: 'Set your agent’s identity',
   setup_not_completed: 'Mark setup complete when done',
 };
@@ -1223,7 +1220,6 @@ const WIZARD_PRESET_CONFIG = {
   hosted:      { backend: 'openai_compatible', base_url: 'https://api.openai.com/v1',    model: 'gpt-4o-mini',        model_placeholder: 'e.g. gpt-4o-mini',           label: 'Hosted OpenAI-compatible gateway', key_label: 'API Key (blank if gateway needs none)', key_placeholder: 'Optional' },
   openrouter:  { backend: 'provider',          base_url: 'https://openrouter.ai/api/v1', model: 'openai/gpt-4o-mini', model_placeholder: 'e.g. openai/gpt-4o-mini',    label: 'OpenRouter',                 key_label: 'OpenRouter API Key (required)',     key_placeholder: 'sk-or-v1-...' },
   codex:       { backend: 'codex',             base_url: '',                             model: '',                   model_placeholder: 'Optional; blank uses Codex default', label: 'Codex CLI',          key_label: '',                                   key_placeholder: '', hide_base_url: true, hide_api_key: true },
-  mock:        { backend: 'mock',              base_url: '',                             model: '',                   model_placeholder: '',                            label: 'Mock (no LLM)',              key_label: '',                                   key_placeholder: '' },
 };
 const WIZARD_ARCHETYPE_CONFIG = {
   steady: {
@@ -1357,7 +1353,7 @@ function wizardSelectPreset(preset) {
   const cfg = WIZARD_PRESET_CONFIG[preset];
   const fields = document.getElementById('wizLLMFields');
   const testBtn = document.getElementById('wiz-test-llm-btn');
-  if (!cfg || preset === 'mock') {
+  if (!cfg) {
     fields.hidden = true;
     if (testBtn) testBtn.hidden = true;
     return;
@@ -1384,8 +1380,8 @@ function wizardSelectPreset(preset) {
 }
 
 async function wizardTestLLM() {
-  if (!wizardPreset || wizardPreset === 'mock') {
-    wizardShowResult('wiz-llm-result', 'error', 'Select a non-mock preset first.');
+  if (!wizardPreset) {
+    wizardShowResult('wiz-llm-result', 'error', 'Select a preset first.');
     return;
   }
   const cfg = WIZARD_PRESET_CONFIG[wizardPreset];
@@ -1431,13 +1427,13 @@ async function wizardSaveLLM() {
     if (!cur.ok) throw new Error(curJson.detail || 'HTTP ' + cur.status);
     wizardConfigSnapshot = curJson.config || {};
     const cfg = WIZARD_PRESET_CONFIG[wizardPreset];
-    const apiKey = wizardPreset === 'mock' ? '' : gv('wiz-llm_api_key').trim();
+    const apiKey = gv('wiz-llm_api_key').trim();
     const optionalKeyNoKey = ['local', 'vllm', 'hosted', 'codex'].includes(wizardPreset) && !apiKey;
-    const clearGenericKey = wizardPreset === 'mock' || optionalKeyNoKey;
+    const clearGenericKey = optionalKeyNoKey;
     const payload = Object.assign({}, wizardConfigSnapshot, {
       llm_backend: cfg.backend,
-      llm_base_url: wizardPreset === 'mock' ? '' : gv('wiz-llm_base_url'),
-      llm_model: wizardPreset === 'mock' ? '' : gv('wiz-llm_model'),
+      llm_base_url: gv('wiz-llm_base_url'),
+      llm_model: gv('wiz-llm_model'),
       llm_api_key: apiKey,
       telegram_token: '',
       api_key: '',

@@ -12,7 +12,8 @@ from __future__ import annotations
 
 import pytest
 
-from core.dual_process.generator import LLMBackend, MockLLMBackend
+from core.dual_process.generator import LLMBackend
+from tests._fakes import MockLLMBackend
 from core.dual_process.self_check import SelfCheckResult
 from evals.instrumented_backend import BackendCounter, InstrumentedBackend
 from evals.runner import run_scenario

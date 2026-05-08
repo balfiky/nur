@@ -20,7 +20,7 @@ import time
 
 import pytest
 
-from core.dual_process.generator import MockLLMBackend
+from tests._fakes import MockLLMBackend
 from core.types import UnresolvedItem
 from runtime.config import RuntimeConfig
 from runtime.learning_intake import LearningIntakeResult

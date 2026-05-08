@@ -17,10 +17,10 @@ from core.types import (
 from config.loader import get_config
 from core.dual_process.generator import (
     GenerationResult,
-    MockLLMBackend,
     ResponseGenerator,
     build_system_prompt,
 )
+from tests._fakes import MockLLMBackend
 from core.dual_process.self_check import SelfChecker
 
 
@@ -340,10 +340,11 @@ class TestResponseGenerator:
         gen.generate(PipelineContext(), "b")
         assert backend.call_count == 2
 
-    def test_default_mock_backend(self):
-        gen = ResponseGenerator()
-        result = gen.generate(PipelineContext(), "test")
-        assert "Mock mode" in result.response
+    def test_no_backend_raises(self):
+        """ResponseGenerator now requires an explicit backend — no fallback."""
+        import pytest
+        with pytest.raises(ValueError, match="LLMBackend"):
+            ResponseGenerator(backend=None)
 
 
 # =========================================================================

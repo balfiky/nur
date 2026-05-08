@@ -11,7 +11,7 @@ import tempfile
 
 import pytest
 
-from core.dual_process.generator import MockLLMBackend
+from tests._fakes import MockLLMBackend
 from pipeline import CognitivePipeline
 
 

@@ -43,6 +43,7 @@ from core.dual_process.tool_loop import run_tool_loop, ToolLoopResult
 from nur_tools.registry import ToolRegistry
 from nur_tools.executor import ToolExecutor
 from nur_tools import register_builtins
+from tests._fakes import MockLLMBackend
 
 
 # ===================================================================
@@ -723,12 +724,12 @@ class TestTaskLongTermEntry:
 class TestPipelineTaskIntegration:
     def test_pipeline_has_active_task_plan(self):
         from pipeline import CognitivePipeline
-        p = CognitivePipeline()
+        p = CognitivePipeline(llm_backend=MockLLMBackend())
         assert p._active_task_plan is None
 
     def test_end_session_clears_task_plan(self):
         from pipeline import CognitivePipeline
-        p = CognitivePipeline()
+        p = CognitivePipeline(llm_backend=MockLLMBackend())
         p._active_task_plan = TaskPlan(id="p1", goal="t", steps=[])
         p.end_session()
         assert p._active_task_plan is None
@@ -749,7 +750,7 @@ class TestPipelineTaskIntegration:
         exe = ToolExecutor(reg)
         register_builtins(reg, exe)
 
-        p = CognitivePipeline(tool_executor=exe)
+        p = CognitivePipeline(llm_backend=MockLLMBackend(), tool_executor=exe)
         target = str(tmp_path / "pipeline_test.txt")
         msg = f"write 'data' to {target} and then read file {target}"
         result = p.process(msg)
@@ -853,7 +854,7 @@ class TestPhase7Regression:
     def test_no_executor_pipeline_still_works(self):
         """Pipeline without tool_executor processes normally."""
         from pipeline import CognitivePipeline
-        p = CognitivePipeline()
+        p = CognitivePipeline(llm_backend=MockLLMBackend())
         result = p.process("hello")
         assert result.response
         assert result.debug.task_trace is None
@@ -870,7 +871,7 @@ class TestPhase7Regression:
         exe = ToolExecutor(reg)
         register_builtins(reg, exe)
 
-        p = CognitivePipeline(tool_executor=exe)
+        p = CognitivePipeline(llm_backend=MockLLMBackend(), tool_executor=exe)
         target = str(tmp_path / "clear_test.txt")
         msg = f"write 'x' to {target} and then read file {target}"
         result = p.process(msg)

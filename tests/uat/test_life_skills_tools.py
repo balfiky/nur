@@ -98,7 +98,7 @@ def test_claude_style_skill_folder_zip_and_enabled_context(uat_server, page, tmp
 
 
 def test_conversation_cannot_fake_permanent_skill_creation(tmp_path):
-    from core.dual_process.generator import MockLLMBackend
+    from tests._fakes import MockLLMBackend
     from pipeline import CognitivePipeline
 
     backend = MockLLMBackend(

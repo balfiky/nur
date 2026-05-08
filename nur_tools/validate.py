@@ -319,8 +319,8 @@ def _check_version_consistency(root: Path) -> str:
 def _check_runtime_safe_defaults(root: Path) -> str:
     cfg = RuntimeConfig.from_yaml(str(root / "runtime_config.example.yaml"))
     failures = []
-    if cfg.llm_backend != "mock":
-        failures.append("example llm_backend must default to mock")
+    if cfg.llm_backend == "mock":
+        failures.append("example llm_backend must not be 'mock' — Nūr requires a real backend")
     if cfg.api_key:
         failures.append("example api_key must be empty")
     if cfg.telegram_token:

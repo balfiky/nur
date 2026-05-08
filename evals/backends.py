@@ -17,7 +17,8 @@ import os
 from dataclasses import dataclass
 from typing import Callable
 
-from core.dual_process.generator import LLMBackend, MockLLMBackend
+from core.dual_process.generator import LLMBackend
+from tests._fakes import MockLLMBackend
 from core.provider_client import FastChatCompletionsClient
 from runtime.llm.backend import CodexCLIBackend, OpenAICompatibleLLMBackend
 

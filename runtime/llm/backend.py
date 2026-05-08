@@ -15,7 +15,7 @@ import requests
 _THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 
 from core.provider_client import FastChatCompletionsClient
-from core.dual_process.generator import LLMBackend, MockLLMBackend
+from core.dual_process.generator import LLMBackend
 from runtime.security import validate_http_url
 
 
@@ -307,14 +307,18 @@ def _should_retry_without_chat_template_kwargs(response: requests.Response) -> b
 def create_llm_backend(config=None) -> LLMBackend:
     """Create an LLM backend based on runtime config and environment.
 
+    Nūr requires a real LLM backend to operate. There is no mock or
+    fallback path — when intelligence is required, the configured model is
+    called. The factory raises ``ValueError`` if no usable backend can be
+    constructed from the provided config.
+
     Backend selection (``config.llm_backend``):
-        "mock"               → always MockLLMBackend
         "provider"           → generic hosted-provider / gateway backend
         "openai_compatible"  → local/self-hosted compatible backend
         "codex"              → local Codex CLI backend
         "minimax"            → legacy MiniMax-specific backend using llm_api_key
-        "auto"               → generic endpoint if base_url + model configured,
-                               else Mock
+        "auto"               → openai_compatible if base_url + model configured;
+                               raises otherwise
     """
     backend_type = "auto"
     generic_key = os.environ.get("LLM_API_KEY", "")
@@ -331,7 +335,11 @@ def create_llm_backend(config=None) -> LLMBackend:
     effective_key = generic_key
 
     if backend_type == "mock":
-        return MockLLMBackend()
+        raise ValueError(
+            "llm_backend='mock' is no longer supported. Nūr requires a real "
+            "LLM backend (provider, openai_compatible, codex, or minimax). "
+            "Configure llm_backend in runtime_config.yaml."
+        )
 
     if backend_type == "codex":
         return CodexCLIBackend(model=model)
@@ -350,11 +358,20 @@ def create_llm_backend(config=None) -> LLMBackend:
             model=model or "MiniMax-M2.7-highspeed",
         )
 
-    if backend_type == "auto" and base_url and model:
-        return OpenAICompatibleLLMBackend(
-            base_url=base_url,
-            model=model,
-            api_key=effective_key,
+    if backend_type == "auto":
+        if base_url and model:
+            return OpenAICompatibleLLMBackend(
+                base_url=base_url,
+                model=model,
+                api_key=effective_key,
+            )
+        raise ValueError(
+            "llm_backend='auto' requires llm_base_url and llm_model to be "
+            "configured. Set them in runtime_config.yaml or specify an "
+            "explicit backend (provider, openai_compatible, codex, minimax)."
         )
 
-    return MockLLMBackend()
+    raise ValueError(
+        f"Unknown llm_backend value: {backend_type!r}. "
+        "Valid options: provider, openai_compatible, codex, minimax, auto."
+    )
