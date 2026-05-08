@@ -14,18 +14,33 @@ All notable changes to Project Nur are documented here.
   RuntimeConfig, so surfacing actually fires.
 
 ### Added
-- New UAT file ``tests/uat/test_evolution_features.py`` covers the Sprint 1-5
-  surfaces end-to-end against a live LLM: constitution GET/PUT/restart and
-  Save UI, open-questions lifecycle (list/filter/abandon/resolve, render +
-  abandon button), metabolism-tick idempotence within a day, ``applies_when``
-  trigger filtering on imported skills, an open-question surfacing in the
-  chat response with the question transitioning to ``pursuing`` state, that
-  the constitution string is exposed on every chat turn's
-  ``debug.life_history_context`` so it lands in the prompt, that the default
-  3/day learning budget caps surfacing at exactly three per session, and a
-  multi-turn behavioral arc that seeds a belief, ingests contradicting
-  evidence, asserts confidence drop + contradiction question emission, drive
-  shift, life_influence pressure, and operator resolution of the question.
+- New UAT file ``tests/uat/test_evolution_features.py`` (20 tests) covers the
+  Sprint 1-5 surfaces and core public-release surfaces end-to-end against a
+  live LLM:
+  - Constitution: GET/PUT/restart persistence, max-length, UI Save flow,
+    that the string is exposed on ``debug.life_history_context`` every turn.
+  - Open questions: list/filter/abandon/resolve API, UI render + abandon
+    button, idempotent metabolism tick within a day.
+  - Reflection emission paths: forced metabolism tick after a day produces
+    actual decay (beliefs decayed, weak ones revoked), promotes strong
+    recurring themes to beliefs, and emits drive_gap + low_confidence
+    questions per the consolidate_themes contract.
+  - Skill triggers: ``applies_when`` filters skill loading by chat-message
+    hint; audit emits a warning when ``applies_when`` is missing.
+  - Skill→life migration helper marks the skill ``status='migrated'`` and
+    seeds an ``operator_directive`` experience in life history.
+  - Ask-user surfacing: open question surfaces in chat response and the
+    question transitions to ``pursuing``; default 3/day budget caps
+    surfacing at exactly three per session.
+  - Multi-turn behavioral arc: 10-turn conversation drives modulator drift,
+    semantic memory accumulation, and person-profile interaction count;
+    constitution remains attached on the final turn.
+  - Belief revision arc: seeds a belief, ingests contradicting evidence,
+    verifies revise_beliefs_against_evidence dropped confidence and emitted
+    a contradiction question, then resolves the question via API.
+  - Public-release controls: bearer auth enforced on /admin/* when api_key
+    set, backup create/list/delete with typed-confirmation guard, soul
+    GET/POST round-trip with validation rejection on blank name.
 
 ### Removed
 - Removed the mock LLM backend from production entirely. `llm_backend="mock"`

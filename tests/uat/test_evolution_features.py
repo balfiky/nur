@@ -662,3 +662,456 @@ def test_multi_turn_arc_belief_revision_drives_and_question_resolution(uat_serve
     final_qs = expect_json(uat_server.get("/admin/life/open-questions?status=all"))
     final_record = next(q for q in final_qs["questions"] if q["id"] == contradiction_qid)
     assert final_record["status"] == "resolved"
+
+
+# ---------------------------------------------------------------------------
+# Metabolism: actual decay, theme promotion, drive_gap & low_confidence emission
+# ---------------------------------------------------------------------------
+
+
+def _force_metabolism_elapsed(uat_server, *, days_ago: float) -> None:
+    """Push last_decay_at into the past so the next tick fires real decay."""
+    import time as _time
+    with _open_store(uat_server) as store:
+        store._conn.execute(
+            "UPDATE metabolism_state SET last_decay_at = ? WHERE id = 1",
+            (_time.time() - days_ago * 86400.0,),
+        )
+        store._conn.commit()
+
+
+def test_metabolism_decay_drops_belief_confidence_and_revokes_weak_ones(uat_server):
+    """Force elapsed > 1 day, verify beliefs decay per the half-life formula
+    (30-day half-life) and that any beliefs falling below 0.2 confidence get
+    flipped from 'active' to 'revoked'."""
+    strong = _seed_belief(
+        uat_server, subject="strong", statement="Strong claim.", confidence=0.9,
+    )
+    medium = _seed_belief(
+        uat_server, subject="medium", statement="Medium claim.", confidence=0.6,
+    )
+    weak = _seed_belief(
+        uat_server, subject="weak", statement="Already-weak claim.", confidence=0.22,
+    )
+
+    # 30 days = one half-life; weak (0.22) → ~0.11 < 0.2 → revoked.
+    _force_metabolism_elapsed(uat_server, days_ago=30.0)
+
+    tick = expect_json(uat_server.post("/admin/life/metabolism/tick"))
+    assert tick["decayed"] is True
+    decay_counts = tick["result"]
+    assert decay_counts["beliefs"] >= 3
+    assert decay_counts["revoked_beliefs"] >= 1
+
+    beliefs = expect_json(uat_server.get("/admin/life/beliefs"))["beliefs"]
+    by_id = {int(b["id"]): b for b in beliefs}
+    assert by_id[strong]["confidence"] < 0.9
+    assert by_id[medium]["confidence"] < 0.6
+    assert by_id[weak]["status"] == "revoked"
+
+    # Second tick within the day is rate-limited (no double decay).
+    second = expect_json(uat_server.post("/admin/life/metabolism/tick"))
+    assert second["decayed"] is False
+
+
+def test_metabolism_promotes_strong_recurring_theme_to_belief(uat_server):
+    """A theme with reinforcement_count >= 5 and accrued_weight >= 0.7 must
+    promote into the beliefs table on the next metabolism tick."""
+    import time as _time
+
+    signature = "operator:prefers-grounded-evidence"
+    expected_key = "operator"  # _safe_label(signature.split(":", 1)[0])
+
+    with _open_store(uat_server) as store:
+        now = _time.time()
+        store._conn.execute(
+            """
+            INSERT INTO theme_signatures
+            (signature, first_seen, last_seen, reinforcement_count,
+             accrued_weight, conflicting_count)
+            VALUES (?, ?, ?, ?, ?, 0)
+            """,
+            (signature, now - 7 * 86400, now, 6, 0.85),
+        )
+        store._conn.commit()
+        # No belief exists with this key yet.
+        existing = store._conn.execute(
+            "SELECT 1 FROM beliefs WHERE key = ?", (expected_key,),
+        ).fetchone()
+        assert existing is None
+
+    _force_metabolism_elapsed(uat_server, days_ago=2.0)
+
+    tick = expect_json(uat_server.post("/admin/life/metabolism/tick"))
+    assert tick["decayed"] is True
+    consolidation = tick.get("consolidation") or {}
+    assert consolidation.get("promoted", 0) >= 1
+
+    beliefs = expect_json(uat_server.get("/admin/life/beliefs"))["beliefs"]
+    promoted = next(
+        (b for b in beliefs if b.get("key") == expected_key),
+        None,
+    )
+    assert promoted is not None, (
+        f"Expected promoted belief with key={expected_key!r}; got {[b.get('key') for b in beliefs]!r}"
+    )
+    assert promoted["status"] == "active"
+
+
+def test_metabolism_emits_drive_gap_and_low_confidence_questions(uat_server):
+    """Reflection (consolidate_themes) must emit:
+
+    - low_confidence questions for themes with reinforcement >=3 and
+      accrued_weight in [0.3, 0.7)
+    - drive_gap questions for drives at least 0.2 below baseline
+    """
+    import time as _time
+
+    weak_theme = "operator:keeps-asking-about-pacing"
+    with _open_store(uat_server) as store:
+        now = _time.time()
+        store._conn.execute(
+            """
+            INSERT INTO theme_signatures
+            (signature, first_seen, last_seen, reinforcement_count,
+             accrued_weight, conflicting_count)
+            VALUES (?, ?, ?, 4, 0.5, 0)
+            """,
+            (weak_theme, now - 3 * 86400, now),
+        )
+        # Drop a drive well below baseline (0.5) — gap >= 0.2 triggers emission.
+        store._conn.execute(
+            "UPDATE drive_states SET value = ?, updated_at = ? WHERE name = ?",
+            (0.20, now, "curiosity"),
+        )
+        store._conn.commit()
+
+    _force_metabolism_elapsed(uat_server, days_ago=2.0)
+    tick = expect_json(uat_server.post("/admin/life/metabolism/tick"))
+    assert tick["decayed"] is True
+
+    questions = expect_json(uat_server.get("/admin/life/open-questions"))["questions"]
+    sources = {q["source_kind"] for q in questions}
+    assert "low_confidence" in sources, (
+        f"low_confidence emission missing; sources={sources!r}"
+    )
+    assert "drive_gap" in sources, (
+        f"drive_gap emission missing; sources={sources!r}"
+    )
+    drive_gap_q = next(q for q in questions if q["source_kind"] == "drive_gap")
+    assert drive_gap_q["target_drive"] == "curiosity"
+    assert "below baseline" in drive_gap_q["prompt_text"]
+
+
+# ---------------------------------------------------------------------------
+# Skill → life migration (Sprint 4)
+# ---------------------------------------------------------------------------
+
+
+_DISPOSITIONAL_SKILL = """---
+name: uat-be-grounded
+description: Always prefer evidence over speculation in answers.
+---
+
+When asked anything, lean on observed facts rather than imagined ones.
+Refuse to fabricate detail that the operator didn't provide.
+"""
+
+
+def test_skill_migration_to_life_history_marks_migrated_and_seeds_experience(uat_server):
+    """``runtime.skills.migrate_skill_to_life`` should:
+
+    - mark the original skill ``status='migrated'`` and disabled
+    - create a life-history experience with ``source_type='operator_directive'``
+    - keep the migrated skill out of ``enabled_skill_context``
+    """
+    from runtime.config import RuntimeConfig
+    from runtime.skills import enabled_skill_context, migrate_skill_to_life
+
+    imported = expect_json(
+        uat_server.post(
+            "/admin/skills/import",
+            {"skill_markdown": _DISPOSITIONAL_SKILL, "name_hint": "uat-be-grounded"},
+        )
+    )["skill"]
+    expect_json(uat_server.post(f"/admin/skills/{imported['id']}/enable"))
+
+    # Sanity: skill is enabled and present in context before migration.
+    config = RuntimeConfig.from_yaml(str(uat_server.config_path))
+    pre_ctx = enabled_skill_context(config)
+    assert any(s["id"] == imported["id"] for s in pre_ctx["skills"])
+
+    life_before = expect_json(uat_server.get("/admin/life"))
+    operator_directives_before = sum(
+        1 for exp in life_before.get("recent_experiences") or []
+        if exp.get("source_type") == "operator_directive"
+    )
+
+    result = migrate_skill_to_life(config, imported["id"])
+    assert result["status"] == "migrated"
+    assert result["id"] == imported["id"]
+    assert result["experience"]["source_type"] == "operator_directive"
+
+    # Skill record reflects migration in /admin/skills.
+    skills_after = expect_json(uat_server.get("/admin/skills"))["skills"]
+    record = next(s for s in skills_after if s["id"] == imported["id"])
+    assert record["status"] == "migrated"
+    assert record["enabled"] is False
+
+    # Migrated skill is no longer in enabled context.
+    post_ctx = enabled_skill_context(config)
+    assert not any(s["id"] == imported["id"] for s in post_ctx["skills"])
+
+    # Re-importing migration is idempotent error: already migrated.
+    from runtime.skills import SkillError
+    with pytest.raises(SkillError):
+        migrate_skill_to_life(config, imported["id"])
+
+    # Life history shows a new operator_directive experience.
+    life_after = expect_json(uat_server.get("/admin/life"))
+    operator_directives_after = sum(
+        1 for exp in life_after.get("recent_experiences") or []
+        if exp.get("source_type") == "operator_directive"
+    )
+    assert operator_directives_after > operator_directives_before
+
+
+# ---------------------------------------------------------------------------
+# Long extended chat arc — structural drift over many turns
+# ---------------------------------------------------------------------------
+
+
+def test_extended_chat_arc_demonstrates_structural_drift(uat_server):
+    """Run a 10-turn conversation around a coherent theme and verify the
+    chat-layer state actually moves: modulators drift away from baseline,
+    semantic memories accumulate, the topic profile is built, and the person
+    profile records repeated interactions.
+
+    Notes on what's tested vs. not:
+      - Life-history drives do NOT shift via chat (only via life ingest), so
+        we don't assert on them. Same for the constitution — we just verify
+        it's still surfacing on turn 10.
+      - Assertions check structural shape, never specific generated text, so
+        the test is robust against LLM non-determinism.
+    """
+    user_id = "uat_long_arc"
+    chat_id = "default"
+
+    import requests
+
+    def _slow_chat(message: str) -> dict:
+        """UAT helper for chat calls that may take >30s on a live LLM."""
+        res = requests.post(
+            uat_server.base_url + "/v1/chat",
+            json={
+                "message": message,
+                "user_id": user_id,
+                "chat_id": chat_id,
+                "include_debug": True,
+            },
+            timeout=180,
+        )
+        return expect_json(res)
+
+    expect_json(_put_constitution(
+        uat_server,
+        "Be grounded; check assumptions before acting.",
+    ))
+
+    messages = [
+        "I want to talk through how I make decisions under fatigue. Be brief.",
+        "Sometimes I push through anyway, even when I know I shouldn't.",
+        "What does that say about my relationship with rest?",
+        "I think I treat rest as something I have to earn.",
+        "Yet the work I do tired is rarely my best.",
+        "If I rested more, would I trust the rest itself?",
+        "I want to learn to stop earlier without guilt.",
+        "What's a small experiment we could agree on?",
+        "Ok, let's say I stop at 9pm tonight regardless of progress.",
+        "Thanks. Reflect briefly on what you noticed across this conversation.",
+    ]
+
+    initial = _slow_chat(messages[0])
+    initial_modulators = dict(initial["debug"].get("modulator_snapshot") or {})
+    initial_memory_count = len(initial["debug"].get("semantic_memories") or [])
+
+    last_debug = None
+    for msg in messages[1:]:
+        resp = _slow_chat(msg)
+        last_debug = resp["debug"]
+        assert resp["response"], "Empty response on a turn"
+
+    assert last_debug is not None
+
+    # 1. Modulator snapshot drifted — at least one core modulator moved.
+    final_modulators = dict(last_debug.get("modulator_snapshot") or {})
+    moved_modulators = {
+        k: float(final_modulators.get(k, 0.0)) - float(initial_modulators.get(k, 0.0))
+        for k in set(initial_modulators) | set(final_modulators)
+        if isinstance(final_modulators.get(k), (int, float))
+        and isinstance(initial_modulators.get(k), (int, float))
+    }
+    assert any(abs(delta) > 0.01 for delta in moved_modulators.values()), (
+        f"No modulator drift across 10 turns: {moved_modulators!r}"
+    )
+
+    # 2. Semantic memory grew.
+    final_memories = last_debug.get("semantic_memories") or []
+    assert len(final_memories) > initial_memory_count, (
+        f"Semantic memory did not grow over 10 turns: "
+        f"{initial_memory_count} -> {len(final_memories)}"
+    )
+
+    # 3. Person profile recorded interactions for this user.
+    person_profile = last_debug.get("person_profile") or {}
+    interactions = int(person_profile.get("interaction_count") or 0)
+    assert interactions >= 9, (
+        f"Person profile didn't accumulate interactions across 10 turns: {interactions}"
+    )
+
+    # 4. Constitution still surfaces on turn 10 (state not lost across arc).
+    assert (
+        last_debug["life_history_context"].get("constitution")
+        == "Be grounded; check assumptions before acting."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Public-release surfaces: bearer auth, backups, soul flow, audit warnings
+# ---------------------------------------------------------------------------
+
+
+def test_bearer_auth_enforced_on_admin_when_api_key_set(uat_server):
+    """When ``api_key`` is configured, every /admin/* endpoint must reject
+    unauthenticated requests with 401 and accept the configured bearer."""
+    import requests
+
+    secret = "uat-public-release-token-77"
+    expect_json(uat_server.post("/admin/config", {"api_key": secret}))
+    uat_server.restart()
+
+    # Without bearer → 401.
+    no_auth = requests.get(uat_server.base_url + "/admin/status", timeout=10)
+    assert no_auth.status_code == 401
+
+    # Wrong bearer → 401.
+    wrong = requests.get(
+        uat_server.base_url + "/admin/status",
+        headers={"Authorization": "Bearer wrong"},
+        timeout=10,
+    )
+    assert wrong.status_code == 401
+
+    # Correct bearer → 200.
+    ok = requests.get(
+        uat_server.base_url + "/admin/status",
+        headers={"Authorization": f"Bearer {secret}"},
+        timeout=10,
+    )
+    assert ok.status_code == 200
+
+    # Public health stays open.
+    health = requests.get(uat_server.base_url + "/v1/health", timeout=5)
+    assert health.status_code == 200
+
+
+def test_backup_create_list_delete_round_trip(uat_server):
+    """Operator should be able to create a backup, see it, and delete it
+    only with the typed-confirmation guard."""
+    created = expect_json(uat_server.post("/admin/backup", {"include_data": True}))
+    filename = created.get("filename") or created.get("path", "").rsplit("/", 1)[-1]
+    assert filename, f"backup did not return a filename: {created!r}"
+
+    listing = expect_json(uat_server.get("/admin/backups"))
+    backup_files = [b.get("filename") or b.get("name") for b in listing.get("backups", [])]
+    assert filename in backup_files, (
+        f"Created backup {filename!r} not in listing: {backup_files!r}"
+    )
+
+    # Without correct confirmation token → 4xx.
+    bad = uat_server.post(
+        "/admin/backups/delete",
+        {"filename": filename, "confirmation": "wrong"},
+    )
+    assert bad.status_code >= 400
+
+    # With correct confirmation → success.
+    confirmation = f"DELETE {filename}"
+    deleted = expect_json(uat_server.post(
+        "/admin/backups/delete",
+        {"filename": filename, "confirmation": confirmation},
+    ))
+    assert deleted.get("ok", False) is True
+
+    after = expect_json(uat_server.get("/admin/backups"))
+    after_files = [b.get("filename") or b.get("name") for b in after.get("backups", [])]
+    assert filename not in after_files
+
+
+def test_soul_get_update_round_trip(uat_server):
+    """The /admin/soul GET/POST cycle should validate, persist, and reload
+    the soul without requiring a process restart."""
+    initial = expect_json(uat_server.get("/admin/soul"))
+    assert initial.get("saved") is True
+    initial_soul = initial.get("soul") or {}
+    assert "name" in initial_soul
+
+    update_payload = {
+        "name": "UAT Persona",
+        "identity": "An evidence-grounded research partner.",
+        "voice": "Calm and direct.",
+        "relational_stance": "Collaborator with sharp opinions.",
+        "growth_policy": "Update beliefs only when evidence demands it.",
+        "likes": ["clarity", "small experiments"],
+        "dislikes": ["unverified claims"],
+        "boundaries": ["no fabricated facts"],
+        "core_values": {"honesty": 0.95, "kindness": 0.7},
+        "initial_traits": {"discipline": 0.8},
+    }
+    saved = expect_json(uat_server.post("/admin/soul", update_payload))
+    assert saved.get("saved") is True
+
+    after = expect_json(uat_server.get("/admin/soul"))
+    after_soul = after.get("soul") or {}
+    assert after_soul.get("name") == "UAT Persona"
+    assert "evidence-grounded" in (after_soul.get("identity") or "")
+    assert "clarity" in (after_soul.get("likes") or [])
+
+    # Invalid payload (blank name) → 422.
+    bad = uat_server.post(
+        "/admin/soul",
+        {**update_payload, "name": "   "},
+    )
+    assert bad.status_code == 422
+
+
+_NO_TRIGGER_SKILL = """---
+name: uat-always-on
+description: A skill with no applies_when — should warn at audit time.
+---
+
+This skill has no trigger condition so it would load every turn.
+"""
+
+
+def test_skill_audit_warns_when_applies_when_missing(uat_server):
+    """A skill imported without ``applies_when`` must still import (not error)
+    but the audit must surface a warning so operators can fix it."""
+    imported = expect_json(
+        uat_server.post(
+            "/admin/skills/import",
+            {"skill_markdown": _NO_TRIGGER_SKILL, "name_hint": "uat-always-on"},
+        )
+    )["skill"]
+    warnings = imported.get("compatibility", {}).get("warnings") or []
+    assert any("applies_when" in w for w in warnings), (
+        f"Expected applies_when warning at import; got {warnings!r}"
+    )
+
+    skills_payload = expect_json(uat_server.get("/admin/skills"))
+    record = next(s for s in skills_payload["skills"] if s["id"] == imported["id"])
+    record_warnings = record.get("compatibility", {}).get("warnings") or []
+    assert any("applies_when" in w for w in record_warnings)
+    # The skill should still be importable (status=needs_review, not erroring).
+    assert record["status"] == "needs_review"
+    assert record.get("compatibility", {}).get("compatible") is True
