@@ -66,6 +66,7 @@ class LifeHistoryStore:
         self._create_tables()
         self._ensure_default_drives()
         self._ensure_genesis_storage()
+        self._ensure_metabolism_state()
 
     def __enter__(self) -> LifeHistoryStore:
         return self
@@ -546,20 +547,28 @@ class LifeHistoryStore:
         return dispositions[:7]
 
     def decay_step(self, *, elapsed_days: float = 1.0) -> dict[str, int]:
-        """Metabolic decay for beliefs and drive deltas."""
+        """Metabolic decay for beliefs and drive deltas.
+
+        Beliefs whose confidence falls below 0.2 after decay are marked revoked,
+        matching the threshold used by revise_beliefs_against_evidence.
+        """
         elapsed_days = max(0.0, float(elapsed_days))
         decayed_beliefs = 0
+        revoked_beliefs = 0
         now = time.time()
         for row in self._conn.execute("SELECT * FROM beliefs WHERE status = 'active'").fetchall():
             confidence = float(row["confidence"])
             if confidence <= 0:
                 continue
-            new_confidence = confidence * pow(0.5, elapsed_days / 30.0)
+            new_confidence = _clamp(confidence * pow(0.5, elapsed_days / 30.0))
+            new_status = "revoked" if new_confidence < 0.2 else "active"
             self._conn.execute(
-                "UPDATE beliefs SET confidence = ?, updated_at = ? WHERE id = ?",
-                (_clamp(new_confidence), now, row["id"]),
+                "UPDATE beliefs SET confidence = ?, status = ?, updated_at = ? WHERE id = ?",
+                (new_confidence, new_status, now, row["id"]),
             )
             decayed_beliefs += 1
+            if new_status == "revoked":
+                revoked_beliefs += 1
         decayed_drives = 0
         for row in self._conn.execute("SELECT * FROM drive_states").fetchall():
             name = str(row["name"])
@@ -575,7 +584,41 @@ class LifeHistoryStore:
             )
             decayed_drives += 1
         self._conn.commit()
-        return {"beliefs": decayed_beliefs, "drives": decayed_drives}
+        return {
+            "beliefs": decayed_beliefs,
+            "drives": decayed_drives,
+            "revoked_beliefs": revoked_beliefs,
+        }
+
+    def wall_clock_decay(self, *, min_elapsed_days: float = 1.0) -> dict[str, Any]:
+        """Run decay using elapsed wall-clock time since the last tick.
+
+        No-op if fewer than ``min_elapsed_days`` have passed. Updates
+        ``last_decay_at`` only when decay actually runs, so a long-quiet
+        period accumulates and gets applied on the next active session.
+        """
+        now = time.time()
+        row = self._conn.execute(
+            "SELECT last_decay_at FROM metabolism_state WHERE id = 1"
+        ).fetchone()
+        if row is None:
+            self._conn.execute(
+                "INSERT INTO metabolism_state (id, last_decay_at) VALUES (1, ?)",
+                (now,),
+            )
+            self._conn.commit()
+            return {"decayed": False, "elapsed_days": 0.0, "result": {}}
+        last_at = float(row["last_decay_at"])
+        elapsed_days = max(0.0, (now - last_at) / 86400.0)
+        if elapsed_days < min_elapsed_days:
+            return {"decayed": False, "elapsed_days": elapsed_days, "result": {}}
+        result = self.decay_step(elapsed_days=elapsed_days)
+        self._conn.execute(
+            "UPDATE metabolism_state SET last_decay_at = ? WHERE id = 1",
+            (now,),
+        )
+        self._conn.commit()
+        return {"decayed": True, "elapsed_days": elapsed_days, "result": result}
 
     def consolidate_themes(self) -> dict[str, int]:
         """Promote strong recurring theme signatures to consolidated belief events."""
@@ -643,6 +686,7 @@ class LifeHistoryStore:
         )
         metadata = dict(metadata)
         metadata["chunk_count"] = chunk_count
+        metadata["digest_quality"] = digest.get("digest_quality", "low")
         batch_id = f"life-{uuid.uuid4().hex[:12]}"
         metadata["batch_id"] = batch_id
         injection_markers = detect_prompt_injection_markers(prepared_text)
@@ -695,6 +739,14 @@ class LifeHistoryStore:
             metadata=metadata,
             batch_id=batch_id,
         )
+
+        revision_result: dict[str, int] = {"revised": 0}
+        if not directive_sanitized:
+            revision_result = self.revise_beliefs_against_evidence({
+                "summary": digest["summary"],
+                "emotional_impact": digest["emotional_impact"],
+                "text_excerpt": prepared_text[:4000],
+            })
 
         evolution_events: list[dict[str, Any]] = []
         if not directive_sanitized:
@@ -759,6 +811,7 @@ class LifeHistoryStore:
                 "source_openness": current_openness,
                 "influence_weight": influence_weight,
                 "rejections": rejections,
+                "belief_revisions_triggered": revision_result.get("revised", 0),
             },
             "rejection_trace": rejections,
             "beliefs": self.list_beliefs(limit=25),
@@ -905,6 +958,14 @@ class LifeHistoryStore:
         )
         self._conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS metabolism_state (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                last_decay_at REAL NOT NULL
+            )
+            """
+        )
+        self._conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS genesis_provenance (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 created_at REAL NOT NULL,
@@ -953,6 +1014,20 @@ class LifeHistoryStore:
                 """,
                 (name, value, description, now),
             )
+        self._conn.commit()
+
+    def _ensure_metabolism_state(self) -> None:
+        """Initialize last_decay_at to now on first creation so the first
+        wall_clock_decay tick is a no-op rather than decaying since epoch.
+        """
+        if self._conn.execute(
+            "SELECT 1 FROM metabolism_state WHERE id = 1"
+        ).fetchone():
+            return
+        self._conn.execute(
+            "INSERT OR IGNORE INTO metabolism_state (id, last_decay_at) VALUES (1, ?)",
+            (time.time(),),
+        )
         self._conn.commit()
 
     def _ensure_genesis_storage(self) -> None:
@@ -1411,13 +1486,11 @@ def _digest_experience(
         parsed = _try_llm_digest(title=title, text=text, source_type=source_type, llm_client=llm_client)
         if parsed is not None:
             digest = _normalize_digest(parsed, title=title, text=text)
-            return _supplement_medium_trust_drives(
-                digest,
-                title=title,
-                text=text,
-                source_type=source_type,
-            )
-    return _heuristic_digest(title=title, text=text, source_type=source_type)
+            digest["digest_quality"] = "high"
+            return digest
+    digest = _heuristic_digest(title=title, text=text, source_type=source_type)
+    digest["digest_quality"] = "low"
+    return digest
 
 
 def _try_llm_digest(
@@ -1435,7 +1508,41 @@ def _try_llm_digest(
         "self_trait_changes, future_behavior. Beliefs are objects with subject, "
         "statement, reason, confidence. Drive names must be one of: "
         f"{', '.join(DEFAULT_DRIVES)}. Drive deltas are signed floats; "
-        "runtime drive values remain bounded to [0, 1]."
+        "runtime drive values remain bounded to [0, 1].\n\n"
+        "Rules:\n"
+        "- Empty arrays are valid. Do NOT fabricate beliefs or drive changes from "
+        "keyword presence alone. Only emit them when the material genuinely "
+        "warrants identity change.\n"
+        "- Drive deltas should be modest (|delta| typically < 0.15) and each "
+        "must include a 'reason' tying it to specific content in the material.\n"
+        "- salience is about identity-shaping potential, not text length. Brief "
+        "but pivotal material can be high salience; long but routine material "
+        "is low salience.\n"
+        "- emotional_valence ranges [-1.0, 1.0]; use 0.0 for neutral. Read "
+        "polarity from context, not isolated keywords (e.g., 'I tried to learn "
+        "but failed' is negative competence, not positive learning).\n"
+        "- If the material contradicts prior beliefs you can name, surface that "
+        "in the belief 'reason' field so the runtime can revise older beliefs.\n\n"
+        "Example output for a substantive but bounded experience:\n"
+        '{"summary":"Debugged a race condition I had missed for two days; '
+        'slowing down to think before coding would have helped.",'
+        '"salience":0.6,"emotional_valence":-0.1,'
+        '"emotional_impact":"Moderate-salience mixed experience; competence '
+        'tested, caution reinforced.","confidence":0.75,'
+        '"beliefs":[{"subject":"premature_action","statement":"Acting before '
+        'understanding the problem costs more than thinking first.",'
+        '"reason":"Two-day debugging cost from skipping analysis.",'
+        '"confidence":0.7}],'
+        '"drive_changes":[{"name":"caution","delta":0.06,'
+        '"reason":"The cost of premature action made caution salient.",'
+        '"confidence":0.7}],'
+        '"self_trait_changes":[],"future_behavior":["Slow down before acting '
+        'on assumptions."]}\n\n'
+        "Example output for low-information material (return mostly empty):\n"
+        '{"summary":"Routine team meeting, nothing notable.","salience":0.2,'
+        '"emotional_valence":0.0,"emotional_impact":"Low-salience neutral '
+        'experience.","confidence":0.6,"beliefs":[],"drive_changes":[],'
+        '"self_trait_changes":[],"future_behavior":[]}'
     )
     user_message = (
         f"Source type: {source_type}\n"
@@ -1678,46 +1785,6 @@ def _token_set(text: str) -> set[str]:
     return {
         token for token in _WORD_RE.findall((text or "").lower())
         if len(token) > 2 and token not in stop
-    }
-
-
-def _supplement_medium_trust_drives(
-    digest: dict[str, Any],
-    *,
-    title: str,
-    text: str,
-    source_type: str,
-) -> dict[str, Any]:
-    """Fill missing LLM drive changes with deterministic channel-source signals."""
-    if source_openness_coefficient(source_type) < 0.6:
-        return digest
-    heuristic = _heuristic_digest(title=title, text=text, source_type=source_type)
-    heuristic_drives = [
-        item
-        for item in _as_list(heuristic.get("drive_changes"))
-        if isinstance(item, dict)
-    ]
-    if not heuristic_drives:
-        return digest
-    existing = [
-        item
-        for item in _as_list(digest.get("drive_changes"))
-        if isinstance(item, dict)
-    ]
-    existing_names = {
-        str(item.get("name") or "").strip().lower()
-        for item in existing
-        if _safe_float(item.get("confidence", digest["confidence"]), digest["confidence"]) >= 0.65
-    }
-    drive_changes = list(existing)
-    drive_changes.extend(
-        item
-        for item in heuristic_drives
-        if str(item.get("name") or "").strip().lower() not in existing_names
-    )
-    return {
-        **digest,
-        "drive_changes": drive_changes,
     }
 
 

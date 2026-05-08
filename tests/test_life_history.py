@@ -315,7 +315,15 @@ def test_high_confidence_autonomy_belief_is_accepted(tmp_path):
         assert any(belief["key"] == "autonomy" for belief in result["beliefs"])
 
 
-def test_medium_trust_llm_digest_gets_deterministic_drive_supplement(tmp_path):
+def test_llm_digest_output_is_not_supplemented_by_heuristic_drives(tmp_path):
+    """LLM digest with no drive_changes must not be padded with keyword-driven drives.
+
+    Sprint 1 removed _supplement_medium_trust_drives because it polluted
+    LLM-considered digests with keyword reflexes from the heuristic. This test
+    locks in the new behavior: when the LLM returns drive_changes=[], the
+    stored experience has no drive evolution events, even if the source text
+    contains keywords the heuristic would have triggered on.
+    """
     config = _config(tmp_path)
     llm = FakeDigestLLM(
         """
@@ -354,7 +362,16 @@ def test_medium_trust_llm_digest_gets_deterministic_drive_supplement(tmp_path):
             for event in result["evolution_events"]
             if event["domain"] == "drive"
         }
-        assert {"competence", "curiosity", "repair"} <= changed
+        assert changed == set(), (
+            "LLM digest with empty drive_changes must not be supplemented with "
+            f"heuristic-derived drives, got {changed}"
+        )
+
+        # Belief from the LLM still applies — only the drive supplement is gone.
+        assert any(belief["key"] == "practice" for belief in result["beliefs"])
+
+        # digest_quality flag records the LLM path for downstream throttling.
+        assert result["experience"]["metadata"].get("digest_quality") == "high"
 
 
 def test_influence_weight_is_bounded_and_reinforces_recurring_theme():
@@ -465,7 +482,7 @@ def test_decay_step_halves_beliefs_and_drive_deltas_over_thirty_days(tmp_path):
             "SELECT value FROM drive_states WHERE name = 'autonomy'"
         ).fetchone()
 
-    assert result == {"beliefs": 1, "drives": 1}
+    assert result == {"beliefs": 1, "drives": 1, "revoked_beliefs": 0}
     assert belief["confidence"] == pytest.approx(0.4)
     assert drive["value"] == pytest.approx(0.65)
 

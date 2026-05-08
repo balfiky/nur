@@ -398,6 +398,8 @@ class SessionManager:
         os.makedirs(data_dir, exist_ok=True)
         os.makedirs(os.path.dirname(self.config.shared_db_path), exist_ok=True)
 
+        self._run_wall_clock_decay()
+
         # Create LLM backend (one per pipeline for thread safety)
         backend = self._backend_factory() if self._backend_factory else None
         tool_executor = (
@@ -458,6 +460,24 @@ class SessionManager:
         if saved is not None:
             session.restore_session_extra_state(saved)
         return session
+
+    def _run_wall_clock_decay(self) -> None:
+        """Apply elapsed-time decay once per session start; rate-limited to >=1 day."""
+        from runtime.life_history import LifeHistoryStore, life_history_db_path
+
+        if not os.path.exists(life_history_db_path(self.config)):
+            return
+        try:
+            with LifeHistoryStore(self.config) as store:
+                outcome = store.wall_clock_decay()
+            if outcome.get("decayed"):
+                log.info(
+                    "Life-history decay applied: elapsed=%.2f days, result=%s",
+                    outcome.get("elapsed_days", 0.0),
+                    outcome.get("result", {}),
+                )
+        except Exception:
+            log.exception("Wall-clock decay failed; continuing without decay")
 
     def _life_history_context_provider(self, query_text: str = "") -> dict[str, Any]:
         """Load shared identity-level life context for prompt generation."""
