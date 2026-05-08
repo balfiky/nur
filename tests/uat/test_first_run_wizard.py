@@ -8,12 +8,12 @@ from tests.uat.conftest import assert_no_browser_errors, expect_json
 pytestmark = pytest.mark.uat
 
 
-def test_first_run_wizard_configures_mock_identity_life_and_allows_chat(uat_server_first_run, page):
+def test_first_run_wizard_configures_identity_life_and_allows_chat(uat_server_first_run, page):
     page.goto(uat_server_first_run.base_url + "/")
     expect(page.locator("#wizardOverlay")).to_have_class("wizard-overlay open", timeout=15_000)
 
     page.click("text=Get Started")
-    page.click(".wizard-preset[data-preset='mock']")
+    page.click(".wizard-preset[data-preset='codex']")
     page.click("#wizPanel-2 button.primary")
     expect(page.locator("#wizPanel-3")).to_be_visible(timeout=15_000)
 
@@ -33,7 +33,8 @@ def test_first_run_wizard_configures_mock_identity_life_and_allows_chat(uat_serv
         "Learning, curiosity, autonomy, and relationship repair are formative for this setup.",
     )
     page.click("#wizPanel-5 button.primary")
-    expect(page.locator("#wizPanel-6")).to_be_visible(timeout=20_000)
+    # Life ingest calls the LLM — allow extra time for live backends
+    expect(page.locator("#wizPanel-6")).to_be_visible(timeout=120_000)
     expect(page.locator("#wiz-summary")).to_contain_text("First experience")
 
     page.click("#wizPanel-6 button.primary")
@@ -46,6 +47,6 @@ def test_first_run_wizard_configures_mock_identity_life_and_allows_chat(uat_serv
 
     page.fill("#msgInput", "hello after setup")
     page.click("#sendBtn")
-    expect(page.locator(".message-row.assistant .msg-body")).to_have_count(1, timeout=45_000)
+    expect(page.locator(".message-row.assistant .msg-body")).to_have_count(1, timeout=90_000)
 
     assert_no_browser_errors(page)

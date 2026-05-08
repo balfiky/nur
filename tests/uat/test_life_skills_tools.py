@@ -133,9 +133,10 @@ def test_admin_life_history_ingest_is_visible_in_ui_and_api(uat_server, page):
         ),
     )
     page.click("#ingestLifeTextBtn")
-    expect(page.locator("#toast")).to_contain_text("Experience digested", timeout=20_000)
-    expect(page.locator("#lifeExperiences")).to_contain_text("UAT formative note", timeout=20_000)
-    expect(page.locator("#lifeTimeline")).not_to_contain_text("No evolution events yet", timeout=20_000)
+    # Life ingest calls the LLM — allow extra time for live backends
+    expect(page.locator("#toast")).to_contain_text("Experience digested", timeout=120_000)
+    expect(page.locator("#lifeExperiences")).to_contain_text("UAT formative note", timeout=30_000)
+    expect(page.locator("#lifeTimeline")).not_to_contain_text("No evolution events yet", timeout=30_000)
 
     life_payload = expect_json(uat_server.get("/admin/life"))
     assert life_payload["counts"]["experiences"] >= 1
