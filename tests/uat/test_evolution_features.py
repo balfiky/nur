@@ -1318,3 +1318,54 @@ def test_cors_origins_config_is_respected_at_startup(uat_server):
     )
     assert blocked_res.ok  # Server still answers; browser enforces CORS.
     assert blocked_res.headers.get("access-control-allow-origin") in (None, "")
+
+
+# ---------------------------------------------------------------------------
+# Comprehensive aggregator — single PASS/FAIL for the entire UAT suite
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.comprehensive
+def test_complete_release_uat_suite():
+    """Single aggregator that runs every other UAT test in a subprocess and
+    asserts they all pass.
+
+    This is THE test for "is the whole product green?" — one assertion, one
+    exit code, every other UAT scenario covered. Uses a subprocess so each
+    underlying test still gets its own clean fixtures (fresh DB, fresh
+    process, isolated state) — no cross-test contamination.
+
+    Run it explicitly with:
+        NUR_UAT_LIVE=1 NUR_UAT_BACKEND=codex \\
+          python -m pytest tests/uat/ -m comprehensive -v
+
+    Or via the Makefile shortcut:
+        make uat
+
+    The ``-m "uat and not comprehensive"`` filter inside avoids recursion.
+    """
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    repo_root = Path(__file__).resolve().parents[2]
+    cmd = [
+        sys.executable, "-m", "pytest",
+        "tests/uat/",
+        "--tb=short",
+        "-m", "uat and not comprehensive",
+        "-q",
+    ]
+    env = os.environ.copy()
+    # Forward live-mode flags.
+    if "NUR_UAT_LIVE" not in env:
+        pytest.skip(
+            "Comprehensive aggregator requires NUR_UAT_LIVE=1 (live backend).",
+        )
+    result = subprocess.run(
+        cmd, cwd=str(repo_root), env=env, capture_output=False, check=False,
+    )
+    assert result.returncode == 0, (
+        f"Comprehensive UAT suite had failures (subprocess exit {result.returncode})."
+    )

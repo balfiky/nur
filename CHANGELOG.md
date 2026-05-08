@@ -56,6 +56,16 @@ All notable changes to Project Nur are documented here.
   not actually freeze identity edits. Treat the wizard's
   "Character Independence" toggle as informational, not a guarantee.
 
+### Tooling
+- New Makefile with three test targets:
+  - ``make test`` — non-UAT unit/integration suite
+  - ``make uat`` — full UAT suite end-to-end (live LLM, Codex by default)
+  - ``make uat-comprehensive`` — single PASS/FAIL aggregator that runs the
+    full UAT suite as a subprocess and asserts every test passed
+- Added ``test_complete_release_uat_suite`` (marker: ``comprehensive``) so
+  the aggregator runs as one pytest test with one assertion. Use this when
+  you want a single green/red signal for public-release readiness.
+
 ### Removed
 - Removed the mock LLM backend from production entirely. `llm_backend="mock"`
   is no longer accepted by `RuntimeConfig`, the backend factory, the setup

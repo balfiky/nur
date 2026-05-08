@@ -28,6 +28,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "uat: installed/browser user acceptance tests")
+    config.addinivalue_line(
+        "markers",
+        "comprehensive: aggregator test that runs the rest of the UAT suite as a subprocess",
+    )
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
