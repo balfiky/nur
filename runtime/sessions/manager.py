@@ -234,6 +234,11 @@ class SessionManager:
                     created_turn_index=session.turn_index,
                     expires_after_turns=max(1, int(self.config.pending_intake_ttl_turns)),
                 )
+                # A prompt such as "I have text; ingest and learn" is a
+                # setup turn, not a runtime failure. Let the normal
+                # conversation ask for the text while the next long paste is
+                # reserved for Life History intake instead of tool routing.
+                return ""
             return f"Learning intake failed: {exc}"
         except Exception:
             log.exception("Learning intake failed")

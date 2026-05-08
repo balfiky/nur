@@ -29,6 +29,7 @@ _LEARNING_INTENT_PATTERNS = (
     re.compile(r"\blearn\b.{0,60}\bfrom\b", re.I),
     re.compile(r"\blearn\s+(?:this|that)\b", re.I),
     re.compile(r"\blearn\s*:", re.I),
+    re.compile(r"\bingest\b", re.I),
     re.compile(
         r"\bstudy\b.{0,60}\b(?:this|that|from|repo|repository|project|book|article|url)\b",
         re.I,
@@ -357,7 +358,7 @@ def _extract_inline_text(text: str) -> str:
     if match:
         return match.group(1).strip()
     match = re.search(
-        r"(?:learn|study|absorb|absort|internalize|digest)[^:]*:\s*(.+)",
+        r"(?:learn|study|absorb|absort|internalize|digest|ingest)[^:]*:\s*(.+)",
         text,
         re.I | re.S,
     )
