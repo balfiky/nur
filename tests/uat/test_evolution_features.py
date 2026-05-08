@@ -1321,6 +1321,60 @@ def test_cors_origins_config_is_respected_at_startup(uat_server):
 
 
 # ---------------------------------------------------------------------------
+# Regression: imperative phrasings of system metric queries route to a tool
+# ---------------------------------------------------------------------------
+
+
+def test_imperative_memory_query_routes_to_system_memory_tool(uat_server):
+    """End-to-end regression for the Telegram bug where "give me current
+    memory utilization" produced the canned grounding rejection because no
+    tool fired.
+
+    The pipeline must:
+    1. detect_tool_intent matches the phrasing
+    2. execute system.memory_usage
+    3. return a real response to the user (not the canned "cannot verify"
+       grounding line)
+    """
+    import requests
+
+    phrasings = [
+        "give me current memory utilization",
+        "read the memory usage",
+    ]
+    for i, phrasing in enumerate(phrasings):
+        res = requests.post(
+            uat_server.base_url + "/v1/chat",
+            json={
+                "message": phrasing,
+                "user_id": f"uat_mem_intent_{i}",
+                "chat_id": "default",
+                "include_debug": True,
+            },
+            timeout=180,
+        )
+        data = expect_json(res)
+        debug = data.get("debug") or {}
+        tool_trace = debug.get("tool_trace") or {}
+
+        # Some pipeline path executed a tool — either the planned intent or
+        # a follow-up. Either way, executed_results must include the memory tool.
+        executed = tool_trace.get("executed_results") or []
+        executed_names = [r.get("tool_name") for r in executed]
+        assert "system.memory_usage" in executed_names, (
+            f"system.memory_usage was not executed for {phrasing!r}; "
+            f"executed_results={executed_names!r}; "
+            f"response={data.get('response', '')[:200]!r}"
+        )
+
+        # The canned grounding rejection must not be the user-facing reply.
+        response = (data.get("response") or "").lower()
+        assert "cannot verify that system metric" not in response, (
+            f"Grounding correction fired for {phrasing!r}: {data.get('response')!r}"
+        )
+
+
+# ---------------------------------------------------------------------------
 # Comprehensive aggregator — single PASS/FAIL for the entire UAT suite
 # ---------------------------------------------------------------------------
 
