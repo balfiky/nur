@@ -56,6 +56,28 @@ All notable changes to Project Nur are documented here.
   not actually freeze identity edits. Treat the wizard's
   "Character Independence" toggle as informational, not a guarantee.
 
+### Browser sweep
+- New ``tests/uat/test_ui_sweep.py`` (11 tests) drives every interactive
+  element in the bundled UI through Playwright to catch regressions like a
+  silently-broken file upload:
+  - Every action button on /settings (Test LLM, Test Telegram, Test Storage,
+    Diagnostics, Export Config, Create Backup, List Backups, all five
+    Refresh buttons) is clicked and its DOM effect verified
+  - Token dialog auto-opens on 401 and Save Token persists into
+    sessionStorage so subsequent admin XHRs include it
+  - Identity panel: Save Identity persists, Reload Identity repopulates
+  - Skill zip upload via the file input + Import button
+  - Life history file upload via the file input + Digest File button
+    (regression guard for the broken-upload case)
+  - Life history server-side path ingest via the Advanced disclosure
+  - Destructive buttons (Delete Backup, Restart Web Server) present with
+    ``danger`` class — never clicked
+  - Chat shell `/`: settings link navigates, session buttons (Why this
+    response, End Session, Rest) wired after a real chat turn,
+    open-wizard re-launches the setup overlay
+  - Legacy /admin, /persona, /dashboard routes redirect to the right
+    settings sections
+
 ### Tooling
 - New Makefile with three test targets:
   - ``make test`` — non-UAT unit/integration suite
