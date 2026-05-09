@@ -240,17 +240,16 @@ Runtime config is `runtime_config.yaml` in the current working directory. Identi
 ## Architecture At A Glance
 
 <p align="center">
-  <img src="docs/diagrams/single-turn-cognitive-flow.png" alt="Single-turn cognitive flow: state update → gated deliberation → generation → self-check → post-processing" width="900">
+  <img src="docs/diagrams/feature-overview.png" alt="Nūr at a glance: channels (Web UI, Telegram, Console, REST API) feed a persistent cognitive core (six-dim emotions, five memory layers, identity with constitution/beliefs/drives/self-traits, self-evolution metabolism with skills and learning), which acts through gated capabilities (skills, web search, file ops, shell)." width="900">
 </p>
 
-A single turn runs five stages: deterministic pre-pass → gated deliberation (inner dialogue, tool loop, defense shaping) → master LLM generation → rule + LLM self-check → post-processing (memory writes, energy drain, debug trace). The LLM writes language; deterministic state, memory, safety gates, and retrieval happen around it.
+Three bands, top to bottom:
 
-Two entry points share the same session and cognition layer:
+- **Channels** — Web UI, Telegram, Console, REST API. All four share the same session and cognition layer.
+- **Persistent cognitive core** — what survives between turns. Six emotion modulators decay over time and shift on events; five memory layers (short-term, long-term, relationship arc, semantic, life-history) persist relational and identity-level state; metabolism runs wall-clock decay, theme→belief promotion, and drive-gap detection; trigger-time skills load by `applies_when` chat hint.
+- **Capabilities** — what Nūr can do, all gated by intent and autonomy level: skills (paste/file/zip), web search (DuckDuckGo, read-only), file ops (workspace-scoped, clarify under assisted autonomy), shell (separate opt-in, read-only system facts by default).
 
-- `nur-web` — FastAPI, bundled chat UI, `/settings`, admin API endpoints, `/v1/*`
-- `nur` — console, Telegram, debug runtime
-
-For the full component map (clients, hosts, persistence, LLM backends), see the runtime architecture diagram in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+For the full code-level component map (LLM backends, persistence files, tool executor wiring), see the runtime architecture diagram in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## API Quick Tour
 
