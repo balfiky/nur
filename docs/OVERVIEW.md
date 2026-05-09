@@ -121,6 +121,25 @@ compact version of those revisions for generation, so the layer can influence
 chat behavior. This still is not a claim that the assistant is independently
 alive or scientifically validated.
 
+A small set of self-evolution mechanics turn the ledger from a write-only
+record into an evolving one. A wall-clock metabolism tick, rate-limited to
+≥1 day elapsed, decays belief confidences, revokes weak beliefs, decays
+theme weights, promotes strong recurring themes to beliefs, and emits
+open-question rows for unresolved gaps (contradictions, low-confidence
+themes, drive-gap signals). An operator-authored **constitution** sits as
+a stable orientation above evolving beliefs in every prompt. An **ask-user
+autonomy** layer (Sprint 5) lets the runtime surface an open question to
+the user during chat when budget and drives align, then mark it
+`pursuing`; the default `LearningBudget` allows three questions per day.
+**Trigger-time skill retrieval** filters which imported skills load based
+on chat-message hint tokens, so always-on skills don't bloat every prompt.
+Operators can move a "skill" that's actually disposition into Life History
+with `migrate_skill_to_life`. See
+[ARCHITECTURE.md § Self-Evolution Model](ARCHITECTURE.md#self-evolution-model)
+for the full mechanic and endpoint inventory. None of this constitutes
+agency or consciousness; it makes character drift visible, decayable, and
+operator-correctable.
+
 For structural detail — per-turn stage order, LLM call accounting,
 persistence layout, auth/tool gates, and the full component claim map —
 see [ARCHITECTURE.md](ARCHITECTURE.md). The structural reference doc is

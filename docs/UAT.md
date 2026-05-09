@@ -5,6 +5,11 @@ operator-facing behavior. UAT starts a real `nur-web` process in a temporary
 workspace, drives the bundled Web/Admin UI through Chromium, and checks the
 same API payloads a user or channel sees.
 
+UAT is **live-only**. Nūr no longer ships a mock LLM backend in production, so
+the suite always calls a real model. Setting `NUR_UAT_LIVE=1` plus a
+configured `NUR_UAT_BACKEND` is required; otherwise tests are skipped with a
+clear reason.
+
 ## Install UAT Dependencies
 
 ```bash
@@ -12,120 +17,143 @@ python3 -m pip install -e ".[dev,uat]"
 python3 -m playwright install chromium
 ```
 
-## Mock UAT
+## Run The Full Suite
 
-Mock UAT is deterministic and does not call a paid model:
+The repository includes a Makefile with three test entry points:
 
 ```bash
-nur-uat --artifacts reports/uat/mock
+make test                 # non-UAT unit/integration suite (1826 tests, ~3 min)
+make uat                  # full UAT suite (63 tests, ~14 min, live LLM)
+make uat-comprehensive    # single PASS/FAIL aggregator that runs the same UAT
+                          # tests as a subprocess and asserts they all pass
 ```
 
-It covers:
+`make uat` defaults to the Codex CLI backend. Override with:
 
-- first-run setup wizard from blank setup state through chat
-- clean temp runtime setup and real `nur-web` startup
-- Web chat from first load to response
-- debug relationship state, deterministic explanation, and memory panels
-- Admin page navigation, config save, live apply, and restart-required reporting
-- Skills import/enable from pasted `SKILL.md`, server folder, and uploaded zip
-- Claude/Codex-style skill packages with scripts/resources audited but not executed
-- enabled skill context reaching a later turn's debug payload
-- conversational attempts to "create a permanent skill" corrected unless Admin Skills confirms it
-- Life History text, browser upload, local-file digest, rollback, and later LifeInfluence
-- emotional state movement across distress, rupture, and repair arcs
-- relationship open loops, repair, semantic preference retrieval, and commitment persistence
-- tools inventory with enabled/disabled settings and read-only filesystem execution
-- session state files across web-server restart
-- Telegram introspection commands without mutating cognition
-- visible-control accessible-name inventory
+```bash
+NUR_UAT_BACKEND=openai_compatible \
+  NUR_UAT_BASE_URL=http://localhost:11434/v1 \
+  NUR_UAT_MODEL=llama3.2 \
+  make uat
+```
+
+Direct pytest invocation works too:
+
+```bash
+NUR_UAT_LIVE=1 NUR_UAT_BACKEND=codex \
+  python -m pytest tests/uat/ -m "uat and not comprehensive"
+```
+
+The `comprehensive` marker is the single aggregator
+(`tests/uat/test_evolution_features.py::test_complete_release_uat_suite`). It
+subprocesses pytest internally, so each underlying test still gets a clean
+fixture. Use it when you want one green/red signal — for example before a
+release.
 
 ## Coverage Matrix
 
-| Surface | UAT coverage |
-| --- | --- |
-| Installation-style startup | Real `nur-web` process, temp config, temp data dir, health/ready probes |
-| First-run setup | Wizard mock backend, identity save, formative Life digest, then chat |
-| Web chat | Browser sends a turn, assistant response renders, debug drawer opens |
-| Debug/explainability | Relationship view, strategy trace, explanation, memory inspector, modulator state |
-| Admin options | Runtime/model/tools/channel/access/maintenance pages, config save, reload, restart-required fields |
-| Skills | Pasted import, folder import, zip upload, scripts/resources audit, enable/disable, enabled prompt context |
-| Skill hallucination guard | Conversation cannot claim permanent skill creation without registry evidence |
-| Life History | Text/upload/local-file ingestion, evolution records, rollback, prompt context, LifeInfluence pressures/effects |
-| Emotion/relationship | Distress, assistant-targeted rupture, repair, semantic preference + open loop, commitment persistence |
-| Tools | Disabled inventory returns zero, enabled inventory lists tools, read-only file action executes |
-| Persistence | Hot session state/history survive web-server restart |
-| Telegram | `/state`, `/why`, `/memory`, `/loops`, `/repair` inspect without creating sessions or processing turns |
-| Accessibility/control inventory | Visible buttons/links/inputs/selects/textareas must have accessible names |
+The suite contains 63 tests across nine files.
 
-Not covered by mock UAT: subjective human-likeness, production network exposure,
-provider-specific model quality, and high-cost live tool runs. Use live UAT for
-backend integration and keep human-likeness for a separate blinded study.
+| Surface | UAT files |
+|---|---|
+| First-run setup wizard | `test_first_run_wizard.py` |
+| Web chat + debug panels | `test_clean_setup_chat.py` |
+| Admin pages, navigation, config save | `test_admin_options.py` |
+| Cognitive journeys (distress / rupture / repair, semantic, commitment, tools toggle, restart-required UI) | `test_cognitive_journeys.py` |
+| Accessible-name inventory across visible controls | `test_control_inventory.py` |
+| Skills import, audit, enable, fake-skill guard, life ingest | `test_life_skills_tools.py` |
+| Session persistence across server restart | `test_persistence_restart.py` |
+| Persona/observability dashboard across channels | `test_persona_dashboard.py` |
+| Telegram non-mutating introspection commands | `test_telegram_introspection.py` |
+| Sprint 1–5 evolution features + public-release admin surfaces (constitution, open questions, metabolism, skill migration, ask-user surfacing, bearer auth, backup, soul flow, diagnostics, sessions reset, soul draft, file-path skill import, CORS) | `test_evolution_features.py` |
+| Browser sweep of every clickable element + file uploads + token dialog + chat-shell session buttons + legacy URL redirects | `test_ui_sweep.py` |
 
-## Live UAT
+Specific high-value scenarios:
 
-Live UAT is intentionally explicit. If `--live` is set and the configured key,
-model, or base URL required by that backend is missing, the run fails rather
-than falling back to mock.
+- Constitution layer: persists across restart, surfaces in the LLM prompt's
+  `life_history_context`, max-length enforced, UI Save flow round-trips.
+- Open questions queue: lifecycle (list/filter/abandon/resolve), contradiction
+  emission via `revise_beliefs_against_evidence`, drive-gap and low-confidence
+  emission via metabolism reflection, UI rendering and Abandon button.
+- Self-evolution metabolism: forced `last_decay_at` in the past triggers real
+  belief decay (weak <0.2 revoked) and theme→belief promotion at the next tick.
+- Trigger-time skill retrieval: `applies_when` filter exposes skills only when
+  the user message hint matches; missing field surfaces an audit warning.
+- Skill→life migration: `migrate_skill_to_life` flips the skill to
+  `status='migrated'` and seeds an `operator_directive` life experience.
+- Ask-user surfacing: open question surfaces in chat, transitions to
+  `pursuing`, and the default 3/day learning budget caps surfacing at exactly
+  three per session.
+- Multi-turn behavioral arc: belief seed → contradicting evidence → confidence
+  drop + contradiction question emitted → drive shift + non-zero life-influence
+  pressure on a follow-up turn → operator resolves the question.
+- Public-release controls: bearer auth enforced when `api_key` set; backup
+  CRUD with typed-confirmation guard; soul GET/POST round-trip; sessions
+  reset eviction; diagnostics shape; LLM-driven soul draft validates schema
+  without persisting; file-path skill import accepts valid folders + rejects
+  non-existent paths and directories without `SKILL.md`; CORS origins respected
+  at startup.
+- Browser sweep: every action button on `/settings` (Test LLM/Telegram/Storage,
+  Diagnostics, Export Config, Backup create/list, all five Refresh buttons);
+  file uploads via `#skillUpload` and `#lifeUploadFile`; token dialog
+  auto-opens on 401 and Save Token persists; identity panel Save+Reload;
+  destructive buttons present with `danger` class; chat-shell session buttons
+  (Why this response, End Session, Rest); open-wizard relaunches setup;
+  `/admin`, `/persona`, `/dashboard` legacy redirects.
+- Tool diversity: `system.memory_usage` end-to-end via chat, `web.search` via
+  the bundled DuckDuckGo provider, `fs.read_file` workspace read, `fs.write_file`
+  blocked under assisted autonomy, `shell.run_command` refused when shell tool
+  disabled, and the imperative-phrasing memory-query regression.
 
-OpenAI-compatible/provider example:
+Not covered by UAT: subjective human-likeness, production network exposure,
+provider-specific model quality, mobile viewport behavior, keyboard navigation,
+theme switching. Use a blinded user study for human-likeness; use direct
+manual checks for the visual fidelity items.
+
+## Backend Selection
+
+`NUR_UAT_BACKEND` selects the live backend the suite runs against. The
+fixture writes a real `runtime_config.yaml`, starts `nur-web`, and the suite
+talks to it through HTTP and the browser.
+
+OpenAI-compatible / hosted provider:
 
 ```bash
 export LLM_API_KEY=...
-nur-uat \
-  --live \
-  --backend openai_compatible \
-  --base-url https://your-provider.example/v1 \
-  --model your-model \
-  --artifacts reports/uat/live
+NUR_UAT_LIVE=1 \
+  NUR_UAT_BACKEND=openai_compatible \
+  NUR_UAT_BASE_URL=https://your-provider.example/v1 \
+  NUR_UAT_MODEL=your-model \
+  python -m pytest tests/uat/ -m "uat and not comprehensive"
 ```
 
-MiniMax example:
+Codex CLI (uses your local Codex login, no API key needed):
 
 ```bash
-export LLM_API_KEY=...
-nur-uat \
-  --live \
-  --backend minimax \
-  --model your-model \
-  --artifacts reports/uat/live
+NUR_UAT_LIVE=1 NUR_UAT_BACKEND=codex \
+  python -m pytest tests/uat/ -m "uat and not comprehensive"
 ```
 
-Codex CLI example:
+`NUR_UAT_BACKEND=mock` is no longer accepted; the production runtime never
+runs against a fake backend, and UAT mirrors that.
+
+## Useful Options
 
 ```bash
-nur-uat \
-  --live \
-  --backend codex \
-  --artifacts reports/uat/live-codex
+NUR_UAT_HEADED=1 make uat           # watch the browser locally
+NUR_UAT_KEEP_WORKSPACE=1 make uat   # keep the temp data/config workspace
+NUR_UAT_ARTIFACTS=reports/uat/run1 make uat   # custom artifact directory
 ```
 
-Useful options:
-
-```bash
-nur-uat --headed                 # watch the browser locally
-nur-uat --keep-workspace         # keep the temp data/config workspace
-nur-uat --pytest-args -- -k chat # pass extra args to pytest
-```
+Failure screenshots and the server log land under
+`reports/uat/<test_node_id>/` for any failing test.
 
 ## CI
 
-The UAT workflow runs the mock pass and uploads artifacts on push and pull
-request. The live pass is opt-in because it requires repository secrets and may
-spend provider quota.
+The UAT suite is opt-in in CI because it spends provider quota on every run.
+A workflow that exercises the live suite should set `NUR_UAT_LIVE=1` and the
+appropriate backend env vars from repository secrets, then run
+`make uat-comprehensive` for a single PASS/FAIL signal.
 
-Run live UAT in CI by either:
-
-- manually starting the UAT workflow with `run_live=true`, or
-- setting repository variable `NUR_RUN_LIVE_UAT` to `1` or `true`.
-
-Live UAT has no mock fallback. Provider-style live UAT requires repository
-variables such as `NUR_UAT_BACKEND`, `NUR_UAT_MODEL`, and `NUR_UAT_BASE_URL`,
-plus the matching secret selected by `NUR_UAT_API_KEY_ENV` or the default
-`LLM_API_KEY`. Codex live UAT instead requires the `codex` CLI to be installed
-and logged in on the runner.
-Pull requests from forks may not have access to those
-secrets, so run `nur-uat --live` locally or through a trusted branch before
-release.
-
-UAT remains structural/inspectable. It does not claim human-likeness or measure
-subjective response quality.
+UAT remains structural and inspectable. It does not claim human-likeness or
+measure subjective response quality.

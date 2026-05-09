@@ -168,8 +168,14 @@ The settings workspace lets you:
 
 - Configure LLM provider, model, base URL, and API keys
 - Configure Telegram token, allowlist, polling, and dedupe settings
-- Configure character independence, coherence checks, pending-intake behavior,
-  bearer auth, CORS, tools, shell-tool opt-in, and workspace paths
+- Configure character independence (currently informational only — see
+  Known Gaps below), coherence checks, pending-intake behavior, bearer auth,
+  CORS, tools, shell-tool opt-in, and workspace paths
+- Set the operator-authored **Constitution** — a short stable orientation
+  string rendered above evolving beliefs in every prompt
+- Inspect and manage **Open Questions** — epistemic gaps surfaced by
+  reflection (contradiction, low-confidence, drive-gap) with Abandon and
+  Resolve actions
 - Upload, import, audit, and enable external Agent Skills
 - Feed pasted or uploaded formative text/Markdown files into **Life History**
 - Observe experience count, evolution events, current beliefs, and drive shifts
@@ -217,8 +223,8 @@ Before binding Nūr beyond your own machine:
 8. Review [PRIVACY.md](../PRIVACY.md) before letting other people interact with
    the instance.
 
-The safe default posture is localhost-only, mock backend, tools off, shell off,
-and no public CORS origins.
+The safe default posture is localhost-only, a configured local LLM backend
+(Ollama or Codex CLI), tools off, shell off, and no public CORS origins.
 
 ## Runtime Config
 
@@ -237,7 +243,7 @@ Important fields:
 | Field | Production guidance |
 |-------|---------------------|
 | `api_key` | Optional bearer token for hardened deployments. Empty means no browser/API token flow. When set, it protects `/settings`, `/admin/*`, `/chat`, `/config`, `/ws`, and `/v1/*` except health/ready. |
-| `llm_backend` | Use `provider` for hosted gateways, `openai_compatible` for local/remote compatible servers, `codex` for the local Codex CLI, `mock` for offline tests. |
+| `llm_backend` | Use `provider` for hosted gateways, `openai_compatible` for local/remote compatible servers (Ollama, LM Studio, vLLM), or `codex` for the local Codex CLI. There is no mock backend in production — Nūr always calls a real model. |
 | `llm_base_url` / `llm_model` | Required for hosted and OpenAI-compatible backends. |
 | `llm_api_key` | Generic provider/gateway key. Prefer local-only YAML or environment injection. |
 | `telegram_token` | Enables the Telegram channel when set. |
@@ -398,6 +404,54 @@ a package upgrade may overwrite the bundled `config/soul.yaml` with the
 defaults shipped in the new package.
 
 If your deployment has real user data, create a backup before upgrading.
+
+## Self-Evolution Surfaces
+
+These surfaces let an operator inspect and shape the identity-level
+evolution layer described in
+[ARCHITECTURE.md § Self-Evolution Model](ARCHITECTURE.md#self-evolution-model).
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /admin/identity/constitution` | Read the operator-authored stable orientation string |
+| `PUT /admin/identity/constitution` | Replace the constitution (≤2000 chars, whitespace-trimmed) |
+| `GET /admin/life/open-questions` | List queue with `?status=open\|pursuing\|resolved\|abandoned\|all` and counts |
+| `POST /admin/life/open-questions/{id}/abandon` | Operator override; transitions open/pursuing → abandoned |
+| `POST /admin/life/open-questions/{id}/resolve` | Mark a question resolved; takes optional resolution_experience_id |
+| `POST /admin/life/metabolism/tick` | Manually trigger the wall-clock metabolism tick (idempotent under the ≥1-day rate limit) |
+
+The Settings → **Life History** page surfaces all of these as UI: Constitution
+panel with Save button, Open Questions list with Abandon, and the metabolism
+tick fires automatically on session start.
+
+## Tests And Release Readiness
+
+The repository includes a Makefile with three test entry points:
+
+```bash
+make test                 # 1826 unit/integration tests, ~3 min, no LLM
+make uat                  # 63 UAT tests, ~14 min, requires NUR_UAT_LIVE=1 + a real backend
+make uat-comprehensive    # one PASS/FAIL aggregator over the whole UAT suite
+```
+
+Use `make uat-comprehensive` before a public release for a single green/red
+signal. See [UAT.md](UAT.md) for env vars, backend selection, headed mode,
+and per-test artifact paths.
+
+## Known Gaps
+
+- **`character_independence`** — the runtime config flag and the wizard
+  toggle persist correctly, but no enforcement code reads them. The
+  `genesis_marker` row is written on first store creation but never
+  consulted to gate identity edits. Until enforcement lands, do not rely
+  on the toggle to freeze identity.
+- **No skill-from-URL download.** `skills.create_from_request` accepts a
+  `source_url` argument but only stores it as a metadata reference — no
+  fetch is performed. Operators acquire skills via paste, file path, or
+  zip upload only.
+- **No automatic conversation-to-life-history ingestion.** Drives and
+  beliefs only shift from operator-curated `/admin/life/experiences/*`
+  ingest. Casual chat content does not auto-update Life History.
 
 ## Operational Notes
 

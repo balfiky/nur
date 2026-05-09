@@ -103,6 +103,28 @@ All notable changes to Project Nur are documented here.
   - Legacy /admin, /persona, /dashboard routes redirect to the right
     settings sections
 
+### Documentation
+- Stripped stale mock-backend references from UAT.md, ARCHITECTURE.md, and
+  DEPLOYMENT_AND_ADMIN.md (mock was removed from production but the docs
+  still listed it as an available backend mode and as the safe default).
+- Rewrote UAT.md to document `make test`, `make uat`, `make uat-comprehensive`
+  + the comprehensive aggregator pattern, the per-file coverage matrix
+  across nine UAT files, and live-only operation.
+- Added a **Self-Evolution Model** section to ARCHITECTURE.md covering the
+  Sprint 1-5 mechanics (constitution layer, metabolism tick, open-questions
+  queue and three emission paths, ask-user surfacing + LearningBudget,
+  trigger-time skill retrieval, skill→life migration). Updated the Life
+  History table with new SQLite tables (`theme_signatures`, `open_questions`,
+  `identity_state`, `metabolism_state`, `genesis_marker`).
+- Added a **Self-Evolution Surfaces** endpoint reference, a **Tests And
+  Release Readiness** section, and a **Known Gaps** section to
+  DEPLOYMENT_AND_ADMIN.md (flags `character_independence` not enforced,
+  no skill-from-URL download, no automatic conversation→life-history
+  ingestion).
+- Expanded OVERVIEW.md's architecture-at-a-glance with a Sprint 1-5
+  paragraph linking to the new ARCHITECTURE section.
+- Pointed STUDY_GUIDE.md at UAT.md and the comprehensive aggregator.
+
 ### Tooling
 - New Makefile with three test targets:
   - ``make test`` — non-UAT unit/integration suite

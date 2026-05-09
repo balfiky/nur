@@ -119,6 +119,11 @@ Core records:
 | `evolution_events` | what changed afterward: belief, drive, self-trait, worldview/future behavior |
 | `beliefs` / `belief_revisions` | current worldview statements plus before/after revision history |
 | `drive_states` / `drive_changes` | persistent motivation values and their change log |
+| `theme_signatures` | recurring topic signatures with reinforcement count + accrued weight; promote to beliefs at threshold |
+| `open_questions` | epistemic gaps surfaced by reflection (contradiction / low_confidence / drive_gap), with status lifecycle |
+| `identity_state` | single-row constitution + last-updated timestamp |
+| `metabolism_state` | single-row last-decay timestamp for the rate-limited tick |
+| `genesis_marker` | single-row first-creation provenance hash for the soul + default drives |
 
 The admin console exposes this as `/admin` → **Life**: summary counts,
 an evolution snapshot, experience ledger, evolution timeline, beliefs, and
@@ -137,6 +142,88 @@ action variables, or semantic-memory salience. When
 `PipelineFeatures.life_history_context` is disabled, the context is empty,
 the influence is neutral, no Life History text enters generation, and no
 LifeInfluence effects are recorded.
+
+## Self-Evolution Model
+
+The Life History store is the substrate; a small set of mechanics turns it
+from a write-only ledger into an evolving record. Code entry points:
+`runtime/life_history.py`, `core/dual_process/tool_loop.py`,
+`runtime/learning_budget.py`, `runtime/learning/surface.py`.
+
+**Constitution layer (operator-set).** A single-row `identity_state` table
+holds an operator-authored constitution string (≤2000 chars). The runtime
+exposes it on every chat turn through `debug.life_history_context.constitution`
+and the prompt renderer places it as a "Stable orientation (operator-set)"
+section above evolving beliefs, so the LLM treats it as identity foundation
+rather than a mutable belief on the same plane. Endpoints:
+`GET/PUT /admin/identity/constitution`. UI: textarea + Save button on the
+Life page.
+
+**Metabolism tick.** A `metabolism_state` row tracks `last_decay_at`. On
+each session start (and via the operator endpoint
+`POST /admin/life/metabolism/tick`), the runtime calls `wall_clock_decay`,
+rate-limited to ≥1 day elapsed. When it fires, it:
+
+1. Decays belief confidences and drive deltas with a 30-day half-life.
+2. Revokes beliefs whose confidence falls below 0.2 (matching the
+   contradiction-revision threshold).
+3. Decays `theme_signatures.accrued_weight` so saturated themes can drift
+   back into the low-confidence emission window.
+4. Runs `consolidate_themes`, which promotes strong recurring theme
+   signatures (≥5 reinforcements, weight ≥0.7) to beliefs and emits
+   open-question rows for weaker recurring themes (≥3 reinforcements,
+   weight in [0.3, 0.7)) and for drives running ≥0.2 below baseline.
+
+**Open questions queue.** A separate `open_questions` table holds epistemic
+gaps surfaced by reflection. Three emission paths:
+
+| Source kind | Trigger |
+|---|---|
+| `contradiction` | `revise_beliefs_against_evidence` reduces a belief's confidence on contradicting evidence |
+| `low_confidence` | `consolidate_themes` finds a recurring theme below the promotion threshold |
+| `drive_gap` | `_detect_drive_gaps` finds a drive running well below baseline |
+
+Each row has a status (`open` / `pursuing` / `resolved` / `abandoned`),
+a priority, an optional target drive, and a deduplication signature so
+re-running reflection is idempotent. Endpoints:
+`GET /admin/life/open-questions` (with `?status=` filter and counts
+breakdown), `POST /admin/life/open-questions/{id}/abandon`,
+`POST /admin/life/open-questions/{id}/resolve`. UI: Life page panel with
+counts + Abandon button per question.
+
+**Ask-user surfacing (Sprint 5).** During chat, after the master generator
+runs, the pipeline calls `runtime.learning.surface.should_surface_question`.
+If a `LearningBudget` allows it and an open question's target drive is
+elevated (or its kind is `drive_gap`, which is always eligible), the
+question is appended to the response as a graceful follow-up, the question
+transitions to `pursuing`, and the budget consumes one slot.
+
+`runtime.learning_budget.LocalBudget` caps wall-clock seconds and question
+count per rolling day. The default is 3 questions / 1800 seconds per day.
+A `CloudBudget` placeholder exists for the future cloud-API path but is
+not yet implemented. The pipeline takes a `runtime_config` argument from
+`SessionManager` so it can resolve the shared `life_history.db` path; if
+absent, surfacing no-ops without raising.
+
+**Trigger-time skill retrieval.** Skills with an `applies_when` frontmatter
+field only load when chat-message hint tokens intersect the trigger tokens.
+Skills without `applies_when` keep their always-on behavior for backward
+compatibility but the audit emits a warning. Code entry point:
+`runtime/skills.enabled_skill_context(context_hint=...)`.
+
+**Skill → life migration.** `runtime.skills.migrate_skill_to_life(config,
+skill_id)` is the one-way path for moving a skill's body into Life History
+as an `operator_directive` experience. The original skill is marked
+`status='migrated'` and disabled; its files stay on disk for provenance.
+Decision is operator-driven — there is no automatic classifier between
+"procedural craft" (belongs in the registry with `applies_when`) and
+"dispositional content" (belongs in Life History).
+
+**Known gap.** `character_independence` is a runtime config flag with no
+enforcement code. The `genesis_marker` row is written on first store
+creation but never read for gating, so the wizard's "Character
+Independence" toggle persists across save/load but does not actually
+freeze identity edits. Treat it as informational until enforcement lands.
 
 ## Debug Presentation Surfaces
 
@@ -174,11 +261,14 @@ the pipeline, write memory, or change emotional state.
 
 ## LLM Boundary
 
-Provider-neutral interface with six backend modes: `mock`, `provider`,
-`openai_compatible`, `codex`, `minimax`, `auto`. The LLM receives a rendered
-prompt containing current cognitive context. It does not own
-persistence, tool policy, auth policy, or session lifecycle. Important
-state stays inspectable outside prompt text.
+Provider-neutral interface with three production backend modes: `provider`
+(hosted OpenAI-compatible gateways), `openai_compatible` (local/remote
+OpenAI-shape endpoints such as Ollama, LM Studio, vLLM), and `codex` (local
+Codex CLI through `codex exec` in read-only ephemeral mode). There is no
+mock backend in production — Nūr always calls a real model. The LLM
+receives a rendered prompt containing current cognitive context. It does
+not own persistence, tool policy, auth policy, or session lifecycle.
+Important state stays inspectable outside prompt text.
 
 ## Auth And Tool Safety
 
