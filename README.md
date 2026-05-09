@@ -16,6 +16,13 @@
   <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.28.12-1A1428?style=for-the-badge" alt="Version"></a>
 </p>
 
+<p align="center">
+  <a href="docs/UAT.md"><img src="https://img.shields.io/badge/tests-1826%20unit%20%2B%2063%20UAT-2A8F6E?style=for-the-badge" alt="Tests"></a>
+  <a href="docs/ARCHITECTURE.md"><img src="https://img.shields.io/badge/architecture-self--evolving-D08A4E?style=for-the-badge" alt="Architecture"></a>
+  <a href="docs/OVERVIEW.md"><img src="https://img.shields.io/badge/scope-research%20prototype-7A4A8C?style=for-the-badge" alt="Scope"></a>
+  <a href="#configure-an-llm"><img src="https://img.shields.io/badge/llm-ollama%20%E2%80%A2%20codex%20%E2%80%A2%20openai-1A1428?style=for-the-badge" alt="LLM backends"></a>
+</p>
+
 Most assistants reset to zero every turn. **Nūr keeps the room lit.**
 
 Mood, trust, tension, repair, commitments, and the long arc of a relationship live as runtime state — inspectable, persistent, decaying, testable. The LLM still writes the words. Nūr changes the state those words come from.
@@ -47,6 +54,36 @@ Nūr:  It does. There was tension here before, and it softened.
 ```
 
 The LLM writes language. Deterministic state, memory retrieval, and safety gates live *outside* the model — so the assistant's stance toward you accumulates instead of resetting.
+
+## Cognitive Stack
+
+| Layer | What it does | Where it lives |
+|---|---|---|
+| **Modulators** | Six-dim emotional state (arousal, valence, certainty, bonding, energy, resolution); decay over time, shift on events | `core/emotion`, session state file |
+| **Short-term memory** | Hot turn-level memory inside the running session | in-process |
+| **Long-term memory** | Distilled emotional summaries with valence + spike flags; retrieval is valence-weighted | `data/<user>/nur.db` |
+| **Relationship arc** | Rupture, repair, recurring tension, commitments, open loops; cross-session | `data/<user>/nur.db` |
+| **Semantic memory** | Preferences, decisions, facts; topic-scoped retrieval | `data/<user>/nur.db` |
+| **Life History** | Identity-level experience ledger; beliefs, drives, evolution events, themes | `data/shared/life_history.db` |
+| **Self-evolution** | Wall-clock metabolism: belief decay, theme→belief promotion, drive-gap detection | `runtime/life_history.py` |
+| **Open questions** | Reflection-emitted queue (contradiction / low-confidence / drive-gap) with operator lifecycle | `data/shared/life_history.db` |
+| **Constitution** | Operator-set stable orientation rendered above evolving beliefs every prompt | `data/shared/life_history.db` |
+| **Ask-user surfacing** | Drive-gated mid-conversation question with daily budget | `runtime/learning/surface.py` |
+| **Trigger-time skills** | `applies_when`-filtered skill loading by chat hint | `runtime/skills.py` |
+| **Tool gates** | Read-only by default; assisted autonomy needs confirmation; shell is a separate opt-in | `core/dual_process/tool_loop.py` |
+
+Every layer above is inspectable through `/settings#observability` and the OpenAPI surface at `/docs`.
+
+## What's New
+
+Recent self-evolution work (see [CHANGELOG.md](CHANGELOG.md) for full notes):
+
+- **Constitution layer** (`/admin/identity/constitution`) — stable operator-set orientation rendered above evolving beliefs every prompt.
+- **Open questions queue** — reflection now emits epistemic gaps (contradiction, low-confidence, drive-gap) for operator review.
+- **Self-evolution metabolism** — wall-clock decay, weak-belief revocation, theme→belief promotion, drive-gap detection.
+- **Ask-user autonomy** (Sprint 5) — Nūr can surface an open question to the user when budget and drives align.
+- **Constitution and open questions** are exposed in `/settings#life`; metabolism fires automatically on session start.
+- **No mock backend** — every LLM call goes to a real model (Ollama, Codex CLI, hosted OpenAI-compatible).
 
 ## Why This Is Different
 
@@ -276,15 +313,18 @@ Before exposing Nūr beyond localhost:
 ## Common Commands
 
 ```bash
-python3 -m pytest                                # full suite
+make test                                        # 1826 unit/integration tests, ~3 min
+make uat                                         # 63 UAT tests against a live LLM, ~14 min
+make uat-comprehensive                           # one PASS/FAIL aggregator over the full UAT suite
 python3 -m pytest tests/test_interface.py -q     # focused interface tests
-NUR_UAT_LIVE=1 nur-uat --artifacts reports/uat   # browser/admin UAT (real backend required)
 python3 -m evals --backend openai_compatible --tag phase11  # behavioral eval pack
 python3 -m build --sdist --wheel                 # build wheel and sdist
 ```
 
-For clean setup and live backend acceptance checks, see
-[docs/UAT.md](docs/UAT.md).
+`make uat` defaults to the Codex CLI backend. Override with
+`NUR_UAT_BACKEND=openai_compatible NUR_UAT_BASE_URL=... NUR_UAT_MODEL=... make uat`.
+For backend selection, headed mode, artifact paths, and the comprehensive
+aggregator pattern, see [docs/UAT.md](docs/UAT.md).
 
 ## Repository Layout
 
@@ -300,4 +340,10 @@ docs/       Public docs, design docs, diagrams, research notes
 
 ## Current Status
 
-Version `0.28.6`. Reproducible eval evidence is intentionally narrow: relationship memory remains load-bearing under Phase 11, Life History now has bounded structural influence through LifeInfluence under Phase 13, and semantic memory has a dedicated structural scenario suite. The web and Telegram surfaces expose this state through presentation-only introspection. These are structural/inspectable results, not proof of human-likeness, therapeutic value, consciousness, or psychological validity.
+Version `0.28.12`. Reproducible eval evidence is intentionally narrow: relationship memory remains load-bearing under Phase 11, Life History now has bounded structural influence through LifeInfluence under Phase 13, and semantic memory has a dedicated structural scenario suite. The web and Telegram surfaces expose this state through presentation-only introspection. End-to-end behavior is exercised by 63 live-LLM UAT tests covering chat flows, admin surfaces, browser interactions, file uploads, tool calling, skill acquisition, and the self-evolution mechanics. These are structural/inspectable results, not proof of human-likeness, therapeutic value, consciousness, or psychological validity.
+
+### Known Gaps
+
+- `character_independence` is a runtime config flag with no enforcement code yet — wizard toggles persist correctly but do not freeze identity edits.
+- No skill-from-URL download. Skills are imported via paste, file path, or zip upload only.
+- No automatic conversation→life-history ingestion. Drives and beliefs only shift from operator-curated `/admin/life/experiences/*` ingest, not from chat content.
