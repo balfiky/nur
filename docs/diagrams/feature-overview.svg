@@ -1,194 +1,314 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 780" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 880" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif">
   <defs>
-    <linearGradient id="coreGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#FAF6F2"/>
-      <stop offset="100%" stop-color="#F0E8DD"/>
+    <radialGradient id="coreGlow" cx="50%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#FFF6EE" stop-opacity="1"/>
+      <stop offset="60%" stop-color="#FAEEDD" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#F0E0CB" stop-opacity="1"/>
+    </radialGradient>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FBF7F2"/>
+      <stop offset="100%" stop-color="#F4ECE0"/>
     </linearGradient>
-    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
-      <feOffset dx="0" dy="1"/>
+    <linearGradient id="emotionGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F5A65B"/>
+      <stop offset="100%" stop-color="#D08A4E"/>
+    </linearGradient>
+    <linearGradient id="memoryGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3FB089"/>
+      <stop offset="100%" stop-color="#2A8F6E"/>
+    </linearGradient>
+    <linearGradient id="identityGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#9966AC"/>
+      <stop offset="100%" stop-color="#7A4A8C"/>
+    </linearGradient>
+    <linearGradient id="evolutionGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F5C25B"/>
+      <stop offset="100%" stop-color="#C99238"/>
+    </linearGradient>
+    <linearGradient id="channelGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3D2A4A"/>
+      <stop offset="100%" stop-color="#1A1428"/>
+    </linearGradient>
+    <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="6"/>
+      <feOffset dx="0" dy="3"/>
       <feComponentTransfer><feFuncA type="linear" slope="0.18"/></feComponentTransfer>
       <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
+    <filter id="coreShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14"/>
+      <feOffset dx="0" dy="6"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.16"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
     <style>
-      .title { font-size: 28px; font-weight: 700; fill: #1A1428; letter-spacing: -0.01em; }
-      .subtitle { font-size: 14px; fill: #5A4A5A; }
-      .band-label { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; }
-      .card-title { font-size: 14px; font-weight: 700; fill: #FFFFFF; }
-      .card-detail { font-size: 11px; fill: #FFFFFF; opacity: 0.86; }
-      .core-section-title { font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
-      .core-line { font-size: 12px; fill: #1A1428; }
-      .core-line-muted { font-size: 11px; fill: #5A4A5A; }
-      .pill { font-size: 11px; font-weight: 600; fill: #1A1428; }
-      .footnote { font-size: 11px; fill: #7A6A7A; }
+      .h1 { font-size: 32px; font-weight: 800; fill: #1A1428; letter-spacing: -0.02em; }
+      .h2 { font-size: 14px; fill: #7A6A7A; letter-spacing: 0.02em; }
+      .band-label { font-size: 11px; font-weight: 800; letter-spacing: 0.22em; fill: #7A6A7A; }
+      .channel-name { font-size: 16px; font-weight: 700; fill: #FFFFFF; }
+      .channel-detail { font-size: 11px; fill: #FFFFFF; opacity: 0.75; }
+      .core-title { font-size: 19px; font-weight: 800; fill: #1A1428; letter-spacing: -0.01em; }
+      .core-subtitle { font-size: 12px; fill: #5A4A5A; }
+      .core-pill-text { font-size: 11px; font-weight: 600; fill: #1A1428; }
+      .feature-name { font-size: 16px; font-weight: 800; fill: #FFFFFF; }
+      .feature-detail { font-size: 11px; fill: #FFFFFF; opacity: 0.92; }
+      .capability-name { font-size: 14px; font-weight: 700; fill: #1A1428; }
+      .capability-detail { font-size: 10.5px; fill: #5A4A5A; }
     </style>
   </defs>
 
-  <rect x="0" y="0" width="1200" height="780" fill="#FAF6F2"/>
+  <rect x="0" y="0" width="1400" height="880" fill="url(#bgGrad)"/>
 
-  <text x="600" y="46" text-anchor="middle" class="title">Nūr at a glance</text>
-  <text x="600" y="68" text-anchor="middle" class="subtitle">Channels speak in. A persistent cognitive core evolves between turns. Capabilities act, gated by intent.</text>
+  <!-- title -->
+  <text x="700" y="54" text-anchor="middle" class="h1">Nūr at a glance</text>
+  <text x="700" y="78" text-anchor="middle" class="h2">Channels speak in. A persistent cognitive core evolves between turns. Capabilities act, gated by intent.</text>
 
-  <!-- ============ CHANNELS BAND (top) ============ -->
-  <text x="60" y="108" class="band-label" fill="#7A4A8C">CHANNELS — how people reach Nūr</text>
-  <line x1="60" y1="118" x2="1140" y2="118" stroke="#7A4A8C" stroke-opacity="0.18" stroke-width="1"/>
+  <!-- ============ CHANNELS BAND ============ -->
+  <text x="100" y="124" class="band-label">CHANNELS</text>
+  <line x1="194" y1="120" x2="1300" y2="120" stroke="#7A6A7A" stroke-opacity="0.18" stroke-width="1"/>
 
   <!-- Web UI -->
-  <g filter="url(#soft)">
-    <rect x="60" y="135" width="248" height="74" rx="10" fill="#7A4A8C"/>
+  <g filter="url(#cardShadow)">
+    <rect x="100" y="140" width="290" height="84" rx="14" fill="url(#channelGrad)"/>
   </g>
-  <text x="78" y="162" class="card-title">Web UI</text>
-  <text x="78" y="183" class="card-detail">FastAPI · bundled chat shell</text>
-  <text x="78" y="199" class="card-detail">/settings workspace · /docs</text>
+  <!-- icon: browser window -->
+  <g transform="translate(126,164)">
+    <rect x="0" y="0" width="36" height="28" rx="4" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+    <line x1="0" y1="9" x2="36" y2="9" stroke="#FFFFFF" stroke-width="2"/>
+    <circle cx="6" cy="4.5" r="1.4" fill="#FFFFFF"/>
+    <circle cx="11" cy="4.5" r="1.4" fill="#FFFFFF"/>
+    <circle cx="16" cy="4.5" r="1.4" fill="#FFFFFF"/>
+  </g>
+  <text x="184" y="178" class="channel-name">Web UI</text>
+  <text x="184" y="198" class="channel-detail">FastAPI · bundled chat shell</text>
+  <text x="184" y="213" class="channel-detail">/settings workspace · /docs</text>
 
   <!-- Telegram -->
-  <g filter="url(#soft)">
-    <rect x="328" y="135" width="248" height="74" rx="10" fill="#7A4A8C"/>
+  <g filter="url(#cardShadow)">
+    <rect x="406" y="140" width="290" height="84" rx="14" fill="url(#channelGrad)"/>
   </g>
-  <text x="346" y="162" class="card-title">Telegram</text>
-  <text x="346" y="183" class="card-detail">allowlist-gated bot</text>
-  <text x="346" y="199" class="card-detail">long-poll · per-user dedupe</text>
+  <g transform="translate(432,164)">
+    <path d="M 2 14 L 36 0 L 30 28 L 20 22 L 14 28 L 16 18 L 30 6 L 12 16 Z" fill="#FFFFFF"/>
+  </g>
+  <text x="490" y="178" class="channel-name">Telegram</text>
+  <text x="490" y="198" class="channel-detail">allowlist-gated bot</text>
+  <text x="490" y="213" class="channel-detail">long-poll · per-user dedupe</text>
 
   <!-- Console -->
-  <g filter="url(#soft)">
-    <rect x="596" y="135" width="248" height="74" rx="10" fill="#7A4A8C"/>
+  <g filter="url(#cardShadow)">
+    <rect x="712" y="140" width="290" height="84" rx="14" fill="url(#channelGrad)"/>
   </g>
-  <text x="614" y="162" class="card-title">Console</text>
-  <text x="614" y="183" class="card-detail">terminal runtime + debug</text>
-  <text x="614" y="199" class="card-detail">nur · nur-setup · nur-validate</text>
+  <g transform="translate(738,164)">
+    <rect x="0" y="0" width="36" height="28" rx="4" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+    <text x="5" y="20" font-family="Menlo,monospace" font-size="13" font-weight="700" fill="#FFFFFF">&gt;_</text>
+  </g>
+  <text x="796" y="178" class="channel-name">Console</text>
+  <text x="796" y="198" class="channel-detail">terminal runtime · debug</text>
+  <text x="796" y="213" class="channel-detail">nur · nur-setup · nur-validate</text>
 
   <!-- REST API -->
-  <g filter="url(#soft)">
-    <rect x="864" y="135" width="276" height="74" rx="10" fill="#7A4A8C"/>
+  <g filter="url(#cardShadow)">
+    <rect x="1018" y="140" width="282" height="84" rx="14" fill="url(#channelGrad)"/>
   </g>
-  <text x="882" y="162" class="card-title">REST API</text>
-  <text x="882" y="183" class="card-detail">/v1/chat · /v1/health</text>
-  <text x="882" y="199" class="card-detail">bearer auth · per-user budgets</text>
+  <g transform="translate(1044,164)">
+    <circle cx="18" cy="14" r="13" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+    <line x1="5" y1="14" x2="31" y2="14" stroke="#FFFFFF" stroke-width="2"/>
+    <ellipse cx="18" cy="14" rx="6" ry="13" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+  </g>
+  <text x="1102" y="178" class="channel-name">REST API</text>
+  <text x="1102" y="198" class="channel-detail">/v1/chat · /v1/health</text>
+  <text x="1102" y="213" class="channel-detail">bearer auth · per-user budgets</text>
 
-  <!-- arrows down -->
-  <g stroke="#1A1428" stroke-opacity="0.32" stroke-width="1.4" fill="none">
-    <line x1="184" y1="218" x2="184" y2="245"/>
-    <line x1="452" y1="218" x2="452" y2="245"/>
-    <line x1="720" y1="218" x2="720" y2="245"/>
-    <line x1="1002" y1="218" x2="1002" y2="245"/>
-  </g>
-  <g fill="#1A1428" fill-opacity="0.32">
-    <polygon points="184,250 178,242 190,242"/>
-    <polygon points="452,250 446,242 458,242"/>
-    <polygon points="720,250 714,242 726,242"/>
-    <polygon points="1002,250 996,242 1008,242"/>
+  <!-- ============ FLOW INTO CORE ============ -->
+  <g stroke="#7A6A7A" stroke-opacity="0.4" stroke-width="2" fill="none" stroke-linecap="round">
+    <path d="M 245 224 C 245 256, 700 270, 700 290"/>
+    <path d="M 551 224 C 551 256, 700 272, 700 290"/>
+    <path d="M 857 224 C 857 256, 700 272, 700 290"/>
+    <path d="M 1159 224 C 1159 256, 700 270, 700 290"/>
   </g>
 
-  <!-- ============ COGNITIVE CORE (middle) ============ -->
-  <g filter="url(#soft)">
-    <rect x="60" y="260" width="1080" height="370" rx="14" fill="url(#coreGrad)" stroke="#1A1428" stroke-opacity="0.06"/>
+  <!-- ============ COGNITIVE CORE BAND ============ -->
+  <text x="100" y="294" class="band-label">PERSISTENT COGNITIVE CORE — survives every turn</text>
+  <line x1="494" y1="290" x2="1300" y2="290" stroke="#7A6A7A" stroke-opacity="0.18" stroke-width="1"/>
+
+  <!-- big core panel -->
+  <g filter="url(#coreShadow)">
+    <rect x="100" y="310" width="1200" height="320" rx="22" fill="url(#coreGlow)" stroke="#1A1428" stroke-opacity="0.06"/>
   </g>
-  <text x="78" y="288" class="band-label" fill="#1A1428">PERSISTENT COGNITIVE CORE — state that survives between turns</text>
 
   <!-- Emotions card -->
-  <rect x="84" y="304" width="510" height="146" rx="10" fill="#FFFFFF" stroke="#D08A4E" stroke-width="1.6"/>
-  <rect x="84" y="304" width="6" height="146" rx="3" fill="#D08A4E"/>
-  <text x="108" y="328" class="core-section-title" fill="#D08A4E">Emotions — six modulators</text>
-  <g class="pill">
-    <rect x="108" y="346" width="78" height="22" rx="11" fill="#FFF1E0"/>
-    <text x="147" y="361" text-anchor="middle">arousal</text>
-    <rect x="194" y="346" width="78" height="22" rx="11" fill="#FFF1E0"/>
-    <text x="233" y="361" text-anchor="middle">valence</text>
-    <rect x="280" y="346" width="86" height="22" rx="11" fill="#FFF1E0"/>
-    <text x="323" y="361" text-anchor="middle">certainty</text>
-    <rect x="374" y="346" width="78" height="22" rx="11" fill="#FFF1E0"/>
-    <text x="413" y="361" text-anchor="middle">bonding</text>
-    <rect x="460" y="346" width="74" height="22" rx="11" fill="#FFF1E0"/>
-    <text x="497" y="361" text-anchor="middle">energy</text>
+  <g filter="url(#cardShadow)">
+    <rect x="128" y="334" width="282" height="272" rx="16" fill="url(#emotionGrad)"/>
   </g>
-  <g class="pill">
-    <rect x="108" y="376" width="86" height="22" rx="11" fill="#FFF1E0"/>
-    <text x="151" y="391" text-anchor="middle">resolution</text>
+  <!-- icon: heartbeat / waveform -->
+  <g transform="translate(150,358)" stroke="#FFFFFF" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 0 18 L 8 18 L 12 8 L 18 28 L 24 14 L 30 22 L 38 18"/>
   </g>
-  <text x="108" y="424" class="core-line">Decay over time, shift on events. Per-session JSON.</text>
-  <text x="108" y="440" class="core-line-muted">Drives appraisal · weights memory retrieval · shapes self-check tone</text>
+  <text x="196" y="376" class="feature-name">Emotions</text>
+  <text x="150" y="406" class="feature-detail">Six modulators that shift on events</text>
+  <text x="150" y="422" class="feature-detail">and decay over time:</text>
+  <g class="core-pill-text">
+    <rect x="150" y="436" width="74" height="22" rx="11" fill="#FFFFFF" fill-opacity="0.92"/>
+    <text x="187" y="451" text-anchor="middle">arousal</text>
+    <rect x="232" y="436" width="74" height="22" rx="11" fill="#FFFFFF" fill-opacity="0.92"/>
+    <text x="269" y="451" text-anchor="middle">valence</text>
+    <rect x="314" y="436" width="80" height="22" rx="11" fill="#FFFFFF" fill-opacity="0.92"/>
+    <text x="354" y="451" text-anchor="middle">certainty</text>
+    <rect x="150" y="466" width="76" height="22" rx="11" fill="#FFFFFF" fill-opacity="0.92"/>
+    <text x="188" y="481" text-anchor="middle">bonding</text>
+    <rect x="234" y="466" width="68" height="22" rx="11" fill="#FFFFFF" fill-opacity="0.92"/>
+    <text x="268" y="481" text-anchor="middle">energy</text>
+    <rect x="310" y="466" width="84" height="22" rx="11" fill="#FFFFFF" fill-opacity="0.92"/>
+    <text x="352" y="481" text-anchor="middle">resolution</text>
+  </g>
+  <text x="150" y="514" class="feature-detail" style="font-size:11px;opacity:0.86">Drives appraisal · weights memory</text>
+  <text x="150" y="530" class="feature-detail" style="font-size:11px;opacity:0.86">retrieval · shapes self-check tone</text>
+  <text x="150" y="566" class="feature-detail" style="font-weight:700;font-size:10.5px;letter-spacing:0.1em;opacity:1">PER-SESSION JSON</text>
+  <line x1="150" y1="572" x2="220" y2="572" stroke="#FFFFFF" stroke-width="1" stroke-opacity="0.6"/>
+  <text x="150" y="590" class="feature-detail" style="font-size:11px;opacity:0.86">Survives restarts · resets only on /new</text>
 
   <!-- Memory card -->
-  <rect x="606" y="304" width="510" height="146" rx="10" fill="#FFFFFF" stroke="#2A8F6E" stroke-width="1.6"/>
-  <rect x="606" y="304" width="6" height="146" rx="3" fill="#2A8F6E"/>
-  <text x="630" y="328" class="core-section-title" fill="#2A8F6E">Memory — five layers</text>
-  <g>
-    <text x="630" y="354" class="core-line"><tspan font-weight="700">Short-term</tspan>  <tspan fill="#5A4A5A">turn-level, in-process</tspan></text>
-    <text x="630" y="372" class="core-line"><tspan font-weight="700">Long-term</tspan>  <tspan fill="#5A4A5A">distilled emotional summaries · valence-weighted retrieval</tspan></text>
-    <text x="630" y="390" class="core-line"><tspan font-weight="700">Relationship arc</tspan>  <tspan fill="#5A4A5A">rupture · repair · open loops · commitments</tspan></text>
-    <text x="630" y="408" class="core-line"><tspan font-weight="700">Semantic</tspan>  <tspan fill="#5A4A5A">preferences · decisions · facts (topic-scoped)</tspan></text>
-    <text x="630" y="426" class="core-line"><tspan font-weight="700">Life History</tspan>  <tspan fill="#5A4A5A">identity ledger · beliefs · drives · evolution events</tspan></text>
+  <g filter="url(#cardShadow)">
+    <rect x="430" y="334" width="282" height="272" rx="16" fill="url(#memoryGrad)"/>
   </g>
-  <text x="630" y="445" class="core-line-muted">SQLite per-user (data/&lt;user&gt;/nur.db) + shared (data/shared/life_history.db)</text>
+  <!-- icon: stacked discs -->
+  <g transform="translate(452,358)" stroke="#FFFFFF" stroke-width="2.5" fill="none">
+    <ellipse cx="18" cy="6" rx="14" ry="4"/>
+    <path d="M 4 6 L 4 14 C 4 16.2, 10.3 18, 18 18 C 25.7 18, 32 16.2, 32 14 L 32 6"/>
+    <path d="M 4 14 L 4 22 C 4 24.2, 10.3 26, 18 26 C 25.7 26, 32 24.2, 32 22 L 32 14"/>
+  </g>
+  <text x="498" y="376" class="feature-name">Memory</text>
+  <text x="452" y="406" class="feature-detail">Five layers of relational and</text>
+  <text x="452" y="422" class="feature-detail">identity-level context:</text>
+  <g>
+    <text x="452" y="446" class="feature-detail" style="font-weight:700">Short-term <tspan font-weight="400" opacity="0.86">— turn-level, in-process</tspan></text>
+    <text x="452" y="464" class="feature-detail" style="font-weight:700">Long-term <tspan font-weight="400" opacity="0.86">— valence-weighted</tspan></text>
+    <text x="452" y="482" class="feature-detail" style="font-weight:700">Relationship arc <tspan font-weight="400" opacity="0.86">— rupture · repair</tspan></text>
+    <text x="452" y="500" class="feature-detail" style="font-weight:700">Semantic <tspan font-weight="400" opacity="0.86">— preferences · facts</tspan></text>
+    <text x="452" y="518" class="feature-detail" style="font-weight:700">Life History <tspan font-weight="400" opacity="0.86">— identity ledger</tspan></text>
+  </g>
+  <text x="452" y="566" class="feature-detail" style="font-weight:700;font-size:10.5px;letter-spacing:0.1em;opacity:1">SQLITE, INSPECTABLE</text>
+  <line x1="452" y1="572" x2="572" y2="572" stroke="#FFFFFF" stroke-width="1" stroke-opacity="0.6"/>
+  <text x="452" y="590" class="feature-detail" style="font-size:11px;opacity:0.86">data/&lt;user&gt;/nur.db + life_history.db</text>
 
   <!-- Identity card -->
-  <rect x="84" y="464" width="510" height="146" rx="10" fill="#FFFFFF" stroke="#1A1428" stroke-width="1.6"/>
-  <rect x="84" y="464" width="6" height="146" rx="3" fill="#1A1428"/>
-  <text x="108" y="488" class="core-section-title" fill="#1A1428">Identity — who Nūr is becoming</text>
+  <g filter="url(#cardShadow)">
+    <rect x="732" y="334" width="282" height="272" rx="16" fill="url(#identityGrad)"/>
+  </g>
+  <!-- icon: scroll / book -->
+  <g transform="translate(754,358)" stroke="#FFFFFF" stroke-width="2.5" fill="none" stroke-linejoin="round">
+    <path d="M 4 4 L 28 4 L 32 8 L 32 28 L 8 28 L 4 24 Z"/>
+    <line x1="10" y1="11" x2="26" y2="11"/>
+    <line x1="10" y1="17" x2="26" y2="17"/>
+    <line x1="10" y1="23" x2="22" y2="23"/>
+  </g>
+  <text x="800" y="376" class="feature-name">Identity</text>
+  <text x="754" y="406" class="feature-detail">Who Nūr is — and is becoming:</text>
   <g>
-    <text x="108" y="514" class="core-line"><tspan font-weight="700">Constitution</tspan>  <tspan fill="#5A4A5A">operator-set orientation rendered above beliefs every prompt</tspan></text>
-    <text x="108" y="532" class="core-line"><tspan font-weight="700">Beliefs</tspan>  <tspan fill="#5A4A5A">confidence-weighted, decay-prone, promoted from recurring themes</tspan></text>
-    <text x="108" y="550" class="core-line"><tspan font-weight="700">Drives</tspan>  <tspan fill="#5A4A5A">motivational pressure · drift tracked across experiences</tspan></text>
-    <text x="108" y="568" class="core-line"><tspan font-weight="700">Self-traits</tspan>  <tspan fill="#5A4A5A">observed dispositions surfacing in /settings → Life History</tspan></text>
+    <text x="754" y="432" class="feature-detail" style="font-weight:700">Constitution <tspan font-weight="400" opacity="0.88">— operator-set</tspan></text>
+    <text x="754" y="448" class="feature-detail" style="opacity:0.88">orientation rendered above beliefs</text>
+    <text x="754" y="476" class="feature-detail" style="font-weight:700">Beliefs <tspan font-weight="400" opacity="0.88">— confidence-weighted,</tspan></text>
+    <text x="754" y="492" class="feature-detail" style="opacity:0.88">decay-prone, theme-promoted</text>
+    <text x="754" y="520" class="feature-detail" style="font-weight:700">Drives <tspan font-weight="400" opacity="0.88">— motivational pressure,</tspan></text>
+    <text x="754" y="536" class="feature-detail" style="opacity:0.88">tracked drift</text>
   </g>
-  <text x="108" y="595" class="core-line-muted">Soul.yaml seeds it · operator-curated experiences shift it</text>
+  <text x="754" y="566" class="feature-detail" style="font-weight:700;font-size:10.5px;letter-spacing:0.1em;opacity:1">SOUL.YAML SEEDS · LIFE HISTORY SHIFTS</text>
+  <line x1="754" y1="572" x2="930" y2="572" stroke="#FFFFFF" stroke-width="1" stroke-opacity="0.6"/>
+  <text x="754" y="590" class="feature-detail" style="font-size:11px;opacity:0.86">Inspectable in /settings → Life History</text>
 
-  <!-- Evolution / Learning card -->
-  <rect x="606" y="464" width="510" height="146" rx="10" fill="#FFFFFF" stroke="#F5A65B" stroke-width="1.6"/>
-  <rect x="606" y="464" width="6" height="146" rx="3" fill="#F5A65B"/>
-  <text x="630" y="488" class="core-section-title" fill="#B5732A">Self-evolution &amp; learning</text>
+  <!-- Self-evolution + learning card -->
+  <g filter="url(#cardShadow)">
+    <rect x="1034" y="334" width="252" height="272" rx="16" fill="url(#evolutionGrad)"/>
+  </g>
+  <!-- icon: sprout -->
+  <g transform="translate(1056,358)" stroke="#FFFFFF" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 18 28 L 18 14"/>
+    <path d="M 18 18 C 12 18, 6 14, 6 8 C 12 8, 18 12, 18 18 Z" fill="#FFFFFF" fill-opacity="0.85"/>
+    <path d="M 18 14 C 24 14, 30 10, 30 4 C 24 4, 18 8, 18 14 Z" fill="#FFFFFF" fill-opacity="0.85"/>
+  </g>
+  <text x="1100" y="376" class="feature-name">Evolution</text>
+  <text x="1056" y="406" class="feature-detail">How Nūr learns over wall-clock time:</text>
   <g>
-    <text x="630" y="514" class="core-line"><tspan font-weight="700">Metabolism</tspan>  <tspan fill="#5A4A5A">wall-clock decay · weak-belief revocation · theme→belief promotion</tspan></text>
-    <text x="630" y="532" class="core-line"><tspan font-weight="700">Open questions</tspan>  <tspan fill="#5A4A5A">contradiction · low-confidence · drive-gap (operator-reviewable)</tspan></text>
-    <text x="630" y="550" class="core-line"><tspan font-weight="700">Ask-user surfacing</tspan>  <tspan fill="#5A4A5A">drive-gated mid-chat questions, daily LearningBudget cap</tspan></text>
-    <text x="630" y="568" class="core-line"><tspan font-weight="700">Skills</tspan>  <tspan fill="#5A4A5A">trigger-time loaded by applies_when chat hint</tspan></text>
+    <text x="1056" y="432" class="feature-detail" style="font-weight:700">Metabolism <tspan font-weight="400" opacity="0.88">— decay,</tspan></text>
+    <text x="1056" y="448" class="feature-detail" style="opacity:0.88">theme→belief promotion</text>
+    <text x="1056" y="476" class="feature-detail" style="font-weight:700">Open questions <tspan font-weight="400" opacity="0.88">— gaps</tspan></text>
+    <text x="1056" y="492" class="feature-detail" style="opacity:0.88">surfaced for review</text>
+    <text x="1056" y="520" class="feature-detail" style="font-weight:700">Skills <tspan font-weight="400" opacity="0.88">— trigger-time loaded</tspan></text>
+    <text x="1056" y="536" class="feature-detail" style="opacity:0.88">by applies_when chat hint</text>
   </g>
-  <text x="630" y="595" class="core-line-muted">Tunable from /settings · inspectable evolution snapshot per user</text>
+  <text x="1056" y="566" class="feature-detail" style="font-weight:700;font-size:10.5px;letter-spacing:0.1em;opacity:1">TUNABLE FROM /SETTINGS</text>
+  <line x1="1056" y1="572" x2="1196" y2="572" stroke="#FFFFFF" stroke-width="1" stroke-opacity="0.6"/>
+  <text x="1056" y="590" class="feature-detail" style="font-size:11px;opacity:0.86">LearningBudget caps · daily metabolism</text>
 
-  <!-- arrows down -->
-  <g stroke="#1A1428" stroke-opacity="0.32" stroke-width="1.4" fill="none">
-    <line x1="240" y1="640" x2="240" y2="667"/>
-    <line x1="480" y1="640" x2="480" y2="667"/>
-    <line x1="720" y1="640" x2="720" y2="667"/>
-    <line x1="960" y1="640" x2="960" y2="667"/>
-  </g>
-  <g fill="#1A1428" fill-opacity="0.32">
-    <polygon points="240,672 234,664 246,664"/>
-    <polygon points="480,672 474,664 486,664"/>
-    <polygon points="720,672 714,664 726,664"/>
-    <polygon points="960,672 954,664 966,664"/>
+  <!-- ============ FLOW DOWN TO CAPABILITIES ============ -->
+  <g stroke="#7A6A7A" stroke-opacity="0.4" stroke-width="2" fill="none" stroke-linecap="round">
+    <path d="M 700 632 C 700 660, 270 660, 270 692"/>
+    <path d="M 700 632 C 700 660, 540 660, 540 692"/>
+    <path d="M 700 632 C 700 660, 860 660, 860 692"/>
+    <path d="M 700 632 C 700 660, 1130 660, 1130 692"/>
   </g>
 
-  <!-- ============ CAPABILITIES BAND (bottom) ============ -->
-  <text x="60" y="688" class="band-label" fill="#2A8F6E">CAPABILITIES — what Nūr can do, all gated by intent + autonomy level</text>
-  <line x1="60" y1="698" x2="1140" y2="698" stroke="#2A8F6E" stroke-opacity="0.18" stroke-width="1"/>
+  <!-- ============ CAPABILITIES BAND ============ -->
+  <text x="100" y="690" class="band-label">CAPABILITIES — gated by intent &amp; autonomy level</text>
+  <line x1="510" y1="686" x2="1300" y2="686" stroke="#7A6A7A" stroke-opacity="0.18" stroke-width="1"/>
 
   <!-- Skills -->
-  <g filter="url(#soft)">
-    <rect x="60" y="710" width="248" height="56" rx="10" fill="#FFFFFF" stroke="#2A8F6E" stroke-width="1.6"/>
+  <g filter="url(#cardShadow)">
+    <rect x="120" y="710" width="300" height="106" rx="14" fill="#FFFFFF" stroke="#2A8F6E" stroke-width="2"/>
   </g>
-  <text x="78" y="732" class="core-line" font-weight="700" fill="#2A8F6E">Skills</text>
-  <text x="78" y="752" class="core-line-muted">paste, file, zip · trigger-time loaded</text>
+  <rect x="120" y="710" width="6" height="106" rx="3" fill="#2A8F6E"/>
+  <g transform="translate(146,732)" stroke="#2A8F6E" stroke-width="2.4" fill="none" stroke-linejoin="round">
+    <path d="M 4 4 L 16 4 L 16 12 L 28 12 L 28 28 L 4 28 Z"/>
+    <line x1="9" y1="20" x2="22" y2="20"/>
+  </g>
+  <text x="194" y="746" class="capability-name">Skills</text>
+  <text x="194" y="766" class="capability-detail">Imported via paste · file · zip</text>
+  <text x="194" y="782" class="capability-detail">Loaded only when applies_when matches</text>
+  <text x="194" y="800" class="capability-detail" style="font-style:italic;opacity:0.8">runtime/skills.py</text>
 
   <!-- Web search -->
-  <g filter="url(#soft)">
-    <rect x="328" y="710" width="248" height="56" rx="10" fill="#FFFFFF" stroke="#2A8F6E" stroke-width="1.6"/>
+  <g filter="url(#cardShadow)">
+    <rect x="440" y="710" width="300" height="106" rx="14" fill="#FFFFFF" stroke="#2A8F6E" stroke-width="2"/>
   </g>
-  <text x="346" y="732" class="core-line" font-weight="700" fill="#2A8F6E">Web search</text>
-  <text x="346" y="752" class="core-line-muted">DuckDuckGo provider · read-only</text>
+  <rect x="440" y="710" width="6" height="106" rx="3" fill="#2A8F6E"/>
+  <g transform="translate(466,732)" stroke="#2A8F6E" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <circle cx="13" cy="13" r="9"/>
+    <line x1="20" y1="20" x2="29" y2="29"/>
+  </g>
+  <text x="514" y="746" class="capability-name">Web search</text>
+  <text x="514" y="766" class="capability-detail">DuckDuckGo provider · read-only</text>
+  <text x="514" y="782" class="capability-detail">Routes from explicit search verbs in chat</text>
+  <text x="514" y="800" class="capability-detail" style="font-style:italic;opacity:0.8">core/dual_process/tool_loop.py</text>
 
   <!-- File ops -->
-  <g filter="url(#soft)">
-    <rect x="596" y="710" width="248" height="56" rx="10" fill="#FFFFFF" stroke="#D08A4E" stroke-width="1.6"/>
+  <g filter="url(#cardShadow)">
+    <rect x="760" y="710" width="300" height="106" rx="14" fill="#FFFFFF" stroke="#D08A4E" stroke-width="2"/>
   </g>
-  <text x="614" y="732" class="core-line" font-weight="700" fill="#B5732A">File ops</text>
-  <text x="614" y="752" class="core-line-muted">workspace-scoped · assisted = clarify</text>
+  <rect x="760" y="710" width="6" height="106" rx="3" fill="#D08A4E"/>
+  <g transform="translate(786,732)" stroke="#D08A4E" stroke-width="2.4" fill="none" stroke-linejoin="round">
+    <path d="M 4 8 L 4 28 L 28 28 L 28 12 L 16 12 L 13 8 Z"/>
+  </g>
+  <text x="834" y="746" class="capability-name">File ops</text>
+  <text x="834" y="766" class="capability-detail">Workspace-scoped · sandbox</text>
+  <text x="834" y="782" class="capability-detail">Assisted autonomy = clarify before write</text>
+  <text x="834" y="800" class="capability-detail" style="font-style:italic;opacity:0.8">runtime/tools/filesystem.py</text>
 
   <!-- Shell -->
-  <g filter="url(#soft)">
-    <rect x="864" y="710" width="276" height="56" rx="10" fill="#FFFFFF" stroke="#1A1428" stroke-width="1.6"/>
+  <g filter="url(#cardShadow)">
+    <rect x="1080" y="710" width="220" height="106" rx="14" fill="#FFFFFF" stroke="#1A1428" stroke-width="2"/>
   </g>
-  <text x="882" y="732" class="core-line" font-weight="700" fill="#1A1428">Shell</text>
-  <text x="882" y="752" class="core-line-muted">separate opt-in · read-only sys facts default</text>
+  <rect x="1080" y="710" width="6" height="106" rx="3" fill="#1A1428"/>
+  <g transform="translate(1106,732)" stroke="#1A1428" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="2" y="4" width="28" height="22" rx="3"/>
+    <path d="M 8 12 L 13 16 L 8 20"/>
+    <line x1="16" y1="20" x2="22" y2="20"/>
+  </g>
+  <text x="1154" y="746" class="capability-name">Shell</text>
+  <text x="1154" y="766" class="capability-detail">Separate opt-in flag</text>
+  <text x="1154" y="782" class="capability-detail">Read-only system facts default</text>
+  <text x="1154" y="800" class="capability-detail" style="font-style:italic;opacity:0.8">core/dual_process/tool_loop.py</text>
+
+  <!-- Footer marks -->
+  <text x="700" y="852" text-anchor="middle" class="capability-detail" style="font-size:11.5px;font-weight:600">Every layer above is inspectable in /settings · GET /admin/diagnostics · OpenAPI at /docs</text>
 
 </svg>
