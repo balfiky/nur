@@ -32,7 +32,7 @@ Mood, trust, tension, repair, commitments, and the long arc of a relationship li
 ---
 
 <p align="center">
-  <img src="docs/diagrams/hero-banner.png" alt="State that persists between your turns — Mon/Wed/Fri turns drive a persistent cognitive state row (arousal, valence, certainty, bonding, energy, resolution, memory, relationship arc, self-model)" width="900">
+  <img src="docs/diagrams/feature-overview.png" alt="Nūr at a glance: channels (Web UI, Telegram, Console, REST API) feed a persistent cognitive core (six emotion modulators, five memory layers, identity with constitution/beliefs/drives, self-evolution with metabolism/open-questions/skills) which acts through gated capabilities (skills, web search, file ops, shell)." width="1000">
 </p>
 
 > **Honest scope.** Nūr is an experimental runtime, not a therapist. It claims no consciousness, no feelings, no clinical validity. Relational and semantic memory live under `data/` — use it with consent when other people are involved. See [PRIVACY.md](PRIVACY.md) for inspection, export, and deletion.
@@ -239,17 +239,11 @@ Runtime config is `runtime_config.yaml` in the current working directory. Identi
 
 ## Architecture At A Glance
 
-<p align="center">
-  <img src="docs/diagrams/feature-overview.png" alt="Nūr at a glance: channels (Web UI, Telegram, Console, REST API) feed a persistent cognitive core (six-dim emotions, five memory layers, identity with constitution/beliefs/drives/self-traits, self-evolution metabolism with skills and learning), which acts through gated capabilities (skills, web search, file ops, shell)." width="900">
-</p>
+The feature map at the top of this README shows the three bands at a glance: **Channels** (Web UI, Telegram, Console, REST API) feed the **Persistent Cognitive Core** (six emotion modulators, five memory layers, identity with constitution/beliefs/drives, self-evolution with metabolism + open questions + skills), which acts through gated **Capabilities** (skills, web search, file ops, shell).
 
-Three bands, top to bottom:
+A single turn runs five stages internally: deterministic pre-pass → gated deliberation (inner dialogue, tool loop, defense shaping) → master LLM generation → rule + LLM self-check → post-processing (memory writes, energy drain, debug trace). The LLM writes language; deterministic state, memory, safety gates, and retrieval happen around it.
 
-- **Channels** — Web UI, Telegram, Console, REST API. All four share the same session and cognition layer.
-- **Persistent cognitive core** — what survives between turns. Six emotion modulators decay over time and shift on events; five memory layers (short-term, long-term, relationship arc, semantic, life-history) persist relational and identity-level state; metabolism runs wall-clock decay, theme→belief promotion, and drive-gap detection; trigger-time skills load by `applies_when` chat hint.
-- **Capabilities** — what Nūr can do, all gated by intent and autonomy level: skills (paste/file/zip), web search (DuckDuckGo, read-only), file ops (workspace-scoped, clarify under assisted autonomy), shell (separate opt-in, read-only system facts by default).
-
-For the full code-level component map (LLM backends, persistence files, tool executor wiring), see the runtime architecture diagram in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+For the full code-level component map (LLM backends, persistence files, tool executor wiring) and the per-turn cognitive flow diagram, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## API Quick Tour
 
