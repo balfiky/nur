@@ -7,20 +7,29 @@ code-level orientation.
 
 ## Scope
 
-Nūr is a hybrid cognitive runtime. The LLM generates language; the
-assistant's stance is shaped by explicit state outside the model:
+Nūr is a **hybrid cognitive runtime** for LLM agents. The LLM generates
+language; the agent's stance is shaped by explicit state outside the
+model. Five state categories plus deliberation and safety:
 
-- persistent emotional modulators
-- short-term and long-term memory
-- relationship-arc memory
-- semantic memory
-- identity-level life history and evolution records
-- self/other/topic profiles
+- **memory** — short-term · long-term (valence-weighted) · relational
+  arc · semantic
+- **identity** — constitution · beliefs (confidence + decay) · drives ·
+  self-traits, with a Life History ledger driving evolution
+- **self-evolution** — wall-clock metabolism, theme→belief promotion,
+  drive-gap detection, open-question lifecycle, ask-user surfacing
+  (LearningBudget)
+- **skills** — imported, `applies_when`-filtered trigger-time loading,
+  skill→life migration
+- **affective state** — six emotion modulators with deterministic decay,
+  feeding appraisal and memory retrieval
 - bounded deliberation and self-check gates
 - runtime/session safety boundaries
 
 Inspired by PSI, ACT-R, and CLARION; not a faithful implementation of
-any of them.
+any of them. Sits in the cognitive-runtime / agent-memory reference
+class (alongside MemGPT, Letta, mem0, LangGraph-with-persistence) and
+adds the relational/identity/evolution layers most of those systems
+don't track.
 
 ## Runtime Topology
 

@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <strong>An assistant that remembers what we meant to each other.</strong>
+  <strong>A cognitive runtime that gives LLMs persistent state, identity, and learning across turns.</strong>
 </p>
 
 <p align="center">
@@ -23,9 +23,11 @@
   <a href="#configure-an-llm"><img src="https://img.shields.io/badge/llm-ollama%20%E2%80%A2%20codex%20%E2%80%A2%20openai-1A1428?style=for-the-badge" alt="LLM backends"></a>
 </p>
 
-Most assistants reset to zero every turn. **Nūr keeps the room lit.**
+Most LLM agents reset to zero every turn. **Nūr keeps the room lit.**
 
-Mood, trust, tension, repair, commitments, and the long arc of a relationship live as runtime state — inspectable, persistent, decaying, testable. The LLM still writes the words. Nūr changes the state those words come from.
+Memory, beliefs, drives, mood, learned skills, and the long arc of a relationship live as runtime state — inspectable, persistent, decaying, testable. The LLM still writes the words. Nūr changes the state those words come from.
+
+In the agent-memory reference class (MemGPT, Letta, mem0, LangGraph state), Nūr is the one that also tracks **identity continuity** (constitution, beliefs, drives, self-traits) and **relational continuity** (rupture, repair, open commitments) alongside conventional memory.
 
 [Quickstart](#quickstart) · [Overview](docs/OVERVIEW.md) · [Architecture](docs/ARCHITECTURE.md) · [Admin & Deploy](docs/DEPLOYMENT_AND_ADMIN.md) · [Privacy](PRIVACY.md) · [Changelog](CHANGELOG.md)
 
@@ -35,11 +37,14 @@ Mood, trust, tension, repair, commitments, and the long arc of a relationship li
   <img src="docs/diagrams/feature-overview.png" alt="Nūr at a glance: channels (Web UI, Telegram, Console, REST API) feed a persistent cognitive core (six emotion modulators, five memory layers, identity with constitution/beliefs/drives, self-evolution with metabolism/open-questions/skills) which acts through gated capabilities (skills, web search, file ops, shell)." width="1000">
 </p>
 
-> **Honest scope.** Nūr is an experimental runtime, not a therapist. It claims no consciousness, no feelings, no clinical validity. Relational and semantic memory live under `data/` — use it with consent when other people are involved. See [PRIVACY.md](PRIVACY.md) for inspection, export, and deletion.
+> **Honest scope.** Nūr is an experimental runtime — not a therapist, not an AGI claim, not a consciousness claim. It is engineered scaffolding that holds *the state behind* an LLM's words across turns, sessions, and time. Memory and identity state live under `data/` — use it with consent when other people are involved. See [PRIVACY.md](PRIVACY.md) for inspection, export, and deletion.
 
-## What That Feels Like
+## What State Looks Like Across Turns
+
+Same runtime, two different continuity arcs:
 
 ```text
+─── Relational arc (relationship memory + arc tracking) ───
 Day 1
 You:  You completely misunderstood me.
 Nūr:  You're right. I missed what mattered there.
@@ -48,45 +53,68 @@ Nūr:  You're right. I missed what mattered there.
 Day 3
 You:  I think I was too harsh earlier.
 Nūr:  I remember that moment. We don't have to ignore it.
-      Want to repair it properly?
                                   # repair detected · loop begins to close
 
 Day 10
 You:  This feels easier now.
 Nūr:  It does. There was tension here before, and it softened.
                                   # relationship arc persists across sessions
+
+─── Identity arc (life-history ingest + belief revision + drive drift) ───
+Mon
+You:  Learn from this paper: <url>
+Nūr:  Recorded. Three beliefs shifted, one drive intensified.
+                                  # life-history event written · evolution trace emitted
+
+Wed (no further input)
+                                  # metabolism tick: weak beliefs decayed
+                                  #                  recurring theme promoted to belief
+                                  #                  drive-gap question opened
+
+Fri
+You:  Why did you push back on that?
+Nūr:  A belief I formed Monday is shaping how I read this. Want to see it?
+                                  # constitution + current beliefs surfaced for "why"
 ```
 
-The LLM writes language. Deterministic state, memory retrieval, and safety gates live *outside* the model — so the assistant's stance toward you accumulates instead of resetting.
+The LLM writes language. Deterministic state — memory retrieval, belief revision, decay, safety gates — lives *outside* the model. The assistant's stance accumulates instead of resetting.
 
-## Cognitive Stack
+## Runtime Layers
 
 | Layer | What it does | Where it lives |
 |---|---|---|
-| **Modulators** | Six-dim emotional state (arousal, valence, certainty, bonding, energy, resolution); decay over time, shift on events | `core/emotion`, session state file |
 | **Short-term memory** | Hot turn-level memory inside the running session | in-process |
-| **Long-term memory** | Distilled emotional summaries with valence + spike flags; retrieval is valence-weighted | `data/<user>/nur.db` |
+| **Long-term memory** | Distilled summaries with valence + spike flags; retrieval is valence-weighted | `data/<user>/nur.db` |
 | **Relationship arc** | Rupture, repair, recurring tension, commitments, open loops; cross-session | `data/<user>/nur.db` |
 | **Semantic memory** | Preferences, decisions, facts; topic-scoped retrieval | `data/<user>/nur.db` |
 | **Life History** | Identity-level experience ledger; beliefs, drives, evolution events, themes | `data/shared/life_history.db` |
+| **Constitution** | Operator-set stable orientation rendered above evolving beliefs every prompt | `data/shared/life_history.db` |
 | **Self-evolution** | Wall-clock metabolism: belief decay, theme→belief promotion, drive-gap detection | `runtime/life_history.py` |
 | **Open questions** | Reflection-emitted queue (contradiction / low-confidence / drive-gap) with operator lifecycle | `data/shared/life_history.db` |
-| **Constitution** | Operator-set stable orientation rendered above evolving beliefs every prompt | `data/shared/life_history.db` |
-| **Ask-user surfacing** | Drive-gated mid-conversation question with daily budget | `runtime/learning/surface.py` |
+| **Ask-user surfacing** | Drive-gated mid-conversation question with daily budget (LearningBudget) | `runtime/learning/surface.py` |
 | **Trigger-time skills** | `applies_when`-filtered skill loading by chat hint | `runtime/skills.py` |
+| **Modulators** | Six-dim affective state (arousal, valence, certainty, bonding, energy, resolution); decay over time, shift on events | `core/emotion`, session state file |
 | **Tool gates** | Read-only by default; assisted autonomy needs confirmation; shell is a separate opt-in | `core/dual_process/tool_loop.py` |
 
 Every layer above is inspectable through `/settings#observability` and the OpenAPI surface at `/docs`.
 
-## Why This Is Different
+## Where Nūr Sits
 
-Most assistant memory systems store facts: your name, your preferences, things you asked before.
+Nūr is in the **cognitive runtime / agent memory** reference class, not the conversational-AI / companion class. The LLM still writes language; Nūr is the engineered layer that holds *what to write against*.
 
-Nūr stores **relational state**: what felt warm, what felt unresolved, what broke trust, what repaired it, what commitments remain open, and how the assistant's stance should change after history. It also tracks **identity-level continuity** — beliefs, drives, and self-traits that shift in response to formative experiences operators ingest.
+| Reference class | What they store | Nūr also stores |
+|---|---|---|
+| Vector RAG | document chunks · embeddings | — |
+| MemGPT / Letta / mem0 | conversation summaries · facts · preferences | ✓ via long-term + semantic memory |
+| LangGraph (with persistence) | turn-graph state · scratchpad | ✓ via session state + per-turn debug trace |
+| **Nūr — the additional layers** | | |
+| Relational continuity | | rupture · repair · commitments · open loops |
+| Identity continuity | | constitution · beliefs · drives · self-traits |
+| Self-evolution | | wall-clock decay · theme→belief promotion · drive-gap detection |
+| Affective state | | six modulators with deterministic decay · valence-weighted retrieval |
+| Open-question lifecycle | | epistemic gaps surfaced for operator review |
 
-This is the foundation for: emotionally persistent companions, relationship-aware agent memory, formative-experience tracking, rupture/repair/commitment loops, inspectable affective state, and safer stateful tool use around LLMs.
-
-The LLM still writes the words. Nūr changes the state those words come from.
+Every layer above is inspectable, decayable, and testable. None of them require the LLM to "feel" anything.
 
 <details>
 <summary><strong>Life History and identity continuity</strong> — formative experiences that bias future behavior</summary>

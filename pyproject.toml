@@ -1,7 +1,7 @@
 [project]
 name = "project-nur"
 version = "0.28.13"
-description = "Experimental AI assistant runtime with persistent emotional memory"
+description = "Cognitive runtime that gives LLM agents persistent state, identity, and learning across turns"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [

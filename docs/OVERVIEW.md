@@ -3,7 +3,8 @@
 > What the project is, why it exists, what the evidence supports today,
 > and what it does not claim. The public reader path.
 
-**Honest scope up front.** Nūr is a research prototype. It does not claim
+**Honest scope up front.** Nūr is a research prototype — a cognitive
+runtime, not an AGI claim and not a clinical tool. It does not claim
 validated human-likeness, consciousness, therapeutic value, or
 psychological validity.
 
@@ -20,43 +21,53 @@ psychological validity.
 
 ## 1. The idea
 
-Many LLM assistants sound emotionally responsive, especially once a
-prompt gives them a persona and access to prior conversation. The
-response still often feels like styling layered on top of the current
-turn rather than the product of accumulated history, tension, and
-consequence. Persona-in-prompt is a rendering of state the model does
-not carry. Between turns the state evaporates; between sessions it
-never existed. Nothing accumulates, nothing decays, nothing resolves
-or fails to resolve.
+LLM agents are stateless by default. A prompt-and-persona may render the
+*appearance* of continuity, but between turns the state evaporates;
+between sessions it never existed. Nothing accumulates, nothing decays,
+nothing resolves or fails to resolve. The agent-memory work of the last
+two years (MemGPT, Letta, mem0, LangGraph state) addresses one slice of
+that: it lets an LLM remember *facts* and *preferences*. It does not
+typically address *who the agent is becoming*, *how it relates to a
+specific person over time*, or *what it has learned that should now
+shape its judgment*.
 
-**Core thesis:** emotion in an AI assistant should be treated as
-persistent internal state, not a prompt-level style layer. The state
-should persist, decay, and remain inspectable. A response after history
-should be shaped by accumulated context, not only by a fresh prompt.
+**Core thesis:** an LLM agent benefits from an explicit cognitive
+runtime sitting alongside the model — engineered scaffolding that
+persists state, lets that state decay, revises it against evidence, and
+makes the whole structure inspectable. The LLM writes language; the
+runtime holds *what the LLM writes against*.
 
-Concretely, Nūr maintains:
+Concretely, Nūr maintains five categories of persistent state outside
+the model:
 
-- a continuous six-modulator emotional state with deterministic decay
-- memory keyed both by content and by how content landed
-- a self-profile earned through behavioral observation, using the same
-  mechanism the system uses to profile users
-- a relationship layer that tracks rupture, repair, commitments, and
-  unresolved loops across sessions
-- a life-history layer for formative material, where pasted/uploaded texts and
-  explicit "learn from this URL" requests can become experiences that revise
-  beliefs, drives, and self-observations
-- explicit decision points — appraisal, strategy, deliberation,
-  defense — each testable in isolation
+- **Memory** — short-term, long-term (valence-weighted), relational arc
+  (rupture, repair, commitments, open loops), semantic (preferences,
+  decisions, facts).
+- **Identity** — operator-set constitution, belief ledger with
+  confidence and decay, motivational drives that drift, self-traits
+  observed through behavior. Seeded by `soul.yaml`, shifted by
+  experiences operators ingest.
+- **Self-evolution** — wall-clock metabolism that decays weak beliefs,
+  promotes recurring themes to beliefs, and emits open-question rows
+  for unresolved gaps; a daily LearningBudget governs how often the
+  runtime can ask the user.
+- **Skills** — imported via paste / file / zip, loaded only when
+  `applies_when` chat hints match, with a `migrate_skill_to_life`
+  helper for skills that turn out to be disposition.
+- **Affective state** — six emotion modulators (arousal, valence,
+  certainty, bonding, energy, resolution) with deterministic decay,
+  driving appraisal and weighting memory retrieval.
 
-The LLM still writes the final language. The cognitive layer changes
-what the LLM is told to write against.
+Plus explicit decision points — appraisal, strategy, deliberation,
+defense, self-check — each testable in isolation.
 
-The project should not be read as "more memory features piled on top of a
-chatbot." The product narrative is narrower: Nūr is an experiment in
-continuity. Relationship memory asks how an assistant changes toward a
-person. Life history asks how an assistant records experiences that may
-change its own worldview. Both layers are inspectable; neither is evidence
-of consciousness.
+This is not "more memory features piled on top of a chatbot." It is an
+attempt to define what stateful cognitive context for an LLM agent
+looks like, in code that runs and that you can read. Relationship arc
+asks how the runtime changes *toward a specific person*. Life history
+asks how the runtime changes *its own judgment* in response to
+experiences. Both are inspectable; neither is evidence of
+consciousness.
 
 ## 2. Theory stance
 

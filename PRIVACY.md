@@ -1,8 +1,12 @@
 # Privacy & Data Retention
 
-Project Nūr's entire premise is **persistent relational memory**. That means
-it stores information about the people who interact with it. This document
-describes what is stored, where, and how to inspect, export, or delete it.
+Project Nūr is a cognitive runtime that maintains **persistent state**
+across turns and sessions: memory (relational, semantic, long-term),
+identity (beliefs, drives, self-traits), emotion modulators, and the
+identity-level Life History ledger. That means it stores information
+about the people who interact with it *and* about the runtime's own
+evolution. This document describes what is stored, where, and how to
+inspect, export, or delete it.
 
 ## Storage Layout
 

@@ -6,6 +6,28 @@ All notable changes to Project Nur are documented here.
 
 ## Unreleased
 
+### Repositioned
+- Top-of-repo framing changed from "emotionally persistent companion"
+  to "cognitive runtime that gives LLM agents persistent state,
+  identity, and learning across turns". The original conception
+  centered on emotion; the implementation grew to include identity
+  (constitution + beliefs + drives + self-traits), self-evolution
+  (metabolism + theme→belief promotion + drive-gap detection), open-
+  question lifecycle, trigger-time skill loading, and gated tool
+  access — emotion is now one of five state categories, not the
+  premise. Updated tagline, hook, "Where Nūr Sits" reference-class
+  table (placing Nūr alongside MemGPT / Letta / mem0 / LangGraph
+  rather than Replika / Pi / Character.ai), and added a parallel
+  identity-arc example to "What State Looks Like Across Turns" so
+  the runtime reads as multi-purpose, not single-domain. Mirror
+  changes in `docs/OVERVIEW.md` § "The idea", `docs/ARCHITECTURE.md`
+  § Scope, `docs/STUDY_GUIDE.md` lead, `PRIVACY.md` lead, the GitHub
+  repo description and topics (added: `agent-memory`,
+  `cognitive-runtime`, `stateful-agents`, `llm-agent`,
+  `agent-runtime`; removed: `chatbot`, `conversational-ai`,
+  `emotional-ai`, `psychology`), and the `pyproject.toml`
+  description. No code changes; positioning only.
+
 ### Added
 - Learning schedule is now operator-configurable from `/settings`. The Sprint 5
   ask-user `LearningBudget` was previously hardcoded inside `Pipeline.__init__`

@@ -3,6 +3,14 @@
 This guide is the repo-local entry point for reviewers. Older external study
 guides are historical; the source tree is the reference for current behavior.
 
+**What you are reading.** Nūr is a hybrid cognitive runtime for LLM agents
+— engineered scaffolding that holds memory, identity, self-evolution,
+skills, and affective state outside the model. Reference class: cognitive
+runtime / agent memory (MemGPT, Letta, mem0, LangGraph-with-persistence).
+Differentiator within that class: tracks relational continuity (rupture,
+repair, commitments) and identity continuity (constitution, beliefs,
+drives, self-traits) alongside conventional memory.
+
 Use these documents in order:
 
 1. [OVERVIEW.md](OVERVIEW.md) for the thesis and current claim boundaries.
