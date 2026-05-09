@@ -470,7 +470,11 @@ class SessionManager:
             return
         try:
             with LifeHistoryStore(self.config) as store:
-                outcome = store.wall_clock_decay()
+                outcome = store.wall_clock_decay(
+                    min_elapsed_days=float(
+                        getattr(self.config, "metabolism_min_elapsed_days", 1.0)
+                    ),
+                )
             if outcome.get("decayed"):
                 log.info(
                     "Life-history decay applied: elapsed=%.2f days, result=%s",

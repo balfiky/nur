@@ -144,6 +144,55 @@ class TestConfigFromYaml:
 
 
 # =========================================================================
+# Learning schedule
+# =========================================================================
+
+class TestLearningSchedule:
+    def test_default_learning_fields(self):
+        cfg = RuntimeConfig()
+        assert cfg.learning_budget_kind == "local"
+        assert cfg.learning_max_questions_per_day == 3
+        assert cfg.learning_max_seconds_per_day == 1800.0
+        assert cfg.metabolism_min_elapsed_days == 1.0
+
+    def test_learning_fields_round_trip_through_yaml(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "rc.yaml")
+            cfg = RuntimeConfig(
+                learning_budget_kind="local",
+                learning_max_questions_per_day=10,
+                learning_max_seconds_per_day=600.0,
+                metabolism_min_elapsed_days=0.25,
+            )
+            cfg.write_yaml(path)
+            loaded = RuntimeConfig.from_yaml(path)
+            assert loaded.learning_max_questions_per_day == 10
+            assert loaded.learning_max_seconds_per_day == 600.0
+            assert loaded.metabolism_min_elapsed_days == 0.25
+
+    def test_learning_budget_builder_returns_local_budget_with_caps(self):
+        from runtime.learning_budget import LocalBudget
+        cfg = RuntimeConfig(
+            learning_max_questions_per_day=7,
+            learning_max_seconds_per_day=900.0,
+        )
+        budget = cfg.learning_budget()
+        assert isinstance(budget, LocalBudget)
+        assert budget.max_questions_per_day == 7
+        assert budget.max_seconds_per_day == 900.0
+
+    def test_learning_budget_caps_pursuit_after_limit(self):
+        cfg = RuntimeConfig(learning_max_questions_per_day=2)
+        budget = cfg.learning_budget()
+        assert budget.can_pursue() is True
+        budget.consume(questions=1)
+        assert budget.can_pursue() is True
+        budget.consume(questions=1)
+        # 2 consumed; 2/day cap reached.
+        assert budget.can_pursue() is False
+
+
+# =========================================================================
 # create_llm_backend
 # =========================================================================
 

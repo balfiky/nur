@@ -65,6 +65,12 @@ const state = createSurfaceState({
       ["coherence_max_regenerations", "Coherence Regenerations", "number"],
       ["pending_intake_ttl_turns", "Pending Intake TTL", "number"],
     ],
+    learning: [
+      ["learning_budget_kind", "Budget Kind", "select"],
+      ["learning_max_questions_per_day", "Max Questions Per Day", "number"],
+      ["learning_max_seconds_per_day", "Max Learning Seconds Per Day", "number"],
+      ["metabolism_min_elapsed_days", "Metabolism Min Elapsed Days", "number"],
+    ],
     models: [
       ["llm_backend", "LLM Backend", "select"],
       ["llm_base_url", "LLM Base URL", "text", true],
@@ -210,6 +216,7 @@ const state = createSurfaceState({
   function renderAllForms() {
     renderConfigForm("runtimeForm", fieldSections.runtime);
     renderConfigForm("characterForm", fieldSections.character);
+    renderConfigForm("learningForm", fieldSections.learning);
     renderConfigForm("modelsForm", fieldSections.models);
     renderConfigForm("toolsForm", fieldSections.tools);
     renderConfigForm("accessForm", fieldSections.access);

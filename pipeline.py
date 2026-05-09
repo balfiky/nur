@@ -503,12 +503,17 @@ class CognitivePipeline:
         self.last_intake_receipt: str = ""
 
         # Sprint 5: Ask-user autonomy. One budget per pipeline (per session)
-        # so caps roll daily even with restarts. Override-able for tests.
+        # so caps roll daily even with restarts. Read caps from runtime_config
+        # when present so operators can tune the schedule from /settings;
+        # fall back to safe defaults for tests/non-runtime callers.
         from runtime.learning_budget import LocalBudget, LearningBudget
-        self.learning_budget: LearningBudget = LocalBudget(
-            max_questions_per_day=3,
-            max_seconds_per_day=1800.0,
-        )
+        if runtime_config is not None and hasattr(runtime_config, "learning_budget"):
+            self.learning_budget: LearningBudget = runtime_config.learning_budget()
+        else:
+            self.learning_budget = LocalBudget(
+                max_questions_per_day=3,
+                max_seconds_per_day=1800.0,
+            )
         # When the pipeline surfaces an open question to the user, store the
         # id here so the next turn can attribute the user's reply.
         self._pending_surfaced_question_id: int | None = None

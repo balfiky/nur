@@ -95,6 +95,21 @@
           <form class="form-grid" id="characterForm"></form>
         </details>
 
+        <details class="settings-section" id="settings-learning" open>
+          <summary>
+            <span>Learning Schedule</span>
+            <small>Daily ask-user budget and metabolism reflection cadence.</small>
+          </summary>
+          <form class="form-grid" id="learningForm"></form>
+          <p class="muted">
+            <strong>Ask-user budget</strong> caps how often Nūr surfaces an open question
+            during chat. <strong>Metabolism min elapsed days</strong> is the rate limit on
+            the wall-clock reflection tick (decay, theme→belief promotion, drive-gap and
+            low-confidence emission). Lower values reflect more often; raise them for
+            quieter long-running deployments.
+          </p>
+        </details>
+
         <details class="settings-section" id="settings-models" open>
           <summary>
             <span>Models</span>

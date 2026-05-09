@@ -6,6 +6,28 @@ All notable changes to Project Nur are documented here.
 
 ## Unreleased
 
+### Added
+- Learning schedule is now operator-configurable from `/settings`. The Sprint 5
+  ask-user `LearningBudget` was previously hardcoded inside `Pipeline.__init__`
+  and the wall-clock metabolism rate-limit was a magic literal in the session
+  manager — both are now real `RuntimeConfig` fields:
+  - `learning_budget_kind` (currently `"local"`; `"cloud"` reserved)
+  - `learning_max_questions_per_day` (default 3)
+  - `learning_max_seconds_per_day` (default 1800)
+  - `metabolism_min_elapsed_days` (default 1.0 — used by
+    `wall_clock_decay` to skip ticks within the same day)
+
+  All four round-trip through YAML, validate via Pydantic on `POST /admin/config`,
+  and render in a new **Learning Schedule** section on the settings page.
+  `Pipeline` now constructs its `LearningBudget` from `runtime_config.learning_budget()`
+  when a runtime config is wired in, so caps tuned in the UI take effect on the
+  next session reload without restarting the app. Coverage:
+  - 4 unit tests in `tests/test_runtime_config.py::TestLearningSchedule`
+  - 1 UAT test
+    `tests/uat/test_evolution_features.py::test_learning_schedule_persists_via_admin_config_and_changes_budget`
+    sets max-questions to 1 via `/admin/config`, restarts, seeds two open
+    questions, sends two chat turns, and asserts only one was surfaced.
+
 ### Fixed
 - Tool-intent detection for memory queries now matches imperative phrasings
   ("give me", "read", "fetch", "report", "grab"), not only declarative ones

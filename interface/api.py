@@ -329,6 +329,11 @@ class ConfigUpdateRequest(BaseModel):
     autonomy_level: str | None = None
     tools_workspace: str | None = None
     shell_tool_enabled: bool | None = None
+    # Learning schedule (Sprint 5).
+    learning_budget_kind: str = "local"
+    learning_max_questions_per_day: int = Field(3, ge=0, le=200)
+    learning_max_seconds_per_day: float = Field(1800.0, ge=0)
+    metabolism_min_elapsed_days: float = Field(1.0, ge=0, le=30)
     clear_telegram_token: bool = False
     clear_llm_api_key: bool = False
     clear_api_key: bool = False
@@ -668,6 +673,10 @@ async def update_config(req: ConfigUpdateRequest) -> dict:
             existing.shell_tool_enabled if req.shell_tool_enabled is None
             else bool(req.shell_tool_enabled)
         ),
+        learning_budget_kind=req.learning_budget_kind,
+        learning_max_questions_per_day=req.learning_max_questions_per_day,
+        learning_max_seconds_per_day=req.learning_max_seconds_per_day,
+        metabolism_min_elapsed_days=req.metabolism_min_elapsed_days,
     )
 
     if req.clear_telegram_token:
@@ -1508,14 +1517,21 @@ async def admin_life_resolve_open_question(question_id: int) -> dict:
 async def admin_life_metabolism_tick() -> dict:
     """Manually trigger the wall-clock metabolism tick.
 
-    Idempotent under the existing rate limit (>=1 day elapsed). Useful for
-    operator-driven reflection and as a stand-in for an external scheduler.
+    Idempotent under the configured rate limit (``metabolism_min_elapsed_days``,
+    default 1 day). Useful for operator-driven reflection and as a stand-in
+    for an external scheduler.
     """
     from runtime.life_history import LifeHistoryError, LifeHistoryStore
 
+    config = _load_runtime_config()
     try:
-        with LifeHistoryStore(_load_runtime_config()) as store:
-            return {"ok": True, **store.wall_clock_decay()}
+        with LifeHistoryStore(config) as store:
+            return {
+                "ok": True,
+                **store.wall_clock_decay(
+                    min_elapsed_days=float(config.metabolism_min_elapsed_days),
+                ),
+            }
     except LifeHistoryError as exc:
         _raise_life_http_error(exc)
 
@@ -2100,6 +2116,10 @@ _CONFIG_FIELD_SECTIONS = {
     "coherence_min_score": "runtime",
     "coherence_max_regenerations": "runtime",
     "pending_intake_ttl_turns": "runtime",
+    "learning_budget_kind": "learning",
+    "learning_max_questions_per_day": "learning",
+    "learning_max_seconds_per_day": "learning",
+    "metabolism_min_elapsed_days": "learning",
 }
 
 _RESTART_REQUIRED_FIELDS = {"debug_host", "debug_port", "cors_origins"}
@@ -2125,6 +2145,10 @@ _SESSION_RELOAD_FIELDS = {
     "autonomy_level",
     "tools_workspace",
     "shell_tool_enabled",
+    "learning_budget_kind",
+    "learning_max_questions_per_day",
+    "learning_max_seconds_per_day",
+    "metabolism_min_elapsed_days",
 }
 _LIVE_RELOAD_FIELDS = {"api_key", "telegram_token", "telegram_allowlist", "telegram_poll_timeout", "dedupe_ttl"}
 
@@ -2268,6 +2292,8 @@ def _allowed_values_for_field(field_name: str) -> list[str] | None:
         return ["auto", "provider", "openai_compatible", "codex"]
     if field_name == "autonomy_level":
         return ["off", "assisted", "autonomous", "high_risk"]
+    if field_name == "learning_budget_kind":
+        return ["local"]  # cloud is a placeholder; not yet implemented
     return None
 
 

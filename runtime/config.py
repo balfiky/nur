@@ -84,6 +84,25 @@ class RuntimeConfig:
     # execution is a larger blast radius than bounded file I/O.
     shell_tool_enabled: bool = False
 
+    # Learning schedule (Sprint 5). The LearningBudget caps how often Nūr can
+    # surface an open question to the user inside chat. Metabolism min elapsed
+    # days is the rate limit on the wall-clock reflection tick.
+    learning_budget_kind: str = "local"        # "local" | "cloud" (cloud not yet implemented)
+    learning_max_questions_per_day: int = 3
+    learning_max_seconds_per_day: float = 1800.0
+    metabolism_min_elapsed_days: float = 1.0
+
+    def learning_budget(self):
+        """Build a LearningBudget instance from the configured settings."""
+        from runtime.learning_budget import from_config as _budget_from_config
+        return _budget_from_config({
+            "budget": self.learning_budget_kind,
+            "local": {
+                "max_questions_per_day": self.learning_max_questions_per_day,
+                "max_seconds_per_day": self.learning_max_seconds_per_day,
+            },
+        })
+
     @classmethod
     def from_yaml(cls, path: str) -> RuntimeConfig:
         """Load config from a YAML file.  Missing keys use defaults."""

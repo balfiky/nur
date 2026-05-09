@@ -1,6 +1,6 @@
 [project]
 name = "project-nur"
-version = "0.28.12"
+version = "0.28.13"
 description = "Experimental AI assistant runtime with persistent emotional memory"
 readme = "README.md"
 license = { file = "LICENSE" }

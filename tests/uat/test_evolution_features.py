@@ -1570,6 +1570,79 @@ def test_skill_import_rejects_plain_markdown_without_frontmatter(uat_server):
 
 
 # ---------------------------------------------------------------------------
+# Learning schedule: operator-tunable budget caps + metabolism cadence
+# ---------------------------------------------------------------------------
+
+
+def test_learning_schedule_persists_via_admin_config_and_changes_budget(uat_server):
+    """Operator-set learning budget must:
+    - persist via /admin/config (and survive restart)
+    - actually change the surfacing cap on a live pipeline
+    """
+    # Set a tight cap (1 question/day) and verify the API persisted it.
+    current = expect_json(uat_server.get("/admin/config"))["config"]
+    saved = expect_json(uat_server.post("/admin/config", {
+        **current,
+        "learning_max_questions_per_day": 1,
+        "learning_max_seconds_per_day": 90.0,
+        "metabolism_min_elapsed_days": 0.5,
+    }))
+    assert saved["config"]["learning_max_questions_per_day"] == 1
+    assert saved["config"]["learning_max_seconds_per_day"] == 90.0
+    assert saved["config"]["metabolism_min_elapsed_days"] == 0.5
+
+    uat_server.restart()
+    after = expect_json(uat_server.get("/admin/config"))["config"]
+    assert after["learning_max_questions_per_day"] == 1
+    assert after["metabolism_min_elapsed_days"] == 0.5
+
+    # Seed two open questions; with the tight cap, exactly one should surface
+    # across two chat turns.
+    qid_a = _seed_open_question(
+        uat_server,
+        prompt="What does autonomy mean to you?",
+        source_kind="drive_gap",
+        target_drive="curiosity",
+        priority=0.95,
+    )
+    qid_b = _seed_open_question(
+        uat_server,
+        prompt="Where does competence pressure come from?",
+        source_kind="drive_gap",
+        target_drive="competence",
+        priority=0.9,
+    )
+
+    user_id = "uat_learning_cap"
+    surfaced: list[int] = []
+    for turn in range(2):
+        resp = expect_json(uat_server.post("/v1/chat", {
+            "message": f"Turn {turn} — anything to share?",
+            "user_id": user_id,
+            "chat_id": "default",
+            "include_debug": True,
+        }))
+        sid = (resp["debug"].get("life_influence_effects") or {}).get(
+            "open_question_surfaced"
+        )
+        if sid:
+            surfaced.append(int(sid))
+
+    assert len(surfaced) == 1, (
+        f"Operator-set 1/day cap not enforced; surfaced={surfaced!r}"
+    )
+
+    # The other question is still 'open' — the cap stopped surfacing, not
+    # missing-eligibility.
+    open_after = expect_json(uat_server.get("/admin/life/open-questions"))
+    open_ids = {q["id"] for q in open_after["questions"]}
+    assert (qid_a in open_ids) ^ (qid_b in open_ids), (
+        f"Expected exactly one question still open; ids={open_ids}, "
+        f"qid_a={qid_a}, qid_b={qid_b}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Comprehensive aggregator — single PASS/FAIL for the entire UAT suite
 # ---------------------------------------------------------------------------
 
