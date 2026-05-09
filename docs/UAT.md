@@ -22,8 +22,8 @@ python3 -m playwright install chromium
 The repository includes a Makefile with three test entry points:
 
 ```bash
-make test                 # non-UAT unit/integration suite (1826 tests, ~3 min)
-make uat                  # full UAT suite (63 tests, ~14 min, live LLM)
+make test                 # non-UAT unit/integration suite (1830 tests, ~3 min)
+make uat                  # full UAT suite (64 tests, ~14 min, live LLM)
 make uat-comprehensive    # single PASS/FAIL aggregator that runs the same UAT
                           # tests as a subprocess and asserts they all pass
 ```

@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <a href="docs/UAT.md"><img src="https://img.shields.io/badge/tests-1826%20unit%20%2B%2063%20UAT-2A8F6E?style=for-the-badge" alt="Tests"></a>
+  <a href="docs/UAT.md"><img src="https://img.shields.io/badge/tests-1830%20unit%20%2B%2064%20UAT-2A8F6E?style=for-the-badge" alt="Tests"></a>
   <a href="docs/ARCHITECTURE.md"><img src="https://img.shields.io/badge/architecture-self--evolving-D08A4E?style=for-the-badge" alt="Architecture"></a>
   <a href="docs/OVERVIEW.md"><img src="https://img.shields.io/badge/scope-research%20prototype-7A4A8C?style=for-the-badge" alt="Scope"></a>
   <a href="#configure-an-llm"><img src="https://img.shields.io/badge/llm-ollama%20%E2%80%A2%20codex%20%E2%80%A2%20openai-1A1428?style=for-the-badge" alt="LLM backends"></a>
@@ -30,6 +30,10 @@ Mood, trust, tension, repair, commitments, and the long arc of a relationship li
 [Quickstart](#quickstart) · [Overview](docs/OVERVIEW.md) · [Architecture](docs/ARCHITECTURE.md) · [Admin & Deploy](docs/DEPLOYMENT_AND_ADMIN.md) · [Privacy](PRIVACY.md) · [Changelog](CHANGELOG.md)
 
 ---
+
+<p align="center">
+  <img src="docs/diagrams/hero-banner.png" alt="State that persists between your turns — Mon/Wed/Fri turns drive a persistent cognitive state row (arousal, valence, certainty, bonding, energy, resolution, memory, relationship arc, self-model)" width="900">
+</p>
 
 > **Honest scope.** Nūr is an experimental runtime, not a therapist. It claims no consciousness, no feelings, no clinical validity. Relational and semantic memory live under `data/` — use it with consent when other people are involved. See [PRIVACY.md](PRIVACY.md) for inspection, export, and deletion.
 
@@ -74,78 +78,31 @@ The LLM writes language. Deterministic state, memory retrieval, and safety gates
 
 Every layer above is inspectable through `/settings#observability` and the OpenAPI surface at `/docs`.
 
-## What's New
-
-Recent self-evolution work (see [CHANGELOG.md](CHANGELOG.md) for full notes):
-
-- **Constitution layer** (`/admin/identity/constitution`) — stable operator-set orientation rendered above evolving beliefs every prompt.
-- **Open questions queue** — reflection now emits epistemic gaps (contradiction, low-confidence, drive-gap) for operator review.
-- **Self-evolution metabolism** — wall-clock decay, weak-belief revocation, theme→belief promotion, drive-gap detection.
-- **Ask-user autonomy** (Sprint 5) — Nūr can surface an open question to the user when budget and drives align.
-- **Constitution and open questions** are exposed in `/settings#life`; metabolism fires automatically on session start.
-- **No mock backend** — every LLM call goes to a real model (Ollama, Codex CLI, hosted OpenAI-compatible).
-
 ## Why This Is Different
 
-Most assistant memory systems store facts:
+Most assistant memory systems store facts: your name, your preferences, things you asked before.
 
-- your name
-- your preferences
-- things you asked before
+Nūr stores **relational state**: what felt warm, what felt unresolved, what broke trust, what repaired it, what commitments remain open, and how the assistant's stance should change after history. It also tracks **identity-level continuity** — beliefs, drives, and self-traits that shift in response to formative experiences operators ingest.
 
-Nūr stores relational state:
-
-- what felt warm
-- what felt unresolved
-- what broke trust
-- what repaired it
-- what commitments remain open
-- how the assistant's stance should change after history
+This is the foundation for: emotionally persistent companions, relationship-aware agent memory, formative-experience tracking, rupture/repair/commitment loops, inspectable affective state, and safer stateful tool use around LLMs.
 
 The LLM still writes the words. Nūr changes the state those words come from.
 
-## Life History And Evolution
+<details>
+<summary><strong>Life History and identity continuity</strong> — formative experiences that bias future behavior</summary>
 
-Nūr also has an early **Life History** layer for formative material: pasted
-texts, notes, essays, browser-uploaded text/Markdown files, and explicit chat
-requests like "learn from this project: <url>". This is not just a summarizer.
-It records an experience, then writes an inspectable evolution trace: belief
-shifts, drive changes, self-trait observations, and future behavior tendencies.
+Nūr has an early **Life History** layer for formative material: pasted texts, notes, essays, browser-uploaded text/Markdown files, and explicit chat requests like "learn from this project: <url>". This is not just a summarizer. It records an experience, then writes an inspectable evolution trace: belief shifts, drive changes, self-trait observations, and future behavior tendencies.
 
-That means the project now has two distinct continuity layers:
+That means the project has two distinct continuity layers:
 
-- **Relational continuity:** how Nūr remembers people, tension, repair, and
-  unfinished business.
-- **Identity continuity:** how Nūr records experiences that may change its
-  worldview, motivations, and self-model over time.
+- **Relational continuity** — how Nūr remembers people, tension, repair, and unfinished business.
+- **Identity continuity** — how Nūr records experiences that may change its worldview, motivations, and self-model over time.
 
-This layer is intentionally experimental. It is observable in `/settings` →
-**Life History** and stored under `data/shared/life_history.db`. The settings
-workspace includes an evolution snapshot: first/latest experience, strongest
-drive drift, dominant drive pressure, and change-type mix. Runtime sessions load
-a compact slice of current beliefs, shifted drives, and recent evolution into
-generation, so formative experiences can bias Nūr's perspective without dumping
-raw source material into every prompt.
+It is observable in `/settings` → **Life History** and stored under `data/shared/life_history.db`. The settings workspace includes an evolution snapshot: first/latest experience, strongest drive drift, dominant drive pressure, and change-type mix. Runtime sessions load a compact slice of current beliefs, shifted drives, and recent evolution into generation, so formative experiences can bias Nūr's perspective without dumping raw source material into every prompt.
 
-When a user explicitly asks Nūr to learn from a URL, the runtime fetches
-readable text, preserves the source reference, writes the Life History event,
-and appends a short learning receipt. Ordinary search, browsing, and casual
-conversation do not mutate identity-level Life History.
+When a user explicitly asks Nūr to learn from a URL, the runtime fetches readable text, preserves the source reference, writes the Life History event, and appends a short learning receipt. Ordinary search, browsing, and casual conversation do not mutate identity-level Life History.
 
-## Build With It
-
-Use Nūr if you want to experiment with:
-
-- emotionally persistent AI companions
-- long-running personal assistants
-- relationship-aware agent memory
-- formative experience and worldview tracking
-- imported Agent Skills as bounded runtime guidance
-- inspectable affective state
-- rupture, repair, and commitment tracking
-- safer stateful tool use around LLMs
-
-It is alpha, imperfect, and intentionally honest about what it does not prove.
+</details>
 
 ## Quickstart
 
@@ -220,6 +177,18 @@ nur-validate --mode full   # local release-readiness validation
 nur                        # console runtime
 ```
 
+<details>
+<summary><strong>What's new</strong> — recent self-evolution work (full notes in <a href="CHANGELOG.md">CHANGELOG.md</a>)</summary>
+
+- **Learning schedule** — `LearningBudget` caps and metabolism min-elapsed-days are now operator-tunable in `/settings`.
+- **Constitution layer** (`/admin/identity/constitution`) — stable operator-set orientation rendered above evolving beliefs every prompt.
+- **Open questions queue** — reflection now emits epistemic gaps (contradiction, low-confidence, drive-gap) for operator review.
+- **Self-evolution metabolism** — wall-clock decay, weak-belief revocation, theme→belief promotion, drive-gap detection.
+- **Ask-user autonomy** (Sprint 5) — Nūr can surface an open question to the user when budget and drives align.
+- **No mock backend** — every LLM call goes to a real model (Ollama, Codex CLI, hosted OpenAI-compatible).
+
+</details>
+
 ## Start Here
 
 | Need | Document |
@@ -270,14 +239,18 @@ Runtime config is `runtime_config.yaml` in the current working directory. Identi
 
 ## Architecture At A Glance
 
-![Project Nūr runtime architecture](docs/diagrams/runtime-architecture.png)
+<p align="center">
+  <img src="docs/diagrams/single-turn-cognitive-flow.png" alt="Single-turn cognitive flow: state update → gated deliberation → generation → self-check → post-processing" width="900">
+</p>
+
+A single turn runs five stages: deterministic pre-pass → gated deliberation (inner dialogue, tool loop, defense shaping) → master LLM generation → rule + LLM self-check → post-processing (memory writes, energy drain, debug trace). The LLM writes language; deterministic state, memory, safety gates, and retrieval happen around it.
 
 Two entry points share the same session and cognition layer:
 
 - `nur-web` — FastAPI, bundled chat UI, `/settings`, admin API endpoints, `/v1/*`
 - `nur` — console, Telegram, debug runtime
 
-The core turn path runs `SessionManager` → `UserSession` → `CognitivePipeline`. The LLM writes language; deterministic state, memory, safety gates, and retrieval happen around it. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+For the full component map (clients, hosts, persistence, LLM backends), see the runtime architecture diagram in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## API Quick Tour
 
@@ -313,8 +286,8 @@ Before exposing Nūr beyond localhost:
 ## Common Commands
 
 ```bash
-make test                                        # 1826 unit/integration tests, ~3 min
-make uat                                         # 63 UAT tests against a live LLM, ~14 min
+make test                                        # 1830 unit/integration tests, ~3 min
+make uat                                         # 64 UAT tests against a live LLM, ~14 min
 make uat-comprehensive                           # one PASS/FAIL aggregator over the full UAT suite
 python3 -m pytest tests/test_interface.py -q     # focused interface tests
 python3 -m evals --backend openai_compatible --tag phase11  # behavioral eval pack

@@ -429,8 +429,8 @@ tick fires automatically on session start.
 The repository includes a Makefile with three test entry points:
 
 ```bash
-make test                 # 1826 unit/integration tests, ~3 min, no LLM
-make uat                  # 63 UAT tests, ~14 min, requires NUR_UAT_LIVE=1 + a real backend
+make test                 # 1830 unit/integration tests, ~3 min, no LLM
+make uat                  # 64 UAT tests, ~14 min, requires NUR_UAT_LIVE=1 + a real backend
 make uat-comprehensive    # one PASS/FAIL aggregator over the whole UAT suite
 ```
 
