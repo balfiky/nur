@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <strong>A cognitive runtime that gives LLMs persistent state, identity, and learning across turns.</strong>
+  <strong>Persistent state, evolving identity, accumulated learning — for any LLM.</strong>
 </p>
 
 <p align="center">
@@ -34,7 +34,7 @@ In the agent-memory reference class (MemGPT, Letta, mem0, LangGraph state), Nūr
 ---
 
 <p align="center">
-  <img src="docs/diagrams/feature-overview.png" alt="Nūr at a glance: channels (Web UI, Telegram, Console, REST API) feed a persistent cognitive core (six emotion modulators, five memory layers, identity with constitution/beliefs/drives, self-evolution with metabolism/open-questions/skills) which acts through gated capabilities (skills, web search, file ops, shell)." width="1000">
+  <img src="docs/diagrams/hero-illustration.png" alt="Nūr cognitive runtime — illustrated scene: a user character on the left sends a message ('I think I was too harsh earlier — same chat, three days later'), and the Nūr orb on the right (a glowing core labeled 'Cognitive Runtime') replies after retrieving the relationship arc ('I remember that moment. We don't have to ignore it.'). Around the orb float four state pills — Memory, Identity, Emotion, Evolution. Footer: persistent state · evolving identity · accumulated learning · gated tools — for any LLM." width="1100">
 </p>
 
 > **Honest scope.** Nūr is an experimental runtime — not a therapist, not an AGI claim, not a consciousness claim. It is engineered scaffolding that holds *the state behind* an LLM's words across turns, sessions, and time. Memory and identity state live under `data/` — use it with consent when other people are involved. See [PRIVACY.md](PRIVACY.md) for inspection, export, and deletion.
@@ -267,7 +267,11 @@ Runtime config is `runtime_config.yaml` in the current working directory. Identi
 
 ## Architecture At A Glance
 
-The feature map at the top of this README shows the three bands at a glance: **Channels** (Web UI, Telegram, Console, REST API) feed the **Persistent Cognitive Core** (six emotion modulators, five memory layers, identity with constitution/beliefs/drives, self-evolution with metabolism + open questions + skills), which acts through gated **Capabilities** (skills, web search, file ops, shell).
+<p align="center">
+  <img src="docs/diagrams/feature-overview.png" alt="Nūr feature overview — three bands. Top: Channels (Web UI, Telegram, Console, REST API). Middle: Persistent Cognitive Core (Emotions with six modulators, Memory with five layers, Identity with constitution/beliefs/drives/self-traits, Evolution with metabolism/open-questions/skills). Bottom: Capabilities (Skills, Web search, File ops, Shell) — all gated by intent and autonomy level." width="1000">
+</p>
+
+Three bands: **Channels** speak in (Web UI, Telegram, Console, REST API) → **Persistent Cognitive Core** holds state across turns (Emotions · Memory · Identity · Self-evolution) → **Capabilities** act, each gated by intent and autonomy level (Skills · Web search · File ops · Shell).
 
 A single turn runs five stages internally: deterministic pre-pass → gated deliberation (inner dialogue, tool loop, defense shaping) → master LLM generation → rule + LLM self-check → post-processing (memory writes, energy drain, debug trace). The LLM writes language; deterministic state, memory, safety gates, and retrieval happen around it.
 
