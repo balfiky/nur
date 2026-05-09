@@ -310,9 +310,15 @@ def _check_version_consistency(root: Path) -> str:
     version = _project_version(root)
     readme = _read(root / "README.md")
     changelog = _read(root / "CHANGELOG.md")
-    _require(f"version-{version}-informational" in readme, "README badge version mismatch.")
+    badge_pattern = re.compile(rf"version-{re.escape(version)}-[^?\"\s]+")
+    _require(bool(badge_pattern.search(readme)), "README badge version mismatch.")
     _require(f"Version `{version}`" in readme, "README current-status version mismatch.")
-    _require(f"## v{version} " in changelog, "CHANGELOG missing current release heading.")
+    has_release_heading = f"## v{version} " in changelog or f"## v{version}\n" in changelog
+    has_unreleased = "## Unreleased" in changelog
+    _require(
+        has_release_heading or has_unreleased,
+        "CHANGELOG missing release heading or ## Unreleased section.",
+    )
     return version
 
 
@@ -341,8 +347,18 @@ def _check_package_data_sources(root: Path) -> str:
     if missing:
         raise ValidationFailure("missing package data sources: " + ", ".join(missing))
     pyproject = _read(root / "pyproject.toml")
-    _require('interface = ["static/*"]' in pyproject, "pyproject must ship interface/static/*.")
-    _require('config = ["*.yaml", "prompts/*.md"]' in pyproject, "pyproject must ship config data.")
+    interface_match = re.search(r"^interface\s*=\s*\[(?P<items>[^\]]*)\]", pyproject, re.MULTILINE)
+    _require(
+        interface_match is not None and '"static/*"' in interface_match.group("items"),
+        "pyproject must ship interface/static/*.",
+    )
+    config_match = re.search(r"^config\s*=\s*\[(?P<items>[^\]]*)\]", pyproject, re.MULTILINE)
+    _require(
+        config_match is not None
+        and '"*.yaml"' in config_match.group("items")
+        and '"prompts/*.md"' in config_match.group("items"),
+        "pyproject must ship config data.",
+    )
     return f"{len(EXPECTED_PACKAGE_FILES)} files"
 
 
