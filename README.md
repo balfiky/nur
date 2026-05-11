@@ -13,11 +13,11 @@
   <a href="https://github.com/balfiky/nur/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/balfiky/nur/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-F5A65B?style=for-the-badge" alt="MIT License"></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/python-3.10%2B-7A4A8C?style=for-the-badge" alt="Python 3.10+"></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.28.13-1A1428?style=for-the-badge" alt="Version"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.29.0-1A1428?style=for-the-badge" alt="Version"></a>
 </p>
 
 <p align="center">
-  <a href="docs/UAT.md"><img src="https://img.shields.io/badge/tests-1897%20unit%20%2B%2065%20UAT%20%2B%2074%20evals-2A8F6E?style=for-the-badge" alt="Tests"></a>
+  <a href="docs/UAT.md"><img src="https://img.shields.io/badge/tests-1899%20unit%20%2B%2065%20UAT%20%2B%2074%20evals-2A8F6E?style=for-the-badge" alt="Tests"></a>
   <a href="docs/ARCHITECTURE.md"><img src="https://img.shields.io/badge/architecture-deterministic%20metabolism-D08A4E?style=for-the-badge" alt="Architecture — belief decay, theme→belief promotion, drive-gap detection"></a>
   <a href="docs/OVERVIEW.md"><img src="https://img.shields.io/badge/scope-research%20prototype-7A4A8C?style=for-the-badge" alt="Scope"></a>
   <a href="#configure-an-llm"><img src="https://img.shields.io/badge/llm-ollama%20%E2%80%A2%20codex%20%E2%80%A2%20openai-1A1428?style=for-the-badge" alt="LLM backends"></a>
@@ -311,7 +311,7 @@ Before exposing Nūr beyond localhost:
 ## Common Commands
 
 ```bash
-make test                                        # 1830 unit/integration tests, ~3 min
+make test                                        # 1899 unit/integration tests, ~3 min
 make uat                                         # 64 UAT tests against a live LLM, ~14 min
 make uat-comprehensive                           # one PASS/FAIL aggregator over the full UAT suite
 python3 -m pytest tests/test_interface.py -q     # focused interface tests

@@ -4,7 +4,7 @@ All notable changes to Project Nur are documented here.
 
 ---
 
-## Unreleased
+## v0.29.0 — 2026-05-11
 
 ### Fixed
 - **P0 — Constitution not injected into production system prompt.** The
