@@ -4,7 +4,6 @@ import math
 import pytest
 
 from core.types import (
-    AttachmentStyle,
     BaselineShift,
     EmotionalEvent,
     EventType,

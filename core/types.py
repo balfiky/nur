@@ -499,17 +499,6 @@ class AgencyDecision:
 
 
 # ---------------------------------------------------------------------------
-# Attachment (config, locked to secure in v1)
-# ---------------------------------------------------------------------------
-
-class AttachmentStyle(str, Enum):
-    SECURE = "secure"
-    ANXIOUS = "anxious"
-    AVOIDANT = "avoidant"
-    DISORGANIZED = "disorganized"
-
-
-# ---------------------------------------------------------------------------
 # Pipeline context (what the LLM sees)
 # ---------------------------------------------------------------------------
 

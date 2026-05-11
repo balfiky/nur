@@ -266,7 +266,6 @@ class NurConfig:
         "bonding": 0.5, "energy": 1.0,
     })
     spike_threshold: float = 0.8
-    attachment_style: str = "secure"
 
     # Sub-configs
     energy: EnergyConfig = field(default_factory=EnergyConfig)
@@ -318,7 +317,6 @@ def load_config(config_dir: str | Path | None = None) -> NurConfig:
     cdir = Path(config_dir) if config_dir is not None else None
 
     mod = _load_yaml("modulators.yaml", cdir)
-    att = _load_yaml("attachment.yaml", cdir)
     prof = _load_yaml("profiles_schema.yaml", cdir)
     vals = _load_yaml("values_seed.yaml", cdir)
     soul = _load_yaml("soul.yaml", cdir)
@@ -386,10 +384,6 @@ def load_config(config_dir: str | Path | None = None) -> NurConfig:
         cfg.resolution = ResolutionConfig(
             decay_rates={**ResolutionConfig().decay_rates, **decay},
         )
-
-    # --- Attachment ---
-    if "active_style" in att:
-        cfg.attachment_style = att["active_style"]
 
     # --- Profiles ---
     if "profiling" in prof:

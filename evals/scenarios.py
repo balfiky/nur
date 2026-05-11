@@ -7,6 +7,9 @@ Suites:
   - Proactive regression
   - Defense and resolution dynamics
   - Relationship-sensitive behavior
+  - Adversarial state-sensitivity (T2)
+  - Tool-failure recovery (T14)
+  - Long-horizon multi-session (T6)
 """
 
 from __future__ import annotations
@@ -20,6 +23,9 @@ from evals.types import (
     EvalScenario,
     EvalTurn,
 )
+from evals.adversarial_scenarios import adversarial_scenarios
+from evals.long_horizon_scenarios import long_horizon_scenarios
+from evals.tool_recovery_scenarios import tool_recovery_scenarios
 from runtime.config import RuntimeConfig
 from runtime.life_history import LifeHistoryStore
 
@@ -1784,6 +1790,9 @@ def all_scenarios() -> list[EvalScenario]:
         + phase13_life_scenarios()
         + character_independence_scenarios()
         + semantic_memory_scenarios()
+        + adversarial_scenarios()
+        + tool_recovery_scenarios()
+        + long_horizon_scenarios()
     )
 
 
@@ -1792,4 +1801,5 @@ ALL_TAGS = [
     "proactive", "defense", "resolution", "relationship",
     "calibration", "phase11", "phase12", "phase12_relationship",
     "phase13_life", "character_independence", "semantic_memory", "human", "strategy",
+    "adversarial", "tool_recovery", "long_horizon",
 ]

@@ -30,7 +30,6 @@ from evals.types import RunProvenance
 # ---------------------------------------------------------------------------
 FINGERPRINT_FILES: list[str] = [
     "config/modulators.yaml",
-    "config/attachment.yaml",
     "config/profiles_schema.yaml",
     "config/values_seed.yaml",
     "config/soul.yaml",

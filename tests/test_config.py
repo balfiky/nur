@@ -171,11 +171,6 @@ class TestLoadConfig:
         assert "Tone Fit" in cfg.self_check_prompt
         assert "Digestion" in cfg.digestion_prompt
 
-    def test_loads_attachment(self):
-        cfg = load_config()
-        assert cfg.attachment_style == "secure"
-
-
 class TestLoadConfigCustomDir:
     """Test loading from a custom config directory."""
 

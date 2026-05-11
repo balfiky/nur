@@ -37,7 +37,6 @@ EXPECTED_PACKAGE_FILES = {
     "interface/static/admin.css",
     "config/soul.yaml",
     "config/modulators.yaml",
-    "config/attachment.yaml",
     "config/values_seed.yaml",
     "config/semantic_memory.yaml",
     "config/prompts/generator.md",

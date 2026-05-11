@@ -100,6 +100,8 @@ def build_system_prompt(ctx: PipelineContext) -> str:
             prompt = prompt.rstrip() + "\n\n" + intake_receipt_section
         if skill_section and "{skills}" not in template:
             prompt = prompt.rstrip() + "\n\n" + skill_section
+        if life_history_section and "{life_history}" not in template:
+            prompt = prompt.rstrip() + "\n\n" + life_history_section
         return prompt
 
     # Fallback: build in code (for backwards compatibility)
@@ -116,6 +118,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
     parts.append(values_section)
     parts.append(memory_section)
     parts.append(semantic_memory_section)
+    parts.append(life_history_section)
     parts.append(skill_section)
     parts.append(contradiction_section)
     parts.append(guidance_section)
@@ -241,15 +244,16 @@ def _build_memory_section(ctx: PipelineContext) -> str:
     lines = ["## Relevant Memories"]
     if ctx.relationship_context and not ctx.relationship_context.is_empty():
         if ctx.relationship_context.summary:
-            lines.append(f"- Relationship context: {ctx.relationship_context.summary}")
+            lines.append(f"- Relationship context: {_trim_prompt_text(ctx.relationship_context.summary, 200)}")
         for loop in ctx.relationship_context.active_loops[:2]:
-            lines.append(f"- Open loop: {loop.description} (intensity={loop.intensity:.2f})")
+            lines.append(f"- Open loop: {_trim_prompt_text(loop.description, 200)} (intensity={loop.intensity:.2f})")
         for event in ctx.relationship_context.recent_events[:2]:
             label = event.event_kind.replace("_", " ")
-            lines.append(f"- Recent relationship event: {label} — {event.summary}")
+            lines.append(f"- Recent relationship event: {label} — {_trim_prompt_text(event.summary, 200)}")
     for mem in ctx.retrieved_memories[:5]:
         spike_tag = " [SPIKE]" if mem.spike else ""
-        lines.append(f"- {mem.summary} (valence={mem.emotional_valence:.2f}){spike_tag}")
+        summary = _trim_prompt_text(mem.summary, 300)
+        lines.append(f"- {summary} (valence={mem.emotional_valence:.2f}){spike_tag}")
     lines.append("")
     return "\n".join(lines)
 
@@ -260,7 +264,8 @@ def _build_semantic_memory_section(ctx: PipelineContext) -> str:
     lines = ["## Semantic Memory"]
     for mem in ctx.semantic_memories[:5]:
         prefix = mem.kind.replace("_", " ")
-        lines.append(f"- {prefix}: {mem.summary}")
+        summary = _trim_prompt_text(mem.summary, 300)
+        lines.append(f"- {prefix}: {summary}")
     lines.append("")
     return "\n".join(lines)
 

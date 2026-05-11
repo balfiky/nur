@@ -175,7 +175,6 @@ class TestPartialSelfModelConfig:
         }))
         # Must create minimal required yaml files
         (tmp_path / "modulators.yaml").write_text("{}")
-        (tmp_path / "attachment.yaml").write_text("{}")
         (tmp_path / "values_seed.yaml").write_text("{}")
         (tmp_path / "prompts").mkdir()
 

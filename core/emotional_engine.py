@@ -16,7 +16,6 @@ from datetime import datetime, timezone
 from config.loader import get_config
 from core.tool_failures import is_operational_unresolved_item
 from core.types import (
-    AttachmentStyle,
     BaselineShift,
     EmotionalEvent,
     EventType,
@@ -97,12 +96,10 @@ class EmotionalEngine:
     def __init__(
         self,
         baseline: ModulatorState | None = None,
-        attachment: AttachmentStyle = AttachmentStyle.SECURE,
         half_lives: dict[str, float] | None = None,
     ) -> None:
         self.baseline = baseline or ModulatorState()
         self.state = self.baseline.copy()
-        self.attachment = attachment
         self.half_lives = half_lives or dict(DEFAULT_HALF_LIVES)
         self._last_update_time = time.time()
         # v2: resolution modulator
@@ -179,10 +176,6 @@ class EmotionalEngine:
                     delta -= ENERGY_DRAIN_PER_SPIKE
             else:
                 delta = base_delta * event.intensity
-
-            # Attachment style modifies bonding updates
-            if mod_name == "bonding":
-                delta = self._apply_attachment(delta)
 
             delta = self._cap_event_delta(mod_name, delta, is_spike)
             current = getattr(self.state, mod_name)
@@ -370,28 +363,6 @@ class EmotionalEngine:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
-
-    def _apply_attachment(self, bonding_delta: float) -> float:
-        """Modify bonding update based on attachment style.
-
-        v1: locked to secure. Other styles exist for future use.
-        """
-        if self.attachment == AttachmentStyle.SECURE:
-            return bonding_delta  # proportional, no modification
-        elif self.attachment == AttachmentStyle.ANXIOUS:
-            # Rises fast, falls fast
-            return bonding_delta * (1.5 if bonding_delta > 0 else 1.3)
-        elif self.attachment == AttachmentStyle.AVOIDANT:
-            # Rises slow, caps low
-            if bonding_delta > 0:
-                remaining = max(0, 0.6 - self.state.bonding)
-                return bonding_delta * 0.5 * (remaining / 0.6 if remaining > 0 else 0)
-            return bonding_delta * 0.7
-        elif self.attachment == AttachmentStyle.DISORGANIZED:
-            # Unpredictable oscillation
-            import random
-            return bonding_delta * random.uniform(0.5, 2.0) * random.choice([1, -1])
-        return bonding_delta
 
     def _recover_energy(self, elapsed_seconds: float) -> None:
         """Recover energy based on elapsed rest time."""

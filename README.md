@@ -17,8 +17,8 @@
 </p>
 
 <p align="center">
-  <a href="docs/UAT.md"><img src="https://img.shields.io/badge/tests-1830%20unit%20%2B%2064%20UAT-2A8F6E?style=for-the-badge" alt="Tests"></a>
-  <a href="docs/ARCHITECTURE.md"><img src="https://img.shields.io/badge/architecture-self--evolving-D08A4E?style=for-the-badge" alt="Architecture"></a>
+  <a href="docs/UAT.md"><img src="https://img.shields.io/badge/tests-1897%20unit%20%2B%2065%20UAT%20%2B%2074%20evals-2A8F6E?style=for-the-badge" alt="Tests"></a>
+  <a href="docs/ARCHITECTURE.md"><img src="https://img.shields.io/badge/architecture-deterministic%20metabolism-D08A4E?style=for-the-badge" alt="Architecture — belief decay, theme→belief promotion, drive-gap detection"></a>
   <a href="docs/OVERVIEW.md"><img src="https://img.shields.io/badge/scope-research%20prototype-7A4A8C?style=for-the-badge" alt="Scope"></a>
   <a href="#configure-an-llm"><img src="https://img.shields.io/badge/llm-ollama%20%E2%80%A2%20codex%20%E2%80%A2%20openai-1A1428?style=for-the-badge" alt="LLM backends"></a>
 </p>

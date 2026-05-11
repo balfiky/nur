@@ -35,6 +35,8 @@ Rules:
 
 {semantic_memories}
 
+{life_history}
+
 {character_vector}
 
 {skills}
