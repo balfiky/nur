@@ -1,23 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 700" font-family="-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Helvetica,Arial,sans-serif">
   <defs>
     <linearGradient id="bgSoft" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#FBF7F2"/>
-      <stop offset="60%" stop-color="#F6EBDA"/>
-      <stop offset="100%" stop-color="#EFDFC7"/>
+      <stop offset="0%" stop-color="#F0F6FF"/>
+      <stop offset="60%" stop-color="#DBEAFE"/>
+      <stop offset="100%" stop-color="#BFDBFE"/>
     </linearGradient>
     <radialGradient id="orbCore" cx="42%" cy="38%" r="65%">
-      <stop offset="0%" stop-color="#F8DAB0"/>
-      <stop offset="40%" stop-color="#F5A65B"/>
+      <stop offset="0%" stop-color="#93C5FD"/>
+      <stop offset="40%" stop-color="#3B82F6"/>
       <stop offset="100%" stop-color="#7A4A8C"/>
     </radialGradient>
     <radialGradient id="orbGlow" cx="50%" cy="50%" r="60%">
-      <stop offset="0%" stop-color="#F5A65B" stop-opacity="0.5"/>
-      <stop offset="60%" stop-color="#F5A65B" stop-opacity="0.12"/>
-      <stop offset="100%" stop-color="#F5A65B" stop-opacity="0"/>
+      <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.5"/>
+      <stop offset="60%" stop-color="#3B82F6" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#3B82F6" stop-opacity="0"/>
     </radialGradient>
     <radialGradient id="blobCoral" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#F5A65B" stop-opacity="0.34"/>
-      <stop offset="100%" stop-color="#F5A65B" stop-opacity="0"/>
+      <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.34"/>
+      <stop offset="100%" stop-color="#3B82F6" stop-opacity="0"/>
     </radialGradient>
     <radialGradient id="blobSage" cx="50%" cy="50%" r="50%">
       <stop offset="0%" stop-color="#3FB089" stop-opacity="0.30"/>
@@ -29,14 +29,14 @@
     </radialGradient>
     <linearGradient id="bubbleUser" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#FFFFFF"/>
-      <stop offset="100%" stop-color="#F4ECE0"/>
+      <stop offset="100%" stop-color="#EFF6FF"/>
     </linearGradient>
     <linearGradient id="bubbleNur" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#3D2A4A"/>
       <stop offset="100%" stop-color="#1A1428"/>
     </linearGradient>
     <linearGradient id="ringE" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#F5A65B"/><stop offset="100%" stop-color="#D08A4E"/>
+      <stop offset="0%" stop-color="#3B82F6"/><stop offset="100%" stop-color="#2563EB"/>
     </linearGradient>
     <linearGradient id="ringM" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#3FB089"/><stop offset="100%" stop-color="#2A8F6E"/>
@@ -45,7 +45,7 @@
       <stop offset="0%" stop-color="#9966AC"/><stop offset="100%" stop-color="#7A4A8C"/>
     </linearGradient>
     <linearGradient id="ringV" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#F5C25B"/><stop offset="100%" stop-color="#C99238"/>
+      <stop offset="0%" stop-color="#818CF8"/><stop offset="100%" stop-color="#6366F1"/>
     </linearGradient>
     <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
       <feGaussianBlur in="SourceAlpha" stdDeviation="6"/>
@@ -91,7 +91,7 @@
     <circle cx="1340" cy="320" r="2"/>
     <circle cx="1300" cy="420" r="2.5"/>
   </g>
-  <g fill="#F5A65B" fill-opacity="0.45">
+  <g fill="#3B82F6" fill-opacity="0.45">
     <circle cx="380" cy="180" r="3"/>
     <circle cx="1080" cy="180" r="3"/>
     <circle cx="430" cy="540" r="3"/>
@@ -115,8 +115,8 @@
     <!-- gentle smile -->
     <path d="M -7 42 Q 0 47, 7 42" fill="none" stroke="#1A1428" stroke-width="1.6" stroke-linecap="round"/>
     <!-- subtle blush -->
-    <ellipse cx="-18" cy="38" rx="4" ry="2.2" fill="#F5A65B" fill-opacity="0.4"/>
-    <ellipse cx="18" cy="38" rx="4" ry="2.2" fill="#F5A65B" fill-opacity="0.4"/>
+    <ellipse cx="-18" cy="38" rx="4" ry="2.2" fill="#3B82F6" fill-opacity="0.4"/>
+    <ellipse cx="18" cy="38" rx="4" ry="2.2" fill="#3B82F6" fill-opacity="0.4"/>
   </g>
   <!-- "you" caption -->
   <text x="170" y="490" text-anchor="middle" class="footnote" style="font-weight:800;letter-spacing:0.18em">YOU</text>
@@ -225,7 +225,7 @@
     <circle cx="728" cy="304" r="2.5" fill-opacity="0.42"/>
   </g>
   <!-- subtle connection from orb back to nur bubble -->
-  <g fill="#F5A65B">
+  <g fill="#3B82F6">
     <circle cx="900" cy="500" r="2.5" fill-opacity="0.55"/>
     <circle cx="888" cy="490" r="2" fill-opacity="0.42"/>
     <circle cx="876" cy="478" r="1.6" fill-opacity="0.30"/>
@@ -237,7 +237,7 @@
   </text>
 
   <!-- decorative sparkles -->
-  <g fill="#F5A65B">
+  <g fill="#3B82F6">
     <path d="M 1140 240 L 1144 232 L 1148 240 L 1156 244 L 1148 248 L 1144 256 L 1140 248 L 1132 244 Z" opacity="0.55"/>
     <path d="M 758 158 L 760 153 L 762 158 L 767 160 L 762 162 L 760 167 L 758 162 L 753 160 Z" opacity="0.45"/>
   </g>

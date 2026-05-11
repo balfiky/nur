@@ -1,23 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 900" font-family="-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Helvetica,Arial,sans-serif">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#FBF7F2"/>
-      <stop offset="100%" stop-color="#F2E8D9"/>
+      <stop offset="0%" stop-color="#F8FAFC"/>
+      <stop offset="100%" stop-color="#EFF6FF"/>
     </linearGradient>
     <radialGradient id="coreBg" cx="50%" cy="50%" r="60%">
       <stop offset="0%" stop-color="#FFFFFF"/>
-      <stop offset="100%" stop-color="#F5EBDA"/>
+      <stop offset="100%" stop-color="#EFF6FF"/>
     </radialGradient>
     <radialGradient id="brandMark" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#F5A65B" stop-opacity="0.18"/>
-      <stop offset="100%" stop-color="#F5A65B" stop-opacity="0"/>
+      <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#3B82F6" stop-opacity="0"/>
     </radialGradient>
     <pattern id="dotgrid" x="0" y="0" width="22" height="22" patternUnits="userSpaceOnUse">
       <circle cx="2" cy="2" r="1.1" fill="#1A1428" fill-opacity="0.06"/>
     </pattern>
     <linearGradient id="emotionFill" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#F5A65B"/>
-      <stop offset="100%" stop-color="#D08A4E"/>
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#2563EB"/>
     </linearGradient>
     <linearGradient id="memoryFill" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#3FB089"/>
@@ -28,8 +28,8 @@
       <stop offset="100%" stop-color="#7A4A8C"/>
     </linearGradient>
     <linearGradient id="evolutionFill" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#F5C25B"/>
-      <stop offset="100%" stop-color="#C99238"/>
+      <stop offset="0%" stop-color="#818CF8"/>
+      <stop offset="100%" stop-color="#6366F1"/>
     </linearGradient>
     <linearGradient id="channelFill" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#3D2A4A"/>
@@ -53,7 +53,7 @@
     <style>
       .h1 { font-size: 34px; font-weight: 800; fill: #1A1428; letter-spacing: -0.025em; }
       .h2 { font-size: 14px; fill: #6E5E6E; }
-      .section-num { font-size: 11px; font-weight: 800; fill: #B5732A; letter-spacing: 0.18em; }
+      .section-num { font-size: 11px; font-weight: 800; fill: #4338CA; letter-spacing: 0.18em; }
       .section-label { font-size: 12px; font-weight: 700; fill: #1A1428; letter-spacing: 0.16em; }
       .section-detail { font-size: 11.5px; fill: #6E5E6E; }
       .channel-name { font-size: 16px; font-weight: 700; fill: #FFFFFF; letter-spacing: -0.01em; }
@@ -77,15 +77,15 @@
   <rect x="0" y="0" width="240" height="240" fill="url(#dotgrid)"/>
   <rect x="1160" y="660" width="240" height="240" fill="url(#dotgrid)"/>
   <!-- decorative arcs -->
-  <path d="M 0 460 Q 200 360, 0 260" fill="none" stroke="#C99238" stroke-opacity="0.12" stroke-width="2"/>
-  <path d="M 1400 460 Q 1200 540, 1400 640" fill="none" stroke="#C99238" stroke-opacity="0.12" stroke-width="2"/>
+  <path d="M 0 460 Q 200 360, 0 260" fill="none" stroke="#6366F1" stroke-opacity="0.12" stroke-width="2"/>
+  <path d="M 1400 460 Q 1200 540, 1400 640" fill="none" stroke="#6366F1" stroke-opacity="0.12" stroke-width="2"/>
 
   <!-- ============ TITLE ============ -->
   <text x="700" y="60" text-anchor="middle" class="h1">Nūr at a glance</text>
   <text x="700" y="84" text-anchor="middle" class="h2">Channels speak in. A persistent cognitive core evolves between turns. Capabilities act, gated by intent.</text>
 
   <!-- decorative dot beside title -->
-  <circle cx="608" cy="55" r="4" fill="#F5A65B"/>
+  <circle cx="608" cy="55" r="4" fill="#3B82F6"/>
   <circle cx="792" cy="55" r="4" fill="#2A8F6E"/>
 
   <!-- ============ 01 CHANNELS ============ -->
@@ -323,11 +323,11 @@
 
   <!-- capability: File ops -->
   <g filter="url(#cardShadow)">
-    <rect x="760" y="736" width="300" height="110" rx="14" fill="#FFFFFF" stroke="#D08A4E" stroke-width="1.6"/>
+    <rect x="760" y="736" width="300" height="110" rx="14" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.6"/>
   </g>
-  <rect x="760" y="736" width="6" height="110" rx="3" fill="#D08A4E"/>
-  <circle cx="802" cy="772" r="20" fill="#D08A4E" fill-opacity="0.10"/>
-  <g transform="translate(786,758)" stroke="#D08A4E" stroke-width="2.2" fill="none" stroke-linejoin="round">
+  <rect x="760" y="736" width="6" height="110" rx="3" fill="#2563EB"/>
+  <circle cx="802" cy="772" r="20" fill="#2563EB" fill-opacity="0.10"/>
+  <g transform="translate(786,758)" stroke="#2563EB" stroke-width="2.2" fill="none" stroke-linejoin="round">
     <path d="M 4 8 L 4 26 L 28 26 L 28 12 L 14 12 L 11 8 Z"/>
   </g>
   <text x="840" y="770" class="cap-name">File ops</text>
