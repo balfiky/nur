@@ -150,50 +150,6 @@ def verify_response_grounding(
     return issues
 
 
-def verify_external_lookup_grounding(
-    user_message: str,
-    response: str,
-    *,
-    tool_trace: Any | None,
-) -> list[GroundingIssue]:
-    """Flag time-sensitive answers when external lookup failed or was empty.
-
-    This is intentionally generic: it does not know about any specific user
-    question. It only checks for a freshness-sensitive request plus attempted
-    web/browser evidence that failed to produce usable external data.
-    """
-    if not _looks_fresh_external_request(user_message):
-        return []
-    if _has_usable_external_evidence(user_message, tool_trace):
-        return []
-
-    code = (
-        "external_lookup_insufficient"
-        if _has_successful_search_only_evidence(tool_trace)
-        else "external_lookup_unavailable"
-    )
-    message = (
-        "External lookup found search-level results, but not enough source "
-        "text to answer a concrete list request without guessing."
-        if code == "external_lookup_insufficient"
-        else (
-            "External lookup was required for a time-sensitive answer, "
-            "but no successful web/browser result was available. Do not "
-            "invent current, recent, post-date, or live facts."
-        )
-    )
-
-    return [
-        GroundingIssue(
-            code=code,
-            message=message,
-            claim=_compact(response)[:240],
-            required_categories=("external_lookup_success",),
-            evidence_categories=tuple(sorted(_external_lookup_evidence(tool_trace))),
-        )
-    ]
-
-
 def system_metric_observation_response(
     user_message: str,
     *,
@@ -276,32 +232,6 @@ def grounding_correction_response(
         return "I cannot verify that inspection result because no matching read or lookup ran this turn."
     return (
         "I cannot claim or verify that external action from this turn because no matching tool result exists."
-    )
-
-
-def external_lookup_correction_response(
-    issues: list[GroundingIssue] | None = None,
-    *,
-    tool_trace: Any | None = None,
-) -> str:
-    """Return a generic correction for failed time-sensitive lookup."""
-    if any(issue.code == "external_lookup_insufficient" for issue in issues or []):
-        return (
-            "I found search results, but not enough source text to extract "
-            "reliable item names. I should not turn list-page titles or snippets "
-            "into concrete current facts."
-        )
-    detail = _external_lookup_failure_detail(tool_trace)
-    if detail:
-        return (
-            "I can't verify that with the available external lookup tools right "
-            f"now. {detail} I should not invent current, recent, post-date, "
-            "or live facts without a successful lookup."
-        )
-    return (
-        "I can't verify that with the available external lookup tools right now. "
-        "I should not invent current, recent, post-date, or live facts without "
-        "a successful lookup."
     )
 
 
@@ -520,27 +450,6 @@ def _is_non_assistant_actor_statement(lower: str) -> bool:
     )
 
 
-_FRESH_EXTERNAL_REQUEST_RE = re.compile(
-    r"("
-    r"\b(?:latest|newest|recent|live|today'?s|as\s+of\s+now)\b|"
-    r"\bcurrent\b.{0,80}\b(?:news|updates?|version|release|price|weather|"
-    r"score|scores?|status|exchange\s+rate|stock\s+price|books?|papers?|"
-    r"products?|models?|ceo|president)\b|"
-    r"\b(?:news|updates?|stock\s+price|exchange\s+rate|weather|scores?)\b|"
-    r"\b(?:released|published|announced|launched|updated)\s+"
-    r"(?:after|since|in|during|this)\b|"
-    r"\b(?:after|since)\s+(?:january|february|march|april|may|june|july|"
-    r"august|september|october|november|december|\d{4})\b|"
-    r"\b(?:20[2-9]\d)\b"
-    r")",
-    re.IGNORECASE,
-)
-
-
-def _looks_fresh_external_request(user_message: str) -> bool:
-    return bool(_FRESH_EXTERNAL_REQUEST_RE.search(user_message or ""))
-
-
 def _looks_system_metric_request(user_message: str) -> bool:
     return bool(
         re.search(
@@ -549,103 +458,6 @@ def _looks_system_metric_request(user_message: str) -> bool:
             re.IGNORECASE,
         )
     )
-
-
-def _attempted_external_lookup(tool_trace: Any | None) -> bool:
-    return bool(_external_lookup_results(tool_trace))
-
-
-def _has_usable_external_evidence(user_message: str, tool_trace: Any | None) -> bool:
-    if _looks_entity_list_request(user_message):
-        return _has_successful_external_body(tool_trace)
-    for result in _external_lookup_results(tool_trace):
-        if not bool(getattr(result, "success", False)):
-            continue
-        output = str(getattr(result, "output", "") or "").strip()
-        if not output:
-            continue
-        if output.lower() in {"(no results)", "no results"}:
-            continue
-        return True
-    return False
-
-
-def _has_successful_search_only_evidence(tool_trace: Any | None) -> bool:
-    saw_successful_search = False
-    for result in _external_lookup_results(tool_trace):
-        if not bool(getattr(result, "success", False)):
-            continue
-        tool_name = str(getattr(result, "tool_name", "") or "")
-        if tool_name == "web.search":
-            saw_successful_search = True
-        if tool_name in {"web.fetch", "web.extract_text", "browser.get_page_text"}:
-            return False
-    return saw_successful_search
-
-
-def _looks_entity_list_request(user_message: str) -> bool:
-    text = (user_message or "").lower()
-    if not re.search(r"\b(?:top|best|list|find|give|show|recommend)\b", text):
-        return False
-    if not re.search(
-        r"\b(?:books?|papers?|articles?|tools?|products?|models?|movies?|"
-        r"albums?|courses?|companies?|startups?|people|authors?)\b",
-        text,
-    ):
-        return False
-    return bool(
-        re.search(
-            r"\b(?:latest|newest|recent|current|released|published|announced|"
-            r"launched|updated|after|since|20[2-9]\d)\b",
-            text,
-        )
-    )
-
-
-def _has_successful_external_body(tool_trace: Any | None) -> bool:
-    for result in _external_lookup_results(tool_trace):
-        if not bool(getattr(result, "success", False)):
-            continue
-        tool_name = str(getattr(result, "tool_name", "") or "")
-        if tool_name not in {"web.fetch", "web.extract_text", "browser.get_page_text"}:
-            continue
-        output = str(getattr(result, "output", "") or "").strip()
-        if output and output.lower() not in {"(no results)", "no results"}:
-            return True
-    return False
-
-
-def _external_lookup_evidence(tool_trace: Any | None) -> set[str]:
-    evidence: set[str] = set()
-    for result in _external_lookup_results(tool_trace):
-        tool_name = str(getattr(result, "tool_name", "") or "")
-        if bool(getattr(result, "success", False)):
-            evidence.add(f"{tool_name}:success")
-        else:
-            evidence.add(f"{tool_name}:failed")
-    return evidence
-
-
-def _external_lookup_failure_detail(tool_trace: Any | None) -> str:
-    failures: list[str] = []
-    for result in _external_lookup_results(tool_trace):
-        if bool(getattr(result, "success", False)):
-            continue
-        tool_name = str(getattr(result, "tool_name", "") or "external lookup")
-        error = " ".join(str(getattr(result, "error", "") or "failed").split())
-        if len(error) > 140:
-            error = error[:137] + "..."
-        failures.append(f"{tool_name} failed: {error}.")
-    if not failures and not _external_lookup_results(tool_trace):
-        return "No web or browser lookup ran."
-    return " ".join(failures[:2])
-
-
-def _external_lookup_results(tool_trace: Any | None) -> list[Any]:
-    return [
-        result for result in _external_or_system_results(tool_trace)
-        if str(getattr(result, "tool_name", "") or "").startswith(("web.", "browser."))
-    ]
 
 
 def _external_or_system_results(tool_trace: Any | None) -> list[Any]:

@@ -121,28 +121,6 @@ def _make_pipeline_with_tools():
     return pipe, reg, exe
 
 
-class ListPageWebProvider:
-    def search(self, query: str, limit: int) -> list[dict[str, str]]:
-        return [
-            {
-                "title": "The Best AI Books in 2026",
-                "url": "https://example.com/best-ai-books",
-                "snippet": "A list of recommendations for readers.",
-            },
-            {
-                "title": "Top 20 Books on AI in 2026",
-                "url": "https://example.com/top-ai-books",
-                "snippet": "Roundup of artificial intelligence book lists.",
-            },
-        ]
-
-    def fetch(self, url: str) -> str:
-        return "Article body"
-
-    def extract_text(self, url: str) -> str:
-        return "Article body"
-
-
 # ===================================================================
 # 1. Short-term memory records
 # ===================================================================
@@ -566,46 +544,6 @@ class TestPipelineToolMemoryIntegration:
         assert pipe.engine.active_unresolved() == []
         assert pipe.engine.state.resolution == 0.0
 
-    def test_failed_fresh_lookup_overrides_confident_generated_answer(self):
-        reg = ToolRegistry()
-        exe = ToolExecutor(reg)
-        register_builtins(reg, exe)  # NullWebProvider, by design.
-        pipe = CognitivePipeline(
-            llm_backend=MockLLMBackend(response="The latest release is definitely 9.9."),
-            tool_executor=exe,
-        )
-
-        resp = pipe.process("what is the latest release of example product?", user_id="u1")
-
-        assert "can't verify" in resp.response.lower()
-        assert "No web provider configured" in resp.response
-        assert resp.debug.self_check_passed is False
-        assert resp.debug.tool_memory_effects is not None
-        assert resp.debug.tool_memory_effects.operational_issues
-        assert resp.debug.tool_memory_effects.unresolved_items_created == []
-        assert pipe.engine.state.resolution == 0.0
-
-    def test_search_list_pages_do_not_become_book_names(self):
-        reg = ToolRegistry()
-        exe = ToolExecutor(reg)
-        register_builtins(reg, exe, web_provider=ListPageWebProvider())
-        pipe = CognitivePipeline(
-            llm_backend=MockLLMBackend(
-                response=(
-                    "1. The Best AI Books in 2026\n"
-                    "2. Top 20 Books on AI in 2026"
-                )
-            ),
-            tool_executor=exe,
-        )
-
-        resp = pipe.process("find me top AI books released after March 2026", user_id="u1")
-
-        assert "not enough source text" in resp.response
-        assert resp.debug.tool_trace is not None
-        assert resp.debug.tool_trace.executed_results
-        assert resp.debug.tool_trace.executed_results[0].tool_name == "web.search"
-
     def test_repeated_hostility_is_bounded_and_read_task_still_runs(self):
         reg = ToolRegistry()
         exe = ToolExecutor(reg)
@@ -630,7 +568,6 @@ class TestPipelineToolMemoryIntegration:
         assert task.debug.tool_trace is not None
         assert task.debug.tool_trace.executed_results
         assert task.debug.tool_trace.executed_results[0].tool_name == "web.search"
-        assert "can't verify" in task.response.lower()
         assert task.debug.modulator_snapshot["energy"] >= 0.72
 
     def test_failed_tool_writes_long_term(self):

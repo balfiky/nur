@@ -4,6 +4,44 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.29.1 — 2026-05-11
+
+### Fixed
+- **Life settings — pasting text fails without title.** `AdminLifeTextRequest.title`
+  was `Field(..., min_length=1)`, so leaving the placeholder-only title field blank
+  returned a raw Pydantic 422 error. Title is now optional; when blank the backend
+  derives a fallback from the first eight words of the pasted text.
+- **Life settings — Digest File button fails with no file/path.** Clicking
+  "Digest File" without selecting a file or entering a server path silently sent an
+  empty `file_path` to the backend (422). The button now opens the browser file
+  picker instead; once a file is selected the user clicks the button again to submit.
+- **Grounding false-positive on book/essay text containing "update".** Sending long
+  text (e.g., operational guidelines with "update confidence", "update beliefs") as a
+  chat message triggered `verify_external_lookup_grounding` because the regex
+  `_FRESH_EXTERNAL_REQUEST_RE` matched the bare word "update" via `updates?`. Rather
+  than patch the regex (which would still misfire on adjacent vocabulary), removed the
+  entire input-keyword grounding layer: `verify_external_lookup_grounding`,
+  `external_lookup_correction_response`, `_FRESH_EXTERNAL_REQUEST_RE`, and ten
+  supporting helpers in `core/grounding.py`, plus the call site in `pipeline.py`. The
+  system prompt's existing rule against inventing tool results / runtime facts
+  (`config/prompts/generator.md` rule 17) is now the sole defense against fabricated
+  fresh-data claims — matching the architecture used by other LLM agents (OpenClaw,
+  Claude Code) where the LLM is trusted with full context rather than gated by
+  brittle keyword regex on the user message. Kept untouched: `verify_response_grounding`
+  (tool-action claims), `system_metric_observation_response`, `coherence_check`.
+  All 1863 non-UAT tests pass (5 obsolete grounding tests + 2 obsolete phase3 tests
+  removed; 1 orphaned `ListPageWebProvider` fixture removed).
+
+
+### Tests
+- **UAT `test_ui_sweep.py`** — added `test_admin_workspace_life_digest_file_btn_opens_picker_when_empty`
+  and `test_admin_workspace_life_digest_text_auto_title_when_blank` covering the two
+  life-form regressions. Tightened `test_admin_workspace_life_file_upload_via_file_input`
+  to assert the ingested title matches the supplied value, and added a comment
+  clarifying that ingest does not auto-fire on `change`.
+
+---
+
 ## v0.29.0 — 2026-05-11
 
 ### Fixed

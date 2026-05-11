@@ -408,7 +408,7 @@ class AdminSkillImportRequest(BaseModel):
 
 
 class AdminLifeTextRequest(BaseModel):
-    title: str = Field(..., min_length=1, max_length=180)
+    title: str = Field(default="", max_length=180)
     text: str = Field(..., min_length=1, max_length=250000)
     source_type: str = Field("pasted_text", min_length=1, max_length=80)
     participants: list[str] = Field(default_factory=list, max_length=20)

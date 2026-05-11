@@ -203,6 +203,7 @@ def test_admin_workspace_life_file_upload_via_file_input(uat_server, page, tmp_p
     page.goto(uat_server.base_url + "/settings#life")
     expect(page.locator("#page-life")).to_be_visible()
 
+    # Set file first, then fill metadata — ingest does NOT auto-fire on change.
     page.set_input_files("#lifeUploadFile", str(upload))
     page.fill("#lifeFileTitle", "UAT Sweep Upload")
     page.fill("#lifeUploadParticipants", "operator, Nur")
@@ -215,6 +216,56 @@ def test_admin_workspace_life_file_upload_via_file_input(uat_server, page, tmp_p
 
     life = expect_json(uat_server.get("/admin/life"))
     assert life["counts"]["experiences"] >= 1
+    assert any(
+        "UAT Sweep Upload" in (e.get("source_title") or "")
+        for e in life["recent_experiences"]
+    )
+
+
+def test_admin_workspace_life_digest_file_btn_opens_picker_when_empty(uat_server, page):
+    """Clicking 'Digest File' with no file selected and no path opens the
+    browser file picker instead of showing an error.  Regression guard for the
+    fix that changed the button from silently failing to delegating to the
+    hidden file input."""
+    page.goto(uat_server.base_url + "/settings#life")
+    expect(page.locator("#page-life")).to_be_visible()
+
+    page.evaluate(
+        "() => { document.getElementById('lifeUploadFile').value = '';"
+        "        document.getElementById('lifeFilePath').value = ''; }"
+    )
+
+    with page.expect_file_chooser(timeout=5_000) as fc_info:
+        page.click("#ingestLifeFileBtn")
+    fc_info.value.set_files([])  # dismiss without selecting
+
+    # No error toast should have appeared.
+    page.wait_for_timeout(500)
+    toast = page.locator("#toast")
+    if toast.is_visible():
+        assert "error" not in (toast.get_attribute("class") or "")
+
+
+def test_admin_workspace_life_digest_text_auto_title_when_blank(uat_server, page):
+    """Submitting the paste-text form without a title must succeed: the backend
+    derives a title from the first words of the pasted text instead of
+    rejecting with a 422.  Regression guard for the mandatory-title fix."""
+    page.goto(uat_server.base_url + "/settings#life")
+    expect(page.locator("#page-life")).to_be_visible()
+
+    page.evaluate("() => { document.getElementById('lifeTextTitle').value = ''; }")
+    page.fill(
+        "#lifeText",
+        "Sustained focus produces insights that quick effort never reaches.",
+    )
+    page.click("#ingestLifeTextBtn")
+
+    expect(page.locator("#toast")).to_contain_text("Experience digested", timeout=120_000)
+
+    life = expect_json(uat_server.get("/admin/life"))
+    latest = life["recent_experiences"][0]
+    assert latest["source_title"], "auto-generated title must be non-empty"
+    assert "Sustained" in latest["source_title"]
 
 
 def test_admin_workspace_life_file_path_ingest_button(uat_server, page, tmp_path):

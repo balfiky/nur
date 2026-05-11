@@ -90,11 +90,11 @@ class LifeHistoryStore:
         participants: list[str] | None = None,
         llm_client: LLMBackend | None = None,
     ) -> dict[str, Any]:
-        title = _require_text(title, "title", max_chars=180)
         text = _require_text(text, "text", max_chars=MAX_PASTED_TEXT_CHARS)
+        resolved_title = title.strip() or _heuristic_title(text)
         source_type = _safe_label(source_type or "pasted_text", fallback="pasted_text")
         return self._ingest_text(
-            title=title,
+            title=resolved_title,
             text=text,
             source_type=source_type,
             source_ref="pasted",
@@ -2351,6 +2351,14 @@ def _require_text(value: str, field: str, *, max_chars: int) -> str:
     if len(stripped) > max_chars:
         raise LifeHistoryError(f"{field} exceeds {max_chars} characters.")
     return stripped
+
+
+def _heuristic_title(text: str) -> str:
+    words = text.strip().split()
+    snippet = " ".join(words[:8])
+    if len(snippet) > 60:
+        snippet = snippet[:57].rstrip() + "..."
+    return snippet or "Pasted experience"
 
 
 def _safe_label(value: str, fallback: str = "item") -> str:

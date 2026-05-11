@@ -1796,6 +1796,13 @@ const state = createSurfaceState({
       ingestLifeText().catch((err) => showToast(err.message || String(err), "error"));
     });
     document.getElementById("ingestLifeFileBtn").addEventListener("click", () => {
+      const uploadInput = document.getElementById("lifeUploadFile");
+      const hasFile = uploadInput?.files?.length > 0;
+      const hasPath = document.getElementById("lifeFilePath").value.trim().length > 0;
+      if (!hasFile && !hasPath) {
+        uploadInput?.click();
+        return;
+      }
       ingestLifeFile().catch((err) => showToast(err.message || String(err), "error"));
     });
     document.getElementById("reloadSoulBtn").addEventListener("click", () => loadSoul(true));

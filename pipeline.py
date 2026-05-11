@@ -73,10 +73,8 @@ from core.appraisal import appraise_message, appraise_with_life_history
 from core.affect import decide_agency, resolve_affect
 from core.strategy import select_strategy_with_trace, STRATEGY_INSTRUCTIONS
 from core.grounding import (
-    external_lookup_correction_response,
     grounding_correction_response,
     system_metric_observation_response,
-    verify_external_lookup_grounding,
     verify_response_grounding,
 )
 from core.response_safety import enforce_response_tone_floor
@@ -1115,22 +1113,6 @@ class CognitivePipeline:
             gen_result.correction_note = correction_note
             debug.correction_note = correction_note
             debug.generation_attempts = 2
-
-        external_lookup_issues = verify_external_lookup_grounding(
-            user_message,
-            gen_result.response,
-            tool_trace=debug.tool_trace,
-        )
-        if external_lookup_issues:
-            external_issue = external_lookup_issues[0]
-            gen_result.response = external_lookup_correction_response(
-                external_lookup_issues,
-                tool_trace=debug.tool_trace,
-            )
-            debug.self_check_passed = False
-            if external_issue.message not in debug.self_check_issues:
-                debug.self_check_issues.append(external_issue.message)
-            debug.correction_note = external_issue.message
 
         system_metric_response = system_metric_observation_response(
             user_message,
