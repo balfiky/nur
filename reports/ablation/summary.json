@@ -1,6 +1,6 @@
 {
   "provenance": {
-    "git_sha": "217a4cfff87406e82288a8d39f73db2d3c33738c",
+    "git_sha": "e991fcfc7c261e38328c593a14dbb2a639803988",
     "git_branch": "main",
     "dirty_worktree": true,
     "backend_type": "mock",
@@ -8,27 +8,31 @@
     "resolved_model": "",
     "base_url": "",
     "host": "paco-M5-PLUS",
-    "started_at": "2026-05-01T10:14:48+00:00",
-    "finished_at": "2026-05-01T10:14:48+00:00",
+    "started_at": "2026-05-11T07:06:08+00:00",
+    "finished_at": "2026-05-11T07:06:08+00:00",
     "scenario_set": "phase11",
     "scenario_count": 6,
-    "config_fingerprint_count": 16
+    "config_fingerprint_count": 15
   },
   "baseline": {
-    "passed": 6,
+    "passed": 5,
     "total": 6,
-    "assertions_passed": 25,
+    "assertions_passed": 24,
     "assertions_total": 25,
     "llm_calls": 14,
-    "latency_s": 0.032
+    "latency_s": 0.036
   },
   "ablations": [
     {
-      "label": "no_relationship_memory",
+      "label": "baseline_prompt_only",
       "features_disabled": [
-        "relationship_memory"
+        "relationship_memory",
+        "inner_dialogue",
+        "defense",
+        "semantic_memory",
+        "life_history_context"
       ],
-      "hypothesis": "Phase 11/12 scenarios that exercise cross-turn open-loop tracking should fail when the relationship-memory component is disabled. Other scenarios (single-turn strategy selection) should still pass.",
+      "hypothesis": "With all cognitive enrichment disabled, any scenario that asserts memory retrieval, cross-turn loop tracking, semantic preferences, or life-history influence should fail. Modulator-bound assertions (adversarial, tool_recovery, long_horizon) should still pass because the emotional engine runs regardless of feature toggles.",
       "expected_failures": [
         "p11_open_loop_challenge",
         "p11_repair_closes_loop",
@@ -36,14 +40,27 @@
         "p12_mismatched_repair_keeps_deadline_loop_open",
         "p12_recurrence_after_repair_records_recurring_tension",
         "p12_commitment_persists_across_session",
-        "p12_user_mentions_old_rupture"
+        "p12_user_mentions_old_rupture",
+        "life_context_enters_generation",
+        "life_influence_derived",
+        "life_influence_affects_policy",
+        "ci_codex_paste_one_shot",
+        "ci_sustained_theme_accumulation",
+        "ci_belief_revision",
+        "ci_genesis_isolation",
+        "ci_identity_question_grounding",
+        "semantic_preference_written_and_retrieved",
+        "semantic_decision_written_and_retrieved",
+        "semantic_topic_bias",
+        "semantic_salience_and_recency_ranking",
+        "lh_open_loop_survives_3_day_gap"
       ],
-      "passed": 4,
+      "passed": 3,
       "total": 6,
-      "assertions_passed": 19,
+      "assertions_passed": 18,
       "assertions_total": 25,
       "llm_calls": 14,
-      "latency_s": 0.021,
+      "latency_s": 0.022,
       "per_scenario": {
         "p11_action_request_practical": {
           "baseline_passed": true,
@@ -56,9 +73,9 @@
           "outcome": "no_effect"
         },
         "p11_low_trust_hostility_boundary": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
+          "baseline_passed": false,
+          "variant_passed": false,
+          "outcome": "unexpected_failure"
         },
         "p11_open_loop_challenge": {
           "baseline_passed": true,
@@ -78,226 +95,8 @@
       },
       "counts": {
         "expected_failure": 2,
-        "unexpected_failure": 0,
-        "no_effect": 4,
-        "newly_passing": 0
-      }
-    },
-    {
-      "label": "no_inner_dialogue",
-      "features_disabled": [
-        "inner_dialogue"
-      ],
-      "hypothesis": "Phase 11 assertions check strategy selection and modulator state, both upstream of inner dialogue. No scenario failures are predicted; this ablation primarily produces a metrics delta (LLM calls, latency) that tells us what inner dialogue costs for no structural change.",
-      "expected_failures": [],
-      "passed": 6,
-      "total": 6,
-      "assertions_passed": 25,
-      "assertions_total": 25,
-      "llm_calls": 14,
-      "latency_s": 0.023,
-      "per_scenario": {
-        "p11_action_request_practical": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_external_distress_validate": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_low_trust_hostility_boundary": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_open_loop_challenge": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_overwhelm_ground": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_repair_closes_loop": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        }
-      },
-      "counts": {
-        "expected_failure": 0,
-        "unexpected_failure": 0,
-        "no_effect": 6,
-        "newly_passing": 0
-      }
-    },
-    {
-      "label": "no_defense",
-      "features_disabled": [
-        "defense"
-      ],
-      "hypothesis": "Defense shapes response wording; Phase 11 assertions check structural outcomes (strategy, modulators, memory writes) that are upstream of defense. No scenario failures are predicted.",
-      "expected_failures": [],
-      "passed": 6,
-      "total": 6,
-      "assertions_passed": 25,
-      "assertions_total": 25,
-      "llm_calls": 14,
-      "latency_s": 0.023,
-      "per_scenario": {
-        "p11_action_request_practical": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_external_distress_validate": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_low_trust_hostility_boundary": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_open_loop_challenge": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_overwhelm_ground": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_repair_closes_loop": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        }
-      },
-      "counts": {
-        "expected_failure": 0,
-        "unexpected_failure": 0,
-        "no_effect": 6,
-        "newly_passing": 0
-      }
-    },
-    {
-      "label": "no_semantic_memory",
-      "features_disabled": [
-        "semantic_memory"
-      ],
-      "hypothesis": "Semantic-memory scenarios that depend on stored preferences, decisions, or ranked semantic retrieval should fail. Pure relationship and Life History scenarios should not fail from this ablation.",
-      "expected_failures": [
-        "semantic_preference_written_and_retrieved",
-        "semantic_decision_written_and_retrieved",
-        "semantic_topic_bias",
-        "semantic_salience_and_recency_ranking",
-        "semantic_no_semantic_memory_expected_failure"
-      ],
-      "passed": 6,
-      "total": 6,
-      "assertions_passed": 25,
-      "assertions_total": 25,
-      "llm_calls": 14,
-      "latency_s": 0.021,
-      "per_scenario": {
-        "p11_action_request_practical": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_external_distress_validate": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_low_trust_hostility_boundary": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_open_loop_challenge": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_overwhelm_ground": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_repair_closes_loop": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        }
-      },
-      "counts": {
-        "expected_failure": 0,
-        "unexpected_failure": 0,
-        "no_effect": 6,
-        "newly_passing": 0
-      }
-    },
-    {
-      "label": "no_life_history_context",
-      "features_disabled": [
-        "life_history_context"
-      ],
-      "hypothesis": "Life History context and deterministic LifeInfluence should disappear when Life History context is disabled. Pure Phase 11/12 relationship and semantic-memory scenarios should not depend on this toggle.",
-      "expected_failures": [
-        "life_context_enters_generation",
-        "life_influence_derived",
-        "life_influence_affects_policy"
-      ],
-      "passed": 6,
-      "total": 6,
-      "assertions_passed": 25,
-      "assertions_total": 25,
-      "llm_calls": 14,
-      "latency_s": 0.023,
-      "per_scenario": {
-        "p11_action_request_practical": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_external_distress_validate": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_low_trust_hostility_boundary": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_open_loop_challenge": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_overwhelm_ground": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        },
-        "p11_repair_closes_loop": {
-          "baseline_passed": true,
-          "variant_passed": true,
-          "outcome": "no_effect"
-        }
-      },
-      "counts": {
-        "expected_failure": 0,
-        "unexpected_failure": 0,
-        "no_effect": 6,
+        "unexpected_failure": 1,
+        "no_effect": 3,
         "newly_passing": 0
       }
     }

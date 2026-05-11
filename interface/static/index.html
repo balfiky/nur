@@ -53,9 +53,13 @@
       <h2 class="wizard-title">Welcome</h2>
       <p class="wizard-sub">You're about to run an AI with persistent emotional state.</p>
       <p class="wizard-body">Before your first conversation, set the response model, runtime channels, tool execution level, seed identity, and optionally one formative experience. The identity is the authored character. Life History is what the character begins having encountered.</p>
+      <div class="wizard-consent">
+        <p class="wizard-consent-text">Nūr stores persistent memory and relationship state across conversations. No data is sent to third parties by default. See <a href="/PRIVACY.md" target="_blank" rel="noopener">PRIVACY.md</a> for full details on what is stored, retained, and deleted.</p>
+        <label class="wizard-consent-label"><input type="checkbox" id="wiz-consent-checkbox"> I understand that Nūr persists memory and relationship state.</label>
+      </div>
       <div class="wizard-actions">
         <button class="secondary" data-action="wizard-dismiss">Skip for now</button>
-        <button class="primary" data-action="wizard-goto" data-step="2">Get Started</button>
+        <button class="primary" id="wiz-get-started-btn" data-action="wizard-goto" data-step="2" disabled>Get Started</button>
       </div>
     </div>
 
@@ -306,7 +310,7 @@
         <div class="empty-sub">An assistant that remembers what we meant to each other.</div>
       </div>
     </div>
-    <div class="typing-row" id="typingRow">
+    <div class="typing-row" id="typingRow" role="status" aria-label="Nūr is thinking" aria-live="polite">
       <div class="typing-inner">
         <div class="msg-avatar nur-av">N</div>
         <div class="typing-dots"><span></span><span></span><span></span></div>

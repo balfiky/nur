@@ -334,12 +334,20 @@ def _memory_view(debug: Any | None, relationship: dict[str, Any]) -> dict[str, A
         "long_term_count": int(memory_used.get("long_term_count") or 0),
         "semantic_count": int(memory_used.get("semantic_count") or 0),
         "long_term_summaries": [
-            str(getattr(item, "summary", "") or "")
-            for item in retrieved[:3]
+            {
+                "summary": str(getattr(item, "summary", "") or ""),
+                "activation": round(float(getattr(item, "activation", 0.0)), 3),
+                "spike": bool(getattr(item, "spike", False)),
+            }
+            for item in retrieved[:4]
         ],
         "semantic_summaries": [
-            str(getattr(item, "summary", "") or getattr(item, "topic", "") or "")
-            for item in semantic[:3]
+            {
+                "summary": str(getattr(item, "summary", "") or getattr(item, "topic", "") or ""),
+                "kind": str(getattr(item, "kind", "semantic") or "semantic"),
+                "score": round(float(getattr(item, "score", 0.0)), 3),
+            }
+            for item in semantic[:4]
         ],
     }
 

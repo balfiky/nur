@@ -592,6 +592,14 @@ h4 {
   margin-top: 0.125rem;
 }
 
+/* Memory item activation breakdown — T15 */
+.memory-item { position: relative; }
+.memory-tags { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-bottom: 0.25rem; }
+.memory-tag { font-size: 0.625rem; font-weight: 600; padding: 0.125rem 0.375rem; border-radius: 0.25rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.memory-tag.activation { background: rgba(245, 166, 91, 0.15); color: var(--accent); }
+.memory-tag.spike { background: rgba(229, 72, 77, 0.15); color: var(--danger); }
+.memory-tag.semantic { background: rgba(122, 74, 140, 0.15); color: var(--plum-300); }
+
 .persona-session-foot {
   color: var(--muted);
   display: flex;

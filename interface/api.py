@@ -347,6 +347,7 @@ class AdminConfigUpdateRequest(ConfigUpdateRequest):
     """
 
     setup_completed: bool | None = None
+    consent_acknowledged: bool | None = None
 
 
 class AdminLLMTestRequest(BaseModel):
@@ -772,11 +773,12 @@ async def admin_update_config(req: AdminConfigUpdateRequest) -> dict:
     """Save config through the admin-console contract."""
     result = await update_config(req)
     config = _load_runtime_config()
-    if req.setup_completed is not None:
+    if req.setup_completed is not None or req.consent_acknowledged:
         _write_admin_state(
             config,
-            setup_completed=req.setup_completed,
+            setup_completed=bool(req.setup_completed),
             last_config_save_at=time.time(),
+            consent_acknowledged=req.consent_acknowledged or False,
         )
     return _admin_config_payload(
         config,
@@ -2397,6 +2399,7 @@ def _write_admin_state(
     *,
     setup_completed: bool,
     last_config_save_at: float | None = None,
+    consent_acknowledged: bool | None = None,
 ) -> None:
     path = _admin_state_path(config)
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -2410,6 +2413,8 @@ def _write_admin_state(
     }
     if setup_completed and not data["completed_at"]:
         data["completed_at"] = now
+    if consent_acknowledged and not existing.get("consent_acknowledged_at"):
+        data["consent_acknowledged_at"] = now
     with open(path, "w") as f:
         json.dump(data, f, indent=2, sort_keys=True)
 
@@ -2434,6 +2439,7 @@ def _admin_setup_status(config: RuntimeConfig) -> dict:
         "reasons": reasons,
         "completed_at": state.get("completed_at"),
         "last_config_save_at": state.get("last_config_save_at"),
+        "consent_acknowledged_at": state.get("consent_acknowledged_at"),
     }
 
 

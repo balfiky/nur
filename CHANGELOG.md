@@ -59,6 +59,56 @@ All notable changes to Project Nur are documented here.
   `pipeline.apply_rest()` with no real waiting. Run with
   `python -m evals --backend mock --tag long_horizon`.
 
+- **Prompt-only baseline ablation (T3).** `evals/ablation_hypotheses.py` gains a
+  `baseline_prompt_only` ablation that disables all 5 cognitive features
+  (relationship_memory, inner_dialogue, defense, semantic_memory, life_history_context),
+  leaving only constitution + conversation window — the bare-LLM control. Running
+  `python -m evals.ablation --backend mock --tag phase11 --only baseline_prompt_only`
+  writes a `baseline_prompt_only` row to `reports/ablation/summary.json`, quantifying
+  which scenarios require Nūr's enrichment vs passing on a plain LLM call.
+  Modulator-bound assertions (adversarial, tool_recovery, long_horizon) are expected
+  to hold since the emotional engine is always active.
+
+- **Concurrent two-channel test (T18).** `tests/test_concurrent_channels.py` adds
+  3 tests verifying per-user asyncio.Lock serialization and shared-DB integrity
+  under concurrency: web + telegram for the same user_id, two messages on the same
+  channel for the same user, and concurrent messages for different users. All assert
+  non-empty responses and shared `self_model.db` passes SQLite integrity check post-run.
+
+- **Memory inspector activation breakdown (T15).** Long-term memory snippets in the
+  admin persona panel now show ACT-R activation score (`act X.XX`) and a `spike`
+  badge. Semantic memory snippets show kind and relevance score. The
+  `persona_view._memory_view` builder now returns structured dicts instead of plain
+  strings; `runtime/debug/api.py` includes `activation` in the `retrieved_memories`
+  debug field. New `.memory-tag` CSS in `admin.css` renders the tags inline above
+  each snippet.
+
+- **Consent disclosure in setup wizard (T8).** Wizard step 1 (Welcome) now includes
+  a persistent-memory disclosure paragraph with a link to `PRIVACY.md` and a
+  checkbox the user must check before the "Get Started" button becomes active.
+  Completing the wizard POSTs `consent_acknowledged: true`; the server records
+  `consent_acknowledged_at` in `data/admin_state.json`. The timestamp is returned
+  in `/admin/config` → `setup.consent_acknowledged_at`.
+
+- **Admin confirmation gates for shell / high_risk (T11).** `admin.js` now intercepts
+  `saveConfig()` when `shell_tool_enabled` is being turned on from off (requires
+  typing `ENABLE SHELL`) or `autonomy_level` is being set to `high_risk` from another
+  value (requires typing `I UNDERSTAND HIGH RISK`). Either mismatch aborts the save
+  and shows a toast.
+
+- **Mobile responsive chat layout (T5).** `chat.css` adds `@media (max-width: 48rem)`
+  and `@media (max-width: 30rem)` blocks: reduced message/input padding, hidden
+  mood label on small screens, smaller logo, and stacked session actions. Admin
+  already had breakpoints at 61.25rem and 38.75rem.
+
+- **Loading indicator ARIA (T7).** Typing dots row (`#typingRow`) now carries
+  `role="status"` and `aria-live="polite"` for screen-reader announcements.
+
+- **Dark mode auto-apply (T20).** `tokens.css` adds
+  `@media (prefers-color-scheme: light) { :root:not([data-theme]) { ... } }` so the
+  light theme is applied automatically when the OS prefers light and no explicit
+  `data-theme` attribute is set. Dark remains the default for explicitly themed pages.
+
 ### Changed
 - README architecture badge updated from "self-evolving" to "deterministic
   metabolism" to more accurately describe the mechanism (belief decay,

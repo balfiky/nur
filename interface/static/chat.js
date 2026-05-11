@@ -83,6 +83,10 @@ document.addEventListener('change', e => {
     if (e.target.id === 'cfg-llm_backend') handleLegacyBackendChange().catch(() => {});
     try { updateSoulDraftAvailability(); } catch (_) {}
   }
+  if (e.target && e.target.id === 'wiz-consent-checkbox') {
+    const btn = document.getElementById('wiz-get-started-btn');
+    if (btn) btn.disabled = !e.target.checked;
+  }
 });
 settingsOverlay.addEventListener('click', closeSettingsIfBackdrop);
 new MutationObserver(refreshMoodContrast)
@@ -1667,6 +1671,7 @@ async function wizardFinish() {
     if (!cur.ok) throw new Error(curJson.detail || 'HTTP ' + cur.status);
     const payload = Object.assign({}, curJson.config || {}, {
       setup_completed: true,
+      consent_acknowledged: true,
       telegram_token: '', llm_api_key: '', api_key: '',
       clear_telegram_token: false, clear_llm_api_key: false,
       clear_api_key: false,

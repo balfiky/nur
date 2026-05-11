@@ -645,7 +645,7 @@ const state = createSurfaceState({
             ["semantic memories", memory.semantic_count || 0],
           ])}
           <div class="mini-heading">Current Turn Recall</div>
-          ${renderMemorySnippets([...(memory.long_term_summaries || []), ...(memory.semantic_summaries || [])])}
+          ${renderMemorySnippets(memory.long_term_summaries, memory.semantic_summaries)}
         </section>
 
         <section class="panel">
@@ -751,12 +751,28 @@ const state = createSurfaceState({
     return sessions.find((item) => item.session_key === session.session_key) || null;
   }
 
-  function renderMemorySnippets(items) {
-    const values = (items || []).filter(Boolean).slice(0, 6);
-    if (!values.length) return `<p class="empty-copy">No long-term or semantic memories were retrieved for this turn.</p>`;
-    return `<div class="persona-mini-list">${values.map((item) => `
-      <article><div class="markdown-copy">${renderMarkdown(item)}</div></article>
-    `).join("")}</div>`;
+  function renderMemorySnippets(ltItems, semanticItems) {
+    const ltEntries = (ltItems || []).filter(Boolean).slice(0, 4);
+    const semEntries = (semanticItems || []).filter(Boolean).slice(0, 4);
+    if (!ltEntries.length && !semEntries.length) {
+      return `<p class="empty-copy">No long-term or semantic memories were retrieved for this turn.</p>`;
+    }
+    const renderLt = (m) => {
+      const tags = [];
+      if (m.spike) tags.push(`<span class="memory-tag spike" title="Spike memory — bypassed gradual accumulation">spike</span>`);
+      if (typeof m.activation === "number") tags.push(`<span class="memory-tag activation" title="ACT-R activation score (base + valence bias + spike bonus)">act ${m.activation.toFixed(2)}</span>`);
+      const tagHtml = tags.length ? `<div class="memory-tags">${tags.join("")}</div>` : "";
+      return `<article class="memory-item">${tagHtml}<div class="markdown-copy">${renderMarkdown(m.summary || String(m))}</div></article>`;
+    };
+    const renderSem = (m) => {
+      const tags = [`<span class="memory-tag semantic" title="Semantic memory score">${escapeHtml(m.kind || "semantic")} ${typeof m.score === "number" ? m.score.toFixed(2) : ""}</span>`];
+      const tagHtml = `<div class="memory-tags">${tags.join("")}</div>`;
+      return `<article class="memory-item">${tagHtml}<div class="markdown-copy">${renderMarkdown(m.summary || "")}</div></article>`;
+    };
+    return `<div class="persona-mini-list">
+      ${ltEntries.map(renderLt).join("")}
+      ${semEntries.map(renderSem).join("")}
+    </div>`;
   }
 
   function renderExplanationItem(label, value) {
@@ -1424,12 +1440,24 @@ const state = createSurfaceState({
   }
 
   async function saveConfig() {
+    const payload = collectConfigPayload();
+    // Gate high-blast-radius toggles with explicit confirmation.
+    const wasShellOff = !state.config.shell_tool_enabled;
+    const wasNotHighRisk = state.config.autonomy_level !== "high_risk";
+    if (wasShellOff && payload.shell_tool_enabled) {
+      const reply = window.prompt("Shell tool can execute arbitrary commands on this machine.\nType ENABLE SHELL to confirm.");
+      if (reply !== "ENABLE SHELL") { showToast("Shell tool not enabled — confirmation required.", "warn"); return; }
+    }
+    if (wasNotHighRisk && payload.autonomy_level === "high_risk") {
+      const reply = window.prompt("High-risk autonomy allows destructive tool operations without confirmation.\nType I UNDERSTAND HIGH RISK to confirm.");
+      if (reply !== "I UNDERSTAND HIGH RISK") { showToast("High-risk autonomy not enabled — confirmation required.", "warn"); return; }
+    }
     els.saveBtn.disabled = true;
     try {
       const res = await authedFetch("/admin/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(collectConfigPayload()),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "HTTP " + res.status);

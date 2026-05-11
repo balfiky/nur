@@ -1,6 +1,6 @@
-# Internal Documents
+# Internal / Historical Documents
 
-These files are retained for implementation context. They are not part of the public reader path; public readers should start with `README.md`, `docs/OVERVIEW.md`, and `docs/ARCHITECTURE.md`.
+> **Note:** These documents are internal design records and may be stale. They reflect the state of the project at the time of writing, not necessarily the current implementation. For current documentation, start with `README.md`, `docs/OVERVIEW.md`, and `docs/ARCHITECTURE.md`.
 
 Contents:
 

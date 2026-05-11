@@ -59,6 +59,42 @@ there is no fixed upper bound in pathological cases.
 
 Code entry point: `pipeline.py::CognitivePipeline.process`.
 
+<details>
+<summary><strong>Detailed flow (18 steps)</strong></summary>
+
+The presentation "five stages" framing maps onto 18 ordered pipeline
+steps in `pipeline.py:536–1249`. Each step is listed below with its
+LLM cost, code anchor, and what it produces.
+
+| # | Name | LLM calls | Code anchor | Output |
+|---|---|---|---|---|
+| 0 | **Auto-decay** | 0 | `pipeline.py:556` | Wall-clock elapsed applied to all six modulators via `engine.decay(elapsed)` |
+| 1 | **Anticipation** | 0 | `pipeline.py:565` | Predicted event type + pre-shift applied to modulators before input is processed |
+| 2 | **Contagion** | 0 | `pipeline.py:585` | `detected_emotion` (arousal + valence); trust-weighted update to engine state |
+| 3 | **Life history retrieval** | 0 | `pipeline.py:592` | `life_history_context` dict (beliefs, drives, recent evolution); `LifeInfluence` derived |
+| 4 | **Appraisal** | 0 | `pipeline.py:599` | `AppraisalFrame`: intent, stakes, urgency, affect, inferred_intent, social_move — biased by life history |
+| 5 | **Context switch** | 0 | `pipeline.py:609` | Per-user `baseline_shift` applied as non-additive resting target to modulator engine |
+| 6 | **Event classification + PSI update** | 0 | `pipeline.py:614` | `event_classified`, `event_intensity`, `is_spike`; all six modulators updated |
+| 7 | **Resolution update** | 0 | `pipeline.py:623` | New unresolved items checked; `active_unresolved` count updated |
+| 8 | **Short-term memory** | 0 | `pipeline.py:632` | Event recorded in ring buffer (`ShortTermMemory`) |
+| 9 | **Spike check** | 0 | `pipeline.py:635` | If `is_spike`: immediate `LongTermEntry` stored with `spike=True`, bypassing gradual accumulation |
+| 10 | **Long-term memory retrieval** | 0 | `pipeline.py:648` | Up to 5 `LongTermEntry` objects ranked by ACT-R activation + valence bias + spike bonus |
+| 11 | **Profile lookup** | 0 | `pipeline.py:658` | `person_profile`, `self_profile`, `relationship_context`, `semantic_memories` |
+| 12 | **Contradiction check** | 0 | `pipeline.py:704` | Person/self expectation violations detected; wired to resolution as new unresolved items |
+| 13 | **Derived affect + agency** | 0 | `pipeline.py:731` | `affect_state` classification; `agency_decision` (slow\_down / direct\_down / proceed) |
+| 14 | **Inner dialogue** | 0–5 | `pipeline.py:745` | Fires on deadlock or contradiction; `InnerDialogueTrace`; deadlock → new unresolved item |
+| 15 | **Tool loop** | 0–N | `pipeline.py:816` | Intent detection → gate check (READ\_ONLY auto / WRITE clarify / DESTRUCTIVE gate) → execution; tool + task memory coupling |
+| 16 | **Defense filter** | 0 | `pipeline.py:1072` | Defense activation (suppression, projection, displacement) gated by `maturity` score |
+| 17 | **Master generation** | 1 | `pipeline.py:1084` | Assembles system prompt (constitution + life history + memories + character vector) → LLM call → response text |
+| 18 | **Post-generation** | 0–2 | `pipeline.py:1110` | Optional LLM self-check; memory digestion (relationship loop open/close, long-term consolidation, semantic write) |
+
+**Key invariants across all steps:**
+- All modulator deltas are double-clamped: per-event cap + `[0, 1]` hard bounds (`core/emotional_engine.py:189`)
+- Features can be independently toggled off via `PipelineFeatures` (ablation-safe)
+- A single `DebugState` object accumulates every step's output; the admin console exposes it verbatim
+
+</details>
+
 ## Emotional State
 
 Six modulators, each a continuous value in [0, 1]:

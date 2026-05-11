@@ -173,7 +173,8 @@ def _debug_to_dict(debug) -> dict:
 
     # Memory retrieval
     d["retrieved_memories"] = [
-        {"summary": m.summary, "valence": m.emotional_valence, "spike": m.spike}
+        {"summary": m.summary, "valence": m.emotional_valence, "spike": m.spike,
+         "activation": round(m.activation, 3)}
         for m in debug.retrieved_memories
     ]
     d["semantic_memories"] = [

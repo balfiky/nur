@@ -103,6 +103,57 @@ ABLATIONS: list[Ablation] = [
             "life_influence_affects_policy",
         ),
     ),
+
+    # Negative control: all cognitive enrichment disabled (prompt-only baseline).
+    # Constitution + conversation window only — no memory retrieval, no inner
+    # dialogue, no defense, no life history. Quantifies the Nūr value-add vs
+    # a bare LLM call.  Modulator-based assertions (adversarial, tool_recovery,
+    # long_horizon) are expected to hold since the emotional engine is always
+    # active. Scenarios that depend on any memory layer should fail.
+    Ablation(
+        label="baseline_prompt_only",
+        features=PipelineFeatures(
+            relationship_memory=False,
+            inner_dialogue=False,
+            defense=False,
+            semantic_memory=False,
+            life_history_context=False,
+        ),
+        hypothesis=(
+            "With all cognitive enrichment disabled, any scenario that asserts "
+            "memory retrieval, cross-turn loop tracking, semantic preferences, "
+            "or life-history influence should fail. Modulator-bound assertions "
+            "(adversarial, tool_recovery, long_horizon) should still pass because "
+            "the emotional engine runs regardless of feature toggles."
+        ),
+        expected_failures=(
+            # Relationship memory scenarios
+            "p11_open_loop_challenge",
+            "p11_repair_closes_loop",
+            "p12_multiple_open_loops_topic_priority",
+            "p12_mismatched_repair_keeps_deadline_loop_open",
+            "p12_recurrence_after_repair_records_recurring_tension",
+            "p12_commitment_persists_across_session",
+            "p12_user_mentions_old_rupture",
+            # Life history scenarios
+            "life_context_enters_generation",
+            "life_influence_derived",
+            "life_influence_affects_policy",
+            # Character independence (life history dependent)
+            "ci_codex_paste_one_shot",
+            "ci_sustained_theme_accumulation",
+            "ci_belief_revision",
+            "ci_genesis_isolation",
+            "ci_identity_question_grounding",
+            # Semantic memory scenarios
+            "semantic_preference_written_and_retrieved",
+            "semantic_decision_written_and_retrieved",
+            "semantic_topic_bias",
+            "semantic_salience_and_recency_ranking",
+            # Long-horizon open-loop persistence
+            "lh_open_loop_survives_3_day_gap",
+        ),
+    ),
 ]
 
 

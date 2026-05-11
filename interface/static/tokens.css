@@ -159,3 +159,23 @@ pre code[class^="language-"] {
   from { opacity: 0; transform: translateY(0.75rem); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Auto-apply light theme when OS prefers light and no explicit override is set — T20 */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]):not([data-theme="light"]) {
+    --bg:        var(--parchment-50);
+    --surface:   #FFFFFF;
+    --surface-2: var(--parchment-100);
+    --surface-3: var(--parchment-200);
+    --border:    rgba(31, 24, 48, 0.10);
+    --border-strong: rgba(31, 24, 48, 0.20);
+    --text:       #1F1830;
+    --text-dim:   #4A3F5C;
+    --text-faint: #7A6F8C;
+    --primary:     var(--ember-700);
+    --primary-dim: #A4471F;
+    --accent:      var(--ember-700);
+    --shadow-soft: 0 0.75rem 2.5rem rgba(31, 24, 48, 0.10);
+    --glow-ember:  0 0 1.75rem rgba(194, 93, 46, 0.22);
+  }
+}
