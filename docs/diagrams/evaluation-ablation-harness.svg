@@ -2,8 +2,8 @@
 <text x="56" y="142" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#116329">Inputs</text>
 <rect x="370" y="120" width="420" height="540" rx="18" fill="none" stroke="#218bff" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
 <text x="386" y="142" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#0550ae">Per-variant execution</text>
-<rect x="820" y="120" width="320" height="540" rx="18" fill="none" stroke="#bf8700" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
-<text x="836" y="142" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#633c01">Provenance stamping</text>
+<rect x="820" y="120" width="320" height="540" rx="18" fill="none" stroke="#0891b2" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
+<text x="836" y="142" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#164e63">Provenance stamping</text>
 <rect x="1170" y="120" width="390" height="540" rx="18" fill="none" stroke="#8250df" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
 <text x="1186" y="142" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#5931ad">Artifacts</text>
 <rect x="60" y="160" width="260" height="80" rx="10" fill="#dafbe1" stroke="#2da44e" stroke-width="1.5"/>
@@ -13,8 +13,8 @@
 <rect x="60" y="260" width="260" height="80" rx="10" fill="#dafbe1" stroke="#2da44e" stroke-width="1.5"/>
 <text x="190.0" y="283" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#116329">Scenario selector</text>
 <text x="190.0" y="305" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">tag phase11 or explicit set</text>
-<rect x="60" y="360" width="260" height="80" rx="10" fill="#fff8c5" stroke="#bf8700" stroke-width="1.5"/>
-<text x="190.0" y="383" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#633c01">PipelineFeatures toggles</text>
+<rect x="60" y="360" width="260" height="80" rx="10" fill="#cffafe" stroke="#0891b2" stroke-width="1.5"/>
+<text x="190.0" y="383" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#164e63">PipelineFeatures toggles</text>
 <text x="190.0" y="405" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">no_relationship, no_inner_dialogue,</text>
 <text x="190.0" y="422" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">no_defense, no_semantic</text>
 <rect x="60" y="460" width="260" height="80" rx="10" fill="#dafbe1" stroke="#2da44e" stroke-width="1.5"/>
@@ -32,17 +32,17 @@
 <rect x="390" y="460" width="380" height="80" rx="10" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
 <text x="580.0" y="483" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#0550ae">Evaluate assertions</text>
 <text x="580.0" y="505" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">strategy, modulator delta, memory/open-loop effects</text>
-<rect x="840" y="160" width="280" height="80" rx="10" fill="#fff8c5" stroke="#bf8700" stroke-width="1.5"/>
-<text x="980.0" y="183" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#633c01">Code identity</text>
+<rect x="840" y="160" width="280" height="80" rx="10" fill="#cffafe" stroke="#0891b2" stroke-width="1.5"/>
+<text x="980.0" y="183" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#164e63">Code identity</text>
 <text x="980.0" y="205" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">git SHA, branch, dirty flag</text>
-<rect x="840" y="260" width="280" height="80" rx="10" fill="#fff8c5" stroke="#bf8700" stroke-width="1.5"/>
-<text x="980.0" y="283" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#633c01">Backend identity</text>
+<rect x="840" y="260" width="280" height="80" rx="10" fill="#cffafe" stroke="#0891b2" stroke-width="1.5"/>
+<text x="980.0" y="283" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#164e63">Backend identity</text>
 <text x="980.0" y="305" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">requested_model, resolved_model</text>
-<rect x="840" y="360" width="280" height="80" rx="10" fill="#fff8c5" stroke="#bf8700" stroke-width="1.5"/>
-<text x="980.0" y="383" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#633c01">Config fingerprints</text>
+<rect x="840" y="360" width="280" height="80" rx="10" fill="#cffafe" stroke="#0891b2" stroke-width="1.5"/>
+<text x="980.0" y="383" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#164e63">Config fingerprints</text>
 <text x="980.0" y="405" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">SHA-256 of 16 prompt + config files</text>
-<rect x="840" y="460" width="280" height="80" rx="10" fill="#fff8c5" stroke="#bf8700" stroke-width="1.5"/>
-<text x="980.0" y="483" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#633c01">Outcome labels</text>
+<rect x="840" y="460" width="280" height="80" rx="10" fill="#cffafe" stroke="#0891b2" stroke-width="1.5"/>
+<text x="980.0" y="483" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#164e63">Outcome labels</text>
 <text x="980.0" y="505" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">expected_failure, unexpected_failure,</text>
 <text x="980.0" y="522" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">no_effect, newly_passing</text>
 <rect x="1190" y="160" width="350" height="80" rx="10" fill="#eae6ff" stroke="#8250df" stroke-width="1.5"/>

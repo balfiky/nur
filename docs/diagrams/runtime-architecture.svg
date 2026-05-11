@@ -2,8 +2,8 @@
 <text x="56" y="142" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#116329">Clients</text>
 <rect x="300" y="120" width="250" height="700" rx="18" fill="none" stroke="#218bff" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
 <text x="316" y="142" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#0550ae">Runtime hosts</text>
-<rect x="570" y="120" width="380" height="700" rx="18" fill="none" stroke="#bf8700" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
-<text x="586" y="142" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#633c01">Shared session + cognition</text>
+<rect x="570" y="120" width="380" height="700" rx="18" fill="none" stroke="#0891b2" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
+<text x="586" y="142" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#164e63">Shared session + cognition</text>
 <rect x="970" y="120" width="590" height="700" rx="18" fill="none" stroke="#8250df" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
 <text x="986" y="142" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#5931ad">External &amp; persistence</text>
 <rect x="60" y="165" width="200" height="60" rx="10" fill="#dafbe1" stroke="#2da44e" stroke-width="1.5"/>
@@ -26,20 +26,20 @@
 <text x="425.0" y="443" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="17" font-weight="700" fill="#0550ae">nur-web</text>
 <text x="425.0" y="465" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">FastAPI: chat UI, /admin,</text>
 <text x="425.0" y="482" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">/v1, legacy endpoints</text>
-<rect x="600" y="175" width="320" height="70" rx="10" fill="#fff8c5" stroke="#bf8700" stroke-width="1.5"/>
-<text x="760.0" y="198" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="15" font-weight="700" fill="#633c01">SessionManager</text>
+<rect x="600" y="175" width="320" height="70" rx="10" fill="#cffafe" stroke="#0891b2" stroke-width="1.5"/>
+<text x="760.0" y="198" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="15" font-weight="700" fill="#164e63">SessionManager</text>
 <text x="760.0" y="220" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">per-user locks, backpressure, eviction</text>
-<rect x="600" y="275" width="320" height="70" rx="10" fill="#fff8c5" stroke="#bf8700" stroke-width="1.5"/>
-<text x="760.0" y="298" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="15" font-weight="700" fill="#633c01">UserSession</text>
+<rect x="600" y="275" width="320" height="70" rx="10" fill="#cffafe" stroke="#0891b2" stroke-width="1.5"/>
+<text x="760.0" y="298" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="15" font-weight="700" fill="#164e63">UserSession</text>
 <text x="760.0" y="320" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">serialized turns per platform:user:chat</text>
-<rect x="600" y="375" width="320" height="90" rx="10" fill="#fff8c5" stroke="#bf8700" stroke-width="1.5"/>
-<text x="760.0" y="398" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="16" font-weight="700" fill="#633c01">CognitivePipeline</text>
+<rect x="600" y="375" width="320" height="90" rx="10" fill="#cffafe" stroke="#0891b2" stroke-width="1.5"/>
+<text x="760.0" y="398" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="16" font-weight="700" fill="#164e63">CognitivePipeline</text>
 <text x="760.0" y="420" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">synchronous stateful turn processor</text>
 <text x="760.0" y="437" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">(see Single-Turn Cognitive Flow)</text>
 <rect x="600" y="505" width="320" height="70" rx="10" fill="#ffebe9" stroke="#cf222e" stroke-width="1.5"/>
 <text x="760.0" y="528" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="15" font-weight="700" fill="#a40e26">Tool executor</text>
 <text x="760.0" y="550" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">only active when tools_enabled: true</text>
-<rect x="1000" y="165" width="540" height="70" rx="10" fill="#fff1e5" stroke="#fb8f44" stroke-width="1.5"/>
+<rect x="1000" y="165" width="540" height="70" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
 <text x="1270.0" y="188" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="15" font-weight="700" fill="#9a5700">LLM backend</text>
 <text x="1270.0" y="210" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">mock / provider / openai_compatible / codex / minimax</text>
 <path d="M1000,275 C1000,259.0 1540,259.0 1540,275 L1540,345 C1540,361.0 1000,361.0 1000,345 Z" fill="#eae6ff" stroke="#8250df" stroke-width="1.5"/>
@@ -96,11 +96,11 @@
 <text x="84" y="778" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">client channel</text>
 <rect x="60" y="786" width="16" height="12" rx="3" fill="#ddf4ff" stroke="#218bff" stroke-width="1.25"/>
 <text x="84" y="796" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">runtime host</text>
-<rect x="60" y="804" width="16" height="12" rx="3" fill="#fff8c5" stroke="#bf8700" stroke-width="1.25"/>
+<rect x="60" y="804" width="16" height="12" rx="3" fill="#cffafe" stroke="#0891b2" stroke-width="1.25"/>
 <text x="84" y="814" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">session + cognition</text>
 <rect x="60" y="822" width="16" height="12" rx="3" fill="#eae6ff" stroke="#8250df" stroke-width="1.25"/>
 <text x="84" y="832" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">persistent store</text>
-<rect x="60" y="840" width="16" height="12" rx="3" fill="#fff1e5" stroke="#fb8f44" stroke-width="1.25"/>
+<rect x="60" y="840" width="16" height="12" rx="3" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.25"/>
 <text x="84" y="850" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">external LLM</text>
 <rect x="60" y="858" width="16" height="12" rx="3" fill="#ffebe9" stroke="#cf222e" stroke-width="1.25"/>
 <text x="84" y="868" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">side-effect gate</text>

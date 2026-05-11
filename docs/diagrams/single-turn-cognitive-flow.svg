@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc"><title id="title">Single-Turn Cognitive Flow</title><desc id="desc">pipeline.process in 5 sections, left to right. Typical LLM budget: 1 call. Max with all gates firing: ~8.</desc><defs><marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M1,1 L9,5 L1,9 Z" fill="#57606a"/></marker></defs><rect width="100%" height="100%" fill="#fafbfc"/><text x="48" y="52" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="28" font-weight="800" fill="#1f2328">Single-Turn Cognitive Flow</text><text x="48" y="78" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="400" fill="#57606a">pipeline.process in 5 sections, left to right. Typical LLM budget: 1 call. Max with all gates firing: ~8.</text><rect x="40" y="120" width="290" height="42" rx="21.0" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
 <text x="185.0" y="145.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#0550ae">State update</text>
 <text x="185.0" y="180" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">always · 0 LLM</text>
-<rect x="350" y="120" width="290" height="42" rx="21.0" fill="#fff8c5" stroke="#bf8700" stroke-width="1.5"/>
-<text x="495.0" y="145.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#633c01">Deliberation</text>
+<rect x="350" y="120" width="290" height="42" rx="21.0" fill="#cffafe" stroke="#0891b2" stroke-width="1.5"/>
+<text x="495.0" y="145.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#164e63">Deliberation</text>
 <text x="495.0" y="180" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">gated · 0–5 LLM</text>
-<rect x="660" y="120" width="220" height="42" rx="21.0" fill="#fff1e5" stroke="#fb8f44" stroke-width="1.5"/>
+<rect x="660" y="120" width="220" height="42" rx="21.0" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
 <text x="770.0" y="145.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#9a5700">Generation</text>
 <text x="770.0" y="180" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">always · +1 LLM</text>
 <rect x="900" y="120" width="330" height="42" rx="21.0" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
@@ -40,9 +40,9 @@
 <text x="185.0" y="590" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">profiles (person / self / topic)</text>
 <text x="185.0" y="606" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">relationship + open loops</text>
 <text x="185.0" y="622" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">contradiction check</text>
-<rect x="350" y="210" width="290" height="640" rx="18" fill="none" stroke="#bf8700" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
-<text x="366" y="232" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#633c01">Gated deliberation</text>
-<rect x="365" y="250" width="260" height="81" rx="10" fill="#fff1e5" stroke="#fb8f44" stroke-width="1.5"/>
+<rect x="350" y="210" width="290" height="640" rx="18" fill="none" stroke="#0891b2" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
+<text x="366" y="232" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#164e63">Gated deliberation</text>
+<rect x="365" y="250" width="260" height="81" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
 <text x="495.0" y="273" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#9a5700">Inner dialogue</text>
 <text x="495.0" y="295" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">fast/slow negotiation</text>
 <text x="495.0" y="311" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">2–5 LLM calls depending on rounds</text>
@@ -57,9 +57,9 @@
 <text x="495.0" y="489" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">rationalize / deflect / minimize / project</text>
 <text x="495.0" y="505" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">injects prompt instruction</text>
 <text x="495.0" y="521" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">0 LLM</text>
-<rect x="660" y="210" width="220" height="640" rx="18" fill="none" stroke="#fb8f44" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
+<rect x="660" y="210" width="220" height="640" rx="18" fill="none" stroke="#4f46e5" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.85"/>
 <text x="676" y="232" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#9a5700">Generation</text>
-<rect x="675" y="310" width="190" height="160" rx="10" fill="#fff1e5" stroke="#fb8f44" stroke-width="1.5"/>
+<rect x="675" y="310" width="190" height="160" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
 <text x="770.0" y="333" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="15" font-weight="700" fill="#9a5700">Master LLM generation</text>
 <text x="770.0" y="355" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">builds prompt from current</text>
 <text x="770.0" y="372" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">state, memory, profiles,</text>
@@ -74,11 +74,11 @@
 <text x="1065.0" y="295" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">tone fit / overconfidence /</text>
 <text x="1065.0" y="311" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">bluntness / energy fit</text>
 <text x="1065.0" y="327" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">always runs · 0 LLM</text>
-<rect x="915" y="347" width="300" height="64" rx="10" fill="#fff1e5" stroke="#fb8f44" stroke-width="1.5"/>
+<rect x="915" y="347" width="300" height="64" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
 <text x="1065.0" y="370" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#9a5700">LLM self-check</text>
 <text x="1065.0" y="392" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">gated on rule issues</text>
 <text x="1065.0" y="408" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">optional +1 LLM</text>
-<rect x="915" y="427" width="300" height="64" rx="10" fill="#fff1e5" stroke="#fb8f44" stroke-width="1.5"/>
+<rect x="915" y="427" width="300" height="64" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
 <text x="1065.0" y="450" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#9a5700">Regenerate</text>
 <text x="1065.0" y="472" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">gated on self-check failure</text>
 <text x="1065.0" y="488" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">fail-closed, +1 LLM</text>
@@ -103,9 +103,9 @@
 <text x="1405.0" y="562" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="11" font-weight="400" fill="#57606a">back to channel / caller</text>
 <rect x="60" y="862" width="16" height="12" rx="3" fill="#ddf4ff" stroke="#218bff" stroke-width="1.25"/>
 <text x="84" y="872" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">deterministic, 0 LLM</text>
-<rect x="60" y="880" width="16" height="12" rx="3" fill="#fff8c5" stroke="#bf8700" stroke-width="1.25"/>
+<rect x="60" y="880" width="16" height="12" rx="3" fill="#cffafe" stroke="#0891b2" stroke-width="1.25"/>
 <text x="84" y="890" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">gated (condition-dependent)</text>
-<rect x="60" y="898" width="16" height="12" rx="3" fill="#fff1e5" stroke="#fb8f44" stroke-width="1.25"/>
+<rect x="60" y="898" width="16" height="12" rx="3" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.25"/>
 <text x="84" y="908" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">LLM call (+N)</text>
 <rect x="60" y="916" width="16" height="12" rx="3" fill="#ffebe9" stroke="#cf222e" stroke-width="1.25"/>
 <text x="84" y="926" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">side-effect path, gated by tools_enabled</text></svg>

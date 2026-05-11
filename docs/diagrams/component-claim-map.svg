@@ -12,14 +12,14 @@
 <text x="570" y="283" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="400" fill="#57606a">is the expected result and is the observed result.</text>
 <rect x="1040" y="140" width="460" height="250" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
 <text x="1270.0" y="163" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="18" font-weight="700" fill="#1f2328">Inner dialogue</text>
-<rect x="1060" y="200" width="260" height="30" rx="15.0" fill="#fff8c5" stroke="#bf8700" stroke-width="1.5"/>
-<text x="1190.0" y="219.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#633c01">NOT FALSIFIABLE HERE</text>
+<rect x="1060" y="200" width="260" height="30" rx="15.0" fill="#cffafe" stroke="#0891b2" stroke-width="1.5"/>
+<text x="1190.0" y="219.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#164e63">NOT FALSIFIABLE HERE</text>
 <text x="1060" y="265" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="400" fill="#57606a">Deliberation rounds do not move the strategy selector. A</text>
 <text x="1060" y="283" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="400" fill="#57606a">different suite is needed to falsify its contribution.</text>
 <rect x="60" y="430" width="460" height="250" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
 <text x="290.0" y="453" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="18" font-weight="700" fill="#1f2328">Defense mechanisms</text>
-<rect x="80" y="490" width="260" height="30" rx="15.0" fill="#fff8c5" stroke="#bf8700" stroke-width="1.5"/>
-<text x="210.0" y="509.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#633c01">NOT FALSIFIABLE HERE</text>
+<rect x="80" y="490" width="260" height="30" rx="15.0" fill="#cffafe" stroke="#0891b2" stroke-width="1.5"/>
+<text x="210.0" y="509.0" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="600" fill="#164e63">NOT FALSIFIABLE HERE</text>
 <text x="80" y="555" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="400" fill="#57606a">Shapes generator output, which Phase 11 does not grade.</text>
 <text x="80" y="573" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="400" fill="#57606a">Requires wording-quality scenarios or human rating.</text>
 <rect x="550" y="430" width="460" height="250" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
@@ -37,7 +37,7 @@
 <text x="60" y="880" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="700" fill="#57606a">Evidence-status legend</text>
 <rect x="60" y="888" width="16" height="12" rx="3" fill="#dafbe1" stroke="#2da44e" stroke-width="1.25"/>
 <text x="84" y="898" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">load-bearing (falsified by current ablation)</text>
-<rect x="60" y="906" width="16" height="12" rx="3" fill="#fff8c5" stroke="#bf8700" stroke-width="1.25"/>
+<rect x="60" y="906" width="16" height="12" rx="3" fill="#cffafe" stroke="#0891b2" stroke-width="1.25"/>
 <text x="84" y="916" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">not falsifiable by current suite</text>
 <rect x="60" y="924" width="16" height="12" rx="3" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.25"/>
 <text x="84" y="934" text-anchor="start" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">negative control</text>

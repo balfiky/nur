@@ -5,8 +5,8 @@
 <rect x="80" y="170" width="640" height="60" rx="10" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
 <text x="400.0" y="193" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="15" font-weight="700" fill="#0550ae">Incoming HTTP / WebSocket request</text>
 <text x="400.0" y="215" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">/chat, /debug, /config, /admin/*, /v1/*, /ws</text>
-<polygon points="400,260.0 510.0,300 400,340.0 290.0,300" fill="#fff8c5" stroke="#bf8700" stroke-width="1.5"/>
-<text x="400" y="304" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#633c01">api_key configured?</text>
+<polygon points="400,260.0 510.0,300 400,340.0 290.0,300" fill="#cffafe" stroke="#0891b2" stroke-width="1.5"/>
+<text x="400" y="304" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#164e63">api_key configured?</text>
 <rect x="80" y="440" width="300" height="80" rx="10" fill="#ffffff" stroke="#d0d7de" stroke-width="1.5"/>
 <text x="230.0" y="463" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#1f2328">Open</text>
 <text x="230.0" y="485" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">every route bootstraps</text>
@@ -15,8 +15,8 @@
 <text x="570.0" y="463" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#0550ae">Require Bearer token</text>
 <text x="570.0" y="485" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">Authorization: Bearer &lt;api_key&gt;</text>
 <text x="570.0" y="502" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">re-read on every request</text>
-<polygon points="570,550.0 680.0,590 570,630.0 460.0,590" fill="#fff8c5" stroke="#bf8700" stroke-width="1.5"/>
-<text x="570" y="594" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#633c01">Token valid?</text>
+<polygon points="570,550.0 680.0,590 570,630.0 460.0,590" fill="#cffafe" stroke="#0891b2" stroke-width="1.5"/>
+<text x="570" y="594" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#164e63">Token valid?</text>
 <rect x="420" y="700" width="140" height="60" rx="10" fill="#dafbe1" stroke="#2da44e" stroke-width="1.5"/>
 <text x="490.0" y="723" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#116329">200 OK</text>
 <rect x="580" y="700" width="140" height="60" rx="10" fill="#ffebe9" stroke="#cf222e" stroke-width="1.5"/>
@@ -27,8 +27,8 @@
 <rect x="830" y="170" width="710" height="60" rx="10" fill="#f6f8fa" stroke="#8c959f" stroke-width="1.5"/>
 <text x="1185.0" y="193" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="15" font-weight="700" fill="#1f2328">/chat turn reaches CognitivePipeline</text>
 <text x="1185.0" y="215" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">tool_loop regex intent match</text>
-<polygon points="1180,260.0 1290.0,300 1180,340.0 1070.0,300" fill="#fff8c5" stroke="#bf8700" stroke-width="1.5"/>
-<text x="1180" y="304" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#633c01">tools_enabled?</text>
+<polygon points="1180,260.0 1290.0,300 1180,340.0 1070.0,300" fill="#cffafe" stroke="#0891b2" stroke-width="1.5"/>
+<text x="1180" y="304" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#164e63">tools_enabled?</text>
 <rect x="830" y="440" width="300" height="80" rx="10" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
 <text x="980.0" y="463" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#0550ae">No tool execution</text>
 <text x="980.0" y="485" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">text-only response</text>
@@ -37,8 +37,8 @@
 <text x="1400.0" y="463" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="14" font-weight="700" fill="#a40e26">Filesystem tools</text>
 <text x="1400.0" y="485" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">paths resolve inside tools_workspace</text>
 <text x="1400.0" y="502" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">out-of-sandbox paths refused</text>
-<polygon points="1400,550.0 1510.0,590 1400,630.0 1290.0,590" fill="#fff8c5" stroke="#bf8700" stroke-width="1.5"/>
-<text x="1400" y="594" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#633c01">shell_tool_enabled?</text>
+<polygon points="1400,550.0 1510.0,590 1400,630.0 1290.0,590" fill="#cffafe" stroke="#0891b2" stroke-width="1.5"/>
+<text x="1400" y="594" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#164e63">shell_tool_enabled?</text>
 <rect x="1170" y="700" width="180" height="60" rx="10" fill="#ddf4ff" stroke="#218bff" stroke-width="1.5"/>
 <text x="1260.0" y="723" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="13" font-weight="700" fill="#0550ae">Shell off</text>
 <text x="1260.0" y="745" text-anchor="middle" font-family="'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif" font-size="12" font-weight="400" fill="#57606a">default</text>
