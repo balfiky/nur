@@ -477,6 +477,49 @@ class TestAdminEndpoints:
         )
         assert field["secret_status"]["configured"] is False
 
+    def test_admin_config_sets_owner_chat_id(
+        self, client, temp_config, tmp_path,
+    ):
+        RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            owner_chat_id="",
+        ).write_yaml(str(temp_config))
+
+        resp = client.post(
+            "/admin/config", json={"owner_chat_id": "5188014915"},
+        )
+        assert resp.status_code == 200
+
+        saved = RuntimeConfig.from_yaml(str(temp_config))
+        assert saved.owner_chat_id == "5188014915"
+
+        # And the field metadata exposes owner_chat_id in the "channels" group.
+        field = next(
+            item for item in resp.json()["field_metadata"]
+            if item["name"] == "owner_chat_id"
+        )
+        assert field["value"] == "5188014915"
+        assert field["section"] == "channels"
+
+    def test_admin_config_owner_chat_id_omitted_preserves_existing(
+        self, client, temp_config, tmp_path,
+    ):
+        # owner_chat_id starts populated; we POST a payload that doesn't
+        # mention it — it must NOT get cleared to defaults.
+        RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            llm_backend="mock",
+            owner_chat_id="9999",
+        ).write_yaml(str(temp_config))
+
+        resp = client.post(
+            "/admin/config",
+            json={"llm_backend": "mock"},
+        )
+        assert resp.status_code == 200
+        saved = RuntimeConfig.from_yaml(str(temp_config))
+        assert saved.owner_chat_id == "9999"
+
     def test_admin_routes_require_auth_when_key_configured(self, authed_client):
         assert authed_client.get("/admin/status").status_code == 401
         assert authed_client.get("/admin/config").status_code == 401

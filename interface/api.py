@@ -334,6 +334,9 @@ class ConfigUpdateRequest(BaseModel):
     learning_max_questions_per_day: int = Field(3, ge=0, le=200)
     learning_max_seconds_per_day: float = Field(1800.0, ge=0)
     metabolism_min_elapsed_days: float = Field(1.0, ge=0, le=30)
+    # Self-action layer (v0.30). ``None`` means "leave unchanged" so partial
+    # POSTs don't wipe an existing owner.
+    owner_chat_id: str | None = None
     clear_telegram_token: bool = False
     clear_llm_api_key: bool = False
     clear_api_key: bool = False
@@ -678,6 +681,10 @@ async def update_config(req: ConfigUpdateRequest) -> dict:
         learning_max_questions_per_day=req.learning_max_questions_per_day,
         learning_max_seconds_per_day=req.learning_max_seconds_per_day,
         metabolism_min_elapsed_days=req.metabolism_min_elapsed_days,
+        owner_chat_id=(
+            existing.owner_chat_id if req.owner_chat_id is None
+            else req.owner_chat_id.strip()
+        ),
     )
 
     if req.clear_telegram_token:
@@ -2122,6 +2129,7 @@ _CONFIG_FIELD_SECTIONS = {
     "learning_max_questions_per_day": "learning",
     "learning_max_seconds_per_day": "learning",
     "metabolism_min_elapsed_days": "learning",
+    "owner_chat_id": "channels",
 }
 
 _RESTART_REQUIRED_FIELDS = {"debug_host", "debug_port", "cors_origins"}
