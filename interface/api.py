@@ -295,47 +295,48 @@ class RestRequest(BaseModel):
 
 
 class ConfigUpdateRequest(BaseModel):
-    data_dir: str = "data"
-    max_queue_per_user: int = Field(3, ge=1)
-    max_active_sessions: int = Field(10, ge=1)
-    session_timeout_seconds: float = Field(1800.0, ge=1)
-    console_enabled: bool = True
-    telegram_allowlist: list[str] = Field(default_factory=list)
-    telegram_poll_timeout: int = Field(30, ge=1)
-    dedupe_ttl: float = Field(60.0, ge=0)
-    llm_backend: str = "auto"
-    llm_base_url: str = ""
-    llm_model: str = ""
-    debug_host: str = "127.0.0.1"
-    debug_port: int = Field(8077, ge=1, le=65535)
-    proactive_enabled: bool = False
-    proactive_idle_threshold: float = Field(300.0, ge=0)
-    proactive_density_reference: int = Field(3, ge=0)
-    proactive_recovery_seconds: float = Field(300.0, ge=0)
-    proactive_check_interval: float = Field(60.0, ge=1)
-    character_independence: bool = False
-    coherence_min_score: float = Field(0.6, ge=0, le=1)
-    coherence_max_regenerations: int = Field(2, ge=0, le=5)
-    pending_intake_ttl_turns: int = Field(3, ge=1, le=20)
+    """Partial config update — every field uses ``None = leave unchanged``.
+
+    Sending a partial payload no longer wipes the rest of the config. Only
+    secrets (``telegram_token``, ``llm_api_key``, ``api_key``) have their
+    own ``clear_*`` flags for explicit removal; blank-string for secrets
+    still means "keep existing".
+    """
+
+    data_dir: str | None = None
+    max_queue_per_user: int | None = Field(default=None, ge=1)
+    max_active_sessions: int | None = Field(default=None, ge=1)
+    session_timeout_seconds: float | None = Field(default=None, ge=1)
+    console_enabled: bool | None = None
+    telegram_allowlist: list[str] | None = None
+    telegram_poll_timeout: int | None = Field(default=None, ge=1)
+    dedupe_ttl: float | None = Field(default=None, ge=0)
+    llm_backend: str | None = None
+    llm_base_url: str | None = None
+    llm_model: str | None = None
+    debug_host: str | None = None
+    debug_port: int | None = Field(default=None, ge=1, le=65535)
+    proactive_enabled: bool | None = None
+    proactive_idle_threshold: float | None = Field(default=None, ge=0)
+    proactive_density_reference: int | None = Field(default=None, ge=0)
+    proactive_recovery_seconds: float | None = Field(default=None, ge=0)
+    proactive_check_interval: float | None = Field(default=None, ge=1)
+    character_independence: bool | None = None
+    coherence_min_score: float | None = Field(default=None, ge=0, le=1)
+    coherence_max_regenerations: int | None = Field(default=None, ge=0, le=5)
+    pending_intake_ttl_turns: int | None = Field(default=None, ge=1, le=20)
     telegram_token: str = ""
     llm_api_key: str = ""
     api_key: str = ""
-    cors_origins: list[str] = Field(default_factory=list)
-    # Tool settings. ``None`` means "leave unchanged" — without this, a
-    # save of the web Settings form (which does not surface these fields)
-    # would silently reset ``tools_enabled`` / ``shell_tool_enabled`` /
-    # ``tools_workspace`` to their safe defaults.
+    cors_origins: list[str] | None = None
     tools_enabled: bool | None = None
     autonomy_level: str | None = None
     tools_workspace: str | None = None
     shell_tool_enabled: bool | None = None
-    # Learning schedule (Sprint 5).
-    learning_budget_kind: str = "local"
-    learning_max_questions_per_day: int = Field(3, ge=0, le=200)
-    learning_max_seconds_per_day: float = Field(1800.0, ge=0)
-    metabolism_min_elapsed_days: float = Field(1.0, ge=0, le=30)
-    # Self-action layer (v0.30). ``None`` means "leave unchanged" so partial
-    # POSTs don't wipe an existing owner.
+    learning_budget_kind: str | None = None
+    learning_max_questions_per_day: int | None = Field(default=None, ge=0, le=200)
+    learning_max_seconds_per_day: float | None = Field(default=None, ge=0)
+    metabolism_min_elapsed_days: float | None = Field(default=None, ge=0, le=30)
     owner_chat_id: str | None = None
     clear_telegram_token: bool = False
     clear_llm_api_key: bool = False
@@ -629,37 +630,59 @@ async def get_config() -> dict:
 @app.post("/config", dependencies=[Depends(_require_bearer)])
 async def update_config(req: ConfigUpdateRequest) -> dict:
     existing = _load_runtime_config()
+
+    def _keep(req_val, existing_val):
+        """Plain leave-unchanged: ``None`` from req means preserve ``existing``."""
+        return existing_val if req_val is None else req_val
+
+    def _keep_str(req_val: str | None, existing_val: str, fallback: str = "") -> str:
+        """String leave-unchanged with optional empty-string fallback."""
+        if req_val is None:
+            return existing_val
+        stripped = req_val.strip()
+        if stripped:
+            return stripped
+        return fallback or existing_val
+
     config = RuntimeConfig(
-        data_dir=req.data_dir.strip() or "data",
-        max_queue_per_user=req.max_queue_per_user,
-        max_active_sessions=req.max_active_sessions,
-        session_timeout_seconds=req.session_timeout_seconds,
-        console_enabled=req.console_enabled,
+        data_dir=_keep_str(req.data_dir, existing.data_dir, fallback="data"),
+        max_queue_per_user=_keep(req.max_queue_per_user, existing.max_queue_per_user),
+        max_active_sessions=_keep(req.max_active_sessions, existing.max_active_sessions),
+        session_timeout_seconds=_keep(req.session_timeout_seconds, existing.session_timeout_seconds),
+        console_enabled=_keep(req.console_enabled, existing.console_enabled),
         telegram_token=existing.telegram_token,
-        telegram_allowlist={
-            item.strip()
-            for item in req.telegram_allowlist
-            if item.strip()
-        },
-        telegram_poll_timeout=req.telegram_poll_timeout,
-        dedupe_ttl=req.dedupe_ttl,
-        llm_backend=req.llm_backend,
-        llm_base_url=req.llm_base_url.strip(),
-        llm_model=req.llm_model.strip(),
+        telegram_allowlist=(
+            existing.telegram_allowlist if req.telegram_allowlist is None
+            else {item.strip() for item in req.telegram_allowlist if item.strip()}
+        ),
+        telegram_poll_timeout=_keep(req.telegram_poll_timeout, existing.telegram_poll_timeout),
+        dedupe_ttl=_keep(req.dedupe_ttl, existing.dedupe_ttl),
+        llm_backend=_keep(req.llm_backend, existing.llm_backend),
+        llm_base_url=(
+            existing.llm_base_url if req.llm_base_url is None
+            else req.llm_base_url.strip()
+        ),
+        llm_model=(
+            existing.llm_model if req.llm_model is None
+            else req.llm_model.strip()
+        ),
         llm_api_key=existing.llm_api_key,
-        debug_host=req.debug_host.strip() or "127.0.0.1",
-        debug_port=req.debug_port,
-        proactive_enabled=req.proactive_enabled,
-        proactive_idle_threshold=req.proactive_idle_threshold,
-        proactive_density_reference=req.proactive_density_reference,
-        proactive_recovery_seconds=req.proactive_recovery_seconds,
-        proactive_check_interval=req.proactive_check_interval,
-        character_independence=req.character_independence,
-        coherence_min_score=req.coherence_min_score,
-        coherence_max_regenerations=req.coherence_max_regenerations,
-        pending_intake_ttl_turns=req.pending_intake_ttl_turns,
+        debug_host=_keep_str(req.debug_host, existing.debug_host, fallback="127.0.0.1"),
+        debug_port=_keep(req.debug_port, existing.debug_port),
+        proactive_enabled=_keep(req.proactive_enabled, existing.proactive_enabled),
+        proactive_idle_threshold=_keep(req.proactive_idle_threshold, existing.proactive_idle_threshold),
+        proactive_density_reference=_keep(req.proactive_density_reference, existing.proactive_density_reference),
+        proactive_recovery_seconds=_keep(req.proactive_recovery_seconds, existing.proactive_recovery_seconds),
+        proactive_check_interval=_keep(req.proactive_check_interval, existing.proactive_check_interval),
+        character_independence=_keep(req.character_independence, existing.character_independence),
+        coherence_min_score=_keep(req.coherence_min_score, existing.coherence_min_score),
+        coherence_max_regenerations=_keep(req.coherence_max_regenerations, existing.coherence_max_regenerations),
+        pending_intake_ttl_turns=_keep(req.pending_intake_ttl_turns, existing.pending_intake_ttl_turns),
         api_key=existing.api_key,
-        cors_origins=[o.strip() for o in req.cors_origins if o.strip()],
+        cors_origins=(
+            existing.cors_origins if req.cors_origins is None
+            else [o.strip() for o in req.cors_origins if o.strip()]
+        ),
         tools_enabled=(
             existing.tools_enabled if req.tools_enabled is None
             else bool(req.tools_enabled)
@@ -677,10 +700,10 @@ async def update_config(req: ConfigUpdateRequest) -> dict:
             existing.shell_tool_enabled if req.shell_tool_enabled is None
             else bool(req.shell_tool_enabled)
         ),
-        learning_budget_kind=req.learning_budget_kind,
-        learning_max_questions_per_day=req.learning_max_questions_per_day,
-        learning_max_seconds_per_day=req.learning_max_seconds_per_day,
-        metabolism_min_elapsed_days=req.metabolism_min_elapsed_days,
+        learning_budget_kind=_keep(req.learning_budget_kind, existing.learning_budget_kind),
+        learning_max_questions_per_day=_keep(req.learning_max_questions_per_day, existing.learning_max_questions_per_day),
+        learning_max_seconds_per_day=_keep(req.learning_max_seconds_per_day, existing.learning_max_seconds_per_day),
+        metabolism_min_elapsed_days=_keep(req.metabolism_min_elapsed_days, existing.metabolism_min_elapsed_days),
         owner_chat_id=(
             existing.owner_chat_id if req.owner_chat_id is None
             else req.owner_chat_id.strip()

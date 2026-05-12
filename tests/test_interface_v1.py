@@ -520,6 +520,103 @@ class TestAdminEndpoints:
         saved = RuntimeConfig.from_yaml(str(temp_config))
         assert saved.owner_chat_id == "9999"
 
+    def test_admin_config_partial_post_preserves_all_fields(
+        self, client, temp_config, tmp_path,
+    ):
+        """The original bug: POSTing one field used to wipe everything else
+        to schema defaults (e.g. llm_base_url -> empty, allowlist -> []).
+        After the leave-unchanged refactor, partial POSTs are safe."""
+        RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            llm_backend="openai_compatible",
+            llm_base_url="http://prod-llm/v1",
+            llm_model="qwen36-27b",
+            telegram_token="bot-token",
+            telegram_allowlist={"5188014915"},
+            telegram_poll_timeout=45,
+            dedupe_ttl=120.0,
+            character_independence=True,
+            coherence_min_score=0.8,
+            coherence_max_regenerations=4,
+            pending_intake_ttl_turns=6,
+            proactive_enabled=True,
+            proactive_idle_threshold=600.0,
+            proactive_density_reference=5,
+            proactive_recovery_seconds=900.0,
+            proactive_check_interval=120.0,
+            cors_origins=["https://app.example.com"],
+            tools_enabled=True,
+            shell_tool_enabled=True,
+            autonomy_level="high_risk",
+            tools_workspace="/tmp/ws",
+            learning_max_questions_per_day=7,
+            learning_max_seconds_per_day=3600.0,
+            metabolism_min_elapsed_days=2.0,
+            owner_chat_id="5188014915",
+        ).write_yaml(str(temp_config))
+
+        # Partial POST: change exactly one knob.
+        resp = client.post(
+            "/admin/config",
+            json={"owner_chat_id": "9999"},
+        )
+        assert resp.status_code == 200
+
+        saved = RuntimeConfig.from_yaml(str(temp_config))
+        # Target field changed.
+        assert saved.owner_chat_id == "9999"
+        # Everything else preserved exactly.
+        assert saved.llm_backend == "openai_compatible"
+        assert saved.llm_base_url == "http://prod-llm/v1"
+        assert saved.llm_model == "qwen36-27b"
+        assert saved.telegram_token == "bot-token"
+        assert saved.telegram_allowlist == {"5188014915"}
+        assert saved.telegram_poll_timeout == 45
+        assert saved.dedupe_ttl == 120.0
+        assert saved.character_independence is True
+        assert saved.coherence_min_score == 0.8
+        assert saved.coherence_max_regenerations == 4
+        assert saved.pending_intake_ttl_turns == 6
+        assert saved.proactive_enabled is True
+        assert saved.proactive_idle_threshold == 600.0
+        assert saved.proactive_density_reference == 5
+        assert saved.proactive_recovery_seconds == 900.0
+        assert saved.proactive_check_interval == 120.0
+        assert saved.cors_origins == ["https://app.example.com"]
+        assert saved.tools_enabled is True
+        assert saved.shell_tool_enabled is True
+        assert saved.autonomy_level == "high_risk"
+        assert saved.tools_workspace == "/tmp/ws"
+        assert saved.learning_max_questions_per_day == 7
+        assert saved.learning_max_seconds_per_day == 3600.0
+        assert saved.metabolism_min_elapsed_days == 2.0
+
+    def test_admin_config_empty_post_is_noop(
+        self, client, temp_config, tmp_path,
+    ):
+        """POSTing ``{}`` should be a complete no-op — nothing changes."""
+        RuntimeConfig(
+            data_dir=str(tmp_path / "data"),
+            llm_backend="openai_compatible",
+            llm_base_url="http://prod-llm/v1",
+            llm_model="qwen36-27b",
+            telegram_allowlist={"42", "99"},
+            character_independence=True,
+            tools_enabled=True,
+            owner_chat_id="5188014915",
+        ).write_yaml(str(temp_config))
+
+        resp = client.post("/admin/config", json={})
+        assert resp.status_code == 200
+
+        saved = RuntimeConfig.from_yaml(str(temp_config))
+        assert saved.llm_base_url == "http://prod-llm/v1"
+        assert saved.llm_model == "qwen36-27b"
+        assert saved.telegram_allowlist == {"42", "99"}
+        assert saved.character_independence is True
+        assert saved.tools_enabled is True
+        assert saved.owner_chat_id == "5188014915"
+
     def test_admin_routes_require_auth_when_key_configured(self, authed_client):
         assert authed_client.get("/admin/status").status_code == 401
         assert authed_client.get("/admin/config").status_code == 401
