@@ -423,14 +423,6 @@ class SessionManager:
             runtime_config=self.config,
         )
 
-        # Fill in the per-session chat_id on the self-action context so
-        # ``self.alert_owner`` can skip when the owner IS the current user.
-        if tool_executor is not None:
-            self_ctx = getattr(tool_executor, "_self_action_context", None)
-            if self_ctx is not None:
-                parts = session_key.split(":", 2)
-                self_ctx.current_user_chat_id = parts[2] if len(parts) >= 3 else ""
-
         # Restore per-session engine state from disk if present. Fall back to the
         # legacy per-user path so older runtime state still restores once.
         state_path = self.config.session_state_path(session_key)

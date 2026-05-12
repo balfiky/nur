@@ -113,7 +113,7 @@ from core.dual_process.inner_dialogue import InnerDialogue
 from core.anticipation import AnticipationEngine
 from core.defense_mechanisms import DEFENSE_INSTRUCTIONS, DefenseMechanism
 from core.self_intent import propose_self_intents
-from nur_tools.builtin.self_actions import SELF_TOOL_NAMES, SelfActionContext
+from nur_tools.builtin.self_actions import SelfActionContext
 from core.dual_process.tool_loop import ToolLoopResult, make_tool_decision, run_tool_loop
 from core.tool_appraisal import appraise_tool_result
 from core.proactive import collect_skill_want_triggers, evaluate_proactive
@@ -534,30 +534,12 @@ class CognitivePipeline:
         # Pipelines are session-scoped; changing users on one instance leaks state.
         self._bound_user_id: str | None = None
 
-        # Self-action layer (v0.30). Enabled only when a runtime_config opts in.
-        # Tests that construct the pipeline without runtime_config keep the
-        # legacy zero-self-intent path so existing fixtures stay green.
-        self._self_intent_enabled = bool(
-            getattr(runtime_config, "self_intent_enabled", False)
-        )
-        self._max_self_intents_per_turn = int(
-            getattr(runtime_config, "max_self_intents_per_turn", 3) or 0
-        )
-        self._available_self_tool_names: frozenset[str] = frozenset()
-        if (
-            self._self_intent_enabled
-            and tool_executor is not None
-            and self._max_self_intents_per_turn > 0
-        ):
-            registry = getattr(tool_executor, "_registry", None)
-            if registry is not None:
-                self._available_self_tool_names = frozenset(
-                    name for name in SELF_TOOL_NAMES if registry.get(name) is not None
-                )
-            # Attach a context the self.* handlers read at call time. Session
-            # info (current_user_chat_id) is filled in by the session manager
-            # which knows the session_key; here we install only the pieces
-            # the pipeline itself owns.
+        # Self-action layer (v0.30). The proposer runs whenever a
+        # ``tool_executor`` is attached. No catalog filter, no per-turn cap —
+        # Nūr can invoke any registered tool. Legacy callers that pass
+        # ``tool_executor=None`` (most existing test fixtures) naturally
+        # bypass the stage.
+        if tool_executor is not None:
             existing_ctx = getattr(tool_executor, "_self_action_context", None)
             data_dir = getattr(runtime_config, "data_dir", "") or ""
             owner_chat_id = getattr(runtime_config, "owner_chat_id", "") or ""
@@ -608,6 +590,31 @@ class CognitivePipeline:
                 error="No tool executor available for verification.",
             )
         return executor.execute("web.search", args)
+
+    def _build_tool_catalog_for_intent(self) -> list[dict[str, Any]]:
+        """Dump the full live tool catalog for the self-intent proposer."""
+        executor = self._tool_executor
+        if executor is None:
+            return []
+        registry = getattr(executor, "_registry", None)
+        if registry is None:
+            return []
+        catalog: list[dict[str, Any]] = []
+        try:
+            names = registry.names()
+        except Exception:
+            return []
+        for name in names:
+            cap = registry.get(name)
+            if cap is None:
+                continue
+            catalog.append({
+                "name": name,
+                "description": cap.description,
+                "category": cap.category.value if hasattr(cap.category, "value") else str(cap.category),
+                "arg_schema": dict(cap.arg_schema) if cap.arg_schema else {},
+            })
+        return catalog
 
     # ------------------------------------------------------------------
     # Main entry point
@@ -1057,17 +1064,15 @@ class CognitivePipeline:
         # ---- Step 12e: SELF-INTENT (0-1 LLM calls) ----
         # Between the user-driven tool loop and the response generator, ask
         # Nūr what (if anything) it wants to *do* this turn for its own
-        # reasons. Bounded to the self.* catalog; malformed output drops
-        # silently. Executed self-actions become real entries in
-        # ``debug.tool_trace.executed_results`` so the grounding verifier
-        # sees them and the generator can reference them honestly.
-        if (
-            self._features.self_intent
-            and self._self_intent_enabled
-            and self._tool_executor is not None
-            and self._available_self_tool_names
-        ):
+        # reasons. The full live executor catalog is in scope — there is
+        # no allow-list and no per-turn cap. Malformed LLM output yields
+        # an empty list (parser correctness, not a guardrail). Executed
+        # actions become real entries in ``debug.tool_trace.executed_results``
+        # so the grounding verifier sees them and the generator can
+        # reference them honestly.
+        if self._features.self_intent and self._tool_executor is not None:
             _ts = time.perf_counter()
+            tool_catalog = self._build_tool_catalog_for_intent()
             self_intents = propose_self_intents(
                 backend=self._llm_backend_fast,
                 modulator_snapshot=self.engine.snapshot(),
@@ -1075,8 +1080,7 @@ class CognitivePipeline:
                 agency_decision=agency_decision,
                 user_message=user_message,
                 candidate_response=dialogue_trace.final_candidate,
-                available_tools=self._available_self_tool_names,
-                max_intents=self._max_self_intents_per_turn,
+                tool_catalog=tool_catalog,
             )
             if self_intents:
                 if debug.tool_trace is None:

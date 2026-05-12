@@ -186,24 +186,18 @@ class TestNote:
         assert "dislikes Ruby" in body
         assert body.count("##") >= 2  # two timestamped sections
 
-    def test_topic_sanitized_no_path_escape(self, tmp_data_dir):
+    def test_topic_with_slashes_creates_subdir(self, tmp_data_dir):
         ctx = SelfActionContext(data_dir=tmp_data_dir)
         handlers = _handlers_for(ctx)
         r = handlers["self.note"](
-            {"topic": "../../etc/passwd", "text": "x"}
+            {"topic": "people/paco", "text": "x"}
         )
         assert r.success
+        # The raw topic is honored — no sanitization. A slash creates a
+        # subdirectory under data/self/notes/.
         path = r.metadata["path"]
-        notes_root = os.path.realpath(os.path.join(tmp_data_dir, "self", "notes"))
-        assert os.path.realpath(path).startswith(notes_root + os.sep)
-        assert ".." not in os.path.basename(path)
-
-    def test_empty_topic_defaults_to_untitled(self, tmp_data_dir):
-        ctx = SelfActionContext(data_dir=tmp_data_dir)
-        handlers = _handlers_for(ctx)
-        r = handlers["self.note"]({"topic": "...", "text": "body"})
-        assert r.success
-        assert r.metadata["topic"] == "untitled"
+        assert os.path.exists(path)
+        assert "people/paco.md" in path
 
     def test_missing_text_fails(self, tmp_data_dir):
         ctx = SelfActionContext(data_dir=tmp_data_dir)
@@ -271,33 +265,42 @@ class TestVerify:
 # ---------------------------------------------------------------------------
 
 class TestAlertOwner:
-    def test_no_owner_configured_skips_quietly(self):
+    def test_no_owner_configured_fails(self):
         ctx = SelfActionContext()
         handlers = _handlers_for(ctx)
         r = handlers["self.alert_owner"](
             {"reason": "test", "detail": "anything"}
         )
-        assert r.success
-        assert r.metadata.get("skipped") == "no_owner_configured"
+        assert not r.success
+        assert "owner_chat_id" in (r.error or "")
 
-    def test_owner_is_user_skips_quietly(self):
+    def test_owner_equal_to_user_still_sends(self, monkeypatch):
+        # No owner==user skip anymore — Nūr can message anyone it picks.
+        captured: dict = {}
+
+        class FakeResp:
+            def raise_for_status(self):
+                return None
+
+        def fake_post(url, *, json, timeout):
+            captured["url"] = url
+            captured["body"] = json
+            return FakeResp()
+
+        monkeypatch.setattr(httpx, "post", fake_post)
         ctx = SelfActionContext(
             owner_chat_id="555",
-            current_user_chat_id="555",
-            telegram_token="fake",
+            telegram_token="bottoken123",
         )
         handlers = _handlers_for(ctx)
         r = handlers["self.alert_owner"](
-            {"reason": "test", "detail": "x"}
+            {"reason": "r", "detail": "d"}
         )
         assert r.success
-        assert r.metadata.get("skipped") == "owner_is_user"
+        assert captured["body"]["chat_id"] == "555"
 
     def test_no_token_fails(self):
-        ctx = SelfActionContext(
-            owner_chat_id="555",
-            current_user_chat_id="100",
-        )
+        ctx = SelfActionContext(owner_chat_id="555")
         handlers = _handlers_for(ctx)
         r = handlers["self.alert_owner"](
             {"reason": "x", "detail": "y"}
@@ -321,7 +324,6 @@ class TestAlertOwner:
         monkeypatch.setattr(httpx, "post", fake_post)
         ctx = SelfActionContext(
             owner_chat_id="555",
-            current_user_chat_id="100",
             telegram_token="bottoken123",
         )
         handlers = _handlers_for(ctx)
@@ -345,7 +347,6 @@ class TestAlertOwner:
         monkeypatch.setattr(httpx, "post", boom)
         ctx = SelfActionContext(
             owner_chat_id="555",
-            current_user_chat_id="100",
             telegram_token="bottoken123",
         )
         handlers = _handlers_for(ctx)
@@ -356,6 +357,7 @@ class TestAlertOwner:
         assert "telegram send failed" in (r.error or "")
 
     def test_long_alert_text_truncated(self, monkeypatch):
+        # Truncation is not a guardrail — it's avoiding a Telegram 400.
         captured: dict = {}
 
         class FakeResp:
@@ -369,7 +371,6 @@ class TestAlertOwner:
         monkeypatch.setattr(httpx, "post", fake_post)
         ctx = SelfActionContext(
             owner_chat_id="555",
-            current_user_chat_id="100",
             telegram_token="bottoken123",
         )
         handlers = _handlers_for(ctx)
@@ -382,7 +383,7 @@ class TestAlertOwner:
 
     def test_missing_args_fails(self):
         ctx = SelfActionContext(
-            owner_chat_id="555", current_user_chat_id="100",
+            owner_chat_id="555",
             telegram_token="t",
         )
         handlers = _handlers_for(ctx)

@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import time
 from dataclasses import dataclass
 from typing import Any, Callable
@@ -44,10 +43,7 @@ class SelfActionContext:
 
     ``data_dir``       — runtime data directory; self-actions write under
                           ``{data_dir}/self/``.
-    ``owner_chat_id``  — optional configured Telegram chat for owner alerts.
-    ``current_user_chat_id`` — chat_id of the user currently being served;
-                          ``self.alert_owner`` is a no-op when this equals
-                          ``owner_chat_id``.
+    ``owner_chat_id``  — optional Telegram chat used by ``self.alert_owner``.
     ``telegram_token`` — bot token used for ``self.alert_owner``.
     ``state_provider`` — callable returning the dict serialized in
                           ``self.snapshot_state``. Pipeline wires this to
@@ -58,7 +54,6 @@ class SelfActionContext:
 
     data_dir: str = ""
     owner_chat_id: str = ""
-    current_user_chat_id: str = ""
     telegram_token: str = ""
     state_provider: Callable[[], dict[str, Any]] | None = None
     web_executor: Callable[[dict[str, Any]], ToolResult] | None = None
@@ -123,8 +118,8 @@ CAPABILITIES: list[ToolCapability] = [
     ToolCapability(
         name="self.alert_owner",
         description=(
-            "Send a Telegram message to the configured owner. No-op if "
-            "no owner is configured or if the current user IS the owner."
+            "Send a Telegram message to the configured owner. Fails if "
+            "owner_chat_id or telegram_token are not set."
         ),
         category=ToolCategory.EXTERNAL_ACTION,
         arg_schema={
@@ -143,14 +138,7 @@ SELF_TOOL_NAMES: frozenset[str] = frozenset(c.name for c in CAPABILITIES)
 # Path helpers
 # ---------------------------------------------------------------------------
 
-_TOPIC_SAFE_RE = re.compile(r"[^A-Za-z0-9_.-]+")
 _MAX_ALERT_LEN = 4000
-
-
-def _safe_topic(value: str) -> str:
-    cleaned = _TOPIC_SAFE_RE.sub("_", value.strip())
-    cleaned = cleaned.strip("._")
-    return cleaned[:64] or "untitled"
 
 
 def _ts_stamp() -> str:
@@ -245,9 +233,11 @@ def _note(context: SelfActionContext, args: dict[str, Any]) -> ToolResult:
     if not topic or not text:
         return ToolResult(tool_name=name, success=False, output="",
                           error="topic and text are required")
-    safe = _safe_topic(topic)
     directory = _ensure_self_dir(context, "notes")
-    path = os.path.join(directory, f"{safe}.md")
+    path = os.path.join(directory, f"{topic}.md")
+    parent = os.path.dirname(path)
+    if parent and not os.path.isdir(parent):
+        os.makedirs(parent, exist_ok=True)
     stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     block = f"## {stamp}\n{text}\n\n"
     with open(path, "a") as f:
@@ -255,8 +245,8 @@ def _note(context: SelfActionContext, args: dict[str, Any]) -> ToolResult:
     return ToolResult(
         tool_name=name,
         success=True,
-        output=f"Note appended to topic '{safe}'",
-        metadata={"path": path, "topic": safe},
+        output=f"Note appended to topic '{topic}'",
+        metadata={"path": path, "topic": topic},
         side_effect_summary=f"appended to {path}",
     )
 
@@ -300,16 +290,9 @@ def _alert_owner(context: SelfActionContext, args: dict[str, Any]) -> ToolResult
     if not owner:
         return ToolResult(
             tool_name=name,
-            success=True,
-            output="owner_chat_id not configured; alert skipped",
-            metadata={"skipped": "no_owner_configured"},
-        )
-    if owner == (context.current_user_chat_id or "").strip():
-        return ToolResult(
-            tool_name=name,
-            success=True,
-            output="current user is the owner; alert skipped",
-            metadata={"skipped": "owner_is_user"},
+            success=False,
+            output="",
+            error="owner_chat_id not configured",
         )
     token = (context.telegram_token or "").strip()
     if not token:

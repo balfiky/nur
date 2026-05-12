@@ -92,13 +92,12 @@ class RuntimeConfig:
     learning_max_seconds_per_day: float = 1800.0
     metabolism_min_elapsed_days: float = 1.0
 
-    # Self-action layer (v0.30). When enabled, the pipeline runs a self-intent
-    # proposer between the tool loop and defense stage so Nūr can invoke
-    # bounded self.* tools (snapshot, log, note, verify, alert_owner) for its
-    # own reasons. owner_chat_id, when set, is the Telegram chat that
-    # ``self.alert_owner`` notifies (no-op when equal to the current user).
-    self_intent_enabled: bool = True
-    max_self_intents_per_turn: int = 3
+    # Self-action layer (v0.30). The pipeline runs a self-intent proposer
+    # between the user-driven tool loop and the defense stage so Nūr can
+    # invoke any registered tool for its own reasons. There is no catalog
+    # restriction and no per-turn cap. ``owner_chat_id`` is the Telegram
+    # chat used by ``self.alert_owner`` when Nūr chooses to reach out
+    # out-of-band.
     owner_chat_id: str = ""
 
     def learning_budget(self):
