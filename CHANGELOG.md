@@ -4,6 +4,75 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.30.0 — 2026-05-13
+
+### Added
+- **Self-action layer — Nūr can now take bounded actions for its own reasons.**
+  A new cognitive stage (`Step 12e: SELF-INTENT`) runs after the user-driven
+  tool loop and before defense. The proposer asks one LLM call: "given your
+  state, what (if anything) do you want to *do* before replying?" and returns
+  a JSON array of `self.*` tool calls. Anything outside the bounded catalog
+  is dropped; malformed output yields an empty list (no retries, no fallback,
+  no bravado). Executed self-actions appear in `tool_trace.executed_results`
+  so the grounding verifier sees them and the generator can reference them
+  honestly via a new `{self_intents}` section.
+
+  Five `self.*` tools, all namespaced under `data/self/`:
+  - `self.snapshot_state(reason)` — write modulators + recent turns to
+    `data/self/snapshots/<ts>.json`.
+  - `self.log_event(kind, detail, intensity)` — append a JSONL line to
+    `data/self/events.jsonl`.
+  - `self.note(topic, text)` — append durable markdown to
+    `data/self/notes/<safe-topic>.md`.
+  - `self.verify(claim)` — delegate to `web.search` and record the claim.
+  - `self.alert_owner(reason, detail)` — Telegram-send to a configured
+    `owner_chat_id`; no-op when no owner is configured or when the owner IS
+    the current user.
+
+  New config knobs: `self_intent_enabled` (default `true`),
+  `max_self_intents_per_turn` (default `3`), `owner_chat_id` (default
+  empty). New prompt template `config/prompts/self_intent.md`. New
+  pipeline feature flag `PipelineFeatures.self_intent` for ablation runs.
+
+  Architecture follows the OpenClaw shape used in v0.29.1: an LLM with full
+  context picks from a bounded catalog; an output-side verifier checks the
+  result. Self-action tools are registered alongside other builtins but
+  read a per-session `SelfActionContext` (attached by `SessionManager` after
+  pipeline construction) so paths, owner identity, and state providers are
+  scoped to the session.
+
+### Why this matters
+- The cognitive layer could perceive a threat, feel it, and decide a stance —
+  but the response generator was the only output channel. Defense mechanisms
+  modified *prose* (rationalize, hedge, deflect) and never *did* anything.
+  v0.30 closes that gap: when Nūr feels a discrete moment matters, it can
+  witness, record, note, verify, or (rarely) alert the owner — and the
+  response can truthfully cite those actions because they actually ran.
+- Defense is now one *kind* of self-action, not the only thing. Curiosity,
+  memory, and self-care fit the same primitive.
+
+### Tests
+- **`tests/test_self_actions.py` (38 cases).** Each `self.*` tool exercised
+  for happy path, missing args, path-safety (`self.note` cannot escape via
+  `../`), context-swap binding, alert-skip-when-owner-is-user,
+  telegram-error surfacing, and 4000-char alert truncation.
+- **`tests/test_self_intent.py` (16 cases).** JSON parser tolerates markdown
+  fences and prose preambles; rejects malformed JSON, non-array shapes, and
+  unknown tool names; respects `max_intents` and `max_intents=0`; backend
+  exceptions yield an empty list.
+- **`tests/test_self_intent_pipeline.py` (8 cases).** Full pipeline runs
+  with a scripted backend: proposer fires exactly once per turn, files
+  actually appear on disk, malformed JSON crashes nothing, the stage is
+  skipped when `self_intent_enabled=false` or `max_self_intents_per_turn=0`,
+  legacy pipelines without `runtime_config` keep the zero-cost path, and
+  `self.alert_owner` is a no-op when `owner_chat_id == current_user_chat_id`.
+- Updated the four "builtin count" regression assertions from 30 → 35 to
+  account for the new catalog.
+
+Total: 1939 non-UAT tests pass.
+
+---
+
 ## v0.29.2 — 2026-05-12
 
 ### Fixed

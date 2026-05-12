@@ -58,6 +58,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
     guidance_section = _build_guidance_section(ctx)
     candidate_section = _build_candidate_section(ctx)
     tool_section = _build_tool_context_section(ctx)
+    self_intents_section = _build_self_intents_section(ctx)
     defense_section = _build_defense_instruction_section(ctx)
     strategy_section = _build_strategy_section(ctx)
     affect_section = _build_affect_agency_section(ctx)
@@ -85,6 +86,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
         prompt = prompt.replace("{behavioral_guidance}", guidance_section)
         prompt = prompt.replace("{candidate_response}", candidate_section)
         prompt = prompt.replace("{tool_context}", tool_section)
+        prompt = prompt.replace("{self_intents}", self_intents_section)
         prompt = prompt.replace("{defense_instruction}", defense_section)
         prompt = prompt.replace("{response_strategy}", strategy_section)
         prompt = prompt.replace("{affect_agency}", affect_section)
@@ -102,6 +104,8 @@ def build_system_prompt(ctx: PipelineContext) -> str:
             prompt = prompt.rstrip() + "\n\n" + skill_section
         if life_history_section and "{life_history}" not in template:
             prompt = prompt.rstrip() + "\n\n" + life_history_section
+        if self_intents_section and "{self_intents}" not in template:
+            prompt = prompt.rstrip() + "\n\n" + self_intents_section
         return prompt
 
     # Fallback: build in code (for backwards compatibility)
@@ -125,6 +129,7 @@ def build_system_prompt(ctx: PipelineContext) -> str:
 
     parts.append(candidate_section)
     parts.append(tool_section)
+    parts.append(self_intents_section)
     parts.append(affect_section)
     parts.append(intake_receipt_section)
     parts.append(strategy_section)
@@ -410,6 +415,44 @@ def _build_defense_instruction_section(ctx: PipelineContext) -> str:
         return ""
     lines = ["## Defense Filter"]
     lines.append(f"{ctx.defense_instruction}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _build_self_intents_section(ctx: PipelineContext) -> str:
+    """Surface self-actions Nūr took this turn.
+
+    Self-intents are real executed tool calls (results also live in
+    ``tool_trace.executed_results``). This block names them explicitly so
+    the generator can reference them honestly — e.g. "I saved a snapshot"
+    only when ``self.snapshot_state`` actually fired and succeeded.
+    """
+    intents = ctx.self_intents or []
+    if not intents:
+        return ""
+    lines = ["## Self-Actions This Turn"]
+    for intent in intents:
+        result = intent.result
+        if result is None:
+            status = "queued"
+            detail = ""
+        elif result.success:
+            status = "ok"
+            detail = result.output or result.side_effect_summary or ""
+        else:
+            status = "failed"
+            detail = result.error or ""
+        line = f"- {intent.tool_name} [{status}]"
+        if intent.rationale:
+            line += f" — {intent.rationale}"
+        if detail:
+            line += f" ({_trim_prompt_text(detail, 160)})"
+        lines.append(line)
+    lines.append("")
+    lines.append(
+        "You may reference these actions naturally if relevant. Do NOT claim "
+        "any action that is not listed above."
+    )
     lines.append("")
     return "\n".join(lines)
 

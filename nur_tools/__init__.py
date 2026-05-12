@@ -7,6 +7,7 @@ from nur_tools.executor import ToolExecutor
 from nur_tools.builtin import filesystem, shell, skills, system_info, web_search
 from nur_tools.builtin import browser as browser_mod
 from nur_tools.builtin import calendar as calendar_mod
+from nur_tools.builtin import self_actions
 from nur_tools.builtin.web_search import WebProvider
 from nur_tools.builtin.browser import BrowserProvider
 from nur_tools.builtin.calendar import CalendarProvider
@@ -87,6 +88,11 @@ def register_builtins(
     # Skill registry
     register_skill_builtins(registry, executor, skill_config=skill_config)
 
+    # Self-action tools — bounded actions Nūr can invoke for itself via the
+    # self-intent stage. Always registered; handlers safely no-op until the
+    # pipeline attaches a SelfActionContext to the executor.
+    register_self_action_builtins(registry, executor)
+
 
 def register_skill_builtins(
     registry: ToolRegistry,
@@ -104,4 +110,23 @@ def register_skill_builtins(
         registry.register(cap)
     skill_handlers = skills.create_handlers(skill_config)
     for name, handler in skill_handlers.items():
+        executor.register_handler(name, handler)
+
+
+def register_self_action_builtins(
+    registry: ToolRegistry,
+    executor: ToolExecutor,
+) -> None:
+    """Register the bounded self.* catalog used by the self-intent stage.
+
+    Handlers read their context from ``executor._self_action_context`` at
+    call time. Until the pipeline attaches a context the tools return
+    structured failure results rather than raising.
+    """
+    for cap in self_actions.CAPABILITIES:
+        registry.register(cap)
+    handlers = self_actions.create_handlers(
+        get_context=lambda: getattr(executor, "_self_action_context", None),
+    )
+    for name, handler in handlers.items():
         executor.register_handler(name, handler)

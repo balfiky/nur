@@ -63,9 +63,11 @@ from core.types import (
     ToolCategory,
     ToolDecision,
     ToolIntent,
+    ToolObservation,
     ToolResult,
     TopicProfile,
     ToolTrace,
+    SelfIntent,
     UnresolvedItem,
     ValueHierarchy,
 )
@@ -110,6 +112,8 @@ from core.dual_process.self_check import SelfChecker, CoherenceVerdict, coherenc
 from core.dual_process.inner_dialogue import InnerDialogue
 from core.anticipation import AnticipationEngine
 from core.defense_mechanisms import DEFENSE_INSTRUCTIONS, DefenseMechanism
+from core.self_intent import propose_self_intents
+from nur_tools.builtin.self_actions import SELF_TOOL_NAMES, SelfActionContext
 from core.dual_process.tool_loop import ToolLoopResult, make_tool_decision, run_tool_loop
 from core.tool_appraisal import appraise_tool_result
 from core.proactive import collect_skill_want_triggers, evaluate_proactive
@@ -291,6 +295,9 @@ class DebugState:
     affect_state: AffectState | None = None
     agency_decision: AgencyDecision | None = None
     autonomy_level: str = ""
+
+    # Self-action layer (v0.30): what Nūr chose to do for itself this turn.
+    self_intents: list[SelfIntent] = field(default_factory=list)
 
     # Proactive behavior (Phase 8)
     proactive_trace: ProactiveTrace | None = None
@@ -526,6 +533,81 @@ class CognitivePipeline:
         self._last_turn_time: float | None = None
         # Pipelines are session-scoped; changing users on one instance leaks state.
         self._bound_user_id: str | None = None
+
+        # Self-action layer (v0.30). Enabled only when a runtime_config opts in.
+        # Tests that construct the pipeline without runtime_config keep the
+        # legacy zero-self-intent path so existing fixtures stay green.
+        self._self_intent_enabled = bool(
+            getattr(runtime_config, "self_intent_enabled", False)
+        )
+        self._max_self_intents_per_turn = int(
+            getattr(runtime_config, "max_self_intents_per_turn", 3) or 0
+        )
+        self._available_self_tool_names: frozenset[str] = frozenset()
+        if (
+            self._self_intent_enabled
+            and tool_executor is not None
+            and self._max_self_intents_per_turn > 0
+        ):
+            registry = getattr(tool_executor, "_registry", None)
+            if registry is not None:
+                self._available_self_tool_names = frozenset(
+                    name for name in SELF_TOOL_NAMES if registry.get(name) is not None
+                )
+            # Attach a context the self.* handlers read at call time. Session
+            # info (current_user_chat_id) is filled in by the session manager
+            # which knows the session_key; here we install only the pieces
+            # the pipeline itself owns.
+            existing_ctx = getattr(tool_executor, "_self_action_context", None)
+            data_dir = getattr(runtime_config, "data_dir", "") or ""
+            owner_chat_id = getattr(runtime_config, "owner_chat_id", "") or ""
+            telegram_token = getattr(runtime_config, "telegram_token", "") or ""
+            ctx = existing_ctx or SelfActionContext()
+            ctx.data_dir = ctx.data_dir or data_dir
+            if not ctx.owner_chat_id:
+                ctx.owner_chat_id = owner_chat_id
+            if not ctx.telegram_token:
+                ctx.telegram_token = telegram_token
+            ctx.state_provider = self._self_action_state_snapshot
+            ctx.web_executor = self._self_action_web_executor
+            tool_executor._self_action_context = ctx
+
+    # ------------------------------------------------------------------
+    # Self-action context helpers (wired into SelfActionContext)
+    # ------------------------------------------------------------------
+
+    def _self_action_state_snapshot(self) -> dict[str, Any]:
+        """Snapshot for ``self.snapshot_state``: modulators + last turns."""
+        try:
+            mods = self.engine.snapshot()
+            label = self.engine.to_emotion_label()
+        except Exception:
+            mods, label = {}, ""
+        recent: list[dict[str, Any]] = []
+        try:
+            for entry in self.short_term.recent(5):
+                recent.append({
+                    "timestamp": entry.timestamp,
+                    "intensity": float(entry.event.intensity),
+                    "kind": getattr(entry.event, "kind", ""),
+                })
+        except Exception:
+            recent = []
+        return {
+            "modulators": mods,
+            "emotion_label": label,
+            "recent_turns": recent,
+        }
+
+    def _self_action_web_executor(self, args: dict[str, Any]) -> ToolResult:
+        """Delegate ``self.verify`` to the executor's ``web.search`` handler."""
+        executor = self._tool_executor
+        if executor is None:
+            return ToolResult(
+                tool_name="self.verify", success=False, output="",
+                error="No tool executor available for verification.",
+            )
+        return executor.execute("web.search", args)
 
     # ------------------------------------------------------------------
     # Main entry point
@@ -972,6 +1054,58 @@ class CognitivePipeline:
 
             timings["tool_loop"] = (time.perf_counter() - _ts_tool) * 1000
 
+        # ---- Step 12e: SELF-INTENT (0-1 LLM calls) ----
+        # Between the user-driven tool loop and the response generator, ask
+        # Nūr what (if anything) it wants to *do* this turn for its own
+        # reasons. Bounded to the self.* catalog; malformed output drops
+        # silently. Executed self-actions become real entries in
+        # ``debug.tool_trace.executed_results`` so the grounding verifier
+        # sees them and the generator can reference them honestly.
+        if (
+            self._features.self_intent
+            and self._self_intent_enabled
+            and self._tool_executor is not None
+            and self._available_self_tool_names
+        ):
+            _ts = time.perf_counter()
+            self_intents = propose_self_intents(
+                backend=self._llm_backend_fast,
+                modulator_snapshot=self.engine.snapshot(),
+                affect_state=affect_state,
+                agency_decision=agency_decision,
+                user_message=user_message,
+                candidate_response=dialogue_trace.final_candidate,
+                available_tools=self._available_self_tool_names,
+                max_intents=self._max_self_intents_per_turn,
+            )
+            if self_intents:
+                if debug.tool_trace is None:
+                    debug.tool_trace = ToolTrace()
+                for intent in self_intents:
+                    try:
+                        result = self._tool_executor.execute(
+                            intent.tool_name, intent.arguments,
+                        )
+                    except Exception as exc:
+                        result = ToolResult(
+                            tool_name=intent.tool_name,
+                            success=False,
+                            output="",
+                            error=f"{type(exc).__name__}: {exc}",
+                        )
+                    intent.result = result
+                    debug.tool_trace.executed_results.append(result)
+                    # Keep executed/observations aligned so downstream
+                    # consumers iterating in zip see matching shapes.
+                    debug.tool_trace.observations.append(
+                        ToolObservation(
+                            summary=f"self-action: {intent.tool_name}: "
+                                    f"{intent.rationale}",
+                        )
+                    )
+            debug.self_intents = self_intents
+            timings["self_intent"] = (time.perf_counter() - _ts) * 1000
+
         # ---- Step 13: DEFENSE MECHANISMS (0 LLM calls) ----
         if self._features.defense:
             filtered_output, defense = self.defense_mechanism.evaluate(
@@ -1030,6 +1164,7 @@ class CognitivePipeline:
             agency_decision=agency_decision,
             autonomy_level=self._autonomy_level,
             tool_context_summary=tool_context_summary,
+            self_intents=list(debug.self_intents),
             last_intake_receipt=self.last_intake_receipt,
         )
         character_vector = assemble_character_vector(ctx)
@@ -1103,6 +1238,7 @@ class CognitivePipeline:
                 agency_decision=ctx.agency_decision,
                 autonomy_level=ctx.autonomy_level,
                 tool_context_summary=ctx.tool_context_summary,
+                self_intents=list(ctx.self_intents),
                 last_intake_receipt=ctx.last_intake_receipt,
             )
             gen_result = self.generator.generate(

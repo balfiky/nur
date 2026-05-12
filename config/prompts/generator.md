@@ -51,4 +51,6 @@ Rules:
 
 {tool_context}
 
+{self_intents}
+
 {defense_instruction}

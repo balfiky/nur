@@ -783,7 +783,8 @@ class TestPhase8Regression:
         reg = ToolRegistry()
         exe = ToolExecutor(reg)
         register_builtins(reg, exe)
-        assert len(reg) == 30
+        # +5 from the self.* self-action catalog (v0.30).
+        assert len(reg) == 35
 
     def test_end_session_still_works(self):
         from pipeline import CognitivePipeline

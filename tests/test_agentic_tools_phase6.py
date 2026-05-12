@@ -345,8 +345,8 @@ class TestRegistryCoexistence:
         register_builtins(reg, exe)
         names = reg.names()
         # System: 5, Filesystem: 6, Shell: 1, Web: 3, Browser: 5,
-        # Calendar: 3, Skills: 7 = 30
-        assert len(names) == 30
+        # Calendar: 3, Skills: 7, Self-actions: 5 = 35
+        assert len(names) == 35
 
     def test_expected_tool_names(self):
         reg = ToolRegistry()

@@ -531,6 +531,8 @@ class PipelineContext:
     autonomy_level: str = "autonomous"
     # Agentic tools: summarized tool execution context for generator
     tool_context_summary: str = ""
+    # Self-action layer: actions Nūr invoked on its own behalf this turn.
+    self_intents: list["SelfIntent"] = field(default_factory=list)
     # Runtime learning receipt from the prior completed intake, if any.
     last_intake_receipt: str = ""
 
@@ -730,6 +732,20 @@ class ToolTrace:
     observations: list[ToolObservation] = field(default_factory=list)
     loop_count: int = 0
     task_trace: Any = None  # TaskTrace | None — forward ref avoids circular
+
+
+@dataclass
+class SelfIntent:
+    """A self-action Nūr chose to take this turn for its own reasons.
+
+    Distinct from ``ToolIntent`` (user-driven). The intent stage proposes
+    a bounded list of these from the ``self.*`` catalog; the pipeline
+    executes them and stores the resulting ``ToolResult`` here.
+    """
+    tool_name: str
+    arguments: dict[str, Any] = field(default_factory=dict)
+    rationale: str = ""
+    result: ToolResult | None = None
 
 
 # ---------------------------------------------------------------------------
