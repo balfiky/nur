@@ -4,6 +4,21 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.29.2 — 2026-05-12
+
+### Fixed
+- **Telegram — long responses fail with `HTTP 400 Bad Request`.** Telegram's
+  `sendMessage` rejects any `text` over 4096 chars. Asking Nūr for substantial
+  code (e.g., "write me Python code for a Tetris game") produced a single
+  response that exceeded the cap, so `TelegramClient.send_message` raised
+  `HTTPStatusError` and the user saw "[error] Something went wrong." The
+  client now chunks `text` on newline boundaries (≤ 4000 chars each) and posts
+  the chunks sequentially. Single overlong lines hard-split at the limit.
+  Added 5 unit tests for `_chunk_text` covering short, at-limit, multi-line,
+  single-long-line, and large multi-line cases. No protocol or schema change.
+
+---
+
 ## v0.29.1 — 2026-05-11
 
 ### Fixed

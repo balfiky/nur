@@ -25,6 +25,26 @@ log = logging.getLogger(__name__)
 # Typing action expires after 5 s on Telegram; resend every 4 s.
 _TYPING_INTERVAL = 4.0
 
+# Telegram sendMessage caps text at 4096 chars; leave headroom for safety.
+_MAX_MESSAGE_LEN = 4000
+
+
+def _chunk_text(text: str, limit: int = _MAX_MESSAGE_LEN) -> list[str]:
+    """Split text into Telegram-sized chunks, preferring newline boundaries."""
+    if len(text) <= limit:
+        return [text]
+    chunks: list[str] = []
+    remaining = text
+    while len(remaining) > limit:
+        cut = remaining.rfind("\n", 0, limit)
+        if cut <= 0:
+            cut = limit
+        chunks.append(remaining[:cut])
+        remaining = remaining[cut:].lstrip("\n")
+    if remaining:
+        chunks.append(remaining)
+    return chunks
+
 
 def is_telegram_token_pollable(token: str) -> bool:
     """Return true for tokens that are shaped enough to start polling.
@@ -102,12 +122,15 @@ class TelegramClient:
         return resp.json()["result"]
 
     async def send_message(self, chat_id: int, text: str) -> dict:
-        resp = await self._http.post(
-            f"{self._base}/sendMessage",
-            json={"chat_id": chat_id, "text": text},
-        )
-        resp.raise_for_status()
-        return resp.json().get("result", {})
+        result: dict = {}
+        for chunk in _chunk_text(text):
+            resp = await self._http.post(
+                f"{self._base}/sendMessage",
+                json={"chat_id": chat_id, "text": chunk},
+            )
+            resp.raise_for_status()
+            result = resp.json().get("result", {})
+        return result
 
     async def send_typing(self, chat_id: int) -> None:
         try:

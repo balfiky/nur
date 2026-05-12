@@ -23,6 +23,7 @@ from runtime.channels.telegram import (
     DedupeCache,
     TelegramChannel,
     TelegramConfig,
+    _chunk_text,
     is_telegram_token_pollable,
 )
 from runtime.config import RuntimeConfig
@@ -192,6 +193,39 @@ class TestDedupeCache:
         cache.mark(1)
         cache.mark(2)
         assert len(cache) == 2
+
+
+class TestChunkText:
+    def test_short_text_returns_single_chunk(self):
+        assert _chunk_text("hello") == ["hello"]
+
+    def test_text_at_limit_returns_single_chunk(self):
+        text = "a" * 4000
+        assert _chunk_text(text) == [text]
+
+    def test_long_text_splits_on_newline(self):
+        text = ("a" * 3000) + "\n" + ("b" * 3000)
+        chunks = _chunk_text(text)
+        assert len(chunks) == 2
+        assert chunks[0] == "a" * 3000
+        assert chunks[1] == "b" * 3000
+        assert all(len(c) <= 4000 for c in chunks)
+
+    def test_single_long_line_hard_splits(self):
+        text = "x" * 9000
+        chunks = _chunk_text(text)
+        assert len(chunks) == 3
+        assert all(len(c) <= 4000 for c in chunks)
+        assert "".join(chunks) == text
+
+    def test_chunks_preserve_content(self):
+        lines = [f"line {i}: " + ("z" * 100) for i in range(200)]
+        text = "\n".join(lines)
+        chunks = _chunk_text(text)
+        assert all(len(c) <= 4000 for c in chunks)
+        # Rejoining with newlines should reproduce the original (lstrip strips
+        # leading newlines from later chunks, so we re-join with "\n").
+        assert "\n".join(chunks) == text
 
 
 class TestTelegramTokenShape:
