@@ -34,7 +34,7 @@ In the agent-memory reference class (MemGPT, Letta, mem0, LangGraph state), Nūr
 ---
 
 <p align="center">
-  <img src="docs/diagrams/hero-illustration.png" alt="Nūr cognitive runtime — illustrated scene: a user character on the left sends a message ('I think I was too harsh earlier — same chat, three days later'), and the Nūr orb on the right (a glowing core labeled 'Cognitive Runtime') replies after retrieving the relationship arc ('I remember that moment. We don't have to ignore it.'). Around the orb float four state pills — Memory, Identity, Emotion, Evolution. Footer: persistent state · evolving identity · accumulated learning · gated tools — for any LLM." width="1100">
+  <img src="docs/diagrams/hero-illustration.png" alt="Nūr cognitive runtime — illustrated scene: a user at a laptop on the left exchanges messages with Nūr (a friendly stylized robot with a wordmark on its chassis) on the right. Six feature callout tags are attached to Nūr via schematic leader lines: M·01 Memory (5 layers), E·02 Emotion (6 modulators), T·03 Thought (fast + slow), S·04 Skills (learned), X·05 Tools (gated), and L·01 Learning (evolves) prominently above. Header: 'Nūr — a cognitive runtime · AN AI WITH MEMORY, EMOTION, AND SKILLS THAT GROW'. Footer: works with any LLM · runs locally · keeps state between turns." width="1100">
 </p>
 
 > **Honest scope.** Nūr is an experimental runtime — not a therapist, not an AGI claim, not a consciousness claim. It is engineered scaffolding that holds *the state behind* an LLM's words across turns, sessions, and time. Memory and identity state live under `data/` — use it with consent when other people are involved. See [PRIVACY.md](PRIVACY.md) for inspection, export, and deletion.
