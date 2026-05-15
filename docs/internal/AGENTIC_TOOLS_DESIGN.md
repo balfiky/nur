@@ -56,10 +56,10 @@ This preserves the research objective:
 The design must respect the code that exists today.
 
 Current Nūr facts:
-- [`CognitivePipeline.process()`](/home/paco/projects/nur/pipeline.py#L208) is synchronous
-- [`CognitivePipeline.end_session()`](/home/paco/projects/nur/pipeline.py#L641) is synchronous
+- [`CognitivePipeline.process()`](pipeline.py#L208) is synchronous
+- [`CognitivePipeline.end_session()`](pipeline.py#L641) is synchronous
 - current LLM protocol is `generate(system_prompt, user_message) -> str`
-- runtime sessions are already serialized per user/chat context in [`runtime/sessions/manager.py`](/home/paco/projects/nur/runtime/sessions/manager.py#L20)
+- runtime sessions are already serialized per user/chat context in [`runtime/sessions/manager.py`](runtime/sessions/manager.py#L20)
 - current debug API is session-aware
 - current tool package is empty
 
@@ -411,7 +411,7 @@ That means:
 - arbiter can resolve deadlock between competing actions
 
 Recommended implementation path:
-- keep [`core/dual_process/inner_dialogue.py`](/home/paco/projects/nur/core/dual_process/inner_dialogue.py)
+- keep [`core/dual_process/inner_dialogue.py`](core/dual_process/inner_dialogue.py)
 - extend candidate representation so a round can carry:
   - `response_candidate`
   - or `tool_intent`

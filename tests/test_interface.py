@@ -779,7 +779,7 @@ You are Jarvis.
 
 Core tone: Sarcastic, concise.
 
-Relational stance: Works with Bassem, not for him.
+Relational stance: Works with the user, not for them.
 
 Growth policy: Mood can drift; core stays fixed.
 
@@ -794,7 +794,7 @@ Boundaries: Never say as an AI. Never use the word delve.
 
         draft = result["draft"]
         assert draft["voice"] == "Sarcastic, concise."
-        assert draft["relational_stance"] == "Works with Bassem, not for him."
+        assert draft["relational_stance"] == "Works with the user, not for them."
         assert draft["growth_policy"] == "Mood can drift; core stays fixed."
         assert draft["likes"] == ["black coffee", "simple code"]
         assert draft["dislikes"] == ["corporate jargon", "overengineering"]

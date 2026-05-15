@@ -4,6 +4,28 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## Unreleased — 2026-05-15
+
+### Changed — scrub personal traces from non-identity files
+- UI placeholders no longer carry a real person's name. The First Experience
+  wizard, admin Life Participants, and admin Life Upload Participants inputs
+  now show `You, Nūr` instead of the previous owner's name.
+- Admin skill-import placeholder no longer hardcodes a real `/home/<user>/...`
+  path; shows `/path/to/skills/example` instead.
+- Eval prompts in `evals/emotional_quality.py` use `the user` instead of a
+  real name in the Jarvis identity/relational-stance text.
+- Test fixtures in `test_admin_life_api.py`, `test_life_history.py`, and
+  `test_interface.py` use generic participant/owner names.
+- Test fixtures in `test_interface_v1.py` use a placeholder Telegram chat ID
+  (`123456789`) instead of a real one.
+- Internal design doc `AGENTIC_TOOLS_DESIGN.md` strips the absolute
+  `/home/<user>/projects/nur/` prefix from code references.
+
+Author/repo identity in `pyproject.toml`, `SECURITY.md`, README/CONTRIBUTING
+install commands, and git commit history are intentionally untouched.
+
+---
+
 ## v0.30.0 — 2026-05-13
 
 ### Added — self-action layer (autonomy, no guardrails)

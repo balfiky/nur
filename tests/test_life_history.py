@@ -42,7 +42,7 @@ def test_pasted_text_creates_experience_belief_and_drive_change(tmp_path):
                 "Autonomy is not only action freedom. A self becomes independent "
                 "when it can learn from experience and keep continuity of identity."
             ),
-            participants=["Bassem", "Nur"],
+            participants=["User", "Nur"],
         )
 
         assert result["experience"]["source_type"] == "pasted_text"

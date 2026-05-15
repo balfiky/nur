@@ -486,19 +486,19 @@ class TestAdminEndpoints:
         ).write_yaml(str(temp_config))
 
         resp = client.post(
-            "/admin/config", json={"owner_chat_id": "5188014915"},
+            "/admin/config", json={"owner_chat_id": "123456789"},
         )
         assert resp.status_code == 200
 
         saved = RuntimeConfig.from_yaml(str(temp_config))
-        assert saved.owner_chat_id == "5188014915"
+        assert saved.owner_chat_id == "123456789"
 
         # And the field metadata exposes owner_chat_id in the "channels" group.
         field = next(
             item for item in resp.json()["field_metadata"]
             if item["name"] == "owner_chat_id"
         )
-        assert field["value"] == "5188014915"
+        assert field["value"] == "123456789"
         assert field["section"] == "channels"
 
     def test_admin_config_owner_chat_id_omitted_preserves_existing(
@@ -532,7 +532,7 @@ class TestAdminEndpoints:
             llm_base_url="http://prod-llm/v1",
             llm_model="qwen36-27b",
             telegram_token="bot-token",
-            telegram_allowlist={"5188014915"},
+            telegram_allowlist={"123456789"},
             telegram_poll_timeout=45,
             dedupe_ttl=120.0,
             character_independence=True,
@@ -552,7 +552,7 @@ class TestAdminEndpoints:
             learning_max_questions_per_day=7,
             learning_max_seconds_per_day=3600.0,
             metabolism_min_elapsed_days=2.0,
-            owner_chat_id="5188014915",
+            owner_chat_id="123456789",
         ).write_yaml(str(temp_config))
 
         # Partial POST: change exactly one knob.
@@ -570,7 +570,7 @@ class TestAdminEndpoints:
         assert saved.llm_base_url == "http://prod-llm/v1"
         assert saved.llm_model == "qwen36-27b"
         assert saved.telegram_token == "bot-token"
-        assert saved.telegram_allowlist == {"5188014915"}
+        assert saved.telegram_allowlist == {"123456789"}
         assert saved.telegram_poll_timeout == 45
         assert saved.dedupe_ttl == 120.0
         assert saved.character_independence is True
@@ -603,7 +603,7 @@ class TestAdminEndpoints:
             telegram_allowlist={"42", "99"},
             character_independence=True,
             tools_enabled=True,
-            owner_chat_id="5188014915",
+            owner_chat_id="123456789",
         ).write_yaml(str(temp_config))
 
         resp = client.post("/admin/config", json={})
@@ -615,7 +615,7 @@ class TestAdminEndpoints:
         assert saved.telegram_allowlist == {"42", "99"}
         assert saved.character_independence is True
         assert saved.tools_enabled is True
-        assert saved.owner_chat_id == "5188014915"
+        assert saved.owner_chat_id == "123456789"
 
     def test_admin_routes_require_auth_when_key_configured(self, authed_client):
         assert authed_client.get("/admin/status").status_code == 401

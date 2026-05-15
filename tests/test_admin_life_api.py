@@ -32,7 +32,7 @@ def test_admin_life_text_intake_and_overview(monkeypatch, tmp_path):
             json={
                 "title": "Autonomy Fragment",
                 "text": "Autonomy, learning, curiosity, and identity change through experience.",
-                "participants": ["Bassem", "Nur"],
+                "participants": ["User", "Nur"],
             },
         )
         assert resp.status_code == 200
@@ -117,7 +117,7 @@ def test_admin_life_upload_intake_does_not_require_workspace(monkeypatch, tmp_pa
     with client:
         resp = client.post(
             "/admin/life/experiences/upload",
-            data={"title": "Uploaded Book", "participants": "Bassem, Nur"},
+            data={"title": "Uploaded Book", "participants": "User, Nur"},
             files={
                 "file": (
                     "outside-book.md",
