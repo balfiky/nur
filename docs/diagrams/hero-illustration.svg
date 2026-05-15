@@ -1,250 +1,268 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 700" font-family="-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',Helvetica,Arial,sans-serif">
   <defs>
+    <!-- background -->
     <linearGradient id="bgSoft" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#F0F6FF"/>
       <stop offset="60%" stop-color="#DBEAFE"/>
       <stop offset="100%" stop-color="#BFDBFE"/>
     </linearGradient>
-    <radialGradient id="orbCore" cx="42%" cy="38%" r="65%">
-      <stop offset="0%" stop-color="#93C5FD"/>
-      <stop offset="40%" stop-color="#3B82F6"/>
-      <stop offset="100%" stop-color="#7A4A8C"/>
-    </radialGradient>
-    <radialGradient id="orbGlow" cx="50%" cy="50%" r="60%">
-      <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.5"/>
-      <stop offset="60%" stop-color="#3B82F6" stop-opacity="0.12"/>
+
+    <!-- decorative blobs -->
+    <radialGradient id="blobA" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.28"/>
       <stop offset="100%" stop-color="#3B82F6" stop-opacity="0"/>
     </radialGradient>
-    <radialGradient id="blobCoral" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.34"/>
-      <stop offset="100%" stop-color="#3B82F6" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="blobSage" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#3FB089" stop-opacity="0.30"/>
-      <stop offset="100%" stop-color="#3FB089" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="blobPurple" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#9966AC" stop-opacity="0.30"/>
+    <radialGradient id="blobB" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#9966AC" stop-opacity="0.28"/>
       <stop offset="100%" stop-color="#9966AC" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="bubbleUser" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#FFFFFF"/>
-      <stop offset="100%" stop-color="#EFF6FF"/>
-    </linearGradient>
-    <linearGradient id="bubbleNur" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#3D2A4A"/>
-      <stop offset="100%" stop-color="#1A1428"/>
-    </linearGradient>
-    <linearGradient id="ringE" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#3B82F6"/><stop offset="100%" stop-color="#2563EB"/>
-    </linearGradient>
-    <linearGradient id="ringM" x1="0" y1="0" x2="1" y2="1">
+    <radialGradient id="blobC" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#3FB089" stop-opacity="0.24"/>
+      <stop offset="100%" stop-color="#3FB089" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Nūr orb -->
+    <radialGradient id="orbCore" cx="42%" cy="38%" r="65%">
+      <stop offset="0%" stop-color="#A5B4FC"/>
+      <stop offset="40%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#4C1D95"/>
+    </radialGradient>
+    <radialGradient id="orbGlow" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#6366F1" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#6366F1" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- per-stage gradients -->
+    <linearGradient id="memHead" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0%" stop-color="#3FB089"/><stop offset="100%" stop-color="#2A8F6E"/>
     </linearGradient>
-    <linearGradient id="ringI" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="emoHead" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#F472B6"/><stop offset="100%" stop-color="#DB2777"/>
+    </linearGradient>
+    <linearGradient id="thoHead" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0%" stop-color="#9966AC"/><stop offset="100%" stop-color="#7A4A8C"/>
     </linearGradient>
-    <linearGradient id="ringV" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#818CF8"/><stop offset="100%" stop-color="#6366F1"/>
+    <linearGradient id="actHead" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#818CF8"/><stop offset="100%" stop-color="#4F46E5"/>
     </linearGradient>
-    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+    <linearGradient id="learnHead" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FBBF24"/><stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+
+    <!-- shadows -->
+    <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
       <feGaussianBlur in="SourceAlpha" stdDeviation="6"/>
-      <feOffset dx="0" dy="3"/>
-      <feComponentTransfer><feFuncA type="linear" slope="0.20"/></feComponentTransfer>
+      <feOffset dx="0" dy="4"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.18"/></feComponentTransfer>
       <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
-    <filter id="orbShadow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="20"/>
-      <feOffset dx="0" dy="8"/>
-      <feComponentTransfer><feFuncA type="linear" slope="0.28"/></feComponentTransfer>
+    <filter id="orbShadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14"/>
+      <feOffset dx="0" dy="6"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.30"/></feComponentTransfer>
       <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
+
+    <!-- arrows -->
+    <marker id="flowArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="#1A1428" fill-opacity="0.45"/>
+    </marker>
+    <marker id="learnArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 Z" fill="#D97706"/>
+    </marker>
+
     <style>
-      .pillText { font-size: 13px; font-weight: 700; fill: #1A1428; letter-spacing: -0.005em; }
-      .pillTextWhite { font-size: 12px; font-weight: 700; fill: #FFFFFF; letter-spacing: -0.005em; }
-      .pillSub { font-size: 10.5px; font-weight: 500; fill: #1A1428; opacity: 0.65; }
-      .pillSubWhite { font-size: 10.5px; font-weight: 500; fill: #FFFFFF; opacity: 0.7; }
-      .userText { font-size: 13px; font-weight: 500; fill: #1A1428; }
-      .userTextSecondary { font-size: 12px; fill: #5A4A5A; font-style: italic; }
-      .nurText { font-size: 13px; font-weight: 500; fill: #FFFFFF; }
-      .nurTextSecondary { font-size: 11px; fill: #FFFFFF; opacity: 0.7; font-style: italic; }
-      .stateLabel { font-size: 9.5px; font-weight: 800; fill: #FFFFFF; letter-spacing: 0.14em; }
-      .footnote { font-size: 11.5px; font-weight: 600; fill: #6E5E6E; letter-spacing: 0.04em; }
+      .title { font-size: 34px; font-weight: 800; fill: #1A1428; letter-spacing: -0.01em; }
+      .subtitle { font-size: 13px; font-weight: 600; fill: #5A4A5A; letter-spacing: 0.18em; }
+      .stageName { font-size: 15px; font-weight: 800; fill: #FFFFFF; letter-spacing: 0.06em; }
+      .stageTagline { font-size: 13px; font-weight: 700; fill: #1A1428; }
+      .stageBullet { font-size: 12.5px; font-weight: 500; fill: #2A2230; }
+      .stageMeta { font-size: 10px; font-weight: 700; fill: #6E5E6E; letter-spacing: 0.12em; }
+      .personLabel { font-size: 11px; font-weight: 800; fill: #5A4A5A; letter-spacing: 0.18em; }
+      .personHint { font-size: 11px; fill: #7E6E7E; font-style: italic; }
+      .learnLabel { font-size: 13px; font-weight: 800; fill: #B45309; letter-spacing: 0.16em; }
+      .learnDetail { font-size: 12px; font-weight: 500; fill: #5A4A5A; }
+      .footer { font-size: 12px; font-weight: 600; fill: #6E5E6E; letter-spacing: 0.06em; }
     </style>
   </defs>
 
-  <!-- BACKGROUND -->
-  <rect x="0" y="0" width="1400" height="700" fill="url(#bgSoft)"/>
+  <!-- background -->
+  <rect width="1400" height="700" fill="url(#bgSoft)"/>
 
-  <!-- decorative pastel blobs -->
-  <ellipse cx="220" cy="120" rx="220" ry="150" fill="url(#blobCoral)"/>
-  <ellipse cx="1200" cy="600" rx="280" ry="180" fill="url(#blobSage)"/>
-  <ellipse cx="1300" cy="100" rx="180" ry="140" fill="url(#blobPurple)"/>
-  <ellipse cx="120" cy="600" rx="180" ry="120" fill="url(#blobPurple)"/>
+  <!-- decorative blobs -->
+  <ellipse cx="180" cy="120" rx="260" ry="170" fill="url(#blobA)"/>
+  <ellipse cx="1240" cy="120" rx="240" ry="160" fill="url(#blobB)"/>
+  <ellipse cx="700" cy="640" rx="380" ry="120" fill="url(#blobC)"/>
 
   <!-- decorative dots -->
   <g fill="#1A1428" fill-opacity="0.10">
-    <circle cx="80" cy="340" r="3"/>
-    <circle cx="100" cy="380" r="2"/>
-    <circle cx="60" cy="420" r="2.5"/>
-    <circle cx="1320" cy="360" r="3"/>
-    <circle cx="1340" cy="320" r="2"/>
-    <circle cx="1300" cy="420" r="2.5"/>
+    <circle cx="60" cy="340" r="3"/>
+    <circle cx="80" cy="380" r="2"/>
+    <circle cx="1340" cy="360" r="3"/>
+    <circle cx="1320" cy="320" r="2"/>
   </g>
-  <g fill="#3B82F6" fill-opacity="0.45">
-    <circle cx="380" cy="180" r="3"/>
-    <circle cx="1080" cy="180" r="3"/>
-    <circle cx="430" cy="540" r="3"/>
-    <circle cx="1010" cy="540" r="3"/>
+  <g fill="#6366F1" fill-opacity="0.45">
+    <circle cx="350" cy="100" r="3"/>
+    <circle cx="1050" cy="100" r="3"/>
   </g>
 
-  <!-- ============ USER (LEFT) ============ -->
-  <!-- character: simple geometric figure -->
-  <g transform="translate(170,300)">
-    <!-- shoulders/body -->
-    <path d="M -55 110 Q -55 60, 0 60 Q 55 60, 55 110 L 55 140 L -55 140 Z" fill="#7A4A8C"/>
-    <!-- neck -->
-    <rect x="-12" y="50" width="24" height="18" fill="#E8C19E"/>
-    <!-- head -->
-    <circle cx="0" cy="30" r="32" fill="#E8C19E"/>
-    <!-- hair -->
-    <path d="M -32 22 Q -32 -5, 0 -5 Q 32 -5, 32 22 Q 28 5, 0 8 Q -28 5, -32 22 Z" fill="#3D2A4A"/>
-    <!-- eyes -->
-    <circle cx="-10" cy="32" r="2.2" fill="#1A1428"/>
-    <circle cx="10" cy="32" r="2.2" fill="#1A1428"/>
-    <!-- gentle smile -->
-    <path d="M -7 42 Q 0 47, 7 42" fill="none" stroke="#1A1428" stroke-width="1.6" stroke-linecap="round"/>
-    <!-- subtle blush -->
-    <ellipse cx="-18" cy="38" rx="4" ry="2.2" fill="#3B82F6" fill-opacity="0.4"/>
-    <ellipse cx="18" cy="38" rx="4" ry="2.2" fill="#3B82F6" fill-opacity="0.4"/>
-  </g>
-  <!-- "you" caption -->
-  <text x="170" y="490" text-anchor="middle" class="footnote" style="font-weight:800;letter-spacing:0.18em">YOU</text>
+  <!-- =================== HEADER =================== -->
+  <text x="700" y="58" text-anchor="middle" class="title">Nūr — a cognitive runtime</text>
+  <text x="700" y="86" text-anchor="middle" class="subtitle">MEMORY · EMOTION · THOUGHT · ACTION · LEARNING</text>
 
-  <!-- user chat bubble -->
-  <g filter="url(#softShadow)" transform="translate(280,200)">
-    <path d="M 0 0 L 320 0 Q 340 0, 340 20 L 340 100 Q 340 120, 320 120 L 30 120 L 12 138 L 16 120 L 0 120 Q -20 120, -20 100 L -20 20 Q -20 0, 0 0 Z"
-          transform="translate(20,0)" fill="url(#bubbleUser)" stroke="#1A1428" stroke-opacity="0.08" stroke-width="1"/>
-  </g>
-  <text x="316" y="234" class="userText">"I think I was too harsh earlier."</text>
-  <text x="316" y="260" class="userTextSecondary">— same chat, three days later</text>
-  <text x="316" y="290" class="userText" style="font-size:11.5px;font-weight:600;fill:#5A4A5A">Your previous turn was a rupture.</text>
-  <text x="316" y="306" class="userText" style="font-size:11.5px;font-weight:600;fill:#5A4A5A">Most agents have already forgotten.</text>
-
-  <!-- ============ NŪR ORB (CENTER-RIGHT) ============ -->
-  <!-- glow halo -->
-  <circle cx="900" cy="350" r="220" fill="url(#orbGlow)"/>
-
-  <!-- orbital rings (state layers) -->
-  <g fill="none" stroke-width="1.4" stroke-dasharray="2,4">
-    <circle cx="900" cy="350" r="170" stroke="#1A1428" stroke-opacity="0.18"/>
-    <circle cx="900" cy="350" r="195" stroke="#1A1428" stroke-opacity="0.10"/>
-  </g>
-
-  <!-- the orb -->
-  <g filter="url(#orbShadow)">
-    <circle cx="900" cy="350" r="138" fill="url(#orbCore)"/>
-  </g>
-  <!-- specular highlight on orb -->
-  <ellipse cx="858" cy="298" rx="42" ry="22" fill="#FFFFFF" fill-opacity="0.32"/>
-
-  <!-- "Nūr" wordmark inside orb -->
-  <text x="900" y="358" text-anchor="middle" font-size="44" font-weight="800" fill="#FFFFFF" letter-spacing="-0.02em">Nūr</text>
-  <text x="900" y="382" text-anchor="middle" font-size="9" font-weight="800" fill="#FFFFFF" opacity="0.78" letter-spacing="0.32em">COGNITIVE RUNTIME</text>
-
-  <!-- ============ ORBITING STATE PILLS ============ -->
-  <!-- Memory pill (top-left of orb) -->
-  <g transform="translate(728,236)">
-    <g filter="url(#softShadow)">
-      <rect x="0" y="0" width="120" height="46" rx="23" fill="url(#ringM)"/>
+  <!-- =================== USER (LEFT) =================== -->
+  <g transform="translate(70,220)">
+    <!-- character -->
+    <g transform="translate(50,40)">
+      <path d="M -38 80 Q -38 42, 0 42 Q 38 42, 38 80 L 38 110 L -38 110 Z" fill="#7A4A8C"/>
+      <rect x="-9" y="34" width="18" height="14" fill="#E8C19E"/>
+      <circle cx="0" cy="20" r="24" fill="#E8C19E"/>
+      <path d="M -24 14 Q -24 -4, 0 -4 Q 24 -4, 24 14 Q 20 0, 0 2 Q -20 0, -24 14 Z" fill="#3D2A4A"/>
+      <circle cx="-8" cy="22" r="1.8" fill="#1A1428"/>
+      <circle cx="8" cy="22" r="1.8" fill="#1A1428"/>
+      <path d="M -5 30 Q 0 34, 5 30" fill="none" stroke="#1A1428" stroke-width="1.4" stroke-linecap="round"/>
     </g>
-    <g transform="translate(14,12)" stroke="#FFFFFF" stroke-width="2" fill="none">
-      <ellipse cx="11" cy="4" rx="9" ry="3"/>
-      <path d="M 2 4 L 2 12 C 2 13.6, 6 15, 11 15 C 16 15, 20 13.6, 20 12 L 20 4"/>
-      <path d="M 2 12 L 2 20 C 2 21.6, 6 23, 11 23 C 16 23, 20 21.6, 20 20 L 20 12"/>
-    </g>
-    <text x="46" y="22" class="pillTextWhite">Memory</text>
-    <text x="46" y="36" class="pillSubWhite">5 layers</text>
+    <text x="50" y="190" text-anchor="middle" class="personLabel">YOU</text>
+    <text x="50" y="210" text-anchor="middle" class="personHint">a message</text>
   </g>
 
-  <!-- Identity pill (top-right of orb) -->
-  <g transform="translate(950,194)">
-    <g filter="url(#softShadow)">
-      <rect x="0" y="0" width="124" height="46" rx="23" fill="url(#ringI)"/>
+  <!-- arrow from USER to MEMORY -->
+  <path d="M 175 280 L 215 280" stroke="#1A1428" stroke-opacity="0.45" stroke-width="2" fill="none" marker-end="url(#flowArrow)"/>
+
+  <!-- =================== MEMORY CARD =================== -->
+  <g transform="translate(220,140)" filter="url(#cardShadow)">
+    <rect width="200" height="280" rx="16" fill="#FFFFFF"/>
+    <path d="M 0 16 Q 0 0, 16 0 L 184 0 Q 200 0, 200 16 L 200 56 L 0 56 Z" fill="url(#memHead)"/>
+    <!-- icon: stacked layers (memory) -->
+    <g transform="translate(20,17)" stroke="#FFFFFF" stroke-width="2" fill="none" stroke-linejoin="round">
+      <ellipse cx="11" cy="3" rx="9" ry="2.8"/>
+      <path d="M 2 3 L 2 10 C 2 11.6, 6 13, 11 13 C 16 13, 20 11.6, 20 10 L 20 3"/>
+      <path d="M 2 10 L 2 17 C 2 18.6, 6 20, 11 20 C 16 20, 20 18.6, 20 17 L 20 10"/>
+      <path d="M 2 17 L 2 24 C 2 25.6, 6 27, 11 27 C 16 27, 20 25.6, 20 24 L 20 17"/>
     </g>
-    <g transform="translate(14,12)" stroke="#FFFFFF" stroke-width="2" fill="none" stroke-linejoin="round">
-      <path d="M 4 2 L 18 2 L 22 6 L 22 22 L 6 22 L 4 20 Z"/>
-      <line x1="8" y1="9" x2="18" y2="9"/>
-      <line x1="8" y1="14" x2="18" y2="14"/>
-      <line x1="8" y1="19" x2="14" y2="19"/>
+    <text x="56" y="35" class="stageName">MEMORY</text>
+    <text x="20" y="90" class="stageTagline">recalls what mattered</text>
+    <g class="stageBullet">
+      <text x="20" y="120">• recent turns</text>
+      <text x="20" y="146">• life history &amp; beliefs</text>
+      <text x="20" y="172">• relational arc</text>
+      <text x="20" y="198">• drives, salience</text>
     </g>
-    <text x="46" y="22" class="pillTextWhite">Identity</text>
-    <text x="46" y="36" class="pillSubWhite">beliefs · drives</text>
+    <text x="20" y="252" class="stageMeta">5 PERSISTENCE LAYERS</text>
   </g>
 
-  <!-- Emotion pill (bottom-left of orb) -->
-  <g transform="translate(700,438)">
-    <g filter="url(#softShadow)">
-      <rect x="0" y="0" width="124" height="46" rx="23" fill="url(#ringE)"/>
-    </g>
-    <g transform="translate(14,16)" stroke="#FFFFFF" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <!-- arrow MEMORY → EMOTION -->
+  <path d="M 425 280 L 445 280" stroke="#1A1428" stroke-opacity="0.45" stroke-width="2" fill="none" marker-end="url(#flowArrow)"/>
+
+  <!-- =================== EMOTION CARD =================== -->
+  <g transform="translate(450,140)" filter="url(#cardShadow)">
+    <rect width="200" height="280" rx="16" fill="#FFFFFF"/>
+    <path d="M 0 16 Q 0 0, 16 0 L 184 0 Q 200 0, 200 16 L 200 56 L 0 56 Z" fill="url(#emoHead)"/>
+    <!-- icon: pulse / heartbeat -->
+    <g transform="translate(20,22)" stroke="#FFFFFF" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round">
       <path d="M 0 8 L 5 8 L 8 2 L 13 16 L 17 6 L 21 12 L 26 8"/>
     </g>
-    <text x="46" y="22" class="pillTextWhite">Emotion</text>
-    <text x="46" y="36" class="pillSubWhite">6 modulators</text>
-  </g>
-
-  <!-- Evolution pill (bottom-right of orb) -->
-  <g transform="translate(958,470)">
-    <g filter="url(#softShadow)">
-      <rect x="0" y="0" width="128" height="46" rx="23" fill="url(#ringV)"/>
+    <text x="56" y="35" class="stageName">EMOTION</text>
+    <text x="20" y="90" class="stageTagline">feels the moment</text>
+    <g class="stageBullet">
+      <text x="20" y="120">• valence · arousal</text>
+      <text x="20" y="146">• curiosity · confidence</text>
+      <text x="20" y="172">• care · friction</text>
+      <text x="20" y="198">• tone follows state</text>
     </g>
-    <g transform="translate(14,12)" stroke="#FFFFFF" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M 12 22 L 12 11"/>
-      <path d="M 12 14 C 8 14, 4 11, 4 7 C 8 7, 12 9, 12 14 Z" fill="#FFFFFF" fill-opacity="0.85"/>
-      <path d="M 12 11 C 16 11, 20 8, 20 4 C 16 4, 12 6, 12 11 Z" fill="#FFFFFF" fill-opacity="0.85"/>
+    <text x="20" y="252" class="stageMeta">6 MODULATORS</text>
+  </g>
+
+  <!-- arrow EMOTION → THOUGHT -->
+  <path d="M 655 280 L 675 280" stroke="#1A1428" stroke-opacity="0.45" stroke-width="2" fill="none" marker-end="url(#flowArrow)"/>
+
+  <!-- =================== THOUGHT CARD =================== -->
+  <g transform="translate(680,140)" filter="url(#cardShadow)">
+    <rect width="200" height="280" rx="16" fill="#FFFFFF"/>
+    <path d="M 0 16 Q 0 0, 16 0 L 184 0 Q 200 0, 200 16 L 200 56 L 0 56 Z" fill="url(#thoHead)"/>
+    <!-- icon: two opposing speech bubbles -->
+    <g transform="translate(20,18)" stroke="#FFFFFF" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M 1 4 Q 1 1, 4 1 L 12 1 Q 15 1, 15 4 L 15 10 Q 15 13, 12 13 L 6 13 L 3 16 L 4 13 Q 1 13, 1 10 Z"/>
+      <path d="M 11 12 Q 11 9, 14 9 L 22 9 Q 25 9, 25 12 L 25 18 Q 25 21, 22 21 L 16 21 L 13 24 L 14 21 Q 11 21, 11 18 Z" opacity="0.85"/>
     </g>
-    <text x="46" y="22" class="pillTextWhite">Evolution</text>
-    <text x="46" y="36" class="pillSubWhite">decay · learn</text>
+    <text x="56" y="35" class="stageName">THOUGHT</text>
+    <text x="20" y="90" class="stageTagline">two minds debate</text>
+    <g class="stageBullet">
+      <text x="20" y="120">• fast generator drafts</text>
+      <text x="20" y="146">• slow critic objects</text>
+      <text x="20" y="172">• arbiter resolves</text>
+      <text x="20" y="198">• coherence checked</text>
+    </g>
+    <text x="20" y="252" class="stageMeta">DUAL-PROCESS</text>
   </g>
 
-  <!-- ============ NŪR REPLY BUBBLE ============ -->
-  <g filter="url(#softShadow)" transform="translate(800,510)">
-    <path d="M 0 0 L 286 0 Q 306 0, 306 20 L 306 78 Q 306 98, 286 98 L 24 98 L -10 116 L 6 98 L 0 98 Q -20 98, -20 78 L -20 20 Q -20 0, 0 0 Z"
-          transform="translate(20,0)" fill="url(#bubbleNur)"/>
-  </g>
-  <text x="838" y="540" class="nurText">"I remember that moment. We don't</text>
-  <text x="838" y="558" class="nurText">have to ignore it."</text>
-  <text x="838" y="582" class="nurTextSecondary">— relationship arc retrieved · loop closing</text>
+  <!-- arrow THOUGHT → ACTION -->
+  <path d="M 885 280 L 905 280" stroke="#1A1428" stroke-opacity="0.45" stroke-width="2" fill="none" marker-end="url(#flowArrow)"/>
 
-  <!-- subtle connection particles between user bubble and orb -->
-  <g fill="#1A1428">
-    <circle cx="638" cy="282" r="2" fill-opacity="0.30"/>
-    <circle cx="668" cy="290" r="2.5" fill-opacity="0.42"/>
-    <circle cx="700" cy="298" r="3" fill-opacity="0.55"/>
-    <circle cx="728" cy="304" r="2.5" fill-opacity="0.42"/>
-  </g>
-  <!-- subtle connection from orb back to nur bubble -->
-  <g fill="#3B82F6">
-    <circle cx="900" cy="500" r="2.5" fill-opacity="0.55"/>
-    <circle cx="888" cy="490" r="2" fill-opacity="0.42"/>
-    <circle cx="876" cy="478" r="1.6" fill-opacity="0.30"/>
+  <!-- =================== ACTION CARD =================== -->
+  <g transform="translate(910,140)" filter="url(#cardShadow)">
+    <rect width="200" height="280" rx="16" fill="#FFFFFF"/>
+    <path d="M 0 16 Q 0 0, 16 0 L 184 0 Q 200 0, 200 16 L 200 56 L 0 56 Z" fill="url(#actHead)"/>
+    <!-- icon: tool/wrench -->
+    <g transform="translate(20,18)" stroke="#FFFFFF" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M 15 4 A 6 6 0 1 0 21 10 L 24 13 L 22 15 L 19 12 A 6 6 0 0 1 15 4 Z"/>
+      <path d="M 18 13 L 5 26"/>
+      <circle cx="4" cy="27" r="1.5" fill="#FFFFFF"/>
+    </g>
+    <text x="56" y="35" class="stageName">ACTION</text>
+    <text x="20" y="90" class="stageTagline">uses real tools</text>
+    <g class="stageBullet">
+      <text x="20" y="120">• fs · web · shell</text>
+      <text x="20" y="146">• self.note · alert</text>
+      <text x="20" y="172">• skills it has learned</text>
+      <text x="20" y="198">• LLM picks freely</text>
+    </g>
+    <text x="20" y="252" class="stageMeta">GATED CAPABILITIES</text>
   </g>
 
-  <!-- ============ FOOTER LINE ============ -->
-  <text x="700" y="660" text-anchor="middle" class="footnote">
-    Persistent state · evolving identity · accumulated learning · gated tools — for any LLM
+  <!-- arrow ACTION → NŪR -->
+  <path d="M 1115 280 L 1155 280" stroke="#1A1428" stroke-opacity="0.45" stroke-width="2" fill="none" marker-end="url(#flowArrow)"/>
+
+  <!-- =================== NŪR ORB (RIGHT) =================== -->
+  <g transform="translate(1170,220)">
+    <circle cx="65" cy="65" r="100" fill="url(#orbGlow)"/>
+    <g filter="url(#orbShadow)">
+      <circle cx="65" cy="65" r="62" fill="url(#orbCore)"/>
+    </g>
+    <ellipse cx="46" cy="42" rx="20" ry="10" fill="#FFFFFF" fill-opacity="0.30"/>
+    <text x="65" y="72" text-anchor="middle" font-size="26" font-weight="800" fill="#FFFFFF" letter-spacing="-0.02em">Nūr</text>
+    <text x="65" y="89" text-anchor="middle" font-size="7" font-weight="800" fill="#FFFFFF" opacity="0.78" letter-spacing="0.28em">REPLIES &amp; ACTS</text>
+    <text x="65" y="190" text-anchor="middle" class="personLabel">RESPONSE</text>
+    <text x="65" y="210" text-anchor="middle" class="personHint">+ side effects</text>
+  </g>
+
+  <!-- =================== LEARNING LOOP (BOTTOM) =================== -->
+  <!-- curved arrow from right back to left, under the pipeline -->
+  <path d="M 1235 460 Q 1235 560, 1100 560 L 320 560 Q 220 560, 220 470"
+        fill="none" stroke="#D97706" stroke-width="2.5" stroke-dasharray="7,5"
+        marker-end="url(#learnArrow)" opacity="0.85"/>
+
+  <!-- learning loop label box -->
+  <g transform="translate(540,524)" filter="url(#cardShadow)">
+    <rect width="320" height="62" rx="14" fill="#FFFFFF" stroke="#FBBF24" stroke-width="1.5"/>
+    <path d="M 0 14 Q 0 0, 14 0 L 80 0 L 80 28 L 0 28 Z" fill="url(#learnHead)"/>
+    <text x="40" y="19" text-anchor="middle" font-size="11" font-weight="800" fill="#FFFFFF" letter-spacing="0.14em">LEARN</text>
+    <text x="92" y="22" class="learnLabel">this turn updates Nūr</text>
+    <text x="14" y="50" class="learnDetail">beliefs · drives · salience · skills · life experience</text>
+  </g>
+
+  <!-- =================== FOOTER =================== -->
+  <text x="700" y="660" text-anchor="middle" class="footer">
+    works with any LLM · runs locally · keeps state between turns · grows from experience
   </text>
 
-  <!-- decorative sparkles -->
-  <g fill="#3B82F6">
-    <path d="M 1140 240 L 1144 232 L 1148 240 L 1156 244 L 1148 248 L 1144 256 L 1140 248 L 1132 244 Z" opacity="0.55"/>
-    <path d="M 758 158 L 760 153 L 762 158 L 767 160 L 762 162 L 760 167 L 758 162 L 753 160 Z" opacity="0.45"/>
+  <!-- subtle sparkles -->
+  <g fill="#9966AC">
+    <circle cx="1310" cy="160" r="2.5" opacity="0.5"/>
+    <circle cx="1325" cy="180" r="1.6" opacity="0.4"/>
   </g>
-  <g fill="#7A4A8C">
-    <circle cx="1100" cy="120" r="3.5" opacity="0.5"/>
-    <circle cx="1110" cy="138" r="2" opacity="0.35"/>
-    <circle cx="1088" cy="138" r="2.5" opacity="0.4"/>
+  <g fill="#3FB089">
+    <circle cx="90" cy="140" r="2.5" opacity="0.5"/>
+    <circle cx="105" cy="160" r="1.6" opacity="0.4"/>
   </g>
-
 </svg>
