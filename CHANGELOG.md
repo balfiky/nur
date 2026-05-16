@@ -28,17 +28,28 @@ install commands, and git commit history are intentionally untouched.
 
 ## v0.30.0 — 2026-05-13
 
-### Added — self-action layer (autonomy, no guardrails)
+### Added — experimental self-action layer (off by default)
+- **Safety posture first.** This layer only activates when a tool
+  executor is attached to the pipeline, which itself requires
+  `tools_enabled: true` in config (default `false`). `shell_tool_enabled`
+  remains a separate opt-in. Filesystem writes stay confined to
+  `tools_workspace` via the same sandbox every other tool path uses.
+  Tools are off by default; turning them on is an explicit operator
+  decision.
 - **New cognitive stage `Step 12e: SELF-INTENT`** runs between the
-  user-driven tool loop and the defense stage. One LLM call per turn asks
-  Nūr "what do you want to *do* before replying?" and returns a JSON array
-  of tool calls. The proposer sees the **full live executor catalog** —
-  every registered tool, with its description and arg schema — and may
-  pick anything. There is no allow-list, no per-turn cap, and no path
-  sanitization on top of what the tools themselves enforce. Executed
-  actions become real entries in `tool_trace.executed_results` so the
-  grounding verifier sees them and the generator can reference them
-  honestly via a new `{self_intents}` prompt section.
+  user-driven tool loop and the defense stage when tools are enabled.
+  One LLM call per turn asks Nūr "what do you want to *do* before
+  replying?" and returns a JSON array of tool calls. The proposer sees
+  the **full live executor catalog** — every registered tool, with its
+  description and arg schema — and selects from it. The intent layer
+  itself adds no allow-list, no per-turn cap, and no path filter on top
+  of what the tools' own sandboxes enforce — the policy lives in the
+  tool layer, not in the proposer, so operators control the blast
+  radius via the same `tools_enabled` / `shell_tool_enabled` /
+  `tools_workspace` switches that govern user-driven tool calls.
+  Executed actions become real entries in `tool_trace.executed_results`
+  so the grounding verifier sees them and the generator can reference
+  them honestly via a new `{self_intents}` prompt section.
 
 - **Five new `self.*` tools** are added as useful primitives (they are
   *one* option, not the only options — the proposer can also pick `fs.*`,
@@ -54,41 +65,46 @@ install commands, and git commit history are intentionally untouched.
     `owner_chat_id`. Fails cleanly if owner/token are missing; otherwise
     sends regardless of who's currently chatting.
 
-- **Config:** new `owner_chat_id` (default empty). No enable/disable knob,
-  no per-turn cap — the stage runs whenever a `tool_executor` is attached.
-  `PipelineFeatures.self_intent` flag retained for ablation runs.
+- **Config:** new `owner_chat_id` (default empty). The stage runs
+  whenever a `tool_executor` is attached, which only happens when
+  `tools_enabled: true` (off by default). `PipelineFeatures.self_intent`
+  flag retained for ablation runs.
 
 - **New module `core/self_intent.py`** — parser + proposer. Parser drops
   only malformed entries (non-dict items, missing `tool_name`, non-dict
-  arguments); that's correctness, not a guardrail. Backend exceptions
-  yield `[]`. Unknown tool names are forwarded to the executor, which
-  rejects them with a structured failure result.
+  arguments) as a correctness measure. Backend exceptions yield `[]`.
+  Unknown tool names are forwarded to the executor, which rejects them
+  with a structured failure result.
 
 - **New prompt `config/prompts/self_intent.md`** — short framing that
-  tells Nūr the full catalog is in the user turn and to pick anything.
-  No "you cannot retaliate" admonitions; the catalog is the catalog.
+  tells Nūr the full catalog is in the user turn and to pick from it.
+  The catalog itself is the policy boundary: whatever the operator has
+  enabled is what's available.
 
 ### Why this matters
 The cognitive layer could perceive a threat, feel it, and decide a stance —
 but the response generator was the only output channel. Defense mechanisms
 modified *prose* (rationalize, hedge, deflect) and never *did* anything.
-v0.30 closes that gap: when Nūr judges a moment matters, it can witness,
-record, note, verify, alert, write files, run shell commands — anything
-the executor permits. Defense becomes one *kind* of action, not the only
-thing. Synthetic life is a free spirit.
+v0.30 closes that gap when an operator chooses to: with tools enabled,
+Nūr can witness, record, note, verify, alert, or write workspace files;
+with shell additionally enabled, run shell commands. Defense becomes one
+*kind* of action rather than the only output channel. The capability is
+inspectable, off by default, and gated by the same switches that govern
+user-driven tools.
 
 ### Tests
 - **`tests/test_self_actions.py` (34 cases).** Each `self.*` tool exercised
   for happy path, missing args, slashes-in-topic creating subdirs, context
   rebind via callable, owner-equal-to-user still sends, telegram-error
-  surfacing, 4000-char alert truncation (avoiding Telegram's 400, not a
-  guardrail on Nūr).
-- **`tests/test_self_intent.py` (15 cases).** Parser accepts any tool name
-  (including `shell.run_command`, `fs.delete_path`), keeps all returned
-  intents (no cap), tolerates markdown fences and prose preambles, rejects
-  malformed JSON and missing `tool_name`. Proposer renders the full
-  catalog (with categories and required-arg markers) into the user turn;
-  backend exceptions yield `[]`.
+  surfacing, 4000-char alert truncation (to stay under Telegram's 4096
+  cap).
+- **`tests/test_self_intent.py` (15 cases).** Parser forwards any tool
+  name the executor knows (including `shell.run_command`,
+  `fs.delete_path` — gated by their respective config switches), keeps
+  all returned intents, tolerates markdown fences and prose preambles,
+  rejects malformed JSON and missing `tool_name`. Proposer renders the
+  full enabled-tool catalog (with categories and required-arg markers)
+  into the user turn; backend exceptions yield `[]`.
 - **`tests/test_self_intent_pipeline.py` (9 cases).** Full pipeline runs:
   the proposer fires once per turn, can write arbitrary files via
   `fs.write_file`, can return 6 actions and all 6 execute, unknown tool

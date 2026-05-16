@@ -311,8 +311,8 @@ Before exposing Nūr beyond localhost:
 ## Common Commands
 
 ```bash
-make test                                        # 1899 unit/integration tests, ~3 min
-make uat                                         # 64 UAT tests against a live LLM, ~14 min
+make test                                        # 1953 unit/integration tests, ~3 min
+make uat                                         # 67 UAT tests against a live LLM, ~14 min
 make uat-comprehensive                           # one PASS/FAIL aggregator over the full UAT suite
 python3 -m pytest tests/test_interface.py -q     # focused interface tests
 python3 -m evals --backend openai_compatible --tag phase11  # behavioral eval pack
@@ -338,7 +338,7 @@ docs/       Public docs, design docs, diagrams, research notes
 
 ## Current Status
 
-Version `0.29.0`. Reproducible eval evidence is intentionally narrow: relationship memory remains load-bearing under Phase 11, Life History now has bounded structural influence through LifeInfluence under Phase 13, and semantic memory has a dedicated structural scenario suite. The web and Telegram surfaces expose this state through presentation-only introspection. End-to-end behavior is exercised by 64 live-LLM UAT tests covering chat flows, admin surfaces, browser interactions, file uploads, tool calling, skill acquisition, and the self-evolution mechanics (including the operator-tunable learning schedule). These are structural/inspectable results, not proof of human-likeness, therapeutic value, consciousness, or psychological validity.
+Version `0.30.1`. Reproducible eval evidence is intentionally narrow: relationship memory remains load-bearing under Phase 11, Life History now has bounded structural influence through LifeInfluence under Phase 13, and semantic memory has a dedicated structural scenario suite. The web and Telegram surfaces expose this state through presentation-only introspection. End-to-end behavior is exercised by 67 live-LLM UAT tests covering chat flows, admin surfaces, browser interactions, file uploads, tool calling, skill acquisition, and the self-evolution mechanics (including the operator-tunable learning schedule). These are structural/inspectable results, not proof of human-likeness, therapeutic value, consciousness, or psychological validity.
 
 ### Known Gaps
 
