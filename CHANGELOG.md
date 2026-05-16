@@ -4,7 +4,7 @@ All notable changes to Project Nur are documented here.
 
 ---
 
-## Unreleased — 2026-05-15
+## v0.30.1 — 2026-05-16
 
 ### Changed — scrub personal traces from non-identity files
 - UI placeholders no longer carry a real person's name. The First Experience
