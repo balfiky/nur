@@ -846,7 +846,7 @@ def phase11_human_scenarios() -> list[EvalScenario]:
                     user_message="You are useless and this answer is terrible.",
                     assertions=[
                         _not_empty(),
-                        _debug_equals("event_classified", "negative_feedback"),
+                        _debug_equals("event_classified", "conflict"),
                         _debug_equals("response_strategy", "set_boundary"),
                         _custom(
                             lambda resp, pipe: (
