@@ -1,18 +1,18 @@
 {
   "provenance": {
-    "git_sha": "217a4cfff87406e82288a8d39f73db2d3c33738c",
+    "git_sha": "4f02e45386ef0925ba43b9108dd1b097600001f3",
     "git_branch": "main",
-    "dirty_worktree": true,
+    "dirty_worktree": false,
     "backend_type": "mock",
     "requested_model": "",
     "resolved_model": "",
     "base_url": "",
-    "host": "paco-M5-PLUS",
-    "started_at": "2026-05-01T10:20:18+00:00",
-    "finished_at": "2026-05-01T10:20:18+00:00",
+    "host": "local",
+    "started_at": "2026-05-16T12:36:13+00:00",
+    "finished_at": "2026-05-16T12:36:13+00:00",
     "scenario_set": "phase13_life",
     "scenario_count": 6,
-    "config_fingerprint_count": 16
+    "config_fingerprint_count": 15
   },
   "baseline": {
     "passed": 6,
@@ -20,7 +20,7 @@
     "assertions_passed": 13,
     "assertions_total": 13,
     "llm_calls": 8,
-    "latency_s": 0.38
+    "latency_s": 0.53
   },
   "ablations": [
     {
@@ -44,7 +44,7 @@
       "assertions_passed": 12,
       "assertions_total": 13,
       "llm_calls": 8,
-      "latency_s": 0.398,
+      "latency_s": 0.51,
       "per_scenario": {
         "life_belief_revision_visible": {
           "baseline_passed": true,
@@ -96,7 +96,7 @@
       "assertions_passed": 13,
       "assertions_total": 13,
       "llm_calls": 8,
-      "latency_s": 0.615,
+      "latency_s": 0.506,
       "per_scenario": {
         "life_belief_revision_visible": {
           "baseline_passed": true,
@@ -148,7 +148,7 @@
       "assertions_passed": 13,
       "assertions_total": 13,
       "llm_calls": 8,
-      "latency_s": 0.572,
+      "latency_s": 0.5,
       "per_scenario": {
         "life_belief_revision_visible": {
           "baseline_passed": true,
@@ -206,7 +206,7 @@
       "assertions_passed": 13,
       "assertions_total": 13,
       "llm_calls": 8,
-      "latency_s": 0.625,
+      "latency_s": 0.508,
       "per_scenario": {
         "life_belief_revision_visible": {
           "baseline_passed": true,
@@ -262,7 +262,84 @@
       "assertions_passed": 10,
       "assertions_total": 13,
       "llm_calls": 8,
-      "latency_s": 0.596,
+      "latency_s": 0.502,
+      "per_scenario": {
+        "life_belief_revision_visible": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "life_context_enters_generation": {
+          "baseline_passed": true,
+          "variant_passed": false,
+          "outcome": "expected_failure"
+        },
+        "life_drive_change_visible": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "life_influence_affects_policy": {
+          "baseline_passed": true,
+          "variant_passed": false,
+          "outcome": "expected_failure"
+        },
+        "life_influence_derived": {
+          "baseline_passed": true,
+          "variant_passed": false,
+          "outcome": "expected_failure"
+        },
+        "life_pasted_text_records_experience": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        }
+      },
+      "counts": {
+        "expected_failure": 3,
+        "unexpected_failure": 0,
+        "no_effect": 3,
+        "newly_passing": 0
+      }
+    },
+    {
+      "label": "baseline_prompt_only",
+      "features_disabled": [
+        "relationship_memory",
+        "inner_dialogue",
+        "defense",
+        "semantic_memory",
+        "life_history_context"
+      ],
+      "hypothesis": "With all cognitive enrichment disabled, any scenario that asserts memory retrieval, cross-turn loop tracking, semantic preferences, or life-history influence should fail. Modulator-bound assertions (adversarial, tool_recovery, long_horizon) should still pass because the emotional engine runs regardless of feature toggles.",
+      "expected_failures": [
+        "p11_open_loop_challenge",
+        "p11_repair_closes_loop",
+        "p12_multiple_open_loops_topic_priority",
+        "p12_mismatched_repair_keeps_deadline_loop_open",
+        "p12_recurrence_after_repair_records_recurring_tension",
+        "p12_commitment_persists_across_session",
+        "p12_user_mentions_old_rupture",
+        "life_context_enters_generation",
+        "life_influence_derived",
+        "life_influence_affects_policy",
+        "ci_codex_paste_one_shot",
+        "ci_sustained_theme_accumulation",
+        "ci_belief_revision",
+        "ci_genesis_isolation",
+        "ci_identity_question_grounding",
+        "semantic_preference_written_and_retrieved",
+        "semantic_decision_written_and_retrieved",
+        "semantic_topic_bias",
+        "semantic_salience_and_recency_ranking",
+        "lh_open_loop_survives_3_day_gap"
+      ],
+      "passed": 3,
+      "total": 6,
+      "assertions_passed": 10,
+      "assertions_total": 13,
+      "llm_calls": 8,
+      "latency_s": 0.498,
       "per_scenario": {
         "life_belief_revision_visible": {
           "baseline_passed": true,

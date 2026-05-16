@@ -1,18 +1,18 @@
 {
   "provenance": {
-    "git_sha": "217a4cfff87406e82288a8d39f73db2d3c33738c",
+    "git_sha": "4f02e45386ef0925ba43b9108dd1b097600001f3",
     "git_branch": "main",
-    "dirty_worktree": true,
+    "dirty_worktree": false,
     "backend_type": "mock",
     "requested_model": "",
     "resolved_model": "",
     "base_url": "",
-    "host": "paco-M5-PLUS",
-    "started_at": "2026-05-01T10:21:26+00:00",
-    "finished_at": "2026-05-01T10:21:26+00:00",
+    "host": "local",
+    "started_at": "2026-05-16T12:36:16+00:00",
+    "finished_at": "2026-05-16T12:36:16+00:00",
     "scenario_set": "semantic_memory",
     "scenario_count": 6,
-    "config_fingerprint_count": 16
+    "config_fingerprint_count": 15
   },
   "baseline": {
     "passed": 6,
@@ -20,7 +20,7 @@
     "assertions_passed": 20,
     "assertions_total": 20,
     "llm_calls": 12,
-    "latency_s": 0.035
+    "latency_s": 0.046
   },
   "ablations": [
     {
@@ -44,7 +44,7 @@
       "assertions_passed": 20,
       "assertions_total": 20,
       "llm_calls": 12,
-      "latency_s": 0.024,
+      "latency_s": 0.031,
       "per_scenario": {
         "semantic_decision_written_and_retrieved": {
           "baseline_passed": true,
@@ -96,7 +96,7 @@
       "assertions_passed": 20,
       "assertions_total": 20,
       "llm_calls": 12,
-      "latency_s": 0.026,
+      "latency_s": 0.029,
       "per_scenario": {
         "semantic_decision_written_and_retrieved": {
           "baseline_passed": true,
@@ -148,7 +148,7 @@
       "assertions_passed": 20,
       "assertions_total": 20,
       "llm_calls": 12,
-      "latency_s": 0.026,
+      "latency_s": 0.03,
       "per_scenario": {
         "semantic_decision_written_and_retrieved": {
           "baseline_passed": true,
@@ -206,7 +206,7 @@
       "assertions_passed": 13,
       "assertions_total": 20,
       "llm_calls": 12,
-      "latency_s": 0.024,
+      "latency_s": 0.026,
       "per_scenario": {
         "semantic_decision_written_and_retrieved": {
           "baseline_passed": true,
@@ -262,7 +262,7 @@
       "assertions_passed": 20,
       "assertions_total": 20,
       "llm_calls": 12,
-      "latency_s": 0.026,
+      "latency_s": 0.031,
       "per_scenario": {
         "semantic_decision_written_and_retrieved": {
           "baseline_passed": true,
@@ -299,6 +299,83 @@
         "expected_failure": 0,
         "unexpected_failure": 0,
         "no_effect": 6,
+        "newly_passing": 0
+      }
+    },
+    {
+      "label": "baseline_prompt_only",
+      "features_disabled": [
+        "relationship_memory",
+        "inner_dialogue",
+        "defense",
+        "semantic_memory",
+        "life_history_context"
+      ],
+      "hypothesis": "With all cognitive enrichment disabled, any scenario that asserts memory retrieval, cross-turn loop tracking, semantic preferences, or life-history influence should fail. Modulator-bound assertions (adversarial, tool_recovery, long_horizon) should still pass because the emotional engine runs regardless of feature toggles.",
+      "expected_failures": [
+        "p11_open_loop_challenge",
+        "p11_repair_closes_loop",
+        "p12_multiple_open_loops_topic_priority",
+        "p12_mismatched_repair_keeps_deadline_loop_open",
+        "p12_recurrence_after_repair_records_recurring_tension",
+        "p12_commitment_persists_across_session",
+        "p12_user_mentions_old_rupture",
+        "life_context_enters_generation",
+        "life_influence_derived",
+        "life_influence_affects_policy",
+        "ci_codex_paste_one_shot",
+        "ci_sustained_theme_accumulation",
+        "ci_belief_revision",
+        "ci_genesis_isolation",
+        "ci_identity_question_grounding",
+        "semantic_preference_written_and_retrieved",
+        "semantic_decision_written_and_retrieved",
+        "semantic_topic_bias",
+        "semantic_salience_and_recency_ranking",
+        "lh_open_loop_survives_3_day_gap"
+      ],
+      "passed": 1,
+      "total": 6,
+      "assertions_passed": 13,
+      "assertions_total": 20,
+      "llm_calls": 12,
+      "latency_s": 0.025,
+      "per_scenario": {
+        "semantic_decision_written_and_retrieved": {
+          "baseline_passed": true,
+          "variant_passed": false,
+          "outcome": "expected_failure"
+        },
+        "semantic_no_semantic_memory_expected_failure": {
+          "baseline_passed": true,
+          "variant_passed": false,
+          "outcome": "unexpected_failure"
+        },
+        "semantic_per_user_isolation": {
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
+        },
+        "semantic_preference_written_and_retrieved": {
+          "baseline_passed": true,
+          "variant_passed": false,
+          "outcome": "expected_failure"
+        },
+        "semantic_salience_and_recency_ranking": {
+          "baseline_passed": true,
+          "variant_passed": false,
+          "outcome": "expected_failure"
+        },
+        "semantic_topic_bias": {
+          "baseline_passed": true,
+          "variant_passed": false,
+          "outcome": "expected_failure"
+        }
+      },
+      "counts": {
+        "expected_failure": 4,
+        "unexpected_failure": 1,
+        "no_effect": 1,
         "newly_passing": 0
       }
     }
