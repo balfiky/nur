@@ -17,6 +17,9 @@ build/
 output/
 qa-report/
 
+# Local planning/audit briefs that aren't part of the public repo
+NUR_CLAUDE_CODE_PLANNING_AUDIT.md
+
 # Persisted user/session data — NEVER commit
 data/
 *.session.json
