@@ -757,21 +757,21 @@ class TestCognitivePipeline:
     def test_full_session_arc(self):
         """Simulate a complete session: greeting → discussion → conflict → resolution."""
         pipe = self._make_pipeline(response="I hear you.")
-        pipe.process("Hey there, hope you're doing well", user_id="paco")
+        pipe.process("Hey there, hope you're doing well", user_id="alice")
         snap1 = pipe.engine.snapshot()
 
-        pipe.process("I'm grateful for your help yesterday", user_id="paco")
+        pipe.process("I'm grateful for your help yesterday", user_id="alice")
         snap2 = pipe.engine.snapshot()
         assert snap2["valence"] >= snap1["valence"]  # positive feedback
 
-        pipe.process("Actually I'm angry about what happened", user_id="paco")
+        pipe.process("Actually I'm angry about what happened", user_id="alice")
         snap3 = pipe.engine.snapshot()
         assert snap3["arousal"] > snap2["arousal"]  # conflict raises arousal
 
-        pipe.process("I'm sorry, let's forgive and move on in peace", user_id="paco")
+        pipe.process("I'm sorry, let's forgive and move on in peace", user_id="alice")
 
         # End session
-        digested = pipe.end_session(user_id="paco")
+        digested = pipe.end_session(user_id="alice")
         assert digested.summary != ""
         assert len(pipe.short_term) == 0
 

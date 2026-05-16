@@ -28,4 +28,4 @@ scenarios in `evals/scenarios.py`, the ablation priors in
 `evals/ablation_hypotheses.py`, and the checked-in ablation summary under
 `reports/ablation/summary.json`. For end-to-end behavior verification
 against a real LLM, run `make uat-comprehensive` for a single PASS/FAIL
-signal across all 63 UAT tests.
+signal across all 67 UAT tests.

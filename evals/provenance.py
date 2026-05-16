@@ -17,7 +17,6 @@ from __future__ import annotations
 import datetime as _dt
 import hashlib
 import os
-import socket
 import subprocess
 from pathlib import Path
 
@@ -136,9 +135,10 @@ def build_provenance(
     """
     sha, branch, dirty = collect_git_info()
     started = _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
+    host = os.environ.get("NUR_EVAL_HOST") or "local"
     return RunProvenance(
         started_at=started,
-        host=socket.gethostname(),
+        host=host,
         git_sha=sha,
         git_branch=branch,
         dirty_worktree=dirty,

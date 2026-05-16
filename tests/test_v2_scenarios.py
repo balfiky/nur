@@ -566,25 +566,25 @@ class TestFullPipelineEndToEnd:
         pipe = CognitivePipeline(llm_backend=MockLLMBackend())
 
         # Greeting
-        r1 = pipe.process("Hey there!", user_id="paco")
+        r1 = pipe.process("Hey there!", user_id="alice")
         assert r1.debug.anticipation is not None
         assert r1.debug.dialogue_trace is not None
 
         # Warmth
-        r2 = pipe.process("I'm grateful for your help, thank you", user_id="paco")
+        r2 = pipe.process("I'm grateful for your help, thank you", user_id="alice")
         assert r2.debug.event_classified == "positive_feedback"
 
         # Spike — betrayal (no "trust" word to avoid diluting negative valence)
-        r3 = pipe.process("You betrayed and deceived me completely!", user_id="paco")
+        r3 = pipe.process("You betrayed and deceived me completely!", user_id="alice")
         assert r3.debug.is_spike is True
         assert r3.debug.unresolved_count > 0
 
         # Resolution
-        r4 = pipe.process("I'm sorry, let's forgive and find peace", user_id="paco")
+        r4 = pipe.process("I'm sorry, let's forgive and find peace", user_id="alice")
         assert r4.debug.unresolved_count < r3.debug.unresolved_count
 
         # End session
-        digested = pipe.end_session(user_id="paco")
+        digested = pipe.end_session(user_id="alice")
         assert digested.summary != ""
         assert len(pipe.short_term) == 0
 

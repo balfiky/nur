@@ -184,11 +184,14 @@ def _coerce_intent(item: Any) -> SelfIntent | None:
 def parse_self_intents(raw: str) -> list[SelfIntent]:
     """Parse the proposer response into a list of intents.
 
-    No catalog filter, no cap. The only things dropped are malformed
-    entries (non-dict items, missing tool_name, non-dict arguments) —
-    that is parser correctness, not a guardrail. The executor itself
-    rejects unknown tool names at call time with a structured failure
-    result.
+    The parser forwards whatever the proposer returns to the executor;
+    policy (which tools exist, what they accept, whether shell is
+    available) lives in the tool layer and is governed by
+    ``tools_enabled`` / ``shell_tool_enabled`` / ``tools_workspace`` in
+    config. Malformed entries (non-dict items, missing ``tool_name``,
+    non-dict arguments) are dropped here as a correctness measure. The
+    executor rejects unknown tool names at call time with a structured
+    failure result.
     """
     array = _extract_json_array(raw)
     if array is None:

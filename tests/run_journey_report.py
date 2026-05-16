@@ -162,14 +162,14 @@ def main():
             "I appreciate everything you do",
             "you are amazing and wonderful",
         ]:
-            p1.process(m, user_id="paco")
-        trust_s1 = p1.person_profiles.get_or_create("paco").trust
-        count_s1 = p1.person_profiles.get_or_create("paco").interaction_count
-        d = p1.end_session(user_id="paco")
+            p1.process(m, user_id="alice")
+        trust_s1 = p1.person_profiles.get_or_create("alice").trust
+        count_s1 = p1.person_profiles.get_or_create("alice").interaction_count
+        d = p1.end_session(user_id="alice")
         lt_s1 = p1.long_term.count()
 
         p2 = pipe_persistent(db)
-        prof2 = p2.person_profiles.get_or_create("paco")
+        prof2 = p2.person_profiles.get_or_create("alice")
         lt_s2 = p2.long_term.count()
         mems = p2.long_term.all()
 

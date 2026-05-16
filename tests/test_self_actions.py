@@ -190,14 +190,14 @@ class TestNote:
         ctx = SelfActionContext(data_dir=tmp_data_dir)
         handlers = _handlers_for(ctx)
         r = handlers["self.note"](
-            {"topic": "people/paco", "text": "x"}
+            {"topic": "people/alice", "text": "x"}
         )
         assert r.success
         # The raw topic is honored — no sanitization. A slash creates a
         # subdirectory under data/self/notes/.
         path = r.metadata["path"]
         assert os.path.exists(path)
-        assert "people/paco.md" in path
+        assert "people/alice.md" in path
 
     def test_missing_text_fails(self, tmp_data_dir):
         ctx = SelfActionContext(data_dir=tmp_data_dir)

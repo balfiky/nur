@@ -558,7 +558,7 @@ class TestDigestion:
             (EventType.WARMTH, 0.5),
             (EventType.POSITIVE_FEEDBACK, 0.7),
         ])
-        result = digest_session(stm, ltm, source_person="paco")
+        result = digest_session(stm, ltm, source_person="alice")
         assert result.summary != ""
         assert len(stm) == 0  # cleared
         assert result.memories_written >= 1  # at least the session summary

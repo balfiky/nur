@@ -194,15 +194,15 @@ class TestSessionPersistence:
                 "you're amazing and wonderful",
             ]
             for msg in warm_msgs:
-                pipe1.process(msg, user_id="paco")
+                pipe1.process(msg, user_id="alice")
 
-            trust_before_end = pipe1.person_profiles.get_or_create("paco").trust
-            pipe1.end_session(user_id="paco")
-            trust_after_session1 = pipe1.person_profiles.get_or_create("paco").trust
+            trust_before_end = pipe1.person_profiles.get_or_create("alice").trust
+            pipe1.end_session(user_id="alice")
+            trust_after_session1 = pipe1.person_profiles.get_or_create("alice").trust
 
             # Session 2: new pipeline, same database
             pipe2 = _pipe_persistent(db_path)
-            profile = pipe2.person_profiles.get_or_create("paco")
+            profile = pipe2.person_profiles.get_or_create("alice")
 
             assert profile.trust > 0.5, (
                 f"trust {profile.trust:.3f} didn't persist above 0.5"
@@ -225,9 +225,9 @@ class TestSessionPersistence:
             pipe1 = _pipe_persistent(db_path)
             pipe1.process(
                 "You betrayed and deceived me completely!",
-                user_id="paco",
+                user_id="alice",
             )
-            pipe1.end_session(user_id="paco")
+            pipe1.end_session(user_id="alice")
 
             pipe2 = _pipe_persistent(db_path)
             memories = pipe2.long_term.all()
