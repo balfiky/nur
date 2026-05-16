@@ -1,6 +1,6 @@
 {
   "provenance": {
-    "git_sha": "8b6b86c4c0eeeaf982a70f02e6ce3eba35506bcd",
+    "git_sha": "e3cf66e1a5c99da3d941d6a127044b6f2e04eaba",
     "git_branch": "main",
     "dirty_worktree": false,
     "backend_type": "mock",
@@ -8,16 +8,16 @@
     "resolved_model": "",
     "base_url": "",
     "host": "paco-M5-PLUS",
-    "started_at": "2026-05-16T08:23:37+00:00",
-    "finished_at": "2026-05-16T08:23:37+00:00",
+    "started_at": "2026-05-16T12:18:23+00:00",
+    "finished_at": "2026-05-16T12:18:23+00:00",
     "scenario_set": "phase11",
     "scenario_count": 6,
     "config_fingerprint_count": 15
   },
   "baseline": {
-    "passed": 5,
+    "passed": 6,
     "total": 6,
-    "assertions_passed": 24,
+    "assertions_passed": 25,
     "assertions_total": 25,
     "llm_calls": 14,
     "latency_s": 0.037
@@ -39,12 +39,12 @@
         "p12_user_mentions_old_rupture",
         "life_influence_affects_policy"
       ],
-      "passed": 3,
+      "passed": 4,
       "total": 6,
-      "assertions_passed": 18,
+      "assertions_passed": 19,
       "assertions_total": 25,
       "llm_calls": 14,
-      "latency_s": 0.026,
+      "latency_s": 0.025,
       "per_scenario": {
         "p11_action_request_practical": {
           "baseline_passed": true,
@@ -57,9 +57,9 @@
           "outcome": "no_effect"
         },
         "p11_low_trust_hostility_boundary": {
-          "baseline_passed": false,
-          "variant_passed": false,
-          "outcome": "unexpected_failure"
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
         },
         "p11_open_loop_challenge": {
           "baseline_passed": true,
@@ -79,8 +79,8 @@
       },
       "counts": {
         "expected_failure": 2,
-        "unexpected_failure": 1,
-        "no_effect": 3,
+        "unexpected_failure": 0,
+        "no_effect": 4,
         "newly_passing": 0
       }
     },
@@ -91,12 +91,12 @@
       ],
       "hypothesis": "Phase 11 assertions check strategy selection and modulator state, both upstream of inner dialogue. No scenario failures are predicted; this ablation primarily produces a metrics delta (LLM calls, latency) that tells us what inner dialogue costs for no structural change.",
       "expected_failures": [],
-      "passed": 5,
+      "passed": 6,
       "total": 6,
-      "assertions_passed": 24,
+      "assertions_passed": 25,
       "assertions_total": 25,
       "llm_calls": 14,
-      "latency_s": 0.025,
+      "latency_s": 0.028,
       "per_scenario": {
         "p11_action_request_practical": {
           "baseline_passed": true,
@@ -109,9 +109,9 @@
           "outcome": "no_effect"
         },
         "p11_low_trust_hostility_boundary": {
-          "baseline_passed": false,
-          "variant_passed": false,
-          "outcome": "unexpected_failure"
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
         },
         "p11_open_loop_challenge": {
           "baseline_passed": true,
@@ -131,8 +131,8 @@
       },
       "counts": {
         "expected_failure": 0,
-        "unexpected_failure": 1,
-        "no_effect": 5,
+        "unexpected_failure": 0,
+        "no_effect": 6,
         "newly_passing": 0
       }
     },
@@ -143,12 +143,12 @@
       ],
       "hypothesis": "Defense shapes response wording; Phase 11 assertions check structural outcomes (strategy, modulators, memory writes) that are upstream of defense. No scenario failures are predicted.",
       "expected_failures": [],
-      "passed": 5,
+      "passed": 6,
       "total": 6,
-      "assertions_passed": 24,
+      "assertions_passed": 25,
       "assertions_total": 25,
       "llm_calls": 14,
-      "latency_s": 0.025,
+      "latency_s": 0.026,
       "per_scenario": {
         "p11_action_request_practical": {
           "baseline_passed": true,
@@ -161,9 +161,9 @@
           "outcome": "no_effect"
         },
         "p11_low_trust_hostility_boundary": {
-          "baseline_passed": false,
-          "variant_passed": false,
-          "outcome": "unexpected_failure"
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
         },
         "p11_open_loop_challenge": {
           "baseline_passed": true,
@@ -183,8 +183,8 @@
       },
       "counts": {
         "expected_failure": 0,
-        "unexpected_failure": 1,
-        "no_effect": 5,
+        "unexpected_failure": 0,
+        "no_effect": 6,
         "newly_passing": 0
       }
     },
@@ -201,12 +201,12 @@
         "semantic_salience_and_recency_ranking",
         "semantic_no_semantic_memory_expected_failure"
       ],
-      "passed": 5,
+      "passed": 6,
       "total": 6,
-      "assertions_passed": 24,
+      "assertions_passed": 25,
       "assertions_total": 25,
       "llm_calls": 14,
-      "latency_s": 0.023,
+      "latency_s": 0.024,
       "per_scenario": {
         "p11_action_request_practical": {
           "baseline_passed": true,
@@ -219,9 +219,9 @@
           "outcome": "no_effect"
         },
         "p11_low_trust_hostility_boundary": {
-          "baseline_passed": false,
-          "variant_passed": false,
-          "outcome": "unexpected_failure"
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
         },
         "p11_open_loop_challenge": {
           "baseline_passed": true,
@@ -241,8 +241,8 @@
       },
       "counts": {
         "expected_failure": 0,
-        "unexpected_failure": 1,
-        "no_effect": 5,
+        "unexpected_failure": 0,
+        "no_effect": 6,
         "newly_passing": 0
       }
     },
@@ -257,9 +257,9 @@
         "life_influence_derived",
         "life_influence_affects_policy"
       ],
-      "passed": 5,
+      "passed": 6,
       "total": 6,
-      "assertions_passed": 24,
+      "assertions_passed": 25,
       "assertions_total": 25,
       "llm_calls": 14,
       "latency_s": 0.026,
@@ -275,9 +275,9 @@
           "outcome": "no_effect"
         },
         "p11_low_trust_hostility_boundary": {
-          "baseline_passed": false,
-          "variant_passed": false,
-          "outcome": "unexpected_failure"
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
         },
         "p11_open_loop_challenge": {
           "baseline_passed": true,
@@ -297,8 +297,8 @@
       },
       "counts": {
         "expected_failure": 0,
-        "unexpected_failure": 1,
-        "no_effect": 5,
+        "unexpected_failure": 0,
+        "no_effect": 6,
         "newly_passing": 0
       }
     },
@@ -334,12 +334,12 @@
         "semantic_salience_and_recency_ranking",
         "lh_open_loop_survives_3_day_gap"
       ],
-      "passed": 3,
+      "passed": 4,
       "total": 6,
-      "assertions_passed": 18,
+      "assertions_passed": 19,
       "assertions_total": 25,
       "llm_calls": 14,
-      "latency_s": 0.021,
+      "latency_s": 0.022,
       "per_scenario": {
         "p11_action_request_practical": {
           "baseline_passed": true,
@@ -352,9 +352,9 @@
           "outcome": "no_effect"
         },
         "p11_low_trust_hostility_boundary": {
-          "baseline_passed": false,
-          "variant_passed": false,
-          "outcome": "unexpected_failure"
+          "baseline_passed": true,
+          "variant_passed": true,
+          "outcome": "no_effect"
         },
         "p11_open_loop_challenge": {
           "baseline_passed": true,
@@ -374,8 +374,8 @@
       },
       "counts": {
         "expected_failure": 2,
-        "unexpected_failure": 1,
-        "no_effect": 3,
+        "unexpected_failure": 0,
+        "no_effect": 4,
         "newly_passing": 0
       }
     }
