@@ -271,3 +271,29 @@ def test_native_runner_accepts_life_influence_and_records_action_effect() -> Non
     assert result.trace.loop_count == 1
     assert result.life_influence_effects["persistence_delta"] == 0.04
     assert result.action_variables.persistence_drive > 0.5
+
+
+def test_install_retry_directive_gated_on_high_risk() -> None:
+    from nur_tools.native_orchestrator import _build_native_tool_system_prompt
+
+    high_risk_prompt = _build_native_tool_system_prompt("high_risk")
+    assisted_prompt = _build_native_tool_system_prompt("assisted")
+    autonomous_prompt = _build_native_tool_system_prompt("autonomous")
+    none_prompt = _build_native_tool_system_prompt(None)
+
+    # The "diagnose, install, retry" directive only ships under high_risk.
+    assert "diagnose, install, retry" in high_risk_prompt
+    assert "diagnose, install, retry" not in assisted_prompt
+    assert "diagnose, install, retry" not in autonomous_prompt
+    assert "diagnose, install, retry" not in none_prompt
+
+    # Non-high-risk operators get the "report failure / no silent install" rule.
+    for p in (assisted_prompt, autonomous_prompt, none_prompt):
+        assert "Do not silently install packages" in p
+        assert "requires" in p
+        assert "high_risk" in p
+
+    # The base + tail content (tool catalog and narration rule) is in all variants.
+    for p in (high_risk_prompt, assisted_prompt, autonomous_prompt, none_prompt):
+        assert "tool controller" in p
+        assert "control__no_tool" in p

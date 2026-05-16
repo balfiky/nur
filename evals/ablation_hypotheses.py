@@ -150,6 +150,7 @@ ABLATIONS: list[Ablation] = [
             "semantic_decision_written_and_retrieved",
             "semantic_topic_bias",
             "semantic_salience_and_recency_ranking",
+            "semantic_no_semantic_memory_expected_failure",
             # Long-horizon open-loop persistence
             "lh_open_loop_survives_3_day_gap",
         ),

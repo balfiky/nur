@@ -233,8 +233,22 @@ def _note(context: SelfActionContext, args: dict[str, Any]) -> ToolResult:
     if not topic or not text:
         return ToolResult(tool_name=name, success=False, output="",
                           error="topic and text are required")
+    if len(topic) > 200:
+        return ToolResult(tool_name=name, success=False, output="",
+                          error="topic too long (max 200 chars)")
+    if os.path.isabs(topic) or topic.startswith(("/", "\\")):
+        return ToolResult(tool_name=name, success=False, output="",
+                          error="topic must be a relative path")
+    segments = [s for s in topic.replace("\\", "/").split("/") if s]
+    if not segments or any(s in ("", ".", "..") for s in segments):
+        return ToolResult(tool_name=name, success=False, output="",
+                          error="topic must not contain '.' or '..' segments")
     directory = _ensure_self_dir(context, "notes")
-    path = os.path.join(directory, f"{topic}.md")
+    notes_root = os.path.realpath(directory)
+    path = os.path.realpath(os.path.join(directory, *segments) + ".md")
+    if not (path == notes_root + ".md" or path.startswith(notes_root + os.sep)):
+        return ToolResult(tool_name=name, success=False, output="",
+                          error="topic resolves outside the notes directory")
     parent = os.path.dirname(path)
     if parent and not os.path.isdir(parent):
         os.makedirs(parent, exist_ok=True)

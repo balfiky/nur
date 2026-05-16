@@ -4,6 +4,65 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.30.2 — 2026-05-16
+
+### Security
+
+- **`self.note` path traversal closed.** The `topic` argument now
+  rejects absolute paths, `.` / `..` segments, and any value that
+  resolves outside the notes directory under `data/self/notes/`.
+  Forward-slash subdirectory creation (the originally intended feature)
+  is preserved. 8 new parameterized regression tests cover the
+  rejected shapes.
+- **Native tool-controller "install-and-retry" directive now gated on
+  `autonomy_level: high_risk`.** Under `assisted` (default) and
+  `autonomous`, the system prompt explicitly tells the model to report
+  dependency failures honestly rather than running `pip` / `conda` /
+  `apt` on the host. The aggressive directive is preserved verbatim
+  for `high_risk` operators. One new prompt-assembly regression test.
+- **Hostname removed from eval provenance.** `evals.provenance` now
+  reads `NUR_EVAL_HOST` from the environment and defaults to `"local"`
+  instead of `socket.gethostname()`, eliminating a developer-hostname
+  leak from every committed ablation summary.
+
+### Changed
+
+- **Eval evidence.** All four committed ablation summaries refreshed
+  on a clean worktree with the sanitized provenance: `summary.json`
+  (phase11) 6/6, `relationship_phase12_summary.json` 7/7,
+  `life_history_summary.json` 6/6, `semantic_memory_summary.json`
+  6/6. The `baseline_prompt_only` expected-failures table now
+  includes `semantic_no_semantic_memory_expected_failure`, which
+  removes the lone unexpected_failure that had remained in the
+  semantic-memory artifact.
+- **Doc test counts** aligned across `docs/UAT.md`,
+  `docs/STUDY_GUIDE.md`, and `docs/DEPLOYMENT_AND_ADMIN.md` to the
+  live numbers (1953 non-UAT / 67 UAT, previously 1830 / 64).
+- **Self-intent framing** in `config/prompts/self_intent.md` and the
+  `parse_self_intents` docstring now describe the policy boundary as
+  living in the tool layer (`tools_enabled` /
+  `shell_tool_enabled` / `tools_workspace`) rather than as
+  "nothing filters or vetoes your picks." Behavior unchanged.
+- **README "Current Status"** clarifies that CI runs the non-UAT
+  suite plus a mock-backed UAT gate, while the live 67-test UAT
+  suite is operator-run via `make uat-comprehensive` against a real
+  backend.
+- **SECURITY.md** explains the `tools_enabled: false` posture more
+  precisely: internal skill-registry tools are wired even when
+  external tools are off; filesystem / browser / web / calendar /
+  shell remain gated.
+- **CITATION.cff** abstract updated to reflect the current multi-layer
+  memory model and engineering scope (was still describing a "dual
+  memory system" of short-term and long-term).
+
+### Personal-trace scrub
+
+- Renamed `paco` to `alice` in 6 test files and the `self_intent.md`
+  example payload — caught by a final personal-trace sweep after the
+  earlier v0.30.1 scrub.
+
+---
+
 ## v0.30.1 — 2026-05-16
 
 ### Changed — scrub personal traces from non-identity files

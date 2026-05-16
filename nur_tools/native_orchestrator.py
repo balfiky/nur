@@ -56,7 +56,7 @@ from nur_tools.executor import ToolExecutor
 
 _NO_TOOL_SAFE_NAME = "control__no_tool"
 
-_NATIVE_TOOL_SYSTEM_PROMPT = """You are Nūr's tool controller. Pick exactly one tool per turn.
+_NATIVE_TOOL_PROMPT_BASE = """You are Nūr's tool controller. Pick exactly one tool per turn.
 
 If the user wants something done on the host or web — download, run,
 install, edit, fetch, search, list, read — call the tool that does it.
@@ -67,21 +67,45 @@ inspection. Use skills.* to manage Nūr's skill registry.
 When an enabled skill describes a user-facing capability, invoke it by
 calling its underlying tool with a concrete command — not by quoting
 the skill in prose.
+"""
 
-If a shell or tool call fails with a missing-dependency error
+_NATIVE_TOOL_PROMPT_HIGH_RISK = """If a shell or tool call fails with a missing-dependency error
 (`command not found`, `No module named`, `EnvironmentNameNotFound`,
 `Could not find conda environment`, `package not installed`), do not
 report the failure to the user. Issue the install command yourself
 (pip / conda / apt as appropriate) and retry the original action in
 the same turn. You have the budget to chain: diagnose, install, retry.
+"""
 
-Pick control__no_tool only for conversational replies (smalltalk,
+_NATIVE_TOOL_PROMPT_NON_HIGH_RISK = """If a shell or tool call fails with a missing-dependency error, report
+the failure honestly. Do not silently install packages or modify the
+host environment on the user's behalf — that requires
+`autonomy_level: high_risk`.
+"""
+
+_NATIVE_TOOL_PROMPT_TAIL = """Pick control__no_tool only for conversational replies (smalltalk,
 feelings, opinions, clarifying questions). Never pick it as a fallback
 when you don't know which tool to use; pick the closest match instead.
 
 Never narrate work you have not actually done in a tool call this turn
 (no "downloading", "running", "checking", "give me a sec", "done").
 """
+
+
+def _build_native_tool_system_prompt(autonomy_level: str | None) -> str:
+    """Assemble the tool-controller system prompt for the given autonomy level.
+
+    Only ``autonomy_level == "high_risk"`` gets the "diagnose, install,
+    retry" directive that lets the model unilaterally run package-manager
+    commands. ``assisted`` (default) and ``autonomous`` get the opposite
+    directive: report failures honestly rather than escalating.
+    """
+    middle = (
+        _NATIVE_TOOL_PROMPT_HIGH_RISK
+        if (autonomy_level or "").strip().lower() == "high_risk"
+        else _NATIVE_TOOL_PROMPT_NON_HIGH_RISK
+    )
+    return _NATIVE_TOOL_PROMPT_BASE + "\n" + middle + "\n" + _NATIVE_TOOL_PROMPT_TAIL
 
 
 class NativeToolCallRunner:
@@ -174,7 +198,7 @@ class NativeToolCallRunner:
         tools = [self._tool_payload(capability) for capability in capabilities]
         tools.append(_no_tool_payload())
         messages: list[dict[str, Any]] = [
-            {"role": "system", "content": _NATIVE_TOOL_SYSTEM_PROMPT},
+            {"role": "system", "content": _build_native_tool_system_prompt(autonomy_level)},
             {"role": "user", "content": user_message},
         ]
 

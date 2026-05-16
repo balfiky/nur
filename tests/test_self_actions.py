@@ -205,6 +205,31 @@ class TestNote:
         r = handlers["self.note"]({"topic": "x"})
         assert not r.success
 
+    @pytest.mark.parametrize("bad_topic", [
+        "../etc/passwd",
+        "people/../../escape",
+        "/absolute/path",
+        "\\windows\\style",
+        ".",
+        "..",
+        "./.",
+        "people/..",
+    ])
+    def test_traversal_topics_rejected(self, tmp_data_dir, bad_topic):
+        ctx = SelfActionContext(data_dir=tmp_data_dir)
+        handlers = _handlers_for(ctx)
+        r = handlers["self.note"]({"topic": bad_topic, "text": "x"})
+        assert not r.success
+        assert r.error
+        notes_root = os.path.realpath(os.path.join(tmp_data_dir, "self", "notes"))
+        for root, _dirs, files in os.walk(os.path.dirname(notes_root) or "/"):
+            for fname in files:
+                full = os.path.realpath(os.path.join(root, fname))
+                if full == notes_root + ".md":
+                    pytest.fail(f"unexpected file at {full}")
+                if full.startswith(notes_root + os.sep):
+                    continue
+
 
 # ---------------------------------------------------------------------------
 # self.verify

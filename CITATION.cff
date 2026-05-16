@@ -2,16 +2,23 @@ cff-version: 1.2.0
 message: "If you use Project Nūr in academic work, please cite it as below."
 title: "Project Nūr: A Hybrid Cognitive Architecture for Relational Continuity in AI Assistants"
 abstract: >-
-  Project Nūr is an experimental cognitive architecture for AI assistants
-  that treats emotion as persistent internal state rather than a stylistic
-  prompt layer. It combines six continuous modulators (arousal, valence,
-  certainty, bonding, energy, resolution), a dual memory system (short-term
-  and long-term), unified self/other profiling, deterministic social
-  appraisal, response strategy selection, bounded dual-process deliberation,
-  and defense-mechanism-based expression shaping. The implementation is
-  inspired by PSI Theory, ACT-R, and CLARION, but is presented as
-  engineering-oriented synthesis rather than a faithful implementation of
-  any one framework.
+  Project Nūr is an experimental cognitive runtime that gives LLM agents
+  persistent state outside the model: memory, identity, relational
+  continuity, affective state, and accumulated learning. It treats
+  emotion as persistent internal state rather than a stylistic prompt
+  layer, combining six continuous modulators (arousal, valence,
+  certainty, bonding, energy, resolution) with a multi-layer memory
+  system (short-term, long-term, relationship arc, semantic memory,
+  and a shared Life History store for identity-level experiences),
+  unified self/other profiling, deterministic social appraisal,
+  response-strategy selection, bounded dual-process deliberation,
+  defense-mechanism-based expression shaping, a self-evolution
+  metabolism (belief decay, theme-to-belief promotion, drive-gap
+  detection), trigger-time skill loading, and a gated agentic tool
+  layer (off by default; filesystem sandboxed; shell as a separate
+  opt-in). The implementation is inspired by PSI Theory, ACT-R, and
+  CLARION, but is presented as engineering-oriented synthesis rather
+  than a faithful implementation of any one framework.
 authors:
   - family-names: Alfiky
     given-names: Bassem

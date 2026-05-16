@@ -65,8 +65,24 @@ extra scrutiny:
 Nūr ships with a builtin agentic tool layer (`tools/builtin/`) that can
 match user text to actions like `fs.read_file`, `fs.write_file`,
 `fs.delete_path`, `shell.run_command`, and web/browser/calendar calls via
-regex heuristics in `core/dual_process/tool_loop.py`. **Tools are off by
-default** (`tools_enabled: false`). When you turn them on:
+regex heuristics in `core/dual_process/tool_loop.py`. **External tools are
+off by default** (`tools_enabled: false`). With `tools_enabled: false`,
+`runtime/tools.py` still wires Nūr's internal **skill-registry tools**
+(`skills.create`, `skills.audit`, `skills.enable`, etc.) into the executor
+so the assistant can manage durable skills through the observable tool
+trace; filesystem, browser, web, calendar, and shell capabilities remain
+excluded until `tools_enabled: true`, and `shell.run_command` additionally
+requires `shell_tool_enabled: true`.
+
+Additionally, the native tool-controller system prompt
+(`nur_tools/native_orchestrator.py`) only emits the "diagnose, install,
+retry" directive — which lets the model unilaterally run package-manager
+commands on missing-dependency errors — when
+`autonomy_level: high_risk`. Under `assisted` (default) and `autonomous`
+the prompt explicitly instructs the model to report dependency failures
+honestly rather than silently install packages.
+
+When you turn external tools on:
 
 - Filesystem tools are sandboxed to
   `tools_workspace` — paths that resolve outside that directory are
