@@ -1,6 +1,6 @@
 {
   "provenance": {
-    "git_sha": "4f02e45386ef0925ba43b9108dd1b097600001f3",
+    "git_sha": "5c30e7e2c8af60da44d3fb9a8a05761f71763fed",
     "git_branch": "main",
     "dirty_worktree": false,
     "backend_type": "mock",
@@ -8,8 +8,8 @@
     "resolved_model": "",
     "base_url": "",
     "host": "local",
-    "started_at": "2026-05-16T12:36:13+00:00",
-    "finished_at": "2026-05-16T12:36:13+00:00",
+    "started_at": "2026-05-16T13:33:01+00:00",
+    "finished_at": "2026-05-16T13:33:01+00:00",
     "scenario_set": "phase13_life",
     "scenario_count": 6,
     "config_fingerprint_count": 15
@@ -20,7 +20,7 @@
     "assertions_passed": 13,
     "assertions_total": 13,
     "llm_calls": 8,
-    "latency_s": 0.53
+    "latency_s": 0.504
   },
   "ablations": [
     {
@@ -44,7 +44,7 @@
       "assertions_passed": 12,
       "assertions_total": 13,
       "llm_calls": 8,
-      "latency_s": 0.51,
+      "latency_s": 0.495,
       "per_scenario": {
         "life_belief_revision_visible": {
           "baseline_passed": true,
@@ -96,7 +96,7 @@
       "assertions_passed": 13,
       "assertions_total": 13,
       "llm_calls": 8,
-      "latency_s": 0.506,
+      "latency_s": 0.499,
       "per_scenario": {
         "life_belief_revision_visible": {
           "baseline_passed": true,
@@ -148,7 +148,7 @@
       "assertions_passed": 13,
       "assertions_total": 13,
       "llm_calls": 8,
-      "latency_s": 0.5,
+      "latency_s": 0.496,
       "per_scenario": {
         "life_belief_revision_visible": {
           "baseline_passed": true,
@@ -206,7 +206,7 @@
       "assertions_passed": 13,
       "assertions_total": 13,
       "llm_calls": 8,
-      "latency_s": 0.508,
+      "latency_s": 0.501,
       "per_scenario": {
         "life_belief_revision_visible": {
           "baseline_passed": true,
@@ -262,7 +262,7 @@
       "assertions_passed": 10,
       "assertions_total": 13,
       "llm_calls": 8,
-      "latency_s": 0.502,
+      "latency_s": 0.501,
       "per_scenario": {
         "life_belief_revision_visible": {
           "baseline_passed": true,
@@ -332,6 +332,7 @@
         "semantic_decision_written_and_retrieved",
         "semantic_topic_bias",
         "semantic_salience_and_recency_ranking",
+        "semantic_no_semantic_memory_expected_failure",
         "lh_open_loop_survives_3_day_gap"
       ],
       "passed": 3,
@@ -339,7 +340,7 @@
       "assertions_passed": 10,
       "assertions_total": 13,
       "llm_calls": 8,
-      "latency_s": 0.498,
+      "latency_s": 0.499,
       "per_scenario": {
         "life_belief_revision_visible": {
           "baseline_passed": true,
