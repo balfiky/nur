@@ -1,6 +1,6 @@
 {
   "provenance": {
-    "git_sha": "5c30e7e2c8af60da44d3fb9a8a05761f71763fed",
+    "git_sha": "3d3f869c33d9dca810be232fea4f1dbd6759080a",
     "git_branch": "main",
     "dirty_worktree": false,
     "backend_type": "mock",
@@ -8,8 +8,8 @@
     "resolved_model": "",
     "base_url": "",
     "host": "local",
-    "started_at": "2026-05-16T13:33:00+00:00",
-    "finished_at": "2026-05-16T13:33:00+00:00",
+    "started_at": "2026-05-16T20:05:43+00:00",
+    "finished_at": "2026-05-16T20:05:43+00:00",
     "scenario_set": "phase11",
     "scenario_count": 6,
     "config_fingerprint_count": 15
@@ -20,7 +20,7 @@
     "assertions_passed": 25,
     "assertions_total": 25,
     "llm_calls": 14,
-    "latency_s": 0.037
+    "latency_s": 0.036
   },
   "ablations": [
     {
@@ -96,7 +96,7 @@
       "assertions_passed": 25,
       "assertions_total": 25,
       "llm_calls": 14,
-      "latency_s": 0.026,
+      "latency_s": 0.025,
       "per_scenario": {
         "p11_action_request_practical": {
           "baseline_passed": true,
@@ -206,7 +206,7 @@
       "assertions_passed": 25,
       "assertions_total": 25,
       "llm_calls": 14,
-      "latency_s": 0.023,
+      "latency_s": 0.024,
       "per_scenario": {
         "p11_action_request_practical": {
           "baseline_passed": true,
@@ -262,7 +262,7 @@
       "assertions_passed": 25,
       "assertions_total": 25,
       "llm_calls": 14,
-      "latency_s": 0.027,
+      "latency_s": 0.026,
       "per_scenario": {
         "p11_action_request_practical": {
           "baseline_passed": true,

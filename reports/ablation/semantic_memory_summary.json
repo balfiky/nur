@@ -1,6 +1,6 @@
 {
   "provenance": {
-    "git_sha": "5c30e7e2c8af60da44d3fb9a8a05761f71763fed",
+    "git_sha": "3d3f869c33d9dca810be232fea4f1dbd6759080a",
     "git_branch": "main",
     "dirty_worktree": false,
     "backend_type": "mock",
@@ -8,8 +8,8 @@
     "resolved_model": "",
     "base_url": "",
     "host": "local",
-    "started_at": "2026-05-16T13:33:04+00:00",
-    "finished_at": "2026-05-16T13:33:04+00:00",
+    "started_at": "2026-05-16T20:05:48+00:00",
+    "finished_at": "2026-05-16T20:05:48+00:00",
     "scenario_set": "semantic_memory",
     "scenario_count": 6,
     "config_fingerprint_count": 15
@@ -44,7 +44,7 @@
       "assertions_passed": 20,
       "assertions_total": 20,
       "llm_calls": 12,
-      "latency_s": 0.028,
+      "latency_s": 0.027,
       "per_scenario": {
         "semantic_decision_written_and_retrieved": {
           "baseline_passed": true,
@@ -96,7 +96,7 @@
       "assertions_passed": 20,
       "assertions_total": 20,
       "llm_calls": 12,
-      "latency_s": 0.029,
+      "latency_s": 0.03,
       "per_scenario": {
         "semantic_decision_written_and_retrieved": {
           "baseline_passed": true,
@@ -148,7 +148,7 @@
       "assertions_passed": 20,
       "assertions_total": 20,
       "llm_calls": 12,
-      "latency_s": 0.029,
+      "latency_s": 0.03,
       "per_scenario": {
         "semantic_decision_written_and_retrieved": {
           "baseline_passed": true,
@@ -206,7 +206,7 @@
       "assertions_passed": 13,
       "assertions_total": 20,
       "llm_calls": 12,
-      "latency_s": 0.027,
+      "latency_s": 0.026,
       "per_scenario": {
         "semantic_decision_written_and_retrieved": {
           "baseline_passed": true,
@@ -262,7 +262,7 @@
       "assertions_passed": 20,
       "assertions_total": 20,
       "llm_calls": 12,
-      "latency_s": 0.03,
+      "latency_s": 0.029,
       "per_scenario": {
         "semantic_decision_written_and_retrieved": {
           "baseline_passed": true,
@@ -340,7 +340,7 @@
       "assertions_passed": 13,
       "assertions_total": 20,
       "llm_calls": 12,
-      "latency_s": 0.025,
+      "latency_s": 0.026,
       "per_scenario": {
         "semantic_decision_written_and_retrieved": {
           "baseline_passed": true,

@@ -1,6 +1,6 @@
 {
   "provenance": {
-    "git_sha": "5c30e7e2c8af60da44d3fb9a8a05761f71763fed",
+    "git_sha": "3d3f869c33d9dca810be232fea4f1dbd6759080a",
     "git_branch": "main",
     "dirty_worktree": false,
     "backend_type": "mock",
@@ -8,8 +8,8 @@
     "resolved_model": "",
     "base_url": "",
     "host": "local",
-    "started_at": "2026-05-16T13:33:00+00:00",
-    "finished_at": "2026-05-16T13:33:00+00:00",
+    "started_at": "2026-05-16T20:05:43+00:00",
+    "finished_at": "2026-05-16T20:05:43+00:00",
     "scenario_set": "phase12_relationship",
     "scenario_count": 7,
     "config_fingerprint_count": 15
@@ -20,7 +20,7 @@
     "assertions_passed": 31,
     "assertions_total": 31,
     "llm_calls": 30,
-    "latency_s": 0.054
+    "latency_s": 0.053
   },
   "ablations": [
     {
@@ -44,7 +44,7 @@
       "assertions_passed": 21,
       "assertions_total": 31,
       "llm_calls": 30,
-      "latency_s": 0.043,
+      "latency_s": 0.041,
       "per_scenario": {
         "p12_commitment_persists_across_session": {
           "baseline_passed": true,
@@ -101,7 +101,7 @@
       "assertions_passed": 31,
       "assertions_total": 31,
       "llm_calls": 30,
-      "latency_s": 0.043,
+      "latency_s": 0.042,
       "per_scenario": {
         "p12_commitment_persists_across_session": {
           "baseline_passed": true,
@@ -365,7 +365,7 @@
       "assertions_passed": 21,
       "assertions_total": 31,
       "llm_calls": 30,
-      "latency_s": 0.033,
+      "latency_s": 0.035,
       "per_scenario": {
         "p12_commitment_persists_across_session": {
           "baseline_passed": true,
