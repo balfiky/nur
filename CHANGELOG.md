@@ -4,6 +4,26 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.30.3 — 2026-05-16
+
+### Security
+- **`nur-web` startup guard.** The launcher now refuses to bind a
+  non-loopback interface (anything other than `127.0.0.1` /
+  `localhost` / `::1`) when `api_key` is empty in the runtime config.
+  Exits with code 2 and a clear error pointing at the config file.
+  Operators with an external auth layer (reverse proxy, VPN,
+  Tailscale) can override with `--allow-unauthenticated-bind`. Closes
+  the prior gap where `nur-web --host 0.0.0.0` would happily bind an
+  unauthenticated server. 7 new regression tests.
+
+### Changed
+- **Test count metadata aligned to 1962** (was 1953) across README,
+  `docs/UAT.md`, and `docs/DEPLOYMENT_AND_ADMIN.md`. Drift caused by
+  the new path-traversal and launcher-guard regression tests landing
+  in v0.30.2 / v0.30.3.
+
+---
+
 ## v0.30.2 — 2026-05-16
 
 ### Security

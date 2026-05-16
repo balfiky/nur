@@ -3258,6 +3258,16 @@ def _parse_web_args(argv: list[str] | None = None):
         help="Runtime config YAML path (default: runtime_config.yaml).",
     )
     parser.add_argument(
+        "--allow-unauthenticated-bind",
+        action="store_true",
+        help=(
+            "Override the safety guard that refuses to bind to a non-loopback "
+            "interface when `api_key` is empty in the runtime config. Only use "
+            "this if you have an external auth layer (reverse proxy, VPN, "
+            "Tailscale) in front of Nūr."
+        ),
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=f"project-nur {_web_version()}",
@@ -3265,14 +3275,47 @@ def _parse_web_args(argv: list[str] | None = None):
     return parser.parse_args(argv)
 
 
+_LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
+def _is_loopback_host(host: str) -> bool:
+    return (host or "").strip().lower() in _LOOPBACK_HOSTS
+
+
 def main() -> None:
-    """Launch the standalone web UI on the configured host/port."""
+    """Launch the standalone web UI on the configured host/port.
+
+    Refuses to bind to a non-loopback interface when ``api_key`` is empty
+    in the runtime config — the bundled HTTP surface ships memory,
+    identity, admin, and (when enabled) tool endpoints, so an open bind
+    without a bearer-auth requirement is a footgun. Pass
+    ``--allow-unauthenticated-bind`` if you have an external auth layer
+    in front of Nūr.
+    """
     import uvicorn
 
     args = _parse_web_args()
     global RUNTIME_CONFIG_PATH
     RUNTIME_CONFIG_PATH = args.config
     os.environ["NUR_RUNTIME_CONFIG"] = args.config
+
+    if not _is_loopback_host(args.host) and not args.allow_unauthenticated_bind:
+        try:
+            cfg = RuntimeConfig.from_yaml(args.config)
+        except Exception:
+            cfg = None
+        api_key = (getattr(cfg, "api_key", "") or "").strip() if cfg else ""
+        if not api_key:
+            print(
+                f"refusing to bind to {args.host!r}: api_key is empty in "
+                f"{args.config!r}.\n"
+                "Set `api_key` in runtime_config.yaml before exposing Nūr "
+                "beyond localhost, or pass --allow-unauthenticated-bind if "
+                "you have an external auth layer (reverse proxy, VPN, Tailscale).",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
     uvicorn.run("interface.api:app", host=args.host, port=args.port)
 
 

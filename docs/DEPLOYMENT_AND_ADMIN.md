@@ -429,7 +429,7 @@ tick fires automatically on session start.
 The repository includes a Makefile with three test entry points:
 
 ```bash
-make test                 # 1953 unit/integration tests, ~3 min, no LLM
+make test                 # 1962 unit/integration tests, ~3 min, no LLM
 make uat                  # 67 UAT tests, ~14 min, requires NUR_UAT_LIVE=1 + a real backend
 make uat-comprehensive    # one PASS/FAIL aggregator over the whole UAT suite
 ```

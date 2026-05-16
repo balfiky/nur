@@ -99,6 +99,13 @@ When you turn external tools on:
   `api_key` and keep `shell_tool_enabled: false` unless you trust every
   caller.
 
+The `nur-web` launcher enforces this at startup: it refuses to bind to
+a non-loopback interface (anything other than `127.0.0.1` / `localhost`
+/ `::1`) when `api_key` is empty in the runtime config, exiting with
+code 2 and a clear error. Operators with an external auth layer
+(reverse proxy, VPN, Tailscale) can override the guard with
+`--allow-unauthenticated-bind`.
+
 When `api_key` is set, every mutating and data-bearing endpoint on the
 standalone web server requires `Authorization: Bearer <api_key>`:
 `/chat`, `/debug`, `/config` (GET and POST), `/session/end`, `/rest`,
