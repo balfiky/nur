@@ -1163,6 +1163,38 @@ select:focus {
   background: rgba(15, 23, 42, 0.35);
 }
 
+.setup-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem 1.125rem;
+  margin-bottom: 1.125rem;
+  background: color-mix(in srgb, var(--warn, #d97706) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--warn, #d97706) 40%, var(--border));
+  border-left-width: 0.25rem;
+  border-radius: 0.5rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.setup-banner > div { flex: 1 1 18rem; }
+
+.setup-banner strong { margin-right: 0.35rem; }
+
+.setup-banner .button-link {
+  display: inline-block;
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.375rem;
+  background: var(--primary, #2563eb);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.setup-banner .button-link:hover { filter: brightness(1.05); }
+
 .field {
   display: grid;
   gap: 0.5rem;

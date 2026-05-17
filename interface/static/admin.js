@@ -416,6 +416,8 @@ const state = createSurfaceState({
     const tools = status.tools || {};
     const sessions = status.sessions || {};
     const setup = status.setup || {};
+    const setupBanner = document.getElementById("setupIncompleteBanner");
+    if (setupBanner) setupBanner.hidden = !!setup.completed;
     const cards = [
       ["LLM", status.llm_configured ? "Configured" : "Not configured", status.llm_backend || "auto"],
       ["Auth", status.auth_enabled ? "Enabled" : "Disabled", status.auth_enabled ? "Bearer token required" : "Open local surface"],

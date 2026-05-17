@@ -4,6 +4,22 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.30.8 — 2026-05-17
+
+### UI
+
+- **Setup-incomplete banner on `/settings`.** If an operator navigates
+  directly to `/settings#overview` (or any settings hash route) before
+  finishing the first-run wizard at `/`, the overview page now shows
+  a non-blocking warning banner pointing back at the wizard. Reads
+  `status.setup.completed` from `/admin/status`; banner hides once
+  setup is marked complete. No behavior change — settings remains
+  fully usable for operators who prefer manual configuration.
+
+No code or test changes outside the bundled UI.
+
+---
+
 ## v0.30.7 — 2026-05-17
 
 ### Breaking: bearer auth is now opt-in, not auto-enforced
