@@ -11,6 +11,7 @@ new operators hit on first install. Override remains
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -37,6 +38,25 @@ def fake_uvicorn(monkeypatch):
     import uvicorn
     monkeypatch.setattr(uvicorn, "run", fake_run)
     return calls
+
+
+@pytest.fixture(autouse=True)
+def _restore_runtime_config_globals(monkeypatch):
+    """``nur_api.main()`` mutates ``RUNTIME_CONFIG_PATH`` and the
+    ``NUR_RUNTIME_CONFIG`` env var as a side effect of CLI arg parsing,
+    so subsequent tests that import the FastAPI app would otherwise pick
+    up our tmp configs (which may have an auto-generated api_key, causing
+    them to hit 401 on endpoints under bearer auth). Restore both
+    after every test in this module.
+    """
+    original_path = nur_api.RUNTIME_CONFIG_PATH
+    original_env = os.environ.get("NUR_RUNTIME_CONFIG")
+    yield
+    nur_api.RUNTIME_CONFIG_PATH = original_path
+    if original_env is None:
+        os.environ.pop("NUR_RUNTIME_CONFIG", None)
+    else:
+        os.environ["NUR_RUNTIME_CONFIG"] = original_env
 
 
 class TestLoopbackBinds:

@@ -4,6 +4,42 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.30.6 — 2026-05-17
+
+### First-run UX (continued)
+
+`v0.30.5` made `nur-web` auto-generate a bearer token on first
+non-loopback bind, but the bundled UI still left operators staring
+at a silent 401. This release closes that:
+
+- **Token dialog auto-opens on first page load** for `/admin` and the
+  persona dashboard when `/v1/ready` reports `auth_enabled: true` and
+  this browser session has no stored token. No more "click → 401 →
+  modal appears with no context" race.
+- **Token dialog copy rewritten** with a concrete first-run hint
+  pointing operators at the `nur-web` stderr banner:
+  ```
+  Generated api_key for non-loopback bind (0.0.0.0):
+    <your-token>
+  ```
+  Same wording on admin and persona pages so the cue is consistent.
+- **Chat page (`/`) prompts for the token via `window.prompt`** on
+  page load if auth is enabled and no token is stored, and again on a
+  `/chat` 401 (with a "current token was rejected" hint when one was
+  already set). The chat shell is otherwise minimal and does not have
+  its own `<dialog>` overlay.
+
+### Bug fix
+
+- **Test isolation.** The `nur-web` launcher tests now restore
+  `RUNTIME_CONFIG_PATH` and `$NUR_RUNTIME_CONFIG` after each test, so
+  running the launcher suite first no longer leaks a tmp config path
+  with an auto-generated `api_key` into later test modules (which
+  showed up as a spurious 401 in
+  `test_tools_disabled_still_lists_internal_skill_registry`).
+
+---
+
 ## v0.30.5 — 2026-05-17
 
 ### First-run UX

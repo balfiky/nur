@@ -13,7 +13,7 @@
   <a href="https://github.com/balfiky/nur/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/balfiky/nur/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-F5A65B?style=for-the-badge" alt="MIT License"></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/python-3.10%2B-7A4A8C?style=for-the-badge" alt="Python 3.10+"></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.30.5-1A1428?style=for-the-badge" alt="Version"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.30.6-1A1428?style=for-the-badge" alt="Version"></a>
 </p>
 
 <p align="center">
@@ -348,7 +348,7 @@ docs/       Public docs, design docs, diagrams, research notes
 
 ## Current Status
 
-Version `0.30.5`. Reproducible eval evidence is intentionally narrow: relationship memory remains load-bearing under Phase 11, Life History now has bounded structural influence through LifeInfluence under Phase 13, and semantic memory has a dedicated structural scenario suite. The web and Telegram surfaces expose this state through presentation-only introspection. A 67-test UAT suite covers chat flows, admin surfaces, browser interactions, file uploads, tool calling, skill acquisition, and the self-evolution mechanics; it is **live-LLM by design** and is **not run on every push** — CI runs the unit/integration suite plus a mock-backed UAT collection-and-smoke gate. To exercise the full live UAT suite locally, run `make uat-comprehensive` against a real backend (see [docs/UAT.md](docs/UAT.md)). These are structural/inspectable results, not proof of human-likeness, therapeutic value, consciousness, or psychological validity.
+Version `0.30.6`. Reproducible eval evidence is intentionally narrow: relationship memory remains load-bearing under Phase 11, Life History now has bounded structural influence through LifeInfluence under Phase 13, and semantic memory has a dedicated structural scenario suite. The web and Telegram surfaces expose this state through presentation-only introspection. A 67-test UAT suite covers chat flows, admin surfaces, browser interactions, file uploads, tool calling, skill acquisition, and the self-evolution mechanics; it is **live-LLM by design** and is **not run on every push** — CI runs the unit/integration suite plus a mock-backed UAT collection-and-smoke gate. To exercise the full live UAT suite locally, run `make uat-comprehensive` against a real backend (see [docs/UAT.md](docs/UAT.md)). These are structural/inspectable results, not proof of human-likeness, therapeutic value, consciousness, or psychological validity.
 
 ### Known Gaps
 

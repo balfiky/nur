@@ -168,9 +168,17 @@
 
 <dialog id="tokenDialog">
   <form method="dialog" class="token-form">
-    <h2>API Token</h2>
-    <p class="muted">If auth is enabled, enter the bearer token for this browser session.</p>
-    <input id="apiTokenInput" type="password" autocomplete="off" placeholder="Bearer token">
+    <h2>API Token Required</h2>
+    <p class="muted">
+      This Nūr server is bound to a non-loopback host, so endpoints require
+      a bearer token. <strong>First-time setup?</strong> When
+      <code>nur-web</code> started, it printed a
+      <code>Generated api_key for non-loopback bind</code> banner to the
+      server's terminal output — paste that token here. You can also
+      rotate it via the admin <strong>API Token</strong> button or by
+      editing <code>runtime_config.yaml</code>.
+    </p>
+    <input id="apiTokenInput" type="password" autocomplete="off" placeholder="Paste your bearer token here">
     <div class="button-row">
       <button class="secondary" value="cancel">Cancel</button>
       <button class="primary" id="saveTokenBtn" value="default">Save</button>
