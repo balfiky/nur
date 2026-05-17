@@ -4,6 +4,68 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.30.7 — 2026-05-17
+
+### Breaking: bearer auth is now opt-in, not auto-enforced
+
+Reverts the v0.30.3 "non-loopback bind guard" and the v0.30.5 auto-key
+generation. On a personal install, `nur-web --host 0.0.0.0` again
+opens the browser setup wizard at `/` exactly as it did before
+v0.30.3 — no token required, no auto-generated key, no
+`--allow-unauthenticated-bind` flag to remember.
+
+The v0.30.3 → v0.30.6 chain was overreach for a tool that's
+overwhelmingly used as a personal local server. It blocked the
+first-run setup wizard on a fresh install and forced normal users
+to read a terminal banner to find an auto-generated bearer token
+just to access their own machine. Aligning with the local-LLM
+convention (Ollama, LM Studio, Jupyter) — open by default, auth is
+operator opt-in — restores the previous UX without taking anything
+real off the table for operators who do need bearer auth.
+
+### Changed
+
+- **`nur-web` binds wherever you ask it to.** No `api_key` is ever
+  invented, refused, or auto-generated. The setup wizard at `/` is
+  reachable on first run on any host.
+- **Non-loopback bind without `api_key` set** prints a one-screen
+  warning to stderr explaining that the surface is reachable from the
+  network, then binds. The operator can ignore it (single-user
+  tailnet, trusted home network) or stop the server and set `api_key`
+  in `runtime_config.yaml`.
+- **`--allow-unauthenticated-bind` flag removed.** It was the override
+  for a guard that no longer exists.
+- **Browser token-dialog auto-open removed.** The dialog only opens
+  reactively on a real `401` from a protected endpoint — i.e., only
+  when the operator deliberately set `api_key` in the config.
+- **Dialog copy on `/admin` and `/persona` rewritten** to describe the
+  new reality: "this server has `api_key` set, paste it here."
+- **Chat-page `window.prompt` on init removed.** Chat only prompts
+  reactively on a `/chat` 401, the same way.
+
+### Kept from v0.30.5/v0.30.6
+
+- First-run config bootstrap: missing `runtime_config.yaml` is
+  auto-created with safe defaults on `nur-web` startup, so a clean
+  `pip install` → `nur-web` flow Just Works.
+- Launcher test-isolation fix (`RUNTIME_CONFIG_PATH` and
+  `$NUR_RUNTIME_CONFIG` restored per-test).
+- The opt-in auth surface itself — `api_key` in
+  `runtime_config.yaml`, bearer-token check on protected endpoints,
+  `/admin → API Token` button — is unchanged. Operators who do want
+  bearer auth set it themselves.
+
+### Tests
+
+- Launcher suite restructured to test the new behavior:
+  `TestLoopbackBinds` (binds silently), `TestNonLoopbackBinds`
+  (binds with warning when no `api_key`, silently when set),
+  `TestFirstRunBootstrap` (auto-creates config on both bind types).
+- `test_main_honors_host_and_port_flags` no longer needs
+  `--allow-unauthenticated-bind`.
+
+---
+
 ## v0.30.6 — 2026-05-17
 
 ### First-run UX (continued)

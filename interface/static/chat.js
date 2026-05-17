@@ -64,28 +64,16 @@ async function authedFetch(url, opts) {
   return fetch(url, o);
 }
 
-// When the chat page loads against an auth-enabled server with no stored
-// token, prompt the operator with the same first-run hint surfaced on the
-// admin page (the bearer token was printed to the nur-web stderr banner).
-// Returns true if a token is set (or auth is disabled), false if the
-// operator dismissed the prompt without entering one.
-async function ensureBearerTokenForAuthEnabled(reason) {
-  if (getApiToken()) return true;
-  try {
-    const res = await fetch('/v1/ready');
-    if (!res.ok) return true;
-    const data = await res.json();
-    if (!data || !data.auth_enabled) return true;
-  } catch (_) {
-    return true;  // probe failed; let downstream 401 handling take it
-  }
+// Prompt the operator for a bearer token when /chat or another endpoint
+// 401s. Only used reactively (not on page load), since the default Nūr
+// posture is open like Ollama/Jupyter — auth is only required when the
+// operator deliberately sets `api_key` in runtime_config.yaml.
+async function promptForBearerToken(reason) {
   const hint =
     (reason ? reason + '\n\n' : '') +
-    'This Nūr server requires an API token.\n\n' +
-    'When `nur-web` started it printed a banner like:\n' +
-    '  Generated api_key for non-loopback bind (0.0.0.0):\n' +
-    '    <your-token>\n\n' +
-    'Paste that token here. You can also manage tokens at /admin.';
+    'This Nūr server has `api_key` set in runtime_config.yaml, so this ' +
+    'endpoint requires a bearer token. Paste the token from your config ' +
+    'here. You can also manage tokens via /admin → API Token.';
   const tok = window.prompt(hint, '');
   if (tok && tok.trim()) {
     setApiToken(tok.trim());
@@ -93,10 +81,6 @@ async function ensureBearerTokenForAuthEnabled(reason) {
   }
   return false;
 }
-
-// Probe once on page load so the operator is asked for the token up front
-// instead of seeing a silent failure on first message send.
-ensureBearerTokenForAuthEnabled().catch(() => {});
 
 // Auto-resize textarea
 inputEl.addEventListener('input', () => {
@@ -194,7 +178,7 @@ async function sendMessage() {
       body: JSON.stringify({ message: text, user_id: userId, chat_id: chatId }),
     });
     if (res.status === 401) {
-      const ok = await ensureBearerTokenForAuthEnabled(
+      const ok = await promptForBearerToken(
         getApiToken() ? 'The current API token was rejected.' : 'No API token is set for this browser.'
       );
       if (ok) {

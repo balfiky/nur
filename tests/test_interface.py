@@ -1255,9 +1255,6 @@ class TestEntryPoints:
             [
                 "nur-web", "--host", "0.0.0.0", "--port", "9001",
                 "--config", str(config_path),
-                # The default config has empty api_key, so the bind guard would
-                # refuse 0.0.0.0. This test is about flag plumbing, not auth.
-                "--allow-unauthenticated-bind",
             ],
         )
         monkeypatch.setattr(interface_api, "RUNTIME_CONFIG_PATH", str(config_path))

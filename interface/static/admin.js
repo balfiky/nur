@@ -1744,9 +1744,8 @@ const state = createSurfaceState({
     els.tokenBtn.addEventListener("click", openTokenDialog);
     els.saveTokenBtn.addEventListener("click", () => {
       setApiToken(els.apiTokenInput.value.trim());
-      // After the operator pastes the bearer token, run the deferred loadAll
-      // (if this was a first-load dialog) so the admin page actually
-      // populates instead of waiting for the next manual click.
+      // Re-run loadAll so the admin page populates with the new token
+      // without requiring a manual refresh.
       loadAll().catch((err) => {
         setStatus("Error", "error");
         showToast(err.message || String(err), "error");
@@ -1859,25 +1858,7 @@ const state = createSurfaceState({
   wireEvents();
   window.addEventListener("hashchange", openPageFromHash);
   openPageFromHash();
-
-  // On first load, if the server has auth enabled and this browser session
-  // has no stored token, open the token dialog before any 401 fires. The
-  // dialog includes a hint pointing operators at the nur-web startup banner.
-  (async () => {
-    try {
-      const res = await fetch("/v1/ready");
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.auth_enabled && !getApiToken()) {
-          openTokenDialog();
-          return;
-        }
-      }
-    } catch (_) {
-      // /v1/ready unreachable means we can't tell — let the 401 path handle it.
-    }
-    loadAll().catch((err) => {
-      setStatus("Error", "error");
-      showToast(err.message || String(err), "error");
-    });
-  })();
+  loadAll().catch((err) => {
+    setStatus("Error", "error");
+    showToast(err.message || String(err), "error");
+  });

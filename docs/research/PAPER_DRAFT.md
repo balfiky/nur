@@ -9,8 +9,8 @@
 > [PRIVACY](../../PRIVACY.md), and
 > [DEPLOYMENT_AND_ADMIN](../DEPLOYMENT_AND_ADMIN.md).
 > Sections below predate the Life History, constitution, drives, skills,
-> self-evolution model, and the `nur-web` non-loopback bind guard, and have
-> not yet been rewritten against those layers.
+> and self-evolution model, and have not yet been rewritten against
+> those layers.
 
 This file accumulates prose drafts as outline sections become stable.
 `PAPER_OUTLINE.md` remains the navigable skeleton; this file is the

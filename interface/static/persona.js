@@ -590,22 +590,4 @@ const state = createSurfaceState({
 
   bindEvents();
   configureRefreshTimer();
-
-  // Prompt for the bearer token up front when the server has auth enabled
-  // and this browser session has no stored token, so the operator sees the
-  // first-run hint dialog instead of a silent 401 on the first poll.
-  (async () => {
-    try {
-      const res = await fetch("/v1/ready");
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.auth_enabled && !getApiToken()) {
-          openTokenDialog();
-          return;
-        }
-      }
-    } catch (_) {
-      // probe failed; fall through to loadDashboard which will 401 if needed
-    }
-    loadDashboard().catch(handleError);
-  })();
+  loadDashboard().catch(handleError);

@@ -3258,16 +3258,6 @@ def _parse_web_args(argv: list[str] | None = None):
         help="Runtime config YAML path (default: runtime_config.yaml).",
     )
     parser.add_argument(
-        "--allow-unauthenticated-bind",
-        action="store_true",
-        help=(
-            "Override the safety guard that refuses to bind to a non-loopback "
-            "interface when `api_key` is empty in the runtime config. Only use "
-            "this if you have an external auth layer (reverse proxy, VPN, "
-            "Tailscale) in front of Nūr."
-        ),
-    )
-    parser.add_argument(
         "--version",
         action="version",
         version=f"project-nur {_web_version()}",
@@ -3299,14 +3289,17 @@ def main() -> None:
 
     First-run friendly: if ``runtime_config.yaml`` is missing, ``nur-web``
     creates one with safe defaults (mock LLM backend, tools off, shell
-    off, no Telegram). Operators can edit it via ``/settings`` once the
-    server is up.
+    off, no Telegram) and binds. The browser setup wizard at ``/``
+    walks the operator through model, identity, and tool settings.
 
-    For non-loopback binds, ``api_key`` must be non-empty. If the config
-    has no ``api_key`` set, ``nur-web`` auto-generates a strong one,
-    persists it, and prints it once so the operator can save it. Pass
-    ``--allow-unauthenticated-bind`` only if you have an external auth
-    layer (reverse proxy, VPN, Tailscale) in front of Nūr.
+    Authentication is **opt-in**. If the operator sets ``api_key`` in
+    ``runtime_config.yaml``, protected endpoints (``/chat``, ``/admin/*``,
+    ``/v1/*``, ``/ws``, ...) require ``Authorization: Bearer <api_key>``.
+    Otherwise they are open — matching the convention of other local-LLM
+    tools (Ollama, LM Studio, Jupyter). When binding to a non-loopback
+    host without ``api_key`` set, ``nur-web`` prints a one-screen
+    warning to stderr so the operator knows the surface is reachable
+    from the network.
     """
     import uvicorn
 
@@ -3324,41 +3317,21 @@ def main() -> None:
         )
         sys.exit(2)
 
-    if not _is_loopback_host(args.host) and not args.allow_unauthenticated_bind:
-        api_key = (cfg.api_key or "").strip()
-        if not api_key:
-            generated = secrets.token_urlsafe(32)
-            cfg.api_key = generated
-            try:
-                cfg.write_yaml(args.config)
-            except Exception as exc:
-                print(
-                    f"refusing to bind to {args.host!r}: could not persist a "
-                    f"generated api_key to {args.config!r}: {exc}.\n"
-                    "Set `api_key` manually in runtime_config.yaml, or pass "
-                    "--allow-unauthenticated-bind if you have an external "
-                    "auth layer (reverse proxy, VPN, Tailscale).",
-                    file=sys.stderr,
-                )
-                sys.exit(2)
-            print(
-                "",
-                "=" * 72,
-                f"Generated api_key for non-loopback bind ({args.host}):",
-                "",
-                f"  {generated}",
-                "",
-                "Saved to "
-                f"{args.config!r}. Copy this token now — clients must send",
-                "  Authorization: Bearer <api_key>",
-                "to use /chat, /admin/*, /v1/*, /ws, and other protected",
-                "endpoints. You can rotate it later by editing the config file",
-                "or via /settings → API Token.",
-                "=" * 72,
-                "",
-                sep="\n",
-                file=sys.stderr,
-            )
+    if not _is_loopback_host(args.host) and not (cfg.api_key or "").strip():
+        print(
+            "",
+            "=" * 72,
+            f"WARNING: Nūr is binding to {args.host!r} with no api_key set.",
+            "",
+            "Anyone who can reach this host on the network can talk to Nūr,",
+            "read your memory, change config, and (if tools are on) run shell",
+            "commands. If that is not what you want, stop the server, set",
+            f"`api_key: <a-strong-token>` in {args.config!r}, and restart.",
+            "=" * 72,
+            "",
+            sep="\n",
+            file=sys.stderr,
+        )
 
     uvicorn.run("interface.api:app", host=args.host, port=args.port)
 

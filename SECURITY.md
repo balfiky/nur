@@ -99,20 +99,26 @@ When you turn external tools on:
   `api_key` and keep `shell_tool_enabled: false` unless you trust every
   caller.
 
-The `nur-web` launcher enforces this at startup. On a non-loopback bind
-(anything other than `127.0.0.1` / `localhost` / `::1`) with an empty
-`api_key`, it auto-generates a strong token, persists it to the runtime
-config, and prints it once for the operator to copy. Loopback binds
-skip key generation, since they are not reachable from off-host.
-Operators that already front Nūr with an external auth layer (reverse
-proxy, VPN, Tailscale) can disable key generation with
-`--allow-unauthenticated-bind`. The launcher never opens a non-loopback
-unauthenticated bind without that explicit override.
+Bearer auth on `nur-web` is **opt-in**, matching the convention of
+other local-LLM tools (Ollama, LM Studio, Jupyter). With no `api_key`
+set in `runtime_config.yaml`, the HTTP surface is open. On a non-loopback
+bind (`--host 0.0.0.0` or any non-`127.0.0.1`/`localhost`/`::1` value)
+the launcher prints a one-screen warning to stderr so the operator
+knows the surface is reachable from the network.
+
+Set `api_key: <a-strong-token>` in `runtime_config.yaml` and restart to
+require bearer auth on `/chat`, `/debug`, `/config`, `/session/end`,
+`/rest`, `/ws`, every `/admin/*` JSON endpoint, and every `/v1/*`
+endpoint except `/v1/health` and `/v1/ready`. This is recommended any
+time more than one person can reach the host (multi-user tailnet,
+shared LAN, public IP).
 
 On first run the launcher also auto-creates `runtime_config.yaml` with
 safe defaults (mock LLM backend, tools off, shell off, no Telegram) if
 the file does not already exist, so a clean `pip install` → `nur-web`
-flow works without a separate `nur-setup` step.
+flow works without a separate `nur-setup` step. The browser setup
+wizard at `/` walks the operator through model, identity, and tool
+settings.
 
 When `api_key` is set, every mutating and data-bearing endpoint on the
 standalone web server requires `Authorization: Bearer <api_key>`:
