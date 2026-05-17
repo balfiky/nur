@@ -52,7 +52,7 @@ release.
 
 ## Coverage Matrix
 
-The suite contains 67 tests across nine files.
+The suite contains 67 tests across eleven files.
 
 | Surface | UAT files |
 |---|---|

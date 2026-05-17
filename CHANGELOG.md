@@ -4,6 +4,32 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.30.4 — 2026-05-17
+
+### Documentation
+
+- **Public-bind text aligned with v0.30.3 guard.** README and
+  `docs/DEPLOYMENT_AND_ADMIN.md` no longer say "No API token is
+  required by default" next to a `--host 0.0.0.0` example. Both now
+  state that `nur-web` refuses non-loopback binds with an empty
+  `api_key` and that `--allow-unauthenticated-bind` is only for
+  setups behind an external auth layer.
+- **Production hardening checklist** in
+  `docs/DEPLOYMENT_AND_ADMIN.md` rewrites item 1 to require either
+  `api_key` or external auth before non-loopback bind, rather than
+  suggesting `api_key` may stay empty when binding beyond localhost.
+- **`docs/UAT.md` file count** corrected from "nine files" to
+  "eleven files" — the coverage matrix already listed all eleven.
+- **`docs/research/PAPER_DRAFT.md`** carries an explicit stale-draft
+  banner pointing reviewers at README / OVERVIEW / ARCHITECTURE /
+  SECURITY / PRIVACY / DEPLOYMENT_AND_ADMIN as the current product
+  truth. The draft predates Life History, constitution, drives,
+  skills, the self-evolution model, and the `nur-web` bind guard.
+
+No code or test changes. v0.30.4 is doc-only on top of v0.30.3.
+
+---
+
 ## v0.30.3 — 2026-05-16
 
 ### Security

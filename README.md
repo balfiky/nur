@@ -13,7 +13,7 @@
   <a href="https://github.com/balfiky/nur/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/balfiky/nur/ci.yml?branch=main&style=for-the-badge&label=CI" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-F5A65B?style=for-the-badge" alt="MIT License"></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/python-3.10%2B-7A4A8C?style=for-the-badge" alt="Python 3.10+"></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.30.3-1A1428?style=for-the-badge" alt="Version"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.30.4-1A1428?style=for-the-badge" alt="Version"></a>
 </p>
 
 <p align="center">
@@ -161,15 +161,17 @@ If you prefer the browser wizard instead of terminal prompts, run it explicitly:
 nur-setup --web --config runtime_config.yaml
 ```
 
-For a LAN/public bind, run the same command with a public host:
+For a LAN/public bind, set `api_key` first, then run with a public host:
 
 ```bash
 nur-web --host 0.0.0.0 --port 8000 --config runtime_config.yaml
 ```
 
-No API token is required by default. If you later set `api_key` in `/settings`,
-the browser settings workspace has an **API Token** button for that hardened
-mode.
+Without `api_key`, `nur-web` refuses non-loopback binds and exits with code 2.
+Use `--allow-unauthenticated-bind` only when Nūr is behind an external auth
+layer such as a reverse proxy, VPN, or Tailscale. Localhost binds
+(`127.0.0.1` / `localhost` / `::1`) skip the guard. Once `api_key` is set, the
+browser settings workspace has an **API Token** button for the hardened flow.
 
 To remove a local Nūr workspace:
 
@@ -338,7 +340,7 @@ docs/       Public docs, design docs, diagrams, research notes
 
 ## Current Status
 
-Version `0.30.3`. Reproducible eval evidence is intentionally narrow: relationship memory remains load-bearing under Phase 11, Life History now has bounded structural influence through LifeInfluence under Phase 13, and semantic memory has a dedicated structural scenario suite. The web and Telegram surfaces expose this state through presentation-only introspection. A 67-test UAT suite covers chat flows, admin surfaces, browser interactions, file uploads, tool calling, skill acquisition, and the self-evolution mechanics; it is **live-LLM by design** and is **not run on every push** — CI runs the unit/integration suite plus a mock-backed UAT collection-and-smoke gate. To exercise the full live UAT suite locally, run `make uat-comprehensive` against a real backend (see [docs/UAT.md](docs/UAT.md)). These are structural/inspectable results, not proof of human-likeness, therapeutic value, consciousness, or psychological validity.
+Version `0.30.4`. Reproducible eval evidence is intentionally narrow: relationship memory remains load-bearing under Phase 11, Life History now has bounded structural influence through LifeInfluence under Phase 13, and semantic memory has a dedicated structural scenario suite. The web and Telegram surfaces expose this state through presentation-only introspection. A 67-test UAT suite covers chat flows, admin surfaces, browser interactions, file uploads, tool calling, skill acquisition, and the self-evolution mechanics; it is **live-LLM by design** and is **not run on every push** — CI runs the unit/integration suite plus a mock-backed UAT collection-and-smoke gate. To exercise the full live UAT suite locally, run `make uat-comprehensive` against a real backend (see [docs/UAT.md](docs/UAT.md)). These are structural/inspectable results, not proof of human-likeness, therapeutic value, consciousness, or psychological validity.
 
 ### Known Gaps
 

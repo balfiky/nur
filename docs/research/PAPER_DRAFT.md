@@ -1,5 +1,17 @@
 # Paper Draft
 
+> **Status: research draft, partially stale relative to v0.30.3.**
+> For current product behavior, use
+> [README](../../README.md),
+> [OVERVIEW](../OVERVIEW.md),
+> [ARCHITECTURE](../ARCHITECTURE.md),
+> [SECURITY](../../SECURITY.md),
+> [PRIVACY](../../PRIVACY.md), and
+> [DEPLOYMENT_AND_ADMIN](../DEPLOYMENT_AND_ADMIN.md).
+> Sections below predate the Life History, constitution, drives, skills,
+> self-evolution model, and the `nur-web` non-loopback bind guard, and have
+> not yet been rewritten against those layers.
+
 This file accumulates prose drafts as outline sections become stable.
 `PAPER_OUTLINE.md` remains the navigable skeleton; this file is the
 running text. Sections were drafted §6 first (to lock scope language

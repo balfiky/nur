@@ -71,14 +71,18 @@ Nūr is not published on PyPI yet. `pip install project-nur` will only work
 after a public wheel is released.
 
 For local-only use, the default `nur-web` command binds to `127.0.0.1`. For
-LAN/public testing:
+LAN/public testing, set `api_key` first, then bind to a public host:
 
 ```bash
 nur-web --host 0.0.0.0 --port 8000 --config runtime_config.yaml
 ```
 
-No API token is required by default. If you later set `api_key`, the browser
-settings workspace has an **API Token** button for that hardened mode.
+Without `api_key`, `nur-web` refuses non-loopback binds and exits with code 2.
+Use `--allow-unauthenticated-bind` only when Nūr is fronted by an external auth
+layer (reverse proxy, VPN, Tailscale). Loopback binds (`127.0.0.1` /
+`localhost` / `::1`) skip the guard, so localhost-only personal use does not
+need `api_key`. Once `api_key` is set, the browser settings workspace has an
+**API Token** button for the hardened flow.
 
 `nur-web` now also accepts `--config /path/to/runtime_config.yaml` when you need
 to run from a systemd working directory that differs from the config location.
@@ -210,10 +214,12 @@ runtime tool settings, workspace restrictions, auth posture, and shell opt-in.
 
 ## First Production Hardening Checklist
 
-Before binding Nūr beyond your own machine:
+For localhost-only personal use, `api_key` may stay empty. Before binding
+Nūr beyond your own machine:
 
-1. Leave `api_key` empty for the simplest personal setup, or set it only when
-   you deliberately want bearer-token auth.
+1. Set `api_key`, or place Nūr behind an external auth layer (reverse proxy,
+   VPN, Tailscale) and pass `--allow-unauthenticated-bind`. `nur-web` refuses
+   non-loopback binds with an empty `api_key` and no override.
 2. Keep `cors_origins: []` unless a separate browser origin needs access.
 3. Keep `tools_enabled: false` until you explicitly need agentic tools.
 4. Keep `shell_tool_enabled: false` unless every authenticated user is trusted.

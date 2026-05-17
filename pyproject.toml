@@ -1,6 +1,6 @@
 [project]
 name = "project-nur"
-version = "0.30.3"
+version = "0.30.4"
 description = "Cognitive runtime that gives LLM agents persistent state, identity, and learning across turns"
 readme = "README.md"
 license = { file = "LICENSE" }
