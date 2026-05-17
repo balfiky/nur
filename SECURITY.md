@@ -99,12 +99,20 @@ When you turn external tools on:
   `api_key` and keep `shell_tool_enabled: false` unless you trust every
   caller.
 
-The `nur-web` launcher enforces this at startup: it refuses to bind to
-a non-loopback interface (anything other than `127.0.0.1` / `localhost`
-/ `::1`) when `api_key` is empty in the runtime config, exiting with
-code 2 and a clear error. Operators with an external auth layer
-(reverse proxy, VPN, Tailscale) can override the guard with
-`--allow-unauthenticated-bind`.
+The `nur-web` launcher enforces this at startup. On a non-loopback bind
+(anything other than `127.0.0.1` / `localhost` / `::1`) with an empty
+`api_key`, it auto-generates a strong token, persists it to the runtime
+config, and prints it once for the operator to copy. Loopback binds
+skip key generation, since they are not reachable from off-host.
+Operators that already front Nūr with an external auth layer (reverse
+proxy, VPN, Tailscale) can disable key generation with
+`--allow-unauthenticated-bind`. The launcher never opens a non-loopback
+unauthenticated bind without that explicit override.
+
+On first run the launcher also auto-creates `runtime_config.yaml` with
+safe defaults (mock LLM backend, tools off, shell off, no Telegram) if
+the file does not already exist, so a clean `pip install` → `nur-web`
+flow works without a separate `nur-setup` step.
 
 When `api_key` is set, every mutating and data-bearing endpoint on the
 standalone web server requires `Authorization: Bearer <api_key>`:

@@ -1,16 +1,18 @@
-"""Startup-guard tests for the ``nur-web`` launcher.
+"""Startup behavior tests for the ``nur-web`` launcher.
 
-The launcher refuses to bind a non-loopback interface when ``api_key``
-is empty in the runtime config, because the bundled HTTP surface exposes
-memory, identity, admin, and (when enabled) tool endpoints. An open bind
-without bearer auth is a footgun, so the launcher exits with code 2 and
-a clear message. Operators with an external auth layer (reverse proxy,
-VPN, Tailscale) can override the guard with ``--allow-unauthenticated-bind``.
+The launcher is first-run friendly: it auto-creates ``runtime_config.yaml``
+with safe defaults if the file is missing, and for non-loopback binds it
+auto-generates a strong ``api_key`` rather than refusing. This preserves
+the v0.30.3 safety guarantee (never bind a non-loopback interface without
+a bearer-auth requirement) while removing the "edit YAML by hand" wall
+new operators hit on first install. Override remains
+``--allow-unauthenticated-bind`` for external-auth-layer deployments.
 """
 
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -37,7 +39,7 @@ def fake_uvicorn(monkeypatch):
     return calls
 
 
-class TestUnauthenticatedBindGuard:
+class TestLoopbackBinds:
     def test_loopback_with_empty_api_key_is_allowed(
         self, tmp_path, fake_uvicorn, monkeypatch,
     ):
@@ -47,45 +49,6 @@ class TestUnauthenticatedBindGuard:
         )
         nur_api.main()
         assert fake_uvicorn[-1]["host"] == "127.0.0.1"
-
-    def test_non_loopback_with_empty_api_key_refused(
-        self, tmp_path, fake_uvicorn, monkeypatch, capsys,
-    ):
-        cfg_path = _write_config(tmp_path, api_key="")
-        monkeypatch.setattr(
-            sys, "argv", ["nur-web", "--host", "0.0.0.0", "--config", cfg_path],
-        )
-        with pytest.raises(SystemExit) as exc:
-            nur_api.main()
-        assert exc.value.code == 2
-        err = capsys.readouterr().err
-        assert "refusing to bind" in err
-        assert "api_key" in err
-        assert not fake_uvicorn  # uvicorn.run never reached
-
-    def test_non_loopback_with_api_key_set_is_allowed(
-        self, tmp_path, fake_uvicorn, monkeypatch,
-    ):
-        cfg_path = _write_config(tmp_path, api_key="some-bearer-token")
-        monkeypatch.setattr(
-            sys, "argv", ["nur-web", "--host", "0.0.0.0", "--config", cfg_path],
-        )
-        nur_api.main()
-        assert fake_uvicorn[-1]["host"] == "0.0.0.0"
-
-    def test_non_loopback_with_override_flag_is_allowed(
-        self, tmp_path, fake_uvicorn, monkeypatch,
-    ):
-        cfg_path = _write_config(tmp_path, api_key="")
-        monkeypatch.setattr(
-            sys, "argv",
-            [
-                "nur-web", "--host", "0.0.0.0",
-                "--allow-unauthenticated-bind", "--config", cfg_path,
-            ],
-        )
-        nur_api.main()
-        assert fake_uvicorn[-1]["host"] == "0.0.0.0"
 
     @pytest.mark.parametrize("loopback", ["127.0.0.1", "localhost", "::1"])
     def test_loopback_aliases_skip_guard(
@@ -97,3 +60,108 @@ class TestUnauthenticatedBindGuard:
         )
         nur_api.main()
         assert fake_uvicorn[-1]["host"] == loopback
+
+    def test_loopback_does_not_generate_or_persist_api_key(
+        self, tmp_path, fake_uvicorn, monkeypatch,
+    ):
+        cfg_path = _write_config(tmp_path, api_key="")
+        monkeypatch.setattr(
+            sys, "argv", ["nur-web", "--host", "127.0.0.1", "--config", cfg_path],
+        )
+        nur_api.main()
+        reloaded = RuntimeConfig.from_yaml(cfg_path)
+        assert reloaded.api_key == ""
+
+
+class TestNonLoopbackAutoApiKey:
+    def test_non_loopback_with_empty_api_key_auto_generates(
+        self, tmp_path, fake_uvicorn, monkeypatch, capsys,
+    ):
+        cfg_path = _write_config(tmp_path, api_key="")
+        monkeypatch.setattr(
+            sys, "argv", ["nur-web", "--host", "0.0.0.0", "--config", cfg_path],
+        )
+        nur_api.main()
+        # Server actually starts now — no refuse/exit.
+        assert fake_uvicorn[-1]["host"] == "0.0.0.0"
+        # Key is persisted to config.
+        reloaded = RuntimeConfig.from_yaml(cfg_path)
+        assert reloaded.api_key
+        assert len(reloaded.api_key) >= 32
+        # Key is printed once for the operator to copy.
+        err = capsys.readouterr().err
+        assert "Generated api_key" in err
+        assert reloaded.api_key in err
+        assert "Authorization: Bearer" in err
+
+    def test_non_loopback_preserves_existing_api_key(
+        self, tmp_path, fake_uvicorn, monkeypatch, capsys,
+    ):
+        cfg_path = _write_config(tmp_path, api_key="operator-set-token-abc")
+        monkeypatch.setattr(
+            sys, "argv", ["nur-web", "--host", "0.0.0.0", "--config", cfg_path],
+        )
+        nur_api.main()
+        assert fake_uvicorn[-1]["host"] == "0.0.0.0"
+        reloaded = RuntimeConfig.from_yaml(cfg_path)
+        assert reloaded.api_key == "operator-set-token-abc"
+        # No "Generated api_key" banner when key was already set.
+        err = capsys.readouterr().err
+        assert "Generated api_key" not in err
+
+    def test_non_loopback_with_override_flag_skips_key_generation(
+        self, tmp_path, fake_uvicorn, monkeypatch, capsys,
+    ):
+        cfg_path = _write_config(tmp_path, api_key="")
+        monkeypatch.setattr(
+            sys, "argv",
+            [
+                "nur-web", "--host", "0.0.0.0",
+                "--allow-unauthenticated-bind", "--config", cfg_path,
+            ],
+        )
+        nur_api.main()
+        assert fake_uvicorn[-1]["host"] == "0.0.0.0"
+        # api_key stays empty when the operator explicitly waives bearer auth.
+        reloaded = RuntimeConfig.from_yaml(cfg_path)
+        assert reloaded.api_key == ""
+        err = capsys.readouterr().err
+        assert "Generated api_key" not in err
+
+
+class TestFirstRunBootstrap:
+    def test_missing_config_is_auto_created_with_safe_defaults(
+        self, tmp_path, fake_uvicorn, monkeypatch,
+    ):
+        cfg_path = str(tmp_path / "fresh" / "runtime_config.yaml")
+        assert not Path(cfg_path).exists()
+        monkeypatch.setattr(
+            sys, "argv", ["nur-web", "--host", "127.0.0.1", "--config", cfg_path],
+        )
+        nur_api.main()
+        # Config file exists after first run.
+        assert Path(cfg_path).is_file()
+        # Defaults are safe: tools off, shell off, no api_key on loopback.
+        cfg = RuntimeConfig.from_yaml(cfg_path)
+        assert cfg.tools_enabled is False
+        assert cfg.shell_tool_enabled is False
+        assert cfg.api_key == ""
+        # Data dir was created.
+        assert Path(cfg.data_dir).is_dir()
+        assert fake_uvicorn[-1]["host"] == "127.0.0.1"
+
+    def test_missing_config_with_public_bind_bootstraps_and_generates_key(
+        self, tmp_path, fake_uvicorn, monkeypatch, capsys,
+    ):
+        cfg_path = str(tmp_path / "fresh" / "runtime_config.yaml")
+        monkeypatch.setattr(
+            sys, "argv", ["nur-web", "--host", "0.0.0.0", "--config", cfg_path],
+        )
+        nur_api.main()
+        assert Path(cfg_path).is_file()
+        cfg = RuntimeConfig.from_yaml(cfg_path)
+        assert cfg.api_key
+        err = capsys.readouterr().err
+        assert "Generated api_key" in err
+        assert cfg.api_key in err
+        assert fake_uvicorn[-1]["host"] == "0.0.0.0"

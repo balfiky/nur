@@ -4,6 +4,45 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.30.5 — 2026-05-17
+
+### First-run UX
+
+- **`nur-web` is now self-bootstrapping on a clean install.** If
+  `runtime_config.yaml` does not exist, the launcher creates one with
+  safe defaults (mock LLM backend, tools off, shell off, no Telegram)
+  and creates the `data_dir` before binding. A fresh `pip install
+  project-nur` followed by `nur-web --host 0.0.0.0 --port 8000` now
+  works end-to-end without a separate `nur-setup` step.
+- **Non-loopback bind with empty `api_key` auto-generates a strong
+  token** instead of refusing. The launcher writes a
+  `secrets.token_urlsafe(32)` value to the config and prints it once
+  on startup so the operator can copy it. The v0.30.3 safety
+  guarantee is preserved — non-loopback binds still cannot run
+  unauthenticated. Loopback binds skip key generation, since they
+  are not reachable from off-host. `--allow-unauthenticated-bind`
+  still disables key generation for setups behind an external auth
+  layer (reverse proxy, VPN, Tailscale).
+
+### Tests
+
+- Launcher test suite restructured into `TestLoopbackBinds`,
+  `TestNonLoopbackAutoApiKey`, and `TestFirstRunBootstrap` — 10
+  cases total, covering loopback aliases, auto-key persistence,
+  existing-key preservation, override-flag bypass, and first-run
+  config bootstrap (both loopback and non-loopback paths).
+- Total non-UAT suite: **1972 tests** (was 1962) — the launcher
+  refactor added 3 new cases for the bootstrap and auto-key paths.
+
+### Documentation
+
+- README, `docs/DEPLOYMENT_AND_ADMIN.md`, and `SECURITY.md` updated
+  to describe auto-bootstrap and auto-key behavior. The hardening
+  checklist no longer says "refuse"; it now describes the
+  generate-or-set-or-waive choice explicitly.
+
+---
+
 ## v0.30.4 — 2026-05-17
 
 ### Documentation

@@ -3282,15 +3282,31 @@ def _is_loopback_host(host: str) -> bool:
     return (host or "").strip().lower() in _LOOPBACK_HOSTS
 
 
+def _bootstrap_runtime_config(config_path: str) -> RuntimeConfig:
+    """Create runtime_config.yaml + data dir with safe defaults if missing,
+    then return the loaded config. Idempotent — does nothing if the file
+    already exists.
+    """
+    from interface.setup import _initialize_workspace
+
+    path = Path(config_path).expanduser()
+    _initialize_workspace(path, "data", force=False)
+    return RuntimeConfig.from_yaml(str(path.resolve()))
+
+
 def main() -> None:
     """Launch the standalone web UI on the configured host/port.
 
-    Refuses to bind to a non-loopback interface when ``api_key`` is empty
-    in the runtime config — the bundled HTTP surface ships memory,
-    identity, admin, and (when enabled) tool endpoints, so an open bind
-    without a bearer-auth requirement is a footgun. Pass
-    ``--allow-unauthenticated-bind`` if you have an external auth layer
-    in front of Nūr.
+    First-run friendly: if ``runtime_config.yaml`` is missing, ``nur-web``
+    creates one with safe defaults (mock LLM backend, tools off, shell
+    off, no Telegram). Operators can edit it via ``/settings`` once the
+    server is up.
+
+    For non-loopback binds, ``api_key`` must be non-empty. If the config
+    has no ``api_key`` set, ``nur-web`` auto-generates a strong one,
+    persists it, and prints it once so the operator can save it. Pass
+    ``--allow-unauthenticated-bind`` only if you have an external auth
+    layer (reverse proxy, VPN, Tailscale) in front of Nūr.
     """
     import uvicorn
 
@@ -3299,22 +3315,50 @@ def main() -> None:
     RUNTIME_CONFIG_PATH = args.config
     os.environ["NUR_RUNTIME_CONFIG"] = args.config
 
+    try:
+        cfg = _bootstrap_runtime_config(args.config)
+    except Exception as exc:
+        print(
+            f"failed to read or create runtime config at {args.config!r}: {exc}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
     if not _is_loopback_host(args.host) and not args.allow_unauthenticated_bind:
-        try:
-            cfg = RuntimeConfig.from_yaml(args.config)
-        except Exception:
-            cfg = None
-        api_key = (getattr(cfg, "api_key", "") or "").strip() if cfg else ""
+        api_key = (cfg.api_key or "").strip()
         if not api_key:
+            generated = secrets.token_urlsafe(32)
+            cfg.api_key = generated
+            try:
+                cfg.write_yaml(args.config)
+            except Exception as exc:
+                print(
+                    f"refusing to bind to {args.host!r}: could not persist a "
+                    f"generated api_key to {args.config!r}: {exc}.\n"
+                    "Set `api_key` manually in runtime_config.yaml, or pass "
+                    "--allow-unauthenticated-bind if you have an external "
+                    "auth layer (reverse proxy, VPN, Tailscale).",
+                    file=sys.stderr,
+                )
+                sys.exit(2)
             print(
-                f"refusing to bind to {args.host!r}: api_key is empty in "
-                f"{args.config!r}.\n"
-                "Set `api_key` in runtime_config.yaml before exposing Nūr "
-                "beyond localhost, or pass --allow-unauthenticated-bind if "
-                "you have an external auth layer (reverse proxy, VPN, Tailscale).",
+                "",
+                "=" * 72,
+                f"Generated api_key for non-loopback bind ({args.host}):",
+                "",
+                f"  {generated}",
+                "",
+                "Saved to "
+                f"{args.config!r}. Copy this token now — clients must send",
+                "  Authorization: Bearer <api_key>",
+                "to use /chat, /admin/*, /v1/*, /ws, and other protected",
+                "endpoints. You can rotate it later by editing the config file",
+                "or via /settings → API Token.",
+                "=" * 72,
+                "",
+                sep="\n",
                 file=sys.stderr,
             )
-            sys.exit(2)
 
     uvicorn.run("interface.api:app", host=args.host, port=args.port)
 

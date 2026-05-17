@@ -71,18 +71,25 @@ Nūr is not published on PyPI yet. `pip install project-nur` will only work
 after a public wheel is released.
 
 For local-only use, the default `nur-web` command binds to `127.0.0.1`. For
-LAN/public testing, set `api_key` first, then bind to a public host:
+LAN/public testing, just point it at a public host:
 
 ```bash
 nur-web --host 0.0.0.0 --port 8000 --config runtime_config.yaml
 ```
 
-Without `api_key`, `nur-web` refuses non-loopback binds and exits with code 2.
-Use `--allow-unauthenticated-bind` only when Nūr is fronted by an external auth
-layer (reverse proxy, VPN, Tailscale). Loopback binds (`127.0.0.1` /
-`localhost` / `::1`) skip the guard, so localhost-only personal use does not
-need `api_key`. Once `api_key` is set, the browser settings workspace has an
-**API Token** button for the hardened flow.
+On first run, `nur-web` auto-creates `runtime_config.yaml` with safe defaults
+(mock backend, tools off, shell off, no Telegram) if the file does not already
+exist. For non-loopback binds with no `api_key` set, it generates a strong
+token, saves it to the config, and prints it once on startup. Clients then
+authenticate with `Authorization: Bearer <api_key>` against `/chat`,
+`/admin/*`, `/v1/*`, `/ws`, and other protected endpoints. The browser
+settings workspace has an **API Token** button for the hardened flow, and you
+can rotate the key later by editing the config or via `/settings`.
+
+Loopback binds (`127.0.0.1` / `localhost` / `::1`) skip the auto-key, so
+localhost-only personal use does not need a token. If Nūr already sits behind
+an external auth layer (reverse proxy, VPN, Tailscale) and you want to skip
+key generation, pass `--allow-unauthenticated-bind`.
 
 `nur-web` now also accepts `--config /path/to/runtime_config.yaml` when you need
 to run from a systemd working directory that differs from the config location.
@@ -217,9 +224,13 @@ runtime tool settings, workspace restrictions, auth posture, and shell opt-in.
 For localhost-only personal use, `api_key` may stay empty. Before binding
 Nūr beyond your own machine:
 
-1. Set `api_key`, or place Nūr behind an external auth layer (reverse proxy,
-   VPN, Tailscale) and pass `--allow-unauthenticated-bind`. `nur-web` refuses
-   non-loopback binds with an empty `api_key` and no override.
+1. Either let `nur-web` auto-generate `api_key` on first non-loopback bind
+   (it prints the token once and persists it to the config), set one
+   manually, or place Nūr behind an external auth layer (reverse proxy,
+   VPN, Tailscale) and pass `--allow-unauthenticated-bind`. Either way,
+   non-loopback callers must authenticate or be fronted by another
+   auth layer — `nur-web` never opens a non-loopback unauthenticated
+   bind without the explicit override flag.
 2. Keep `cors_origins: []` unless a separate browser origin needs access.
 3. Keep `tools_enabled: false` until you explicitly need agentic tools.
 4. Keep `shell_tool_enabled: false` unless every authenticated user is trusted.
@@ -435,7 +446,7 @@ tick fires automatically on session start.
 The repository includes a Makefile with three test entry points:
 
 ```bash
-make test                 # 1962 unit/integration tests, ~3 min, no LLM
+make test                 # 1972 unit/integration tests, ~3 min, no LLM
 make uat                  # 67 UAT tests, ~14 min, requires NUR_UAT_LIVE=1 + a real backend
 make uat-comprehensive    # one PASS/FAIL aggregator over the whole UAT suite
 ```
