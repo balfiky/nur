@@ -4,6 +4,31 @@ All notable changes to Project Nur are documented here.
 
 ---
 
+## v0.30.9 — 2026-05-17
+
+### UI fixes
+
+- **Setup-incomplete banner cleared on bfcache and tab refocus.**
+  After completing the wizard at `/`, returning to `/settings` via the
+  browser back button would restore the page from bfcache without
+  re-running JS, leaving the v0.30.8 setup banner stuck in its stale
+  state. The settings page now listens for `pageshow` with
+  `event.persisted` and reloads everything from the server, and also
+  listens for `visibilitychange → visible` and refreshes the
+  `/admin/status` payload so the banner reflects wizard completion
+  done in another tab.
+- **Wizard finish errors surface on the summary step.** If
+  `wizardFinish` (the "Start chatting" button on step 6) fails to mark
+  setup complete — e.g., because the `/admin/config` POST returns a
+  validation error — the error now renders inline on the summary
+  step in `wiz-finish-result`, not just on the LLM step's slot which
+  is invisible while the operator is on step 6. The wizard does not
+  close on failure, so the operator can retry.
+
+UI only — no Python or test changes.
+
+---
+
 ## v0.30.8 — 2026-05-17
 
 ### UI

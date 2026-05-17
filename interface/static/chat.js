@@ -1714,7 +1714,12 @@ async function wizardFinish() {
     applySettings(data);
     setWizardOpen(false);
   } catch (err) {
-    wizardShowResult('wiz-llm-result', 'error', 'Could not mark setup complete: ' + err.message);
+    // Show the error on the summary step itself so the operator notices
+    // it (the wizard does not close), and also fall back to the LLM
+    // step's slot for backward-compatible visibility.
+    const msg = 'Could not mark setup complete: ' + err.message;
+    wizardShowResult('wiz-finish-result', 'error', msg);
+    wizardShowResult('wiz-llm-result', 'error', msg);
   }
 }
 

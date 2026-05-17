@@ -1860,7 +1860,37 @@ const state = createSurfaceState({
   wireEvents();
   window.addEventListener("hashchange", openPageFromHash);
   openPageFromHash();
-  loadAll().catch((err) => {
-    setStatus("Error", "error");
-    showToast(err.message || String(err), "error");
+
+  function reloadFromServer() {
+    return loadAll().catch((err) => {
+      setStatus("Error", "error");
+      showToast(err.message || String(err), "error");
+    });
+  }
+
+  async function refreshStatusOnly() {
+    try {
+      const res = await authedFetch("/admin/status");
+      if (!res.ok) return;
+      state.status = await res.json();
+      renderOverview();
+    } catch (_) { /* best-effort */ }
+  }
+
+  // Refresh state when the page is restored from bfcache (e.g., user
+  // hit "back" after completing the wizard at /). Without this, the
+  // settings page can render stale state.setup.completed=false and
+  // keep the setup banner visible even though setup is done.
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) reloadFromServer();
   });
+
+  // Refresh just the status payload when the tab regains focus, so the
+  // setup banner reflects whether the wizard was completed in another
+  // tab. Cheap enough not to spam the server, since /admin/status only
+  // reads admin_state.json + summary fields.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") refreshStatusOnly();
+  });
+
+  reloadFromServer();
